@@ -1,0 +1,15 @@
+function blink():number {
+  let i:number = 0;
+  while(i < 5) {
+    led_on(0, 255, 0, 255);
+    wait_ms(500);
+    led_off();
+    wait_ms(500);
+    i++;
+  }
+  return i;
+}
+
+function main():number {
+  return blink();
+}

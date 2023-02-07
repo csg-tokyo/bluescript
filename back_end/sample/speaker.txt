@@ -1,0 +1,20 @@
+function main():number {
+  speaker_on(262);
+  wait_ms(1000);
+  speaker_on(294);
+  wait_ms(1000);
+  speaker_on(330);
+  wait_ms(1000);
+  speaker_on(349);
+  wait_ms(1000);
+  speaker_on(392);
+  wait_ms(1000);
+  speaker_on(440);
+  wait_ms(1000);
+  speaker_on(494);
+  wait_ms(1000);
+  speaker_on(523);
+  wait_ms(1000);
+  speaker_off();
+  return 2;
+}

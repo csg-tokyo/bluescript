@@ -1,0 +1,53 @@
+[
+  {
+    "name": "memset",
+    "access": "internal",
+    "declaration": "void *memset(void *buf, int ch, long unsigned int n);",
+    "type": {
+      "symbolType": "function"
+    }
+  },
+  {
+    "name": "gc_root_set_head",
+    "access": "internal",
+    "declaration": "struct gc_root_set* gc_root_set_head;",
+    "type": {
+      "symbolType": "variable"
+    }
+  },
+  {
+    "name": "gc_run",
+    "access": "public",
+    "declaration": "void gc_run();",
+    "type": {
+      "symbolType": "function",
+      "returnType": "void",
+      "params": []
+    }
+  },
+  {
+    "name": "blink_led",
+    "access": "public",
+    "declaration": "void blink_led();",
+    "type": {
+      "symbolType": "function",
+      "returnType": "void",
+      "params": []
+    }
+  },
+  {
+    "name": "console_log_number",
+    "access": "public",
+    "declaration": "void console_log_number(value_t n);",
+    "type": {
+      "symbolType": "function",
+      "returnType": "void",
+      "params": [
+        {
+          "name": "n",
+          "type": "integer"
+        }
+      ]
+    }
+  }
+]

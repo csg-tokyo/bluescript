@@ -1,0 +1,15 @@
+{"name":"text","address":1074362944,"usedMemorySize":46,"_id":"G9qm7XqaGKspBOfI"}
+{"name":"data","address":1073492532,"usedMemorySize":0,"_id":"RTVqsFulc8Kxpn0C"}
+{"name":"literal","address":1074362844,"usedMemorySize":8,"_id":"gfvLugjT4X4zklUT"}
+{"name":"bss","address":1073492332,"usedMemorySize":4,"_id":"pM7lxOxr2OU7curN"}
+{"name":"rodata","address":1073493532,"usedMemorySize":6,"_id":"tga4iyhcaQ2thBtH"}
+{"$$deleted":true,"_id":"G9qm7XqaGKspBOfI"}
+{"$$deleted":true,"_id":"RTVqsFulc8Kxpn0C"}
+{"$$deleted":true,"_id":"gfvLugjT4X4zklUT"}
+{"$$deleted":true,"_id":"pM7lxOxr2OU7curN"}
+{"$$deleted":true,"_id":"tga4iyhcaQ2thBtH"}
+{"name":"bss","address":1073492332,"usedMemorySize":0,"_id":"Q52i2jGwnpdHYAma"}
+{"name":"data","address":1073492532,"usedMemorySize":0,"_id":"XlgNla2JF9HK1ENd"}
+{"name":"rodata","address":1073493532,"usedMemorySize":0,"_id":"VmBdVIdSBjj6Flce"}
+{"name":"text","address":1074362944,"usedMemorySize":0,"_id":"I1zfVqxWGaQ06ppX"}
+{"name":"literal","address":1074362844,"usedMemorySize":0,"_id":"l599WirH17bJUedo"}

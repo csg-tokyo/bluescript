@@ -1,0 +1,8 @@
+{"name":"gc_root_set_head","access":"internal","declaration":"struct gc_root_set* gc_root_set_head;","type":{"symbolType":"variable"},"address":1073489692,"_id":"AGHgenSpWE9Dz7ZM"}
+{"name":"func1","access":"public","declaration":"void func1();","type":{"symbolType":"function","params":[],"returnType":"void"},"address":1074362973,"_id":"NSD7j3juE4b8BuKY"}
+{"name":"blink_led","access":"public","declaration":"void blink_led();","type":{"symbolType":"function","returnType":"void","params":[]},"address":1074625032,"_id":"UWLDBfFk6uzOICNI"}
+{"name":"i","type":{"symbolType":"variable","variableType":"integer"},"access":"public","declaration":"value_t i;","address":1073525620,"_id":"aRGq5OQeCvSUo28K"}
+{"name":"gc_run","access":"public","declaration":"void gc_run();","type":{"symbolType":"function","returnType":"void","params":[]},"address":1074624480,"_id":"caIVCnmkAn6g65wD"}
+{"name":"console_log_number","access":"public","declaration":"void console_log_number(value_t n);","type":{"symbolType":"function","returnType":"void","params":[{"name":"n","type":"integer"}]},"address":1074625296,"_id":"dhEH8LRT4ugsePaE"}
+{"name":"memset","access":"internal","declaration":"void *memset(void *buf, int ch, long unsigned int n);","type":{"symbolType":"function"},"address":1073792076,"_id":"pt2xO54wkf52AgYU"}
+{"name":"func3","access":"public","declaration":"void func3();","type":{"symbolType":"function","params":[],"returnType":"void"},"address":1074362998,"_id":"yDWEh7HOSFWEvqJc"}

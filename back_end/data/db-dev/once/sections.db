@@ -1,0 +1,10 @@
+{"name":"rodata","address":1073526820,"usedMemorySize":0,"_id":"7TTUcMzydNoBrEsF"}
+{"name":"text","address":1074362944,"usedMemorySize":66,"_id":"hAUsk84fXeu5eqI1"}
+{"name":"literal","address":1074362844,"usedMemorySize":16,"_id":"iUpQGlKS0es6TJJO"}
+{"name":"data","address":1073525820,"usedMemorySize":0,"_id":"vJiCxnnAtpvQHRoS"}
+{"name":"bss","address":1073525620,"usedMemorySize":4,"_id":"wfTH21kfmbU68Foi"}
+{"name":"text","address":1074362944,"usedMemorySize":74,"_id":"hAUsk84fXeu5eqI1"}
+{"name":"literal","address":1074362844,"usedMemorySize":16,"_id":"iUpQGlKS0es6TJJO"}
+{"name":"data","address":1073525820,"usedMemorySize":0,"_id":"vJiCxnnAtpvQHRoS"}
+{"name":"rodata","address":1073526820,"usedMemorySize":0,"_id":"7TTUcMzydNoBrEsF"}
+{"name":"bss","address":1073525620,"usedMemorySize":4,"_id":"wfTH21kfmbU68Foi"}
