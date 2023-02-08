@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+      // To use ES module, add "module": "es6" here
+      // and add "type": "module" to package.json
+      "target": "es6",
+      "module": "CommonJS",
+      "moduleResolution": "node",
+      "baseUrl": ".",
+      "outDir": "dist",
+      "allowSyntheticDefaultImports": true,
+      "sourceMap": true,
+      "strict": true
+    },
+    "include": [
+        "src", "tests"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}

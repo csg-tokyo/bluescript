@@ -1,0 +1,19 @@
+{
+  "name": "bluec",
+  "version": "1.0.0",
+  "description": "A translator from BlueScript to C",
+  "main": "transpile.ts",
+  "scripts": {
+    "build": "tsc",
+    "exec": "tsc && node ./dist/src/transpile.js",
+    "test": "tsc && ./node_modules/.bin/uvu dist/tests"
+  },
+  "author": "Shigeru Chiba",
+  "dependencies": {
+    "@babel/parser": "^7.20.13",
+    "@babel/types": "^7.20.7"
+  },
+  "devDependencies": {
+    "uvu": "^0.5.6"
+  }
+}
