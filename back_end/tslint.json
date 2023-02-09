@@ -8,7 +8,9 @@
         "no-console": [false],
         "max-classes-per-file": false,
         "no-trailing-whitespace": false,
-        "no-bitwise": false
+        "no-bitwise": false,
+        "no-empty-interface": false,
+        "variable-name": false
     },
     "rulesDirectory": []
 }
