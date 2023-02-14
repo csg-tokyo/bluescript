@@ -1,0 +1,209 @@
+--- Binary expression with 2 terms
+### ts
+1 + 1;
+
+### c
+1 + 1;
+
+--- Binary expression with 3 terms
+### ts
+1 + 2 + 3;
+
+### c
+1 + 2 + 3;
+
+--- Binary expression with parenthesized
+### ts
+1 * ( 2 + 3 );
+
+### c
+1 * ( 2 + 3 );
+
+--- Binary expression with float
+### ts
+2.3 * 3.4;
+
+### c
+2.3 * 3.4;
+
+--- Binary expression with float and integer
+### ts
+2.3 * 1;
+
+### c
+2.3 * 1;
+
+--- Binary expression with variable
+### ts
+i + 1;
+
+### c
+i + 1;
+
+--- Assignment expression (=)
+### ts
+i = 1;
+
+### c
+i = 1;
+
+--- Assignment expression (+=)
+### ts
+i += 1;
+
+### c
+i += 1;
+
+--- Assignment expression (-=)
+### ts
+i -= 1;
+
+### c
+i -= 1;
+
+--- Assignment expression (*=)
+### ts
+i *= 1;
+
+### c
+i *= 1;
+
+--- Assignment expression (/=)
+### ts
+i /= 1;
+
+### c
+i /= 1;
+
+--- Assignment expression (%=)
+### ts
+i %= 1;
+
+### c
+i %= 1;
+
+--- Assignment expression (|=)
+### ts
+i |= 1;
+
+### c
+i |= 1;
+
+--- Assignment expression (^=)
+### ts
+i ^= 1;
+
+### c
+i ^= 1;
+
+--- Assignment expression (&=)
+### ts
+i &= 1;
+
+### c
+i &= 1;
+
+--- Assignment expression (<<=)
+### ts
+i <<= 1;
+
+### c
+i <<= 1;
+
+--- Assignment expression (>>=)
+### ts
+i >>= 1;
+
+### c
+i >>= 1;
+
+--- Update expression with addition prefix
+### ts
+++i;
+
+### c
+++i;
+
+--- Update expression with addition suffix
+### ts
+i++;
+
+### c
+i++;
+
+--- Update expression with subtraction prefix
+### ts
+--i;
+
+### c
+--i;
+
+--- Update expression with subtraction suffix
+### ts
+i--;
+
+### c
+i--;
+
+--- Unary expression (+)
+### ts
++i;
+
+### c
++i;
+
+--- Unary expression (-)
+### ts
+-i;
+
+### c
+-i;
+
+--- Unary expression (!)
+### ts
+!i;
+
+### c
+!i;
+
+--- Unary expression (~)
+### ts
+~i;
+
+### c
+~i;
+
+--- Logical expression (&&)
+### ts
+b && true;
+
+### c
+b && true;
+
+--- Logical expression with (||)
+### ts
+b || false;
+
+### c
+b || false;
+
+--- Logical expression with parenthesized
+### ts
+b && (b || true);
+
+### c
+b && ( b || true );
+
+--- Conditional expression
+### ts
+b ? 10 : 100;
+
+### c
+b ? 10 : 100;
+
+--- Conditional expression with parenthesized
+### ts
+(i === 1 ? (i === 2 ? 3 : 5) : 0);
+
+### c
+( i === 1 ? ( i === 2 ? 3 : 5 ) : 0 );

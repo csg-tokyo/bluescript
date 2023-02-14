@@ -29,6 +29,7 @@ export abstract class NodeVisitor {
         [ 'ReturnStatement', (visitor, node, env) => visitor.returnStatement(node as AST.ReturnStatement, env) ],
         [ 'EmptyStatement', (visitor, node, env) => visitor.emptyStatement(node as AST.EmptyStatement, env) ],
         [ 'BreakStatement', (visitor, node, env) => visitor.breakStatement(node as AST.BreakStatement, env) ],
+        [ 'ContinueStatement', (visitor, node, env) => visitor.continueStatement(node as AST.ContinueStatement, env) ],
         // Declaration
         [ 'VariableDeclaration', (visitor, node, env) => visitor.variableDeclaration(node as AST.VariableDeclaration, env) ],
         [ 'VariableDeclarator', (visitor, node, env) => visitor.variableDeclarator(node as AST.VariableDeclarator, env) ],
@@ -82,6 +83,7 @@ export abstract class NodeVisitor {
     abstract returnStatement(node: AST.ReturnStatement, env: Environment): void
     abstract emptyStatement(node: AST.EmptyStatement, env: Environment): void
     abstract breakStatement(node: AST.BreakStatement, env: Environment): void
+    abstract continueStatement(node: AST.ContinueStatement, env: Environment): void
     abstract variableDeclaration(node: AST.VariableDeclaration, env: Environment): void
     abstract variableDeclarator(node: AST.VariableDeclarator, env: Environment): void
     abstract functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void

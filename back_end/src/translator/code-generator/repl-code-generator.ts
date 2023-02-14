@@ -1,0 +1,79 @@
+import {CodeGenerator, GCNewString, GlobalRootSet, RootSet, staticTypeToCType} from "./code-generator";
+import * as AST from '@babel/types';
+import * as visitor from "../visitor";
+import * as typechecker from "../type-checker/typechecker";
+import {Identifier} from "@babel/types";
+
+type Environment = visitor.Environment
+
+
+export class ReplGlobalRootSet extends GlobalRootSet {
+  private readonly EXEC_FUNC_NAME_PREFIX = "___bluescript_exec_func_"
+  execFunctionNames:string[] = [];
+
+  generateExecFuncName():string {
+    const name = this.EXEC_FUNC_NAME_PREFIX + this.execFunctionNames.length;
+    this.execFunctionNames.push(name);
+    return name;
+  }
+}
+
+export class ReplCodeGenerator extends CodeGenerator {
+  override program(node: AST.Program, env: Environment) {
+    const replEnv = env as ReplGlobalRootSet;
+    this.nameTable = typechecker.getNameTable(node)
+    const groupedNodes = this.groupedNodes(node.body);
+    for (const group of groupedNodes) {
+      if (group.isDeclaration)
+        this.visit(group.nodes[0], env);
+      else {
+        this.result += `void ${replEnv.generateExecFuncName()} {\n`;
+        for (const statement of group.nodes) {
+          this.visit(statement, env);
+          this.result += ";\n";
+        }
+
+        this.result += "};\n";
+      }
+    }
+    this.result += "\n";
+  }
+
+  override variableDeclarator(node: AST.VariableDeclarator, env: Environment) {
+    const replEnv = env as ReplGlobalRootSet;
+    const varName = (node.id as Identifier).name
+    const varType = this.nameTable?.lookup(varName)?.type;
+    this.result += staticTypeToCType(varType) + " ";
+    this.result += varName;
+    this.result += ";\n";
+    if (node.init) {
+      if (varType === "string") {
+        this.result += `void ${replEnv.generateExecFuncName()} {\n`;
+        this.result += `${varName} = ${GCNewString}(`;
+        this.visit(node.init, env);
+        this.result += ");\n";
+        this.result += (env as GlobalRootSet).generateValueSettingString(varName);
+        this.result += ";\n};\n";
+      } else {
+        this.result += `void ${replEnv.generateExecFuncName()} {\n`;
+        this.result += `${varName} = `;
+        this.visit(node.init, env);
+        this.result += ";\n};\n";
+      }
+    }
+  }
+
+  private groupedNodes(nodes:AST.Node[]): {nodes:AST.Node[], isDeclaration: boolean}[] {
+    const groupedNodes:{nodes:AST.Node[], isDeclaration: boolean}[] = [];
+    nodes.forEach(node => {
+      if (AST.isDeclaration(node)) {
+        groupedNodes.push({nodes: [node], isDeclaration: true});
+      } else if (groupedNodes.length === 0 || groupedNodes[groupedNodes.length - 1].isDeclaration) {
+        groupedNodes.push({nodes: [node], isDeclaration: false});
+      } else {
+        groupedNodes[groupedNodes.length - 1].nodes.push(node);
+      }
+    });
+    return groupedNodes;
+  }
+}

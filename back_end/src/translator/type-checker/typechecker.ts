@@ -1,6 +1,7 @@
-import AST, { Identifier, Node, TSTypeAnnotation } from "@babel/types"
-import { ErrorLog } from "./utils"
-import * as visitor from './visitor'
+import { Identifier, Node } from "@babel/types"
+import * as AST from '@babel/types';
+import { ErrorLog } from "../utils"
+import * as visitor from '../visitor'
 
 type Environment = visitor.Environment
 
@@ -51,7 +52,7 @@ export class FunctionType extends ObjectType {
     }
 }
 
-type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' | ObjectType
+export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' | ObjectType
 
 export function typeToString(type: StaticType): string {
     if (type instanceof ObjectType)
@@ -83,7 +84,7 @@ export function isConsistent(t1: StaticType, t2: StaticType) {
     if (t1 === Any || t2 === Any)
         return t1 !== t2
     else
-        return false
+        return t1 === t2
 }
 
 function commonSuperType(t1: StaticType, t2: StaticType): StaticType | null {
@@ -125,8 +126,8 @@ export class GlobalNameTable implements NameTable {
 
     record(key: string, type: StaticType): boolean {
         const old = this.names.get(key)
-        this.names.set(key, new NameInfo(type))
-        return old !== undefined
+        this.names.set(key, new NameInfo(type));
+        return old === undefined
     }
 
     lookup(key: string): NameInfo | undefined {
@@ -189,7 +190,9 @@ export class Typechecker extends visitor.NodeVisitor {
     }
 
     program(node: AST.Program, env: Environment): void {
-        visitor.program(node, env, this)
+        addNameTable(node, env as NameTable)
+        for (const child of node.body)
+            this.visit(child, env)
     }
 
     nullLiteral(node: AST.NullLiteral, env: Environment): void {
@@ -233,7 +236,7 @@ export class Typechecker extends visitor.NodeVisitor {
 
     ifStatement(node: AST.IfStatement, env: Environment): void {
         this.visit(node.test, env)
-        this.addCoercionForBoolean(node.test, this.result)
+        this.addCoercionForBoolean(node.test, this.result) // TODO: これはどういうこと？
         this.visit(node.consequent, env)
         if (node.alternate)
             this.visit(node.alternate, env)
@@ -271,10 +274,16 @@ export class Typechecker extends visitor.NodeVisitor {
             this.visit(node.argument, env)
     }
 
-    emptyStatement(node: AST.EmptyStatement, env: Environment): void {}
+    emptyStatement(node: AST.EmptyStatement, env: Environment): void {
+        return
+    }
 
     breakStatement(node: AST.BreakStatement, env: Environment): void {
         this.assert(!node.label, 'labeled break is not supported', node)
+    }
+
+    continueStatement(node: AST.ContinueStatement, env: Environment): void {
+        this.assert(!node.label, 'labeled continue is not supported', node)
     }
 
     variableDeclaration(node: AST.VariableDeclaration, env: Environment): void {
@@ -319,6 +328,7 @@ export class Typechecker extends visitor.NodeVisitor {
         const names = env as NameTable
         if (node.id != null) {
             const name_info = names.lookup(node.id.name)
+            // TODO: このif文はどういうこと？ 新しく定義する関数だからunknownで良いのでは？
             if (this.assert(name_info !== undefined, `unknown name: ${node.id.name}`, node)) {
                 const info = name_info as NameInfo
                 if (this.assert(!info.isTypeName(), `bad use of type name: ${node.id.name}`, node)) {
@@ -372,7 +382,7 @@ export class Typechecker extends visitor.NodeVisitor {
         this.visit(node.right, env)
         const right_type = this.result
         const op = node.operator
-        if (op === '==' || op === '!=' || op === '===' || '!==') {
+        if (op === '==' || op === '!=' || op === '===' || op ==='!==') {
             addStaticType(node.left, left_type)
             addStaticType(node.right, right_type)
             this.result = Boolean
@@ -387,14 +397,21 @@ export class Typechecker extends visitor.NodeVisitor {
             this.assert((left_type === Integer || left_type === Float)
                          && (right_type === Integer || right_type === Float),
                          this.invalidOperandsMessage(op, left_type, right_type), node)
-            if (left_type === Float || right_type === Float)
+            if (left_type === Float || right_type === Float) {
+                addStaticType(node.left, Float);
+                addStaticType(node.right, Float);
                 this.result = Float
-            else
+            }else {
+                addStaticType(node.left, Integer);
+                addStaticType(node.right, Integer);
                 this.result = Integer
+            }
         }
         else if (op === '|' || op === '^' || op === '&' || op === '%' || op === '<<' || op === '>>') {
             this.assert(left_type === Integer && right_type === Integer,
                         this.invalidOperandsMessage(op, left_type, right_type), node)
+            addStaticType(node.left, Integer);
+            addStaticType(node.right, Integer);
             this.result = Integer
         }
         else { // 'in', '>>>', '**', 'instanceof', '|>'
@@ -417,10 +434,11 @@ export class Typechecker extends visitor.NodeVisitor {
         const right_type = this.result
         const op = node.operator
         if (op === '=' || op === '+=' || op === '-=' || op === '*=' || op === '/=' || op === '%=')
+            // Question: integer, float以外の変数の代入はできないのか？
             this.assert((left_type === Integer || left_type === Float)
                          && (right_type === Integer || right_type === Float),
                         this.invalidOperandsMessage(op, left_type, right_type), node)
-        if (op === '|=' || op === '^=' || op === '&=' || op === '<<=' || op === '>>=')
+        else if (op === '|=' || op === '^=' || op === '&=' || op === '<<=' || op === '>>=')
             this.assert(left_type === Integer && right_type === Integer,
                         this.invalidOperandsMessage(op, left_type, right_type), node)
         else  // '||=', '&&=', '>>>=', '**=', op === '??='
@@ -488,7 +506,7 @@ export class Typechecker extends visitor.NodeVisitor {
 
     tsTypeReference(node: AST.TSTypeReference, env: Environment): void {
         this.assertSyntax(AST.isIdentifier(node.typeName), node)
-        this.assertSyntax(node.typeParameters === null, node)
+        this.assertSyntax(node.typeParameters === undefined, node)
         const name = (node.typeName as Identifier).name
         if (name === Float)
             this.result = Float
