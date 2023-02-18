@@ -1,4 +1,4 @@
-import {GlobalNameTable, Typechecker} from "../../../src/translator/type-checker/typechecker";
+import {FunctionType, GlobalNameTable, Typechecker} from "../../../src/translator/type-checker/typechecker";
 import * as visitor from "../../../src/translator/visitor";
 import {CodeGenerator, GlobalRootSet} from "../../../src/translator/code-generator/code-generator";
 import testCaseReader from "../test-case-reader";
@@ -15,6 +15,9 @@ describe('expressions', () => {
       nameTable.record("i", "integer");
       nameTable.record("f", "float");
       nameTable.record("b", "boolean");
+      nameTable.record("greeting", new FunctionType("void", []));
+      nameTable.record("console_log_number", new FunctionType("void", ["integer"]));
+      nameTable.record("add", new FunctionType("void", ["integer", "integer"]));
       visitor.file(ast, nameTable, typechecker);
 
       const codeGenerator = new CodeGenerator();

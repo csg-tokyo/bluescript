@@ -207,3 +207,24 @@ b ? 10 : 100;
 
 ### c
 ( i === 1 ? ( i === 2 ? 3 : 5 ) : 0 );
+
+--- Call expression with no argument
+### ts
+greeting();
+
+### c
+greeting();
+
+--- Call expression with one argument
+### ts
+console_log_number(2);
+
+### c
+console_log_number(2);
+
+--- Call expression with multi argument
+### ts
+add(1, 2);
+
+### c
+add(1, 2);

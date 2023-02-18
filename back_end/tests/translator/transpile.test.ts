@@ -1,8 +1,7 @@
 import {transpile} from "../../src/translator/transpile";
 import {runBabelParser} from "../../src/translator/utils";
-import {GlobalNameTable, Typechecker} from "../../src/translator/type-checker/typechecker";
+import {FunctionType, GlobalNameTable, Typechecker} from "../../src/translator/type-checker/typechecker";
 import * as visitor from "../../src/translator/visitor";
-import {CodeGenerator, RootSet} from "../../src/translator/code-generator/code-generator";
 
 test("transpile", () => {
   const tsString = "let i:integer = 3;";
@@ -12,14 +11,17 @@ test("transpile", () => {
 })
 
 test("playground", () => {
-  const tsString = "let s:string = 'Hello world';";
+  const tsString = "let arr:integer[] = [3];";
 
   const ast = runBabelParser(tsString);
   console.log(JSON.stringify(ast));
 
   const typechecker = new Typechecker();
   const nameTable = new GlobalNameTable();
+  nameTable.record("console_log_number", new FunctionType("void", ["integer"]));
   visitor.file(ast, nameTable, typechecker);
 
+  console.log(JSON.stringify(typechecker));
   console.log(JSON.stringify(ast));
+  console.log(nameTable)
 })

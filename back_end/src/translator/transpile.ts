@@ -1,7 +1,7 @@
 import {runBabelParser} from './utils'
 import {GlobalNameTable, Typechecker} from "./type-checker/typechecker";
 import * as visitor from "./visitor";
-import {RootSet, CodeGenerator} from "./code-generator/code-generator";
+import {CodeGenerator, GlobalRootSet} from "./code-generator/code-generator";
 
 export function transpile(src: string): string {
     const ast = runBabelParser(src);
@@ -11,7 +11,7 @@ export function transpile(src: string): string {
     visitor.file(ast, nameTable, typechecker);
 
     const codeGenerator = new CodeGenerator();
-    const rootSet = new RootSet();
+    const rootSet = new GlobalRootSet();
     visitor.file(ast, rootSet, codeGenerator);
 
     return codeGenerator.result;

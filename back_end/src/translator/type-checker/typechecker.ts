@@ -52,6 +52,26 @@ export class FunctionType extends ObjectType {
     }
 }
 
+export class ArrayType extends ObjectType {
+    elementType: StaticType;
+
+    constructor(elementType: StaticType) {
+        super();
+        this.elementType = elementType;
+    }
+
+    name(): string {
+        return `${typeToString(this.elementType)}[]`;
+    }
+
+    isSubtypeOf(t: StaticType): boolean {
+        if (t instanceof ArrayType) {
+            return this.elementType === this.elementType;
+        }
+        return false;
+    }
+}
+
 export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' | ObjectType
 
 export function typeToString(type: StaticType): string {
@@ -500,6 +520,10 @@ export class Typechecker extends visitor.NodeVisitor {
         }
     }
 
+    arrayExpression(node: AST.ArrayExpression, env: Environment): void {
+        return
+    }
+
     tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {
         this.visit(node.typeAnnotation, env)
     }
@@ -558,6 +582,12 @@ export class Typechecker extends visitor.NodeVisitor {
     tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void {
         // we do not distinguish null type and undefined type
         this.result = Null
+    }
+
+    tsArrayType(node: AST.TSArrayType, env: Environment): void {
+        this.visit(node.elementType, env);
+        const elementType = this.result;
+        this.result = new ArrayType(elementType);
     }
 
     addCoercionForBoolean(expr: Node, type: StaticType): void {

@@ -249,6 +249,18 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   callExpression(node: AST.CallExpression, env: Environment): void {
+    this.visit(node.callee, env);
+    this.result += "(";
+    for (const argument of node.arguments) {
+      this.visit(argument, env);
+      this.result += ", ";
+    }
+    if (node.arguments.length > 0)
+      this.result = this.result.slice(0, -2);
+    this.result += ")";
+  }
+
+  arrayExpression(node: AST.ArrayExpression, env: Environment):void {
     return
   }
 
@@ -289,6 +301,10 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void {
+    return
+  }
+
+  tsArrayType(node: AST.TSArrayType, env: Environment) {
     return
   }
 

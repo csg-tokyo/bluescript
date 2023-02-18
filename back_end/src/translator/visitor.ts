@@ -42,6 +42,7 @@ export abstract class NodeVisitor {
         [ 'LogicalExpression', (visitor, node, env) => visitor.logicalExpression(node as AST.LogicalExpression, env) ],
         [ 'ConditionalExpression', (visitor, node, env) => visitor.conditionalExpression(node as AST.ConditionalExpression, env) ],
         [ 'CallExpression', (visitor, node, env) => visitor.callExpression(node as AST.CallExpression, env) ],
+        [ 'ArrayExpression', (visitor, node, env) => visitor.arrayExpression(node as AST.ArrayExpression, env) ],
         // TS Type
         [ 'TSTypeAnnotation', (visitor, node, env) => visitor.tsTypeAnnotation(node as AST.TSTypeAnnotation, env) ],
         [ 'TSTypeReference', (visitor, node, env) => visitor.tsTypeReference(node as AST.TSTypeReference, env) ],
@@ -53,6 +54,7 @@ export abstract class NodeVisitor {
         [ 'TSAnyKeyword', (visitor, node, env) => visitor.tsAnyKeyword(node as AST.TSAnyKeyword, env) ],
         [ 'TSNullKeyword', (visitor, node, env) => visitor.tsNullKeyword(node as AST.TSNullKeyword, env) ],
         [ 'TSUndefinedKeyword', (visitor, node, env) => visitor.tsUndefinedKeyword(node as AST.TSUndefinedKeyword, env) ],
+        [ 'TSArrayType', (visitor, node, env) => visitor.tsArrayType(node as AST.TSArrayType, env) ],
     ])
 
     visit(node: Node, env: Environment): void {
@@ -94,6 +96,7 @@ export abstract class NodeVisitor {
     abstract logicalExpression(node: AST.LogicalExpression, env: Environment): void
     abstract conditionalExpression(node: AST.ConditionalExpression, env: Environment): void
     abstract callExpression(node: AST.CallExpression, env: Environment): void
+    abstract arrayExpression(node: AST.ArrayExpression, env: Environment): void
     abstract tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void
     abstract tsTypeReference(node: AST.TSTypeReference, env: Environment): void
     abstract tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void
@@ -104,6 +107,7 @@ export abstract class NodeVisitor {
     abstract tsAnyKeyword(node: AST.TSAnyKeyword, env: Environment): void
     abstract tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void
     abstract tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void
+    abstract tsArrayType(node: AST.TSArrayType, env: Environment): void
 }
 
 export function file(node: AST.File, env: Environment, v: NodeVisitor): void {
