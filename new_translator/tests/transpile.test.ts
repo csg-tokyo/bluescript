@@ -11,10 +11,13 @@ test('syntax error', () => {
     try {
         const ast = tested.transpile(src, 6)
     } catch (e: any) {
-        assert.is(e.messages[0].line, 7, 'line number')
-        assert.is(e.messages[0].column, 20, 'column number')
+        const loc = e.messages[0].location.start
+        assert.is(loc.line, 7, 'line number')
+        assert.is(loc.column, 20, 'column number')
     }
 })
+
+console.log('OK')
 
 test.run()
 

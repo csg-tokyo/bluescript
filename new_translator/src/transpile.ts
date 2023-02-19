@@ -1,18 +1,20 @@
 import * as babelParser from '@babel/parser'
 import AST from '@babel/types'
+import TypeChecker from './typechecker'
 import { ErrorLog } from './utils'
 
-export function transpile(src: string, startLine: number): AST.File {
+export function transpile(src: string, startLine: number = 1) {
     const ast = runBabelParser(src, startLine)
-    return ast;
+    const tchecker = new TypeChecker()
+    const env = tchecker.run(ast)
+    return [ast.program.body, env];
 }
 
 function runBabelParser(src: string, startLine: number): AST.File {
     const options: babelParser.ParserOptions = { plugins: ['typescript'],
                                                  startLine: startLine }
     try {
-        const ast = babelParser.parse(src, options)
-        return ast
+        return babelParser.parse(src, options)
     } catch (e: any) {
         if ('name' in e && e.name == 'SyntaxError') {
             const msg = `${e.name}: ${e.message}`

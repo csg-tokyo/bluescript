@@ -1,7 +1,7 @@
 import AST, { Node } from "@babel/types"
 import { ErrorLog } from "./utils"
 
-export interface Environment {}
+export default interface Environment {}
 
 // For the specifications of Node objects,
 // see https://github.com/babel/babel/blob/main/packages/babel-parser/ast/spec.md
@@ -101,6 +101,44 @@ export abstract class NodeVisitor {
     abstract tsAnyKeyword(node: AST.TSAnyKeyword, env: Environment): void
     abstract tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void
     abstract tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void
+}
+
+export class NullVisitor extends NodeVisitor {
+    file(node: AST.File, env: Environment): void {}
+    program(node: AST.Program, env: Environment): void {}
+    nullLiteral(node: AST.NullLiteral, env: Environment): void {}
+    stringLiteral(node: AST.StringLiteral, env: Environment): void {}
+    booleanLiteral(node: AST.BooleanLiteral, env: Environment): void {}
+    numericLiteral(node: AST.NumericLiteral, env: Environment): void {}
+    identifier(node: AST.Identifier, env: Environment): void {}
+    whileStatement(node: AST.WhileStatement, env: Environment): void {}
+    ifStatement(node: AST.IfStatement, env: Environment): void {}
+    forStatement(node: AST.ForStatement, env: Environment): void {}
+    expressionStatement(node: AST.ExpressionStatement, env: Environment): void {}
+    blockStatement(node: AST.BlockStatement, env: Environment): void {}
+    returnStatement(node: AST.ReturnStatement, env: Environment): void {}
+    emptyStatement(node: AST.EmptyStatement, env: Environment): void {}
+    breakStatement(node: AST.BreakStatement, env: Environment): void {}
+    variableDeclaration(node: AST.VariableDeclaration, env: Environment): void {}
+    variableDeclarator(node: AST.VariableDeclarator, env: Environment): void {}
+    functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void {}
+    unaryExpression(node: AST.UnaryExpression, env: Environment): void {}
+    updateExpression(node: AST.UpdateExpression, env: Environment): void {}
+    binaryExpression(node: AST.BinaryExpression, env: Environment): void {}
+    assignmentExpression(node: AST.AssignmentExpression, env: Environment): void {}
+    logicalExpression(node: AST.LogicalExpression, env: Environment): void {}
+    conditionalExpression(node: AST.ConditionalExpression, env: Environment): void {}
+    callExpression(node: AST.CallExpression, env: Environment): void {}
+    tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {}
+    tsTypeReference(node: AST.TSTypeReference, env: Environment): void {}
+    tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {}
+    tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void {}
+    tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void {}
+    tsStringKeyword(node: AST.TSStringKeyword, env: Environment): void {}
+    tsObjectKeyword(node: AST.TSObjectKeyword, env: Environment): void {}
+    tsAnyKeyword(node: AST.TSAnyKeyword, env: Environment): void {}
+    tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void {}
+    tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void {}
 }
 
 export function file(node: AST.File, env: Environment, v: NodeVisitor): void {

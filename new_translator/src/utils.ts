@@ -9,6 +9,10 @@ export class ErrorLog {
         this.messages = []
     }
 
+    hasError(): boolean {
+        return this.messages.length > 0
+    }
+
     push(msg: string, node: Node): this {
         this.messages.push({ message: msg, location: node.loc })
         return this
