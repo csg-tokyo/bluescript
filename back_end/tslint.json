@@ -10,7 +10,8 @@
         "no-trailing-whitespace": false,
         "no-bitwise": false,
         "no-empty-interface": false,
-        "variable-name": false
+        "variable-name": false,
+        "no-empty": false
     },
     "rulesDirectory": []
 }

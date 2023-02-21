@@ -1,28 +1,28 @@
 import {SymbolModel} from "../models/symbol-model";
 import {runBabelParser} from "./utils";
-import {GlobalNameTable, Typechecker} from "./type-checker/typechecker";
+import {GlobalNameTable} from "./type-checker/names";
+import {runTypeChecker} from "./type-checker/typechecker";
 import * as visitor from "./visitor";
 import {ReplCodeGenerator, ReplGlobalRootSet} from "./code-generator/repl-code-generator";
 import AvailableType from "../models/available-type";
 import {staticTypeToCType} from "./code-generator/code-generator";
 
 export function replTranspile(tsString: string, existingSymbols: SymbolModel[]):{cString: string, newSymbols: SymbolModel[], execFuncNames:string[]} {
-  const ast = runBabelParser(tsString);
+  const ast = runBabelParser(tsString, 1);
 
-  const typechecker = new Typechecker();
-  const nameTable = new GlobalNameTable();
+  const globalNameTable = new GlobalNameTable();
   for (const symbol of existingSymbols) {
     if (symbol.type?.symbolType === "variable")
-      nameTable.record(symbol.name, symbol.type.variableType);
+      globalNameTable.record(symbol.name, symbol.type.variableType);
   }
-  visitor.file(ast, nameTable, typechecker);
+  runTypeChecker(ast, globalNameTable);
 
   const codeGenerator = new ReplCodeGenerator();
   const rootSet = new ReplGlobalRootSet(countExistingObjects(existingSymbols));
   visitor.file(ast, rootSet, codeGenerator);
 
   const cString = codeGenerator.result;
-  const newSymbols: SymbolModel[] = generateNewSymbols(nameTable, existingSymbols);
+  const newSymbols: SymbolModel[] = generateNewSymbols(globalNameTable, existingSymbols);
   const execFuncNames = rootSet.execFunctionNames;
 
   return {cString, newSymbols, execFuncNames};

@@ -1,14 +1,13 @@
-import { Identifier, Node } from "@babel/types"
+import { Identifier, Node } from "@babel/types";
 import * as AST from '@babel/types';
-import * as visitor from '../visitor'
-import * as typechecker from "../type-checker/typechecker"
+import Environment, * as visitor from "../visitor";
 import {ErrorLog} from "../utils";
-import {getNameTable} from "../type-checker/typechecker";
+import {StaticType} from "../types";
+import {BlockNameTable, getNameTable, NameTable} from "../type-checker/names";
 
-type Environment = visitor.Environment
 
 // GC function, object names
-export const GlobalNameTable = "global_name_table_array";
+export const GlobalNameTableArray = "global_name_table_array";
 export const GCNewString = "gc_new_string";
 export const GCArraySet = "gc_array_set";
 
@@ -26,7 +25,7 @@ export class GlobalRootSet implements RootSet {
 
   generateValueSettingString(variableName: string):string {
     // value_t gc_array_set(value_t obj, value_t index, value_t new_value)
-    const s = `${GCArraySet}(${GlobalNameTable}, int_to_value(${this.globalRootSetIndex}), ${variableName})`;
+    const s = `${GCArraySet}(${GlobalNameTableArray}, int_to_value(${this.globalRootSetIndex}), ${variableName})`;
     this.globalRootSetIndex++;
     return s;
   }
@@ -34,7 +33,7 @@ export class GlobalRootSet implements RootSet {
 
 // TODO: BlockRootSet なるものが必要？
 
-export function staticTypeToCType(staticType: typechecker.StaticType | undefined):string {
+export function staticTypeToCType(staticType: StaticType | undefined):string {
   switch (staticType) {
     case "integer":
       return "int32_t";
@@ -52,14 +51,14 @@ export function staticTypeToCType(staticType: typechecker.StaticType | undefined
 export class CodeGenerator extends visitor.NodeVisitor {
   result: string = ""
   errorLog = new ErrorLog()
-  nameTable?: typechecker.NameTable
+  nameTable?: NameTable
 
   file(node: AST.File, env: Environment): void {
     visitor.file(node, env, this)
   }
 
   program(node: AST.Program, env: Environment): void {
-    this.nameTable = typechecker.getNameTable(node)
+    this.nameTable = getNameTable(node)
     for (const child of node.body) {
       this.visit(child, env);
       this.result += ";\n";
@@ -107,6 +106,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   forStatement(node: AST.ForStatement, env: Environment): void {
+    this.nameTable = getNameTable(node);
     this.result += "for (";
 
     if (node.init)
@@ -123,6 +123,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
 
     this.result += ") ";
     this.visit(node.body, env)
+    this.nameTable = (this.nameTable as BlockNameTable).parent // TODO: nameTable戻す場所ここではないのでは？
   }
 
   expressionStatement(node: AST.ExpressionStatement, env: Environment): void {
@@ -137,6 +138,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
       this.result += ";\n";
     }
     this.result += "}";
+    this.nameTable = (this.nameTable as BlockNameTable).parent
   }
 
   returnStatement(node: AST.ReturnStatement, env: Environment): void {

@@ -1,10 +1,8 @@
-import {CodeGenerator, GCNewString, GlobalRootSet, RootSet, staticTypeToCType} from "./code-generator";
+import {CodeGenerator, GCNewString, GlobalRootSet, staticTypeToCType} from "./code-generator";
 import * as AST from '@babel/types';
-import * as visitor from "../visitor";
-import * as typechecker from "../type-checker/typechecker";
 import {Identifier} from "@babel/types";
-
-type Environment = visitor.Environment
+import Environment from "../visitor";
+import {getNameTable} from "../type-checker/names";
 
 
 export class ReplGlobalRootSet extends GlobalRootSet {
@@ -21,7 +19,7 @@ export class ReplGlobalRootSet extends GlobalRootSet {
 export class ReplCodeGenerator extends CodeGenerator {
   override program(node: AST.Program, env: Environment) {
     const replEnv = env as ReplGlobalRootSet;
-    this.nameTable = typechecker.getNameTable(node)
+    this.nameTable = getNameTable(node)
     const groupedNodes = this.groupedNodes(node.body);
     for (const group of groupedNodes) {
       if (group.isDeclaration)

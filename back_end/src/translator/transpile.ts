@@ -1,14 +1,14 @@
 import {runBabelParser} from './utils'
-import {GlobalNameTable, Typechecker} from "./type-checker/typechecker";
 import * as visitor from "./visitor";
 import {CodeGenerator, GlobalRootSet} from "./code-generator/code-generator";
+import {runTypeChecker} from "./type-checker/typechecker";
+import {GlobalNameTable} from "./type-checker/names";
 
-export function transpile(src: string): string {
-    const ast = runBabelParser(src);
+export function transpile(src: string, startLine: number = 1): string {
+    const ast = runBabelParser(src, startLine);
 
-    const typechecker = new Typechecker();
-    const nameTable = new GlobalNameTable();
-    visitor.file(ast, nameTable, typechecker);
+    const globalNameTable = new GlobalNameTable()
+    runTypeChecker(ast, globalNameTable)
 
     const codeGenerator = new CodeGenerator();
     const rootSet = new GlobalRootSet();
