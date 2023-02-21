@@ -1,0 +1,104 @@
+--- Variable declaration (let, integer)
+### ts
+let i:integer;
+
+### c
+int32_t i;
+
+--- Variable declaration (let, float)
+### ts
+let i:float;
+
+### c
+float i;
+
+--- Variable declaration (let, boolean)
+### ts
+let b:boolean;
+
+### c
+bool b;
+
+--- Variable declaration (let, string)
+### ts
+let s:string;
+
+### c
+value_t s;
+
+--- Variable declaration (let, integer) with init
+### ts
+let i:integer = 3 + 1;
+
+### c
+int32_t i = 3 + 1;
+
+--- Variable declaration (let, float) with init
+### ts
+let i:float = 3 + 1;
+
+### c
+float i = 3 + 1;
+
+--- Variable declaration (let, bool) with init
+### ts
+let b:boolean = true;
+
+### c
+bool b = true;
+
+--- Variable declaration (let, string) with init
+### ts
+let s:string = "Hello world!";
+
+### c
+value_t s = gc_new_string("Hello world!");
+gc_array_set(global_name_table_array, int_to_value(0), s);
+
+--- Variable declaration (const, integer) with init
+### ts
+const i:integer = 2 * 3;
+
+### c
+const int32_t i = 2 * 3;
+
+--- Variable declaration (const, float) with init
+### ts
+const i:float = 1.1;
+
+### c
+const float i = 1.1;
+
+--- Variable declaration (const, bool) with init
+### ts
+const b:boolean = false;
+
+### c
+const bool b = false;
+
+--- Variable declaration (const, string) with init
+### ts
+const s:string = "Hello world!";
+
+### c
+const value_t s = gc_new_string("Hello world!");
+gc_array_set(global_name_table_array, int_to_value(0), s);
+
+--- Variable declaration (const, string) with init, 2 string declaration
+### ts
+const s1:string = "Hello world!";
+const s2:string = "Foo!";
+
+### c
+const value_t s1 = gc_new_string("Hello world!");
+gc_array_set(global_name_table_array, int_to_value(0), s1);
+const value_t s2 = gc_new_string("Foo!");
+gc_array_set(global_name_table_array, int_to_value(1), s2);
+
+--- Variable declaration multi
+### ts
+let i:integer = 1, f:float = 2.4;
+
+### c
+int32_t i = 1;
+float f = 2.4;
