@@ -1,7 +1,7 @@
 import {SymbolModel} from "../models/symbol-model";
 import {runBabelParser} from "./utils";
 import {GlobalNameTable} from "./type-checker/names";
-import {runTypeChecker} from "./type-checker/typechecker";
+import {runTypeChecker} from "./type-checker/type-checker";
 import * as visitor from "./visitor";
 import {ReplCodeGenerator, ReplGlobalRootSet} from "./code-generator/repl-code-generator";
 import AvailableType from "../models/available-type";

@@ -1,5 +1,5 @@
 import {SymbolModel} from "../../src/models/symbol-model";
-import {replTranspile} from "../../src/translator/repl-transpile";
+import {replTranspile} from "../../src/transpiler/repl-transpile";
 
 test("repl-transpile", () => {
   const existingSymbol:SymbolModel[] = [

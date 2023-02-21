@@ -6,7 +6,7 @@ type TestType = {
   c:string
 }
 
-const DIR_PATH = "./tests/translator/code-generator/test-cases/"
+const DIR_PATH = "./tests/transpiler/code-generator/test-cases/"
 
 export default function testCaseReader(fileName: string): TestType[] {
   const filePath = DIR_PATH + fileName;

@@ -1,9 +1,9 @@
 import testCaseReader from "../test-case-reader";
-import {runBabelParser} from "../../../src/translator/utils";
-import {runTypeChecker} from "../../../src/translator/type-checker/typechecker";
-import * as visitor from "../../../src/translator/visitor";
-import {ReplCodeGenerator, ReplGlobalRootSet} from "../../../src/translator/code-generator/repl-code-generator";
-import {GlobalNameTable} from "../../../src/translator/type-checker/names";
+import {runBabelParser} from "../../../src/transpiler/utils";
+import {runTypeChecker} from "../../../src/transpiler/type-checker/type-checker";
+import * as visitor from "../../../src/transpiler/visitor";
+import {ReplCodeGenerator, ReplGlobalRootSet} from "../../../src/transpiler/code-generator/repl-code-generator";
+import {GlobalNameTable} from "../../../src/transpiler/type-checker/names";
 
 describe('repl-code-generator', () => {
   const calculationCases = testCaseReader("repl-code-generator.txt");

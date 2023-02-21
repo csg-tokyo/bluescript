@@ -1,9 +1,9 @@
-import {transpile} from "../../src/translator/transpile";
-import {runBabelParser} from "../../src/translator/utils";
-import * as visitor from "../../src/translator/visitor";
-import TypeChecker from "../../src/translator/type-checker/typechecker";
-import {FunctionType} from "../../src/translator/types";
-import {GlobalNameTable} from "../../src/translator/type-checker/names";
+import {transpile} from "../../src/transpiler/transpile";
+import {runBabelParser} from "../../src/transpiler/utils";
+import * as visitor from "../../src/transpiler/visitor";
+import TypeChecker from "../../src/transpiler/type-checker/type-checker";
+import {FunctionType} from "../../src/transpiler/types";
+import {GlobalNameTable} from "../../src/transpiler/type-checker/names";
 
 test("transpile", () => {
   const tsString = "let i:integer = 3;";

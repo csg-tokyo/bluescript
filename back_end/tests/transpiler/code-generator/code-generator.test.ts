@@ -1,10 +1,10 @@
-import * as visitor from "../../../src/translator/visitor";
-import {CodeGenerator, GlobalRootSet} from "../../../src/translator/code-generator/code-generator";
+import * as visitor from "../../../src/transpiler/visitor";
+import {CodeGenerator, GlobalRootSet} from "../../../src/transpiler/code-generator/code-generator";
 import testCaseReader from "../test-case-reader";
-import {runBabelParser} from "../../../src/translator/utils";
-import {runTypeChecker} from "../../../src/translator/type-checker/typechecker";
-import {FunctionType} from "../../../src/translator/types";
-import {GlobalNameTable} from "../../../src/translator/type-checker/names";
+import {runBabelParser} from "../../../src/transpiler/utils";
+import {runTypeChecker} from "../../../src/transpiler/type-checker/type-checker";
+import {FunctionType} from "../../../src/transpiler/types";
+import {GlobalNameTable} from "../../../src/transpiler/type-checker/names";
 
 describe('expressions', () => {
   const calculationCases = testCaseReader("expressions.txt");
@@ -58,8 +58,6 @@ describe('statements', () => {
       globalNameTable.record("i", "integer");
       globalNameTable.record("f", "float");
       runTypeChecker(ast, globalNameTable);
-
-      console.log(JSON.stringify(ast));
 
       const codeGenerator = new CodeGenerator();
       const rootSet = new GlobalRootSet();
