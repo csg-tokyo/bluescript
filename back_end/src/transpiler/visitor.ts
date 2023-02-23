@@ -42,6 +42,7 @@ export abstract class NodeVisitor {
         [ 'ConditionalExpression', (visitor, node, env) => visitor.conditionalExpression(node as AST.ConditionalExpression, env) ],
         [ 'CallExpression', (visitor, node, env) => visitor.callExpression(node as AST.CallExpression, env) ],
         // TS Type
+        [ 'TSAsExpression',  (visitor, node, env) => visitor.tsAsExpression(node as AST.TSAsExpression, env)],
         [ 'TSTypeAnnotation', (visitor, node, env) => visitor.tsTypeAnnotation(node as AST.TSTypeAnnotation, env) ],
         [ 'TSTypeReference', (visitor, node, env) => visitor.tsTypeReference(node as AST.TSTypeReference, env) ],
         [ 'TSNumberKeyword', (visitor, node, env) => visitor.tsNumberKeyword(node as AST.TSNumberKeyword, env) ],
@@ -93,6 +94,7 @@ export abstract class NodeVisitor {
     abstract logicalExpression(node: AST.LogicalExpression, env: Environment): void
     abstract conditionalExpression(node: AST.ConditionalExpression, env: Environment): void
     abstract callExpression(node: AST.CallExpression, env: Environment): void
+    abstract tsAsExpression(node: AST.TSAsExpression, env: Environment): void
     abstract tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void
     abstract tsTypeReference(node: AST.TSTypeReference, env: Environment): void
     abstract tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void
@@ -132,6 +134,7 @@ export class NullVisitor extends NodeVisitor {
     logicalExpression(node: AST.LogicalExpression, env: Environment): void {}
     conditionalExpression(node: AST.ConditionalExpression, env: Environment): void {}
     callExpression(node: AST.CallExpression, env: Environment): void {}
+    tsAsExpression(node: AST.TSAsExpression, env: Environment): void {}
     tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {}
     tsTypeReference(node: AST.TSTypeReference, env: Environment): void {}
     tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {}

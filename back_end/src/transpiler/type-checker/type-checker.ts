@@ -41,8 +41,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
     program(node: AST.Program, env: Environment): void {
         addNameTable(node, env as NameTable)
-        for (const child of node.body)
-            this.visit(child, env)
+        visitor.program(node, env, this)
     }
 
     nullLiteral(node: AST.NullLiteral, env: Environment): void {
@@ -131,26 +130,24 @@ export default class TypeChecker extends visitor.NodeVisitor {
         const names = env as NameTable
         const rtype = names.returnType()
         this.assert(rtype !== null, 'return must be in a function body', node)
-        if (node.argument && rtype !== null) { // && rtype !== null は必要ないけどWebStormが文句言うので。
+        if (node.argument) {
             this.visit(node.argument, env)
-            if (rtype === undefined)
+            if (rtype == undefined)
                 names.setReturnType(this.result)
             else if (isConsistent(this.result, rtype))
-                addStaticType(node.argument, this.result)
+                this.addStaticType(node.argument, this.result)
             else
                 this.assert(isSubtype(this.result, rtype),
                   `Type '${typeToString(this.result)}' does not match type '${typeToString(rtype)}'.`, node)
         }
         else
-        if (rtype === undefined)
-            names.setReturnType(Void)
-        else
-            this.assert(rtype === Void, 'a void function cannot return a value', node)
+            if (rtype == undefined)
+                names.setReturnType(Void)
+            else
+                this.assert(rtype === Void, 'a void function cannot return a value', node)
     }
 
-    emptyStatement(node: AST.EmptyStatement, env: Environment): void {
-        return
-    }
+    emptyStatement(node: AST.EmptyStatement, env: Environment): void {}
 
     breakStatement(node: AST.BreakStatement, env: Environment): void {
         this.assert(!node.label, 'labeled break is not supported', node)
@@ -172,7 +169,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
         this.assertLvalue(lvalue)
         const id = lvalue as Identifier
         const varName = id.name
-        let varType: StaticType | undefined
+        let varType: StaticType | undefined = undefined
         const typeAnno = id.typeAnnotation
         let alreadyDeclared = false
         if (!this.firstPass) {
@@ -193,7 +190,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
             if (varType === undefined)
                 varType = this.result
             else if (isConsistent(this.result, varType))
-                addStaticType(node.init, this.result)
+                this.addStaticType(node.init, this.result)
             else
                 this.assert(isSubtype(this.result, varType),
                   `Type '${typeToString(this.result)}' is not assignable to type '${typeToString(varType)}'.`, node)
@@ -272,7 +269,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
                 varType = this.result
             }
 
-            this.assert(env.lookup(varName)?.type === undefined,
+            this.assert(env.lookup(varName)?.type == undefined,
               `duplicated parameter name: ${varName}`, node)
             env.record(varName, varType)
             paramTypes.push(varType)
@@ -284,17 +281,18 @@ export default class TypeChecker extends visitor.NodeVisitor {
     unaryExpression(node: AST.UnaryExpression, env: Environment): void {
         this.assert(node.prefix, 'prefixed unary operator is not supported', node)
         this.visit(node.argument, env)
+        this.addCoercionIfAny(node.argument, this.result)
         const op = node.operator
         if (op === '-' || op === '+')
-            this.assert(this.result === Integer || this.result === Float,
+            this.assert(this.isNumeric(this.result),
               this.invalidOperandMessage(op, this.result), node);
         else if (op === '!') {
-            addStaticType(node.argument, this.result)
+            this.addCoercionForBoolean(node.argument, this.result)
             this.result = Boolean
         }
         else if (op === '~') {
             this.assert(this.result === Integer,
-              this.invalidOperandMessage(op, this.result), node);
+              this.invalidOperandMessage(op, this.result), node)
         }
         else  // 'typeof' | 'void' | 'delete' | 'throw'
             this.assert(false, `not supported operator ${op}.`, node)
@@ -310,7 +308,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
         this.assertLvalue(node.argument)
         this.visit(node.argument, env)
         const op = node.operator    // ++ or --
-        this.assert(this.result === Integer || this.result === Float,
+        this.assert(this.isNumeric(this.result),
           this.invalidOperandMessage(op, this.result), node);
     }
 
@@ -321,19 +319,28 @@ export default class TypeChecker extends visitor.NodeVisitor {
         const right_type = this.result
         const op = node.operator
         if (op === '==' || op === '!=' || op === '===' || op === '!==') {
-            addStaticType(node.left, left_type)
-            addStaticType(node.right, right_type)
+            if (left_type === Boolean || right_type === Boolean) {
+                this.assert(left_type === right_type, 'a boolean must be compared with a boolean', node)
+                this.addStaticType(node.left, left_type)
+                this.addStaticType(node.right, right_type)
+            }
+            else if (left_type === Any || right_type === Any) {
+                this.addStaticType(node.left, left_type)
+                this.addStaticType(node.right, right_type)
+            }
+            else
+                this.assert(isSubtype(left_type, right_type) || isSubtype(right_type, left_type),
+                            this.invalidOperandsMessage(op, left_type, right_type), node)
+
             this.result = Boolean
         }
         else if  (op === '<' || op === '<=' || op === '>' || op === '>=') {
-            this.assert((left_type === Integer || left_type === Float)
-              && (right_type === Integer || right_type === Float),
+            this.assert(this.isNumeric(left_type) && this.isNumeric(right_type),
               this.invalidOperandsMessage(op, left_type, right_type), node)
             this.result = Boolean
         }
         else if (op === '+' || op === '-' || op === '*' || op === '/') {
-            this.assert((left_type === Integer || left_type === Float)
-              && (right_type === Integer || right_type === Float),
+            this.assert(this.isNumeric(left_type) && this.isNumeric(right_type),
               this.invalidOperandsMessage(op, left_type, right_type), node)
             if (left_type === Float || right_type === Float)
                 this.result = Float
@@ -364,10 +371,18 @@ export default class TypeChecker extends visitor.NodeVisitor {
         this.visit(node.right, env)
         const right_type = this.result
         const op = node.operator
-        if (op === '=' || op === '+=' || op === '-=' || op === '*=' || op === '/=' || op === '%=')
-            this.assert((left_type === Integer || left_type === Float)
-              && (right_type === Integer || right_type === Float),
-              this.invalidOperandsMessage(op, left_type, right_type), node)
+        if (op === '=' )
+            if (isConsistent(right_type, left_type)) {
+                this.addStaticType(node.left, left_type)
+                this.addStaticType(node.right, right_type)
+            }
+            else
+                this.assert(isSubtype(right_type, left_type),
+                            `Type '${typeToString(right_type)}' is not assignable to type '${typeToString(left_type)}'.`,
+                            node)
+        else if (op === '+=' || op === '-=' || op === '*=' || op === '/=' || op === '%=')
+            this.assert(this.isNumeric(left_type) && this.isNumeric(right_type),
+                        this.invalidOperandsMessage(op, left_type, right_type), node)
         else if (op === '|=' || op === '^=' || op === '&=' || op === '<<=' || op === '>>=')
             this.assert(left_type === Integer && right_type === Integer,
               this.invalidOperandsMessage(op, left_type, right_type), node)
@@ -400,7 +415,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
         this.visit(node.alternate, env)
         const else_type = this.result
         const result_type = commonSuperType(then_type, else_type)
-        if (result_type === null) {
+        if (result_type === undefined) {
             this.assert(false, 'no common super type', node)
             this.result = then_type
         }
@@ -416,7 +431,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
                 const arg = node.arguments[i]
                 this.visit(arg, env)
                 if (isConsistent(this.result, func_type.paramTypes[i]))
-                    addStaticType(arg, this.result)
+                    this.addStaticType(arg, this.result)
                 else
                     this.assert(isSubtype(this.result, func_type.paramTypes[i]),
                       `passing an incompatible argument (${this.result} to ${func_type.paramTypes[i]})`,
@@ -428,6 +443,16 @@ export default class TypeChecker extends visitor.NodeVisitor {
             this.assert(this.firstPass, 'the callee is not a function', node.callee)
             this.result = Any
         }
+    }
+
+    tsAsExpression(node: AST.TSAsExpression, env: Environment): void {
+        this.visit(node.expression, env)
+        const exprType = this.result
+        this.visit(node.typeAnnotation, env)
+        const asType = this.result
+        this.assert(exprType === Any || asType === Any,
+                    this.invalidOperandsMessage('as', exprType, this.result), node)
+        this.result = asType
     }
 
     tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {
@@ -490,11 +515,25 @@ export default class TypeChecker extends visitor.NodeVisitor {
         this.result = Null
     }
 
+    isNumeric(t: StaticType) {
+        return t === Integer || t === Float
+    }
+
+    addStaticType(expr: Node, type: StaticType) {
+        if (!this.firstPass)
+            addStaticType(expr, type)
+    }
+
+    addCoercionIfAny(expr: Node, type: StaticType): void {
+        // if the expression type is Any type, mark it for coercion
+        if (!this.firstPass && type === Any)
+            addStaticType(expr, type)
+    }
+
     addCoercionForBoolean(expr: Node, type: StaticType): void {
         // if the expression needs coercion to be tested as a boolean value.
         // In C, 0, 0.0, and NULL are false.
-        if (!this.firstPass && type === Any)
-            addStaticType(expr, type)
+        this.addCoercionIfAny(expr, type)
     }
 
     assertLvalue(node: Node) {

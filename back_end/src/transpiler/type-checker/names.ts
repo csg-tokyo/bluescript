@@ -26,7 +26,7 @@ export interface NameTable extends Environment {
 }
 
 export class GlobalNameTable implements NameTable {
-  names: Map<string,NameInfo>
+  names: Map<string, NameInfo>
 
   constructor() {
     this.names = new Map()
@@ -52,7 +52,7 @@ export class GlobalNameTable implements NameTable {
 }
 
 export class BlockNameTable implements NameTable {
-  names: {[key: string]: NameInfo }
+  names: {[key: string]: NameInfo}
   parent: NameTable
 
   constructor(parent: NameTable) {

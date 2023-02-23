@@ -83,11 +83,11 @@ export function isConsistent(t1: StaticType, t2: StaticType) {
     return false
 }
 
-export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | null {
+export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | undefined {
   if (isSubtype(t1, t2))
     return t2
   else if (isSubtype(t2, t1))
     return t1
   else
-    return null
+    return undefined
 }
