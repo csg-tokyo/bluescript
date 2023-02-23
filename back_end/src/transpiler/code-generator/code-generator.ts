@@ -266,6 +266,10 @@ export class CodeGenerator extends visitor.NodeVisitor {
     return
   }
 
+  tsAsExpression(node: AST.TSAsExpression, env: Environment): void {
+    return
+  }
+
   tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {
     this.visit(node.typeAnnotation, env)
   }
