@@ -3,7 +3,7 @@ import * as AST from "@babel/types"
 import { ErrorLog } from "../utils"
 import Environment, * as visitor from "../visitor"
 
-import type { StaticType } from "../types"
+import { ArrayType, StaticType } from "../types"
 
 import {
   Integer, Float, Boolean, String, Void, Null, Any,
@@ -61,10 +61,15 @@ export default class TypeChecker extends visitor.NodeVisitor {
   }
 
   numericLiteral(node: AST.NumericLiteral, env: Environment): void {
-    if (Number.isInteger(node.value))
+    const literal = node.extra?.raw as string
+    if (/^[0-9A-Fa-fXx]+$/.test(literal))
       this.result = Integer
+    else if (/^[0-9.e+\-]+$/.test(literal))
+      this.result = Float   // Note that Number(1.0) returns 1.
     else
-      this.result = Float
+      this.assert(false, 'bad numeric literal', node)
+
+    this.addStaticType(node, this.result)
   }
 
   identifier(node: AST.Identifier, env: Environment): void {
@@ -457,6 +462,44 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
   }
 
+  arrayExpression(node: AST.ArrayExpression, env: Environment): void {
+    let etype: StaticType | undefined = undefined
+    for (const ele of node.elements)
+      if (ele != null) {
+        this.visit(ele, env)
+        if (etype === undefined)
+          etype = this.result
+        else {
+          const t = commonSuperType(etype, this.result)
+          if (t === undefined)
+            etype = Any
+          else
+            etype = t
+        }
+    }
+
+    if (etype === undefined)
+      etype = Any     // the type of an empty array is any[]
+
+    const atype = new ArrayType(etype)
+    this.addStaticType(node, atype)
+    this.result = atype
+  }
+
+  memberExpression(node: AST.MemberExpression, env: Environment): void {
+    // an array access is recognized as a member access.
+    this.assert(AST.isExpression(node.object), 'not supported object', node.object)
+    this.assert(node.computed, 'a property access are not supported', node)
+    this.assert(AST.isExpression(node.property), 'a wrong property name', node.property)
+    this.visit(node.property, env)
+    this.assert(this.result === Integer, 'an array index must be an integer', node.property)
+    this.visit(node.object, env)
+    if (this.result instanceof ArrayType)
+      this.result = this.result.elementType
+    else
+      this.assert(false, 'an element access to a non-array', node.object)
+  }
+
   tsAsExpression(node: AST.TSAsExpression, env: Environment): void {
     this.visit(node.expression, env)
     const exprType = this.result
@@ -492,6 +535,11 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
       this.result = Any
     }
+  }
+
+  tsArrayType(node: AST.TSArrayType, env: Environment): void {
+    this.visit(node.elementType, env)
+    const elementType = this.result
   }
 
   tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {
