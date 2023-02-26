@@ -3,7 +3,7 @@ import * as AST from "@babel/types"
 import { ErrorLog } from "../utils"
 import Environment, * as visitor from "../visitor"
 
-import type { StaticType } from "../types"
+import { ArrayType, StaticType } from "../types"
 
 import {
   Integer, Float, Boolean, String, Void, Null, Any,
@@ -61,18 +61,23 @@ export default class TypeChecker extends visitor.NodeVisitor {
   }
 
   numericLiteral(node: AST.NumericLiteral, env: Environment): void {
-    if (Number.isInteger(node.value))
+    const literal = node.extra?.raw as string
+    if (/^[0-9A-Fa-fXx]+$/.test(literal))
       this.result = Integer
+    else if (/^[0-9.e+\-]+$/.test(literal))
+      this.result = Float   // Note that Number(1.0) returns 1.
     else
-      this.result = Float
+      this.assert(false, 'bad numeric literal', node)
+
+    this.addStaticType(node, this.result)
   }
 
   identifier(node: AST.Identifier, env: Environment): void {
     const names = env as NameTable
-    const name_info = names.lookup(node.name)
-    if (name_info !== undefined) {
-      const info = name_info as NameInfo
-      if (this.assert(!info.isTypeName(), `bad use of type name: ${node.name}`, node)) {
+    const nameInfo = names.lookup(node.name)
+    if (nameInfo !== undefined) {
+      const info = nameInfo as NameInfo
+      if (this.assert(!info.isTypeName, `bad use of type name: ${node.name}`, node)) {
         this.result = info.type
         return
       }
@@ -165,10 +170,16 @@ export default class TypeChecker extends visitor.NodeVisitor {
     const kind = node.kind
     this.assert(kind === 'const' || kind === 'let', 'only const and let are available', node)
     for (const decl of node.declarations)
-      this.visit(decl, env)
+      if (this.assert(decl.type === 'VariableDeclarator',
+                      `unsupported variable declarator ${decl.type}`, decl))
+        this.checkVariableDeclarator(decl, kind === 'const', env)
   }
 
   variableDeclarator(node: AST.VariableDeclarator, env: Environment): void {
+    throw Error('cannot directly visit AST.VariableDeclarator')
+  }
+
+  checkVariableDeclarator(node: AST.VariableDeclarator, isConst: boolean, env: Environment): void {
     const lvalue = node.id   // LVal = Identifier | ...
     this.assertLvalue(lvalue)
     const id = lvalue as Identifier
@@ -204,7 +215,9 @@ export default class TypeChecker extends visitor.NodeVisitor {
       varType = Any
 
     if (!alreadyDeclared) {
-      const success = (env as NameTable).record(varName, varType)
+      const info = new NameInfo(varType)
+      info.isConst = isConst
+      const success = (env as NameTable).record(varName, info)
       this.assert(success, `Identifier '${varName}' has already been declared..`, node)
     }
   }
@@ -244,7 +257,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     const ftype = new FunctionType(rtype, paramTypes)
     addStaticType(node, ftype)
     if (node.id != null)
-      outerEnv.record(node.id.name, ftype)
+      outerEnv.record(node.id.name, new NameInfo(ftype))
   }
 
   functionDeclarationPass2(node: AST.FunctionDeclaration, env: Environment): void {
@@ -275,7 +288,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
       this.assert(env.lookup(varName)?.type == undefined,
         `duplicated parameter name: ${varName}`, node)
-      env.record(varName, varType)
+      env.record(varName, new NameInfo(varType))
       paramTypes.push(varType)
     }
 
@@ -309,7 +322,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
   updateExpression(node: AST.UpdateExpression, env: Environment): void {
     // const prefix = node.prefix           true if ++k, but false if k++
-    this.assertLvalue(node.argument)
+    this.assertMutableLvalue(node.argument, env as NameTable)
     this.visit(node.argument, env)
     const op = node.operator    // ++ or --
     this.assert(this.isNumeric(this.result),
@@ -369,7 +382,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
   }
 
   assignmentExpression(node: AST.AssignmentExpression, env: Environment): void {
-    this.assertLvalue(node.left)
+    this.assertMutableLvalue(node.left, env as NameTable)
     this.visit(node.left, env)
     const left_type = this.result
     this.visit(node.right, env)
@@ -449,12 +462,50 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
   }
 
+  arrayExpression(node: AST.ArrayExpression, env: Environment): void {
+    let etype: StaticType | undefined = undefined
+    for (const ele of node.elements)
+      if (ele != null) {
+        this.visit(ele, env)
+        if (etype === undefined)
+          etype = this.result
+        else {
+          const t = commonSuperType(etype, this.result)
+          if (t === undefined)
+            etype = Any
+          else
+            etype = t
+        }
+    }
+
+    if (etype === undefined)
+      etype = Any     // the type of an empty array is any[]
+
+    const atype = new ArrayType(etype)
+    this.addStaticType(node, atype)
+    this.result = atype
+  }
+
+  memberExpression(node: AST.MemberExpression, env: Environment): void {
+    // an array access is recognized as a member access.
+    this.assert(AST.isExpression(node.object), 'not supported object', node.object)
+    this.assert(node.computed, 'a property access are not supported', node)
+    this.assert(AST.isExpression(node.property), 'a wrong property name', node.property)
+    this.visit(node.property, env)
+    this.assert(this.result === Integer, 'an array index must be an integer', node.property)
+    this.visit(node.object, env)
+    if (this.result instanceof ArrayType)
+      this.result = this.result.elementType
+    else
+      this.assert(false, 'an element access to a non-array', node.object)
+  }
+
   tsAsExpression(node: AST.TSAsExpression, env: Environment): void {
     this.visit(node.expression, env)
     const exprType = this.result
     this.visit(node.typeAnnotation, env)
     const asType = this.result
-    this.assert(exprType === Any || asType === Any,
+    this.assert(exprType === Any || asType === Any || (this.isNumeric(exprType) && this.isNumeric(asType)),
       this.invalidOperandsMessage('as', exprType, this.result), node)
     this.result = asType
   }
@@ -472,11 +523,11 @@ export default class TypeChecker extends visitor.NodeVisitor {
     else if (name === Integer)
       this.result = Integer
     else {
-      const name_info = (env as NameTable).lookup(name)
-      if (this.assert(name_info !== undefined, `unknown type name: ${name}`, node)) {
-        const info = name_info as NameInfo
-        const is_type = info.isTypeName()
-        if (this.assert(is_type, `not a type name: ${name}`, node)) {
+      const nameInfo = (env as NameTable).lookup(name)
+      if (this.assert(nameInfo !== undefined, `unknown type name: ${name}`, node)) {
+        const info = nameInfo as NameInfo
+        const isType = info.isTypeName
+        if (this.assert(isType, `not a type name: ${name}`, node)) {
           this.result = info.type
           return
         }
@@ -484,6 +535,11 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
       this.result = Any
     }
+  }
+
+  tsArrayType(node: AST.TSArrayType, env: Environment): void {
+    this.visit(node.elementType, env)
+    const elementType = this.result
   }
 
   tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {
@@ -538,6 +594,14 @@ export default class TypeChecker extends visitor.NodeVisitor {
     // if the expression needs coercion to be tested as a boolean value.
     // In C, 0, 0.0, and NULL are false.
     this.addCoercionIfAny(expr, type)
+  }
+
+  assertMutableLvalue(node: Node, table: NameTable) {
+    this.assertLvalue(node)
+    const id = node as AST.Identifier
+    const info = table.lookup(id.name)
+    if (info !== undefined)
+      this.assert(!info.isConst, 'assignment to constant variable', node)
   }
 
   assertLvalue(node: Node) {

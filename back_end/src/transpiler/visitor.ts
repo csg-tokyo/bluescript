@@ -41,10 +41,13 @@ export abstract class NodeVisitor {
         [ 'LogicalExpression', (visitor, node, env) => visitor.logicalExpression(node as AST.LogicalExpression, env) ],
         [ 'ConditionalExpression', (visitor, node, env) => visitor.conditionalExpression(node as AST.ConditionalExpression, env) ],
         [ 'CallExpression', (visitor, node, env) => visitor.callExpression(node as AST.CallExpression, env) ],
+        [ 'ArrayExpression', (visitor, node, env) => visitor.arrayExpression(node as AST.ArrayExpression, env) ],
+        [ 'MemberExpression', (visitor, node, env) => visitor.memberExpression(node as AST.MemberExpression, env) ],
         // TS Type
         [ 'TSAsExpression',  (visitor, node, env) => visitor.tsAsExpression(node as AST.TSAsExpression, env)],
         [ 'TSTypeAnnotation', (visitor, node, env) => visitor.tsTypeAnnotation(node as AST.TSTypeAnnotation, env) ],
         [ 'TSTypeReference', (visitor, node, env) => visitor.tsTypeReference(node as AST.TSTypeReference, env) ],
+        [ 'TSArrayType', (visitor, node, env) => visitor.tsArrayType(node as AST.TSArrayType, env) ],
         [ 'TSNumberKeyword', (visitor, node, env) => visitor.tsNumberKeyword(node as AST.TSNumberKeyword, env) ],
         [ 'TSVoidKeyword', (visitor, node, env) => visitor.tsVoidKeyword(node as AST.TSVoidKeyword, env) ],
         [ 'TSBooleanKeyword', (visitor, node, env) => visitor.tsBooleanKeyword(node as AST.TSBooleanKeyword, env) ],
@@ -94,9 +97,12 @@ export abstract class NodeVisitor {
     abstract logicalExpression(node: AST.LogicalExpression, env: Environment): void
     abstract conditionalExpression(node: AST.ConditionalExpression, env: Environment): void
     abstract callExpression(node: AST.CallExpression, env: Environment): void
+    abstract arrayExpression(node: AST.ArrayExpression, env: Environment): void
+    abstract memberExpression(node: AST.MemberExpression, env: Environment): void
     abstract tsAsExpression(node: AST.TSAsExpression, env: Environment): void
     abstract tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void
     abstract tsTypeReference(node: AST.TSTypeReference, env: Environment): void
+    abstract tsArrayType(node: AST.TSArrayType, env: Environment): void
     abstract tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void
     abstract tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void
     abstract tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void
@@ -134,9 +140,12 @@ export class NullVisitor extends NodeVisitor {
     logicalExpression(node: AST.LogicalExpression, env: Environment): void {}
     conditionalExpression(node: AST.ConditionalExpression, env: Environment): void {}
     callExpression(node: AST.CallExpression, env: Environment): void {}
+    arrayExpression(node: AST.ArrayExpression, env: Environment): void {}
+    memberExpression(node: AST.MemberExpression, env: Environment): void {}
     tsAsExpression(node: AST.TSAsExpression, env: Environment): void {}
     tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {}
     tsTypeReference(node: AST.TSTypeReference, env: Environment): void {}
+    tsArrayType(node: AST.TSArrayType, env: Environment): void {}
     tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {}
     tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void {}
     tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void {}

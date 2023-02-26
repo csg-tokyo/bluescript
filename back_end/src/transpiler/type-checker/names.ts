@@ -4,22 +4,25 @@ import type { StaticType } from "../types"
 
 export class NameInfo {
   type: StaticType
-  is_type_name: boolean
+  isTypeName: boolean
+  isConst: boolean   // const or let
 
   constructor(t: StaticType) {
     this.type = t
-    this.is_type_name = false
+    this.isTypeName = false
+    this.isConst = false
   }
 
-  isTypeName(): boolean {
-    return this.is_type_name
+  setup(f: (obj: this) => void) {
+    f(this)
+    return this
   }
 }
 
 // Name table
 
 export interface NameTable extends Environment {
-  record(key: string, t: StaticType): boolean
+  record(key: string, info: NameInfo): boolean
   lookup(key: string): NameInfo | undefined
   returnType(): StaticType | undefined | null
   setReturnType(t: StaticType): void
@@ -32,9 +35,9 @@ export class GlobalNameTable implements NameTable {
     this.names = new Map()
   }
 
-  record(key: string, type: StaticType): boolean {
+  record(key: string, info: NameInfo): boolean {
     const old = this.names.get(key)
-    this.names.set(key, new NameInfo(type))
+    this.names.set(key, info)
     return old === undefined
   }
 
@@ -60,9 +63,9 @@ export class BlockNameTable implements NameTable {
     this.parent = parent
   }
 
-  record(key: string, type: StaticType): boolean {
+  record(key: string, info: NameInfo): boolean {
     const old = this.names[key]
-    this.names[key] = new NameInfo(type)
+    this.names[key] = info
     return old === undefined
   }
 

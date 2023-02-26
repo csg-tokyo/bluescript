@@ -17,6 +17,10 @@ export class ObjectType {
   isSubtypeOf(t: StaticType): boolean {
     return this === t
   }
+
+  sameType(t: StaticType): boolean {
+    return this === t
+  }
 }
 
 export const objectType = new ObjectType()
@@ -36,7 +40,7 @@ export class FunctionType extends ObjectType {
   }
 
   isSubtypeOf(t: StaticType): boolean {
-    if (t instanceof FunctionType) {
+    if (t instanceof FunctionType)
       if (isSubtype(this.returnType, t.returnType)
         && this.paramTypes.length === t.paramTypes.length) {
         for (let i = 0; i < this.paramTypes.length; i++)
@@ -44,7 +48,46 @@ export class FunctionType extends ObjectType {
             return false
         return true
       }
-    }
+
+    return false
+  }
+
+  sameType(t: StaticType): boolean {
+    if (t instanceof FunctionType)
+      if (sameType(this.returnType, t.returnType)
+        && this.paramTypes.length === t.paramTypes.length) {
+        for (let i = 0; i < this.paramTypes.length; i++)
+          if (!sameType(t.paramTypes[i], this.paramTypes[i]))
+            return false
+        return true
+      }
+
+    return false
+  }
+}
+
+export class ArrayType extends ObjectType {
+  elementType: StaticType
+
+  constructor(element: StaticType) {
+    super()
+    this.elementType = element
+  }
+
+  name() {
+    return `${typeToString(this.elementType)}[]`
+  }
+
+  isSubtypeOf(t: StaticType): boolean {
+    if (t instanceof ArrayType)
+      return isSubtype(this.elementType, t.elementType)
+
+    return false
+  }
+
+  sameType(t: StaticType): boolean {
+    if (t instanceof ArrayType)
+      return sameType(this.elementType, t.elementType)
 
     return false
   }
@@ -70,6 +113,15 @@ export function isSubtype(subtype: StaticType, type: StaticType): boolean {
     return subtype !== Void && subtype !== Any
   else if (subtype instanceof ObjectType)
     return subtype.isSubtypeOf(type)
+  else
+    return false
+}
+
+export function sameType(t1: StaticType, t2: StaticType) {
+  if (t1 === t2)
+    return true
+  else if (t1 instanceof ObjectType)
+    return t1.sameType(t2)
   else
     return false
 }
