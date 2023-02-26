@@ -266,6 +266,10 @@ export class CodeGenerator extends visitor.NodeVisitor {
     return
   }
 
+  memberExpression(node: AST.MemberExpression, env: Environment):void {
+    return
+  }
+
   tsAsExpression(node: AST.TSAsExpression, env: Environment): void {
     return
   }

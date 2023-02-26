@@ -4,7 +4,7 @@ import testCaseReader from "../test-case-reader";
 import {runBabelParser} from "../../../src/transpiler/utils";
 import {runTypeChecker} from "../../../src/transpiler/type-checker/type-checker";
 import {FunctionType} from "../../../src/transpiler/types";
-import {GlobalNameTable} from "../../../src/transpiler/type-checker/names";
+import {GlobalNameTable, NameInfo} from "../../../src/transpiler/type-checker/names";
 
 describe('expressions', () => {
   const calculationCases = testCaseReader("expressions.txt");
@@ -13,12 +13,12 @@ describe('expressions', () => {
       const ast = runBabelParser(cs.ts,1);
 
       const globalNameTable = new GlobalNameTable();
-      globalNameTable.record("i", "integer");
-      globalNameTable.record("f", "float");
-      globalNameTable.record("b", "boolean");
-      globalNameTable.record("greeting", new FunctionType("void", []));
-      globalNameTable.record("console_log_number", new FunctionType("void", ["integer"]));
-      globalNameTable.record("add", new FunctionType("void", ["integer", "integer"]));
+      globalNameTable.record("i", new NameInfo("integer"));
+      globalNameTable.record("f", new NameInfo("float"));
+      globalNameTable.record("b", new NameInfo("boolean"));
+      globalNameTable.record("greeting", new NameInfo(new FunctionType("void", [])));
+      globalNameTable.record("console_log_number", new NameInfo(new FunctionType("void", ["integer"])));
+      globalNameTable.record("add", new NameInfo(new FunctionType("void", ["integer", "integer"])));
       runTypeChecker(ast, globalNameTable)
 
       const codeGenerator = new CodeGenerator();
@@ -55,8 +55,8 @@ describe('statements', () => {
       const ast = runBabelParser(cs.ts, 1);
 
       const globalNameTable = new GlobalNameTable();
-      globalNameTable.record("i", "integer");
-      globalNameTable.record("f", "float");
+      globalNameTable.record("i", new NameInfo("integer"));
+      globalNameTable.record("f", new NameInfo("float"));
       runTypeChecker(ast, globalNameTable);
 
       const codeGenerator = new CodeGenerator();

@@ -1,6 +1,6 @@
 import {SymbolModel} from "../models/symbol-model";
 import {runBabelParser} from "./utils";
-import {GlobalNameTable} from "./type-checker/names";
+import {GlobalNameTable, NameInfo} from "./type-checker/names";
 import {runTypeChecker} from "./type-checker/type-checker";
 import * as visitor from "./visitor";
 import {ReplCodeGenerator, ReplGlobalRootSet} from "./code-generator/repl-code-generator";
@@ -13,7 +13,7 @@ export function replTranspile(tsString: string, existingSymbols: SymbolModel[]):
   const globalNameTable = new GlobalNameTable();
   for (const symbol of existingSymbols) {
     if (symbol.type?.symbolType === "variable")
-      globalNameTable.record(symbol.name, symbol.type.variableType);
+      globalNameTable.record(symbol.name, new NameInfo(symbol.type.variableType));
   }
   runTypeChecker(ast, globalNameTable);
 
