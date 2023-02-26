@@ -6,7 +6,7 @@ import {Buffer} from "node:buffer";
 import {SectionNameArr} from "../models/section-model";
 import * as fs from "fs";
 import {execSync} from "child_process";
-import SectionValueFactory from "./linker/section-value-factory";
+import SectionValueFactory from "../linker/section-value-factory";
 
 export default class OnetimeCompilerChain {
   private C_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.C_FILE_NAME;

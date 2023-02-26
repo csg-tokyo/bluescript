@@ -1,7 +1,7 @@
 import {ElfRelocation, ElfSymbol} from "./models";
 import {Buffer} from "node:buffer";
-import ELF_PARSER_CONSTANTS from "../../utils/elf-parser/static/elf-parser-constants";
-import {SectionName} from "../../models/section-model";
+import ELF_PARSER_CONSTANTS from "../utils/elf-parser/static/elf-parser-constants";
+import {SectionName} from "../models/section-model";
 
 export default class LinkStrategy {
   sectionAddresses: {[name: string]: number};

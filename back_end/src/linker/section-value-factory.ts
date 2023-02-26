@@ -1,9 +1,9 @@
 import {ElfRelocation, ElfSymbol} from "./models";
 import {Buffer} from "node:buffer";
-import Elf from "../../utils/elf-parser/elf";
-import ELF_PARSER_CONSTANTS from "../../utils/elf-parser/static/elf-parser-constants";
-import Elf32Sym from "../../utils/elf-parser/elf32/elf32-sym";
-import {SectionName, SectionNameArr} from "../../models/section-model";
+import Elf from "../utils/elf-parser/elf";
+import ELF_PARSER_CONSTANTS from "../utils/elf-parser/static/elf-parser-constants";
+import Elf32Sym from "../utils/elf-parser/elf32/elf32-sym";
+import {SectionName, SectionNameArr} from "../models/section-model";
 import LinkStrategy from "./link-strategy";
 import SectionValue from "./section-value";
 

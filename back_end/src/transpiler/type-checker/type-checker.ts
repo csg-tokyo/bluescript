@@ -419,7 +419,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     this.visit(node.alternate, env)
     const else_type = this.result
     const result_type = commonSuperType(then_type, else_type)
-    if (result_type === null) {
+    if (result_type === undefined) {
       this.assert(false, 'no common super type', node)
       this.result = then_type
     }

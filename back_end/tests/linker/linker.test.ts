@@ -1,13 +1,13 @@
 import {execSync} from "child_process";
-import SectionValueFactory from "../../../src/compiler-toolchain/linker/section-value-factory";
+import SectionValueFactory from "../../src/linker/section-value-factory";
 import {generateExpectedResult, getL32r, getLinkedCall8} from "./common";
 import {Buffer} from "node:buffer";
-import {SectionNameArr} from "../../../src/models/section-model";
+import {SectionNameArr} from "../../src/models/section-model";
 import * as fs from "fs";
 
 
 describe('linker once test', () => {
-  const dirPath = "./tests/compiler-toolchain/linker/";
+  const dirPath = "./tests/linker/";
 
   for (let i = 0; i <= 7; i++) {
     test(`case${i}`, () => {

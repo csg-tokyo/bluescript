@@ -1,6 +1,6 @@
 import {Buffer} from "node:buffer";
 import {ElfRelocation} from "./models";
-import {SectionName} from "../../models/section-model";
+import {SectionName} from "../models/section-model";
 import LinkStrategy from "./link-strategy";
 
 export default class SectionValue {

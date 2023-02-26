@@ -1,8 +1,6 @@
 import {transpile} from "../../src/transpiler/transpile";
 import {runBabelParser} from "../../src/transpiler/utils";
-import * as visitor from "../../src/transpiler/visitor";
-import TypeChecker from "../../src/transpiler/type-checker/type-checker";
-import {FunctionType} from "../../src/transpiler/types";
+import {runTypeChecker} from "../../src/transpiler/type-checker/type-checker";
 import {GlobalNameTable} from "../../src/transpiler/type-checker/names";
 
 test("transpile", () => {
@@ -12,17 +10,15 @@ test("transpile", () => {
   expect(result).toBe(expectedCString);
 })
 
-// test("playground", () => {
-//   const tsString = "let arr:integer[] = [3];";
-//
-//   const ast = runBabelParser(tsString, 1);
-//   console.log(JSON.stringify(ast));
-//
-//   const globalNameTable = new GlobalNameTable()
-//   globalNameTable.record("console_log_number", new FunctionType("void", ["integer"]));
-//   v
-//
-//   console.log(JSON.stringify(typeChecker));
-//   console.log(JSON.stringify(ast));
-//   console.log(nameTable)
-// })
+test("playground", () => {
+  const tsString = "function func1():void { 1 + 1 }";
+
+  const ast = runBabelParser(tsString, 1);
+  console.log(JSON.stringify(ast));
+
+  const globalNameTable = new GlobalNameTable()
+  runTypeChecker(ast, globalNameTable);
+
+  console.log(JSON.stringify(ast))
+  console.log(globalNameTable.lookup("func1"))
+})
