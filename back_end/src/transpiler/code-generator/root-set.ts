@@ -76,7 +76,7 @@ export class BlockRootSet implements RootSet {
     let s = `ROOT_SET(root_set, ${numOfRootEntries});\n`;
     if (this.parent instanceof FunctionRootSet) {
       for (const name of Object.keys(this.parent.rootTable)) {
-        s += this.parent.generateSetStatement(name) + "\n";
+        s += this.parent.generateSetStatement(name) + ";\n";
       }
     }
     return s;
@@ -90,7 +90,7 @@ export class BlockRootSet implements RootSet {
     const varIndex = this.rootTable[variableName];
     if (varIndex === undefined)
       return this.parent.generateSetStatement(variableName);
-    return `root_set.values[${this.rootTable[variableName]}] = ${variableName};\n`
+    return `root_set.values[${this.rootTable[variableName]}] = ${variableName}`
   }
 
   generateUpdateStatement(variableName: string): string {
@@ -134,7 +134,7 @@ export class FunctionRootSet implements RootSet {
     const varIndex = this.rootTable[variableName];
     if (varIndex === undefined)
       return this.parent.generateSetStatement(variableName);
-    return `root_set.values[${this.rootTable[variableName]}] = ${variableName};\n`
+    return `root_set.values[${this.rootTable[variableName]}] = ${variableName}`
   }
 
   generateUpdateStatement(variableName: string): string {

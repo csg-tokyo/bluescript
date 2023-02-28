@@ -155,7 +155,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
     this.result += staticTypeToCType(varType) + " ";
     this.result += varName;
     if (node.init) {
-      if (varType === "string") {
+      if (AST.isStringLiteral(node.init)) {
         this.result += ` = ${GCNewString}(`;
         this.visit(node.init, env);
         this.result += ");\n";
@@ -179,7 +179,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
     if (node.params.length > 0)
       this.result = this.result.slice(0, -2);
     this.result += ") ";
-    const funcNameTable = getNameTable(node.body) as FunctionNameTable;
+    const funcNameTable = getNameTable(node) as FunctionNameTable;
     const funcRootSet = new FunctionRootSet(env, funcNameTable);
     this.visit(node.body, funcRootSet);
   }
@@ -210,13 +210,18 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   assignmentExpression(node: AST.AssignmentExpression, env: RootSet): void {
-    // TODO: integer, float以外の代入に対応。
     this.visit(node.left, env);
-    if (["=", "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=", "<<=", ">>="].includes(node.operator))
-      this.result += ` ${node.operator} `;
-    else
-      this.assert(false, `${node.operator} has not been supported yet.`, node)
-    this.visit(node.right, env);
+    this.result += ` ${node.operator} `;
+    if (AST.isStringLiteral(node.right)) {
+      this.result += `${GCNewString}(`;
+      this.visit(node.right, env);
+      this.result += ");\n";
+    } else {
+      this.visit(node.right, env);
+    }
+    if (AST.isIdentifier(node.left))
+      this.result += env.generateUpdateStatement(node.left.name);
+
   }
 
   logicalExpression(node: AST.LogicalExpression, env: RootSet): void {

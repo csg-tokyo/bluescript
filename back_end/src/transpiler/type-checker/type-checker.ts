@@ -270,6 +270,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
     funcEnv.thisReturnType = ftype.returnType
     this.visit(node.body, funcEnv)
+    addNameTable(node, funcEnv);
   }
 
   functionParameters(node: AST.FunctionDeclaration, env: NameTable): StaticType[] {

@@ -176,6 +176,7 @@ ROOT_SET(root_set, 1);
 root_set.values[0] = s;
 DELETE_ROOT_SET(root_set);
 return 1 + 1;
+DELETE_ROOT_SET(root_set);
 };
 
 --- Function declaration with 2 param (string, string), integer return
@@ -191,6 +192,7 @@ root_set.values[0] = s1;
 root_set.values[1] = s2;
 DELETE_ROOT_SET(root_set);
 return 1 + 1;
+DELETE_ROOT_SET(root_set);
 };
 
 --- Function declaration with 2 param (integer, string), no return
@@ -216,9 +218,10 @@ function func1(i: integer, s:string):integer {
 int32_t func1(int32_t i, value_t s) {
 ROOT_SET(root_set, 1);
 root_set.values[0] = s;
-DELETE_ROOT_SET(root_set);
 int32_t n = 3;
+DELETE_ROOT_SET(root_set);
 return n;
+DELETE_ROOT_SET(root_set);
 };
 
 --- Function declaration with 2 param (integer, string), string dec
@@ -236,6 +239,7 @@ value_t s1 = gc_new_string("Hello world!");
 root_set.values[1] = s1;
 DELETE_ROOT_SET(root_set);
 return 1 + 1;
+DELETE_ROOT_SET(root_set);
 };
 
 --- Function declaration with 2 param (integer, string), integer dec, integer assignment
@@ -254,6 +258,7 @@ int32_t n = 3;
 n = 4;
 DELETE_ROOT_SET(root_set);
 return n;
+DELETE_ROOT_SET(root_set);
 };
 
 --- Function declaration with 2 param (integer, string), string dec, string assignment
@@ -266,7 +271,7 @@ function func1(i: integer, s:string):integer {
 
 ### c
 int32_t func1(int32_t i, value_t s) {
-ROOT_SET(root_set, 1);
+ROOT_SET(root_set, 2);
 root_set.values[0] = s;
 value_t s1 = gc_new_string("Hello world!");
 root_set.values[1] = s1;
@@ -274,28 +279,30 @@ s1 = gc_new_string("Foo!");
 root_set.values[1] = s1;
 DELETE_ROOT_SET(root_set);
 return 1 + 1;
+DELETE_ROOT_SET(root_set);
 };
 
 --- Function declaration with no param, outer integer assignment
 ### ts
 function func1():integer {
-    i = 3;
+    ii = 3;
     return 3;
 }
 
 ### c
-int32_t func1(int32_t i, value_t s) {
-i = 3;
+int32_t func1() {
+ii = 3;
+return 3;
 };
 
 --- Function declaration with no param, outer string assignment
 ### ts
 function func1():integer {
-    s = "Foo!";
+    ss = "Foo!";
 }
 
 ### c
-int32_t func1(int32_t i, value_t s) {
-s = gc_new_string("Foo!");
-global_root_set_array()
+int32_t func1() {
+ss = gc_new_string("Foo!");
+gc_array_set(global_root_set_array, int_to_value(0), ss);
 };

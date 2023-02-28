@@ -38,6 +38,8 @@ describe('declarations', () => {
       const ast = runBabelParser(cs.ts, 1);
 
       const globalNameTable = new GlobalNameTable();
+      globalNameTable.record("ii", new NameInfo("integer"));
+      globalNameTable.record("ss", new NameInfo("string"));
       runTypeChecker(ast, globalNameTable);
 
       const codeGenerator = new CodeGenerator();
