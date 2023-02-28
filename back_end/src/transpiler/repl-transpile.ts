@@ -18,7 +18,7 @@ export function replTranspile(tsString: string, existingSymbols: SymbolModel[]):
   runTypeChecker(ast, globalNameTable);
 
   const codeGenerator = new ReplCodeGenerator();
-  const rootSet = new ReplGlobalRootSet(countExistingObjects(existingSymbols));
+  const rootSet = new ReplGlobalRootSet(globalNameTable, countExistingObjects(existingSymbols));
   visitor.file(ast, rootSet, codeGenerator);
 
   const cString = codeGenerator.result;

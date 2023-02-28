@@ -15,10 +15,12 @@ describe('repl-code-generator', () => {
       runTypeChecker(ast, globalNameTable);
 
       const codeGenerator = new ReplCodeGenerator();
-      const rootSet = new ReplGlobalRootSet();
+      const rootSet = new ReplGlobalRootSet(globalNameTable);
       visitor.file(ast, rootSet, codeGenerator);
 
       expect(codeGenerator.result).toBe(cs.c)
     });
   }
 });
+
+// TODO: block内のvariable initのテスト。

@@ -1,10 +1,11 @@
 import * as visitor from "../../../src/transpiler/visitor";
-import {CodeGenerator, GlobalRootSet} from "../../../src/transpiler/code-generator/code-generator";
+import {CodeGenerator} from "../../../src/transpiler/code-generator/code-generator";
 import testCaseReader from "../test-case-reader";
 import {runBabelParser} from "../../../src/transpiler/utils";
 import {runTypeChecker} from "../../../src/transpiler/type-checker/type-checker";
 import {FunctionType} from "../../../src/transpiler/types";
 import {GlobalNameTable, NameInfo} from "../../../src/transpiler/type-checker/names";
+import {GlobalRootSet} from "../../../src/transpiler/code-generator/root-set";
 
 describe('expressions', () => {
   const calculationCases = testCaseReader("expressions.txt");
@@ -22,7 +23,7 @@ describe('expressions', () => {
       runTypeChecker(ast, globalNameTable)
 
       const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet();
+      const rootSet = new GlobalRootSet(globalNameTable);
       visitor.file(ast, rootSet, codeGenerator);
 
       expect(codeGenerator.result).toBe(cs.c)
@@ -40,13 +41,14 @@ describe('declarations', () => {
       runTypeChecker(ast, globalNameTable);
 
       const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet();
+      const rootSet = new GlobalRootSet(globalNameTable);
       visitor.file(ast, rootSet, codeGenerator);
 
       expect(codeGenerator.result).toBe(cs.c);
     });
   }
 });
+// TODO: 関数がstringをそのまま返す場合の対処は？ 例：return "Hello!"
 
 describe('statements', () => {
   const calculationCases = testCaseReader("statements.txt");
@@ -60,7 +62,7 @@ describe('statements', () => {
       runTypeChecker(ast, globalNameTable);
 
       const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet();
+      const rootSet = new GlobalRootSet(globalNameTable);
       visitor.file(ast, rootSet, codeGenerator);
 
       expect(codeGenerator.result).toBe(cs.c);

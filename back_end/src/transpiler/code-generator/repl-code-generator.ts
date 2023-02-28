@@ -1,8 +1,7 @@
-import {CodeGenerator, GCNewString, GlobalRootSet, staticTypeToCType} from "./code-generator";
+import {CodeGenerator, staticTypeToCType} from "./code-generator";
 import * as AST from '@babel/types';
 import {Identifier} from "@babel/types";
-import Environment from "../visitor";
-import {getNameTable} from "../type-checker/names";
+import {GCNewString, GlobalRootSet, RootSet} from "./root-set";
 
 
 export class ReplGlobalRootSet extends GlobalRootSet {
@@ -17,9 +16,8 @@ export class ReplGlobalRootSet extends GlobalRootSet {
 }
 
 export class ReplCodeGenerator extends CodeGenerator {
-  override program(node: AST.Program, env: Environment) {
+  override program(node: AST.Program, env: RootSet) {
     const replEnv = env as ReplGlobalRootSet;
-    this.nameTable = getNameTable(node)
     const groupedNodes = this.groupedNodes(node.body);
     for (const group of groupedNodes) {
       if (group.isDeclaration)
@@ -37,10 +35,14 @@ export class ReplCodeGenerator extends CodeGenerator {
     this.result += "\n";
   }
 
-  override variableDeclarator(node: AST.VariableDeclarator, env: Environment) {
+  override variableDeclarator(node: AST.VariableDeclarator, env: RootSet) {
+    if (!(env instanceof ReplGlobalRootSet)) {
+      super.variableDeclarator(node, env);
+      return;
+    }
     const replEnv = env as ReplGlobalRootSet;
     const varName = (node.id as Identifier).name
-    const varType = this.nameTable?.lookup(varName)?.type;
+    const varType = replEnv.nameTable?.lookup(varName)?.type;
     this.result += staticTypeToCType(varType) + " ";
     this.result += varName;
     this.result += ";\n";
@@ -50,7 +52,7 @@ export class ReplCodeGenerator extends CodeGenerator {
         this.result += `${varName} = ${GCNewString}(`;
         this.visit(node.init, env);
         this.result += ");\n";
-        this.result += (env as GlobalRootSet).generateValueSettingString(varName);
+        this.result += (env as GlobalRootSet).generateSetStatement(varName);
         this.result += ";\n};\n";
       } else {
         this.result += `void ${replEnv.generateExecFuncName()} {\n`;

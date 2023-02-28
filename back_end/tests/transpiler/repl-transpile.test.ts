@@ -37,7 +37,7 @@ f * i;
 value_t s1;
 void ___bluescript_exec_func_2 {
 s1 = gc_new_string("Hello world!");
-gc_array_set(global_name_table_array, int_to_value(1), s1);
+gc_array_set(global_root_set_array, int_to_value(1), s1);
 };
 
 `;

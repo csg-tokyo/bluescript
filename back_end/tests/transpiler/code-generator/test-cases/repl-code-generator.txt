@@ -23,7 +23,7 @@ let s:string = "Hello world!";
 value_t s;
 void ___bluescript_exec_func_0 {
 s = gc_new_string("Hello world!");
-gc_array_set(global_name_table_array, int_to_value(0), s);
+gc_array_set(global_root_set_array, int_to_value(0), s);
 };
 
 --- Variable declaration multi
