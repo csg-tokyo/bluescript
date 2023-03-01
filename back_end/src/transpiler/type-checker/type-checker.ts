@@ -541,6 +541,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
   tsArrayType(node: AST.TSArrayType, env: Environment): void {
     this.visit(node.elementType, env)
     const elementType = this.result
+    this.result = new ArrayType(elementType);
   }
 
   tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {
