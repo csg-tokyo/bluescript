@@ -18,7 +18,7 @@ export function replTranspile(tsString: string, existingSymbols: SymbolModel[]):
   runTypeChecker(ast, globalNameTable);
 
   const codeGenerator = new ReplCodeGenerator();
-  const rootSet = new ReplGlobalRootSet(globalNameTable, countExistingObjects(existingSymbols));
+  const rootSet = new ReplGlobalRootSet(globalNameTable);
   visitor.file(ast, rootSet, codeGenerator);
 
   const cString = codeGenerator.result;
@@ -26,15 +26,6 @@ export function replTranspile(tsString: string, existingSymbols: SymbolModel[]):
   const execFuncNames = rootSet.execFunctionNames;
 
   return {cString, newSymbols, execFuncNames};
-}
-
-function countExistingObjects(existingSymbols: SymbolModel[]): number {
-  let count = 0;
-  for (const symbol of existingSymbols) {
-    if (symbol.type?.symbolType === "variable" && ["string"].includes(symbol.type.variableType))
-      count++;
-  }
-  return count;
 }
 
 function generateNewSymbols(nameTable: GlobalNameTable, existingSymbols: SymbolModel[]): SymbolModel[] {

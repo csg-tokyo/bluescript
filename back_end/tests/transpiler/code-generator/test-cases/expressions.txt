@@ -117,6 +117,14 @@ i >>= 1;
 ### c
 i >>= 1;
 
+--- Assignment expression with string
+### ts
+s = "Foo!";
+
+### c
+s = gc_new_string("Foo!");
+gc_array_set(global_root_set_array, int_to_value(0), s);
+
 --- Update expression with addition prefix
 ### ts
 ++i;

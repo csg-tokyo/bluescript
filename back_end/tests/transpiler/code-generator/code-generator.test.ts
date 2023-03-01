@@ -17,6 +17,7 @@ describe('expressions', () => {
       globalNameTable.record("i", new NameInfo("integer"));
       globalNameTable.record("f", new NameInfo("float"));
       globalNameTable.record("b", new NameInfo("boolean"));
+      globalNameTable.record("s", new NameInfo("string"));
       globalNameTable.record("greeting", new NameInfo(new FunctionType("void", [])));
       globalNameTable.record("console_log_number", new NameInfo(new FunctionType("void", ["integer"])));
       globalNameTable.record("add", new NameInfo(new FunctionType("void", ["integer", "integer"])));
@@ -30,6 +31,7 @@ describe('expressions', () => {
     });
   }
 });
+// TODO: add string assignment test.
 
 describe('declarations', () => {
   const calculationCases = testCaseReader("declarations.txt");

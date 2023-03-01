@@ -1,6 +1,6 @@
 import Environment from "../visitor";
 import {BlockNameTable, FunctionNameTable, GlobalNameTable, NameTable} from "../type-checker/names";
-import {StaticType} from "../types";
+import {isValueT, StaticType} from "../types";
 
 // GC function, object names
 export const GCGlobalRootSetArray = "global_root_set_array";
@@ -20,16 +20,23 @@ export class GlobalRootSet implements RootSet {
   rootTable: {[name: string]: number} = {}
   nextRootTableIndex:number;
 
-  constructor(nameTable: GlobalNameTable, nextRootTableIndex: number = 0) {
+  constructor(nameTable: GlobalNameTable) {
     this.nameTable = nameTable;
-    this.nextRootTableIndex = nextRootTableIndex;
+
+    console.log(nameTable)
+    let rootIndex = 0;
+    for (const [name, info] of Object.entries(nameTable.names)) {
+      console.log(name)
+      if (isValueT(info.type)) {
+        this.rootTable[name] = rootIndex;
+        rootIndex++;
+      }
+    }
+    console.log(this.rootTable)
+    this.nextRootTableIndex = rootIndex;
   }
 
   generateSetStatement(variableName: string):string {
-    const varType = this.nameTable.lookup(variableName)?.type;
-    if (varType !== undefined && !isValueT(varType))
-      return "";
-
     const s = `${GCArraySet}(${GCGlobalRootSetArray}, int_to_value(${this.nextRootTableIndex}), ${variableName})`;
     this.rootTable[variableName] = this.nextRootTableIndex;
     this.nextRootTableIndex++;
@@ -37,10 +44,6 @@ export class GlobalRootSet implements RootSet {
   }
 
   generateUpdateStatement(variableName: string): string {
-    const varType = this.nameTable.lookup(variableName)?.type;
-    if (varType !== undefined && !isValueT(varType))
-      return "";
-
     const index = this.rootTable[variableName];
     return `${GCArraySet}(${GCGlobalRootSetArray}, int_to_value(${index}), ${variableName})`;
   }
@@ -83,10 +86,6 @@ export class BlockRootSet implements RootSet {
   }
 
   generateSetStatement(variableName: string): string {
-    const varType = this.nameTable.lookup(variableName)?.type;
-    if (varType !== undefined && !isValueT(varType))
-      return "";
-
     const varIndex = this.rootTable[variableName];
     if (varIndex === undefined)
       return this.parent.generateSetStatement(variableName);
@@ -127,10 +126,6 @@ export class FunctionRootSet implements RootSet {
   }
 
   generateSetStatement(variableName: string): string {
-    const varType = this.nameTable.lookup(variableName)?.type;
-    if (varType !== undefined && !isValueT(varType))
-      return "";
-
     const varIndex = this.rootTable[variableName];
     if (varIndex === undefined)
       return this.parent.generateSetStatement(variableName);
@@ -140,9 +135,4 @@ export class FunctionRootSet implements RootSet {
   generateUpdateStatement(variableName: string): string {
     return this.generateSetStatement(variableName);
   }
-}
-
-export function isValueT(t: StaticType): boolean {
-  const noValueT: any[] = ["integer", "float", "boolean", "void", "null"]
-  return !noValueT.includes(t);
 }

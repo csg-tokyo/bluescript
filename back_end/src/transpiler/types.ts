@@ -143,3 +143,8 @@ export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | un
   else
     return undefined
 }
+
+export function isValueT(t: StaticType | undefined): boolean {
+  const noValueT: any[] = ["integer", "float", "boolean", "void", "null"]
+  return t !== undefined && !noValueT.includes(t);
+}

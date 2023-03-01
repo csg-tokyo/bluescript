@@ -2,7 +2,7 @@ import { Identifier, Node } from "@babel/types";
 import * as AST from '@babel/types';
 import * as visitor from "../visitor";
 import {ErrorLog} from "../utils";
-import {FunctionType, StaticType} from "../types";
+import {FunctionType, isValueT, StaticType} from "../types";
 import {BlockNameTable, FunctionNameTable, getNameTable, getStaticType} from "../type-checker/names";
 import {BlockRootSet, FunctionRootSet, GCNewString, RootSet} from "./root-set";
 
@@ -45,7 +45,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   stringLiteral(node: AST.StringLiteral, env: RootSet): void {
-    this.result += `"${node.value}"`
+    this.result += `${GCNewString}("${node.value}")`
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: RootSet): void {
@@ -79,6 +79,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
     }
   }
 
+  // TODO: initでobjectが指定された場合は？
   forStatement(node: AST.ForStatement, env: RootSet): void {
     const blockNameTable = getNameTable(node) as BlockNameTable;
     const blockRootSet = new BlockRootSet(env, blockNameTable);
@@ -155,15 +156,12 @@ export class CodeGenerator extends visitor.NodeVisitor {
     this.result += staticTypeToCType(varType) + " ";
     this.result += varName;
     if (node.init) {
-      if (AST.isStringLiteral(node.init)) {
-        this.result += ` = ${GCNewString}(`;
-        this.visit(node.init, env);
-        this.result += ");\n";
-      } else {
-        this.result += " = ";
-        this.visit(node.init, env);
+      this.result += " = ";
+      this.visit(node.init, env);
+      if (isValueT(env.nameTable.lookup(varName)?.type)) {
+        this.result += ";\n";
+        this.result += env.generateSetStatement(varName);
       }
-      this.result += env.generateSetStatement(varName);
     }
   }
 
@@ -212,16 +210,11 @@ export class CodeGenerator extends visitor.NodeVisitor {
   assignmentExpression(node: AST.AssignmentExpression, env: RootSet): void {
     this.visit(node.left, env);
     this.result += ` ${node.operator} `;
-    if (AST.isStringLiteral(node.right)) {
-      this.result += `${GCNewString}(`;
-      this.visit(node.right, env);
-      this.result += ");\n";
-    } else {
-      this.visit(node.right, env);
-    }
-    if (AST.isIdentifier(node.left))
+    this.visit(node.right, env);
+    if (AST.isIdentifier(node.left) && isValueT(env.nameTable.lookup(node.left.name)?.type)) {
+      this.result += ";\n";
       this.result += env.generateUpdateStatement(node.left.name);
-
+    }
   }
 
   logicalExpression(node: AST.LogicalExpression, env: RootSet): void {
