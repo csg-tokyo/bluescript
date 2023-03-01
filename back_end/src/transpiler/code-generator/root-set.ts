@@ -22,30 +22,23 @@ export class GlobalRootSet implements RootSet {
 
   constructor(nameTable: GlobalNameTable) {
     this.nameTable = nameTable;
-
-    console.log(nameTable)
     let rootIndex = 0;
     for (const [name, info] of Object.entries(nameTable.names)) {
-      console.log(name)
       if (isValueT(info.type)) {
         this.rootTable[name] = rootIndex;
         rootIndex++;
       }
     }
-    console.log(this.rootTable)
     this.nextRootTableIndex = rootIndex;
   }
 
   generateSetStatement(variableName: string):string {
-    const s = `${GCArraySet}(${GCGlobalRootSetArray}, int_to_value(${this.nextRootTableIndex}), ${variableName})`;
-    this.rootTable[variableName] = this.nextRootTableIndex;
-    this.nextRootTableIndex++;
-    return s;
+    const index = this.rootTable[variableName];
+    return `${GCArraySet}(${GCGlobalRootSetArray}, int_to_value(${index}), ${variableName})`;
   }
 
   generateUpdateStatement(variableName: string): string {
-    const index = this.rootTable[variableName];
-    return `${GCArraySet}(${GCGlobalRootSetArray}, int_to_value(${index}), ${variableName})`;
+    return this.generateSetStatement(variableName)
   }
 }
 

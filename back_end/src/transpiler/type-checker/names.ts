@@ -29,20 +29,16 @@ export interface NameTable extends Environment {
 }
 
 export class GlobalNameTable implements NameTable {
-  names: Map<string, NameInfo>
-
-  constructor() {
-    this.names = new Map()
-  }
+  names: {[key: string]: NameInfo} = {}
 
   record(key: string, info: NameInfo): boolean {
-    const old = this.names.get(key)
-    this.names.set(key, info)
+    const old = this.names[key]
+    this.names[key] = info
     return old === undefined
   }
 
   lookup(key: string): NameInfo | undefined {
-    return this.names.get(key)
+    return this.names[key]
   }
 
   returnType(): StaticType | undefined | null {

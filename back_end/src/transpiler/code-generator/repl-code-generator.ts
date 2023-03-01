@@ -2,6 +2,7 @@ import {CodeGenerator, staticTypeToCType} from "./code-generator";
 import * as AST from '@babel/types';
 import {Identifier} from "@babel/types";
 import {GCNewString, GlobalRootSet, RootSet} from "./root-set";
+import {isValueT} from "../types";
 
 
 export class ReplGlobalRootSet extends GlobalRootSet {
@@ -20,9 +21,11 @@ export class ReplCodeGenerator extends CodeGenerator {
     const replEnv = env as ReplGlobalRootSet;
     const groupedNodes = this.groupedNodes(node.body);
     for (const group of groupedNodes) {
-      if (group.isDeclaration)
+      if (group.isDeclaration) {
         this.visit(group.nodes[0], env);
-      else {
+        if (AST.isFunctionDeclaration(group.nodes[0]))
+          this.result += ";\n";
+      } else {
         this.result += `void ${replEnv.generateExecFuncName()} {\n`;
         for (const statement of group.nodes) {
           this.visit(statement, env);
@@ -47,19 +50,14 @@ export class ReplCodeGenerator extends CodeGenerator {
     this.result += varName;
     this.result += ";\n";
     if (node.init) {
-      if (varType === "string") {
         this.result += `void ${replEnv.generateExecFuncName()} {\n`;
-        this.result += `${varName} = ${GCNewString}(`;
+        this.result += `${varName} = `
         this.visit(node.init, env);
-        this.result += ");\n";
-        this.result += (env as GlobalRootSet).generateSetStatement(varName);
+        if (isValueT(varType)) {
+          this.result += ";\n";
+          this.result += (env as GlobalRootSet).generateSetStatement(varName);
+        }
         this.result += ";\n};\n";
-      } else {
-        this.result += `void ${replEnv.generateExecFuncName()} {\n`;
-        this.result += `${varName} = `;
-        this.visit(node.init, env);
-        this.result += ";\n};\n";
-      }
     }
   }
 

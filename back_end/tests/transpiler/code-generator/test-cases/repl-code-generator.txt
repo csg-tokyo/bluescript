@@ -91,3 +91,14 @@ i = 3;
 void ___bluescript_exec_func_1 {
 i = i + 1;
 };
+
+--- Variable declaration in block statement
+### ts
+function func1(): void {
+    let i:integer = 4;
+}
+
+### c
+void func1() {
+int32_t i = 4;
+};

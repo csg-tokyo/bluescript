@@ -31,7 +31,6 @@ describe('expressions', () => {
     });
   }
 });
-// TODO: add string assignment test.
 
 describe('declarations', () => {
   const calculationCases = testCaseReader("declarations.txt");

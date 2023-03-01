@@ -14,7 +14,7 @@ test("transpile", () => {
 })
 
 test("playground", () => {
-  const tsString = "function func1(a:integer):void { let i:integer = 3; }";
+  const tsString = "let arr:integer[] = [1, 2, 3];";
 
   const ast = runBabelParser(tsString, 1);
   console.log(JSON.stringify(ast));

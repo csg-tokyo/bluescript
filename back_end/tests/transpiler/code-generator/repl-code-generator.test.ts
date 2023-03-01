@@ -22,5 +22,3 @@ describe('repl-code-generator', () => {
     });
   }
 });
-
-// TODO: block内のvariable initのテスト。

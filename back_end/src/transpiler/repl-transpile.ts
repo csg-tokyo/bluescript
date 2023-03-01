@@ -32,7 +32,7 @@ function generateNewSymbols(nameTable: GlobalNameTable, existingSymbols: SymbolM
   // TODO: Functionに対応
   const existingSymbolsSet = new Set(existingSymbols.map(s => s.name));
   const newSymbols:SymbolModel[] = [];
-  for (const [name, nameInfo] of nameTable.names) {
+  for (const [name, nameInfo] of Object.entries(nameTable.names)) {
     if (existingSymbolsSet.has(name))
       continue;
     const symbol:SymbolModel = {
