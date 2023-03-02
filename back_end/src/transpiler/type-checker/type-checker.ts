@@ -181,7 +181,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
   checkVariableDeclarator(node: AST.VariableDeclarator, isConst: boolean, env: Environment): void {
     const lvalue = node.id   // LVal = Identifier | ...
-    this.assertLvalue(lvalue)
+    this.assertVariable(lvalue)
     const id = lvalue as Identifier
     const varName = id.name
     let varType: StaticType | undefined = undefined
@@ -270,6 +270,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
     funcEnv.thisReturnType = ftype.returnType
     this.visit(node.body, funcEnv)
+    addNameTable(node, funcEnv)
   }
 
   functionParameters(node: AST.FunctionDeclaration, env: NameTable): StaticType[] {
@@ -322,7 +323,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
 
   updateExpression(node: AST.UpdateExpression, env: Environment): void {
     // const prefix = node.prefix           true if ++k, but false if k++
-    this.assertMutableLvalue(node.argument, env as NameTable)
+    this.assertLvalue(node.argument, env as NameTable)
     this.visit(node.argument, env)
     const op = node.operator    // ++ or --
     this.assert(this.isNumeric(this.result),
@@ -382,7 +383,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
   }
 
   assignmentExpression(node: AST.AssignmentExpression, env: Environment): void {
-    this.assertMutableLvalue(node.left, env as NameTable)
+    this.assertLvalue(node.left, env as NameTable)
     this.visit(node.left, env)
     const left_type = this.result
     this.visit(node.right, env)
@@ -540,6 +541,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
   tsArrayType(node: AST.TSArrayType, env: Environment): void {
     this.visit(node.elementType, env)
     const elementType = this.result
+    this.result = new ArrayType(elementType);
   }
 
   tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {
@@ -596,16 +598,20 @@ export default class TypeChecker extends visitor.NodeVisitor {
     this.addCoercionIfAny(expr, type)
   }
 
-  assertMutableLvalue(node: Node, table: NameTable) {
-    this.assertLvalue(node)
-    const id = node as AST.Identifier
-    const info = table.lookup(id.name)
-    if (info !== undefined)
-      this.assert(!info.isConst, 'assignment to constant variable', node)
+  assertLvalue(node: Node, table: NameTable) {
+    if (AST.isIdentifier(node)) {
+      const info = table.lookup(node.name)
+      if (info !== undefined)
+        this.assert(!info.isConst, 'assignment to constant variable', node)
+    }
+    else if (AST.isMemberExpression(node))
+      this.memberExpression(node, table)
+    else
+      this.assert(false, 'invalid left-hand side in assignment.', node)
   }
 
-  assertLvalue(node: Node) {
-    this.assert(AST.isIdentifier(node), 'invalid left-hand side in assignment.', node)
+  assertVariable(node: Node) {
+    this.assert(AST.isIdentifier(node), 'invalid variable name', node)
   }
 
   assertSyntax(test: boolean, node: Node) {

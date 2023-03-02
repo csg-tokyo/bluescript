@@ -126,6 +126,18 @@ test('array access', () => {
   expect(e).toBe(types.Integer)
 })
 
+test('upate an array element', () => {
+  const src = `const a = [1, 2, 3]
+  const b = a[1+1] = 5`
+
+  const ast = tested.transpile(src)
+  const table = names.getNameTable(ast.program)
+  const a = table?.lookup('a')?.type
+  expect((a as types.ArrayType).elementType).toBe(types.Integer)
+  const b = table?.lookup('b')?.type
+  expect(b).toBe(types.Integer)
+})
+
 test('property access', () => {
   const src = `const a = [1, 2, 3]
   const e = a.foo`
