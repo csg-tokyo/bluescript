@@ -14,13 +14,14 @@ test("transpile", () => {
 })
 
 test("playground", () => {
-  const tsString = "let arr:integer[] = [1, 2, 3];";
+  const tsString = "let arr:integer[] = [1, 2, 3]; arr[2] = 3;";
 
   const ast = runBabelParser(tsString, 1);
   console.log(JSON.stringify(ast));
 
   const globalNameTable = new GlobalNameTable()
   runTypeChecker(ast, globalNameTable);
+  console.log(JSON.stringify(ast));
 
   const codeGenerator = new CodeGenerator();
   const rootSet = new GlobalRootSet(globalNameTable);
