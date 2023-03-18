@@ -1,5 +1,3 @@
-import {FunctionRootSet} from "./code-generator/root-set";
-
 export const Integer = 'integer'
 export const Float = 'float'
 export const Boolean = 'boolean'
@@ -147,6 +145,6 @@ export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | un
 }
 
 export function isValueT(t: StaticType | undefined): boolean {
-  const noValueT: any[] = ["integer", "float", "boolean", "void", "null", FunctionType]
-  return t !== undefined && !noValueT.includes(t);
+  const noValueT: any[] = ["integer", "float", "boolean", "void", "null"]
+  return t !== undefined && !noValueT.includes(t) && !(t instanceof FunctionType);
 }

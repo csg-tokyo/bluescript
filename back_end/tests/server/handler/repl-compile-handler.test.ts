@@ -1,4 +1,5 @@
 import ReplCompileHandler from "../../../src/server/path-handlers/repl-compile-handler";
+import TsOnetimeCompileHandler from "../../../src/server/path-handlers/ts-onetime-compile-handler";
 
 describe("flow1", () => {
   test("case1", async () => {
@@ -7,8 +8,8 @@ describe("flow1", () => {
     const response = await compileHandler.handle();
     expect(response).toStrictEqual({
       values: {
-        text: "36610081e6ff980199080c821df0",
-        literal: "1c27fc3f",
+        text: "3641000c221df0",
+        literal: "",
         data: "",
         rodata: "",
         bss: "",
@@ -23,14 +24,21 @@ describe("flow1", () => {
     const response = await compileHandler.handle();
     expect(response).toStrictEqual({
       values: {
-        text: "364100e5feff1df0",
+        text: "36410065ffff1df0",
         literal: "",
         data: "",
         rodata: "",
         bss: "",
       },
-      execFuncOffsets: [14]
+      execFuncOffsets: [7]
     })
   })
 })
+
+test("playroom", async () => {
+  const tsString = `console_log("foo");`;
+  const replCompileHandler = new ReplCompileHandler({tsString, isFirst: true});
+  const response = await replCompileHandler.handle();
+  console.log(response)
+});
 

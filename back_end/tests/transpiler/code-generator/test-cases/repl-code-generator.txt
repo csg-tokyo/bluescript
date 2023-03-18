@@ -11,7 +11,7 @@ let i:integer = 3;
 
 ### c
 int32_t i;
-void ___bluescript_exec_func_0 {
+void ___bluescript_exec_func_0() {
 i = 3;
 };
 
@@ -21,9 +21,9 @@ let s:string = "Hello world!";
 
 ### c
 value_t s;
-void ___bluescript_exec_func_0 {
+void ___bluescript_exec_func_0() {
 s = gc_new_string("Hello world!");
-gc_array_set(global_root_set_array, int_to_value(0), s);
+gc_array_set(gc_global_root_set_array, int_to_value(0), s);
 };
 
 --- Variable declaration multi
@@ -32,12 +32,12 @@ let i:integer = 3, b:boolean = true;
 
 ### c
 int32_t i;
-void ___bluescript_exec_func_0 {
+void ___bluescript_exec_func_0() {
 i = 3;
 };
 ;
 bool b;
-void ___bluescript_exec_func_1 {
+void ___bluescript_exec_func_1() {
 b = true;
 };
 
@@ -46,7 +46,7 @@ b = true;
 1 + 1;
 
 ### c
-void ___bluescript_exec_func_0 {
+void ___bluescript_exec_func_0() {
 1 + 1;
 };
 
@@ -57,11 +57,11 @@ let i:integer;
 2 + 2;
 
 ### c
-void ___bluescript_exec_func_0 {
+void ___bluescript_exec_func_0() {
 1 + 1;
 };
 int32_t i;
-void ___bluescript_exec_func_1 {
+void ___bluescript_exec_func_1() {
 2 + 2;
 };
 
@@ -72,7 +72,7 @@ void ___bluescript_exec_func_1 {
 let i:integer;
 
 ### c
-void ___bluescript_exec_func_0 {
+void ___bluescript_exec_func_0() {
 1 + 1;
 2 + 2;
 };
@@ -85,10 +85,10 @@ i = i + 1;
 
 ### c
 int32_t i;
-void ___bluescript_exec_func_0 {
+void ___bluescript_exec_func_0() {
 i = 3;
 };
-void ___bluescript_exec_func_1 {
+void ___bluescript_exec_func_1() {
 i = i + 1;
 };
 

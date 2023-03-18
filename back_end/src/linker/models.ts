@@ -12,4 +12,6 @@ export type ElfSymbol = {
   residesSectionName: SectionName|null
 }
 
-export type SectionName = "text" | "literal" | "data" | "rodata" | "bss";
+export const SectionNameArr = ["text", "literal", "data", "rodata", "bss"] as const;
+
+export type SectionName = typeof SectionNameArr[number]

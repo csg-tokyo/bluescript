@@ -64,9 +64,15 @@ export default class HttpServer {
         }
         break;
       case "/repl-clear":
-        const clearHandler = new ReplClearHandler();
-        responseBody = await clearHandler.handle();
-        statusCode = 200;
+        try {
+          const clearHandler = new ReplClearHandler();
+          responseBody = await clearHandler.handle();
+          statusCode = 200;
+        } catch (e) {
+          console.log(e)
+          responseBody = {message: e}
+          statusCode = 500;
+        }
         break;
       case "/ts-onetime-compile":
         try {

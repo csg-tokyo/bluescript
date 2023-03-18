@@ -2,12 +2,14 @@ import { Identifier, Node } from "@babel/types";
 import * as AST from '@babel/types';
 import * as visitor from "../visitor";
 import {ErrorLog} from "../utils";
-import {FunctionType, isValueT, StaticType} from "../types";
+import {ArrayType, FunctionType, isValueT, StaticType} from "../types";
 import {BlockNameTable, FunctionNameTable, getNameTable, getStaticType} from "../type-checker/names";
 import {BlockRootSet, FunctionRootSet, GCNewString, RootSet} from "./root-set";
 
 
 export function staticTypeToCType(staticType: StaticType | undefined):string {
+  if (staticType instanceof FunctionType || staticType instanceof ArrayType)
+    return "value_t";
   switch (staticType) {
     case "integer":
       return "int32_t";
@@ -19,6 +21,8 @@ export function staticTypeToCType(staticType: StaticType | undefined):string {
       return "value_t"
     case "void":
       return "void"
+    case "any":
+      return "value_t"
     default:
       throw Error(`${staticType} has not been supported yet.`);
   }

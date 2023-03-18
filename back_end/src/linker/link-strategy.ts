@@ -1,7 +1,7 @@
 import {ElfRelocation, ElfSymbol} from "./models";
 import {Buffer} from "node:buffer";
 import ELF_PARSER_CONSTANTS from "../utils/elf-parser/static/elf-parser-constants";
-import {SectionName} from "../models/section-model";
+import {SectionName} from "./models";
 
 export default class LinkStrategy {
   sectionAddresses: {[name: string]: number};
@@ -13,7 +13,6 @@ export default class LinkStrategy {
     this.symbolAddresses = symbolAddresses;
     this.elfSymbols = elfSymbols;
   }
-
 
   link(sectionName: SectionName, unlinkedValue:Buffer, relocations: ElfRelocation[]): Buffer {
     const value = Buffer.allocUnsafe(unlinkedValue.length);

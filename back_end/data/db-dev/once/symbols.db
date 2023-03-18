@@ -1,8 +1,24 @@
-{"name":"gc_root_set_head","access":"internal","declaration":"struct gc_root_set* gc_root_set_head;","type":{"symbolType":"variable"},"address":1073489692,"_id":"AGHgenSpWE9Dz7ZM"}
-{"name":"func1","access":"public","declaration":"void func1();","type":{"symbolType":"function","params":[],"returnType":"void"},"address":1074362973,"_id":"NSD7j3juE4b8BuKY"}
-{"name":"blink_led","access":"public","declaration":"void blink_led();","type":{"symbolType":"function","returnType":"void","params":[]},"address":1074625032,"_id":"UWLDBfFk6uzOICNI"}
-{"name":"i","type":{"symbolType":"variable","variableType":"integer"},"access":"public","declaration":"value_t i;","address":1073525620,"_id":"aRGq5OQeCvSUo28K"}
-{"name":"gc_run","access":"public","declaration":"void gc_run();","type":{"symbolType":"function","returnType":"void","params":[]},"address":1074624480,"_id":"caIVCnmkAn6g65wD"}
-{"name":"console_log_number","access":"public","declaration":"void console_log_number(value_t n);","type":{"symbolType":"function","returnType":"void","params":[{"name":"n","type":"integer"}]},"address":1074625296,"_id":"dhEH8LRT4ugsePaE"}
-{"name":"memset","access":"internal","declaration":"void *memset(void *buf, int ch, long unsigned int n);","type":{"symbolType":"function"},"address":1073792076,"_id":"pt2xO54wkf52AgYU"}
-{"name":"func3","access":"public","declaration":"void func3();","type":{"symbolType":"function","params":[],"returnType":"void"},"address":1074362998,"_id":"yDWEh7HOSFWEvqJc"}
+{"name":"memset","cDeclaration":"void *memset(void *buf, int ch, long unsigned int n);","address":1073792076,"_id":"1MEuxHwTpqNux2kH"}
+{"name":"gc_root_set_head","cDeclaration":"extern struct gc_root_set* gc_root_set_head;","address":1073489980,"_id":"4QEhQ7eT4N1LmoQc"}
+{"name":"gc_run","cDeclaration":"void gc_run();","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[]},"address":1074624940,"_id":"7bzmJ51ElvIxypbI"}
+{"name":"gc_array_set","cDeclaration":"value_t gc_array_set(value_t obj, value_t index, value_t new_value);","address":1074624852,"_id":"H2LlJ3oBOJNTSlKl"}
+{"name":"console_log","cDeclaration":"void console_log(value_t str);","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[{"kind":"primitive","type":"string"}]},"address":1074625736,"_id":"Py5V0aK7tmnwVUK7"}
+{"name":"gc_new_string","cDeclaration":"value_t gc_new_string(char* str);","address":1074624700,"_id":"ZEmYFKMmvQMwSJTO"}
+{"name":"console_log_number","cDeclaration":"void console_log_number(int32_t n);","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[{"kind":"primitive","type":"integer"}]},"address":1074625768,"_id":"gcBWh1KtWIDTKOym"}
+{"name":"gc_global_root_set_array","cDeclaration":"extern value_t gc_global_root_set_array;","address":1073525908,"_id":"sgwOeAd6vR3VZiEq"}
+{"$$deleted":true,"_id":"1MEuxHwTpqNux2kH"}
+{"$$deleted":true,"_id":"4QEhQ7eT4N1LmoQc"}
+{"$$deleted":true,"_id":"7bzmJ51ElvIxypbI"}
+{"$$deleted":true,"_id":"H2LlJ3oBOJNTSlKl"}
+{"$$deleted":true,"_id":"Py5V0aK7tmnwVUK7"}
+{"$$deleted":true,"_id":"ZEmYFKMmvQMwSJTO"}
+{"$$deleted":true,"_id":"gcBWh1KtWIDTKOym"}
+{"$$deleted":true,"_id":"sgwOeAd6vR3VZiEq"}
+{"name":"memset","cDeclaration":"void *memset(void *buf, int ch, long unsigned int n);","address":1073792076,"_id":"Os9CTrflKApUgPyE"}
+{"name":"gc_root_set_head","cDeclaration":"extern struct gc_root_set* gc_root_set_head;","address":1073489980,"_id":"ukVcUCubiHWMB2rg"}
+{"name":"gc_global_root_set_array","cDeclaration":"extern value_t gc_global_root_set_array;","address":1073525908,"_id":"hON4C2x4HwM4Ijht"}
+{"name":"gc_run","cDeclaration":"void gc_run();","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[]},"address":1074624940,"_id":"81mJb1xOxAvPajOC"}
+{"name":"gc_new_string","cDeclaration":"value_t gc_new_string(char* str);","address":1074624700,"_id":"roIDrzFgJcmDyZQP"}
+{"name":"gc_array_set","cDeclaration":"value_t gc_array_set(value_t obj, value_t index, value_t new_value);","address":1074624852,"_id":"xGplXDlnupMvBWQF"}
+{"name":"console_log_number","cDeclaration":"void console_log_number(int32_t n);","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[{"kind":"primitive","type":"integer"}]},"address":1074625768,"_id":"WE6cwb5gDqDwDxK9"}
+{"name":"console_log","cDeclaration":"void console_log(value_t str);","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[{"kind":"primitive","type":"string"}]},"address":1074625736,"_id":"rC0kqEzjGAwrW5ZA"}

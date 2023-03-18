@@ -3,7 +3,7 @@ import {Buffer} from "node:buffer";
 import Elf from "../utils/elf-parser/elf";
 import ELF_PARSER_CONSTANTS from "../utils/elf-parser/static/elf-parser-constants";
 import Elf32Sym from "../utils/elf-parser/elf32/elf32-sym";
-import {SectionName, SectionNameArr} from "../models/section-model";
+import {SectionName, SectionNameArr} from "./models";
 import LinkStrategy from "./link-strategy";
 import SectionValue from "./section-value";
 
@@ -11,12 +11,12 @@ import SectionValue from "./section-value";
 export default class SectionValueFactory {
   private elf: Elf;
   private readonly symbolAddresses: {[name:string]: number};
-  private readonly sectionStartAddresses: {[name:string]: number};
+  private readonly sectionAddresses: {[name:string]: number};
 
-  constructor(elfBuffer: Buffer, symbolAddresses: {[name:string]: number}, sectionStartAddresses: {[name:string]: number}) {
+  constructor(elfBuffer: Buffer, symbolAddresses: {[name:string]: number}, sectionAddresses: {[name:string]: number}) {
     this.elf = new Elf(elfBuffer);
     this.symbolAddresses = symbolAddresses;
-    this.sectionStartAddresses = sectionStartAddresses;
+    this.sectionAddresses = sectionAddresses;
   }
 
   public generateSectionValue(name: SectionName): SectionValue {
@@ -27,11 +27,11 @@ export default class SectionValueFactory {
 
   public generateStrategy(): LinkStrategy {
     const elfSymbols = this.getElfSymbols();
-    return new LinkStrategy(this.sectionStartAddresses, this.symbolAddresses, elfSymbols);
+    return new LinkStrategy(this.sectionAddresses, this.symbolAddresses, elfSymbols);
   }
 
   // Elfの中から、指定されたシンボルのアドレスを抽出する。
-  public getDefinedSymbolAddresses(symbolNames: string[]): {[name:string]: number} {
+  public getSymbolAddresses(symbolNames: string[]): {[name:string]: number} {
     if (this.elf.symbolNameSectionHeader === null) {
       throw new Error("section header of symbol names does not exist.");
     }
@@ -45,7 +45,7 @@ export default class SectionValueFactory {
         if (symbolResidesSectionName === null) {
           throw new Error("There is a symbol which resides in a unknown section. symbolName: " + symbolName);
         }
-        result[symbolName] = this.sectionStartAddresses[symbolResidesSectionName] + rawSymbol.stValue
+        result[symbolName] = this.sectionAddresses[symbolResidesSectionName] + rawSymbol.stValue
       }
     });
     return result;
@@ -105,9 +105,10 @@ export default class SectionValueFactory {
   }
 
   private getSymbolResidesSectionName(symbol: Elf32Sym): SectionName|null {
-    if (symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_ABS || symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_UNDEF) {
+    if (symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_ABS || symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_UNDEF)
       return null;
-    }
+    if (symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_COMMON)
+      return "bss"; // TODO: 本当にこれで良いのか？
     // 一番最初の"."を取り除いたものがSectionNameArrに含まれていたら、SectionNameを返す。
     const sectionNameStr: string = this.elf.getStringFromBuffer(this.elf.sectionNameSectionHeader.shOffset + this.elf.sectionHeaders[symbol.stShndx].shName);
     const sectionNameIndex = SectionNameArr.findIndex(str => str === sectionNameStr.substring(1))

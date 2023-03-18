@@ -1,29 +1,9 @@
-{"name":"console_log_number","type":"function","address":1074624544,"declaration":"void console_log_number(int n);","_id":"1fWmRWQL0hM6wjdS"}
-{"name":"wait_ms","type":"function","address":1074624356,"declaration":"void wait_ms(int ms);","_id":"41ofTFPgrnRc6CXP"}
-{"name":"speaker_on","type":"function","address":1074624412,"declaration":"void speaker_on(unsigned int freq);","_id":"CwuiKZ2Q295pdIMe"}
-{"name":"led_off","type":"function","address":1074624260,"declaration":"void led_off();","_id":"E5RocQTdnuFD7Q0Z"}
-{"name":"led_on","type":"function","address":1074624224,"declaration":"void led_on(unsigned int index, unsigned int red, unsigned int green, unsigned int blue);","_id":"T8OAbRcQ8sgKn2El"}
-{"name":"console_log","type":"function","address":1074624524,"declaration":"void console_log(char *str);","_id":"VwccpaKhZptuo5Ai"}
-{"name":"blink_led","type":"function","address":1074624280,"declaration":"void blink_led();","_id":"YGXe9LeptWzX7tS9"}
-{"name":"speaker_off","type":"function","address":1074624472,"declaration":"void speaker_off(void);","_id":"bZkP3cJOFuEvOnll"}
-{"name":"i","declaration":"int i;","type":"variable","address":1073492332,"_id":"cWwKDSqlJ5wd8x9H"}
-{"name":"memset","type":"function","address":1073792076,"declaration":"void *memset(void *buf, int ch, long unsigned int n);","_id":"nRjLfl1TClf8upGC"}
-{"$$deleted":true,"_id":"1fWmRWQL0hM6wjdS"}
-{"$$deleted":true,"_id":"41ofTFPgrnRc6CXP"}
-{"$$deleted":true,"_id":"CwuiKZ2Q295pdIMe"}
-{"$$deleted":true,"_id":"E5RocQTdnuFD7Q0Z"}
-{"$$deleted":true,"_id":"T8OAbRcQ8sgKn2El"}
-{"$$deleted":true,"_id":"VwccpaKhZptuo5Ai"}
-{"$$deleted":true,"_id":"YGXe9LeptWzX7tS9"}
-{"$$deleted":true,"_id":"bZkP3cJOFuEvOnll"}
-{"$$deleted":true,"_id":"cWwKDSqlJ5wd8x9H"}
-{"$$deleted":true,"_id":"nRjLfl1TClf8upGC"}
-{"name":"blink_led","type":"function","address":1074624280,"declaration":"void blink_led();","_id":"K4LI4zOkl3926OK7"}
-{"name":"console_log_number","type":"function","address":1074624544,"declaration":"void console_log_number(int n);","_id":"NWYLEfT4DrmnmTBA"}
-{"name":"led_off","type":"function","address":1074624260,"declaration":"void led_off();","_id":"zmLk0RZSTtZanGqm"}
-{"name":"speaker_off","type":"function","address":1074624472,"declaration":"void speaker_off(void);","_id":"8jrnCedNr4ABH7Bi"}
-{"name":"console_log","type":"function","address":1074624524,"declaration":"void console_log(char *str);","_id":"JRJ1B4Hcxhu5BT3A"}
-{"name":"memset","type":"function","address":1073792076,"declaration":"void *memset(void *buf, int ch, long unsigned int n);","_id":"qbgNoxBtz9EZuE9i"}
-{"name":"led_on","type":"function","address":1074624224,"declaration":"void led_on(unsigned int index, unsigned int red, unsigned int green, unsigned int blue);","_id":"cpnYMyPoctuAC9JO"}
-{"name":"speaker_on","type":"function","address":1074624412,"declaration":"void speaker_on(unsigned int freq);","_id":"XaHt7EckFQvq1bCm"}
-{"name":"wait_ms","type":"function","address":1074624356,"declaration":"void wait_ms(int ms);","_id":"Bb0ZG13EFequaODh"}
+{"name":"console_log","cDeclaration":"void console_log(value_t str);","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[{"kind":"primitive","type":"string"}]},"address":1074625736,"_id":"HjPTYlChxk2LONMN"}
+{"name":"console_log_number","cDeclaration":"void console_log_number(int32_t n);","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[{"kind":"primitive","type":"integer"}]},"address":1074625768,"_id":"LlQURvm4aGV9g2WV"}
+{"name":"str","type":{"kind":"primitive","type":"string"},"address":1073525916,"cDeclaration":"extern value_t str;","_id":"U56jKprE4pyqgjgl"}
+{"name":"gc_root_set_head","cDeclaration":"extern struct gc_root_set* gc_root_set_head;","address":1073489980,"_id":"W4J0rHHtZJea1mt9"}
+{"name":"gc_new_string","cDeclaration":"value_t gc_new_string(char* str);","address":1074624700,"_id":"WQg39gDDR2dflcrl"}
+{"name":"memset","cDeclaration":"void *memset(void *buf, int ch, long unsigned int n);","address":1073792076,"_id":"X1sw8ZwfPveC4f2G"}
+{"name":"gc_run","cDeclaration":"void gc_run();","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[]},"address":1074624940,"_id":"hfr06fWKqFs8kXdY"}
+{"name":"gc_array_set","cDeclaration":"value_t gc_array_set(value_t obj, value_t index, value_t new_value);","address":1074624852,"_id":"iHDpHnutQoIIP8fL"}
+{"name":"gc_global_root_set_array","cDeclaration":"extern value_t gc_global_root_set_array;","address":1073525908,"_id":"u02OHOu3L11HdqiS"}

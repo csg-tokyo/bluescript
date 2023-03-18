@@ -1,7 +1,7 @@
 import {CodeGenerator, staticTypeToCType} from "./code-generator";
 import * as AST from '@babel/types';
 import {Identifier} from "@babel/types";
-import {GCNewString, GlobalRootSet, RootSet} from "./root-set";
+import {GlobalRootSet, RootSet} from "./root-set";
 import {isValueT} from "../types";
 
 
@@ -26,7 +26,7 @@ export class ReplCodeGenerator extends CodeGenerator {
         if (AST.isFunctionDeclaration(group.nodes[0]))
           this.result += ";\n";
       } else {
-        this.result += `void ${replEnv.generateExecFuncName()} {\n`;
+        this.result += `void ${replEnv.generateExecFuncName()}() {\n`;
         for (const statement of group.nodes) {
           this.visit(statement, env);
           this.result += ";\n";
@@ -46,11 +46,11 @@ export class ReplCodeGenerator extends CodeGenerator {
     const replEnv = env as ReplGlobalRootSet;
     const varName = (node.id as Identifier).name
     const varType = replEnv.nameTable?.lookup(varName)?.type;
-    this.result += staticTypeToCType(varType) + " ";
+    this.result +=  `${staticTypeToCType(varType)} `;
     this.result += varName;
     this.result += ";\n";
     if (node.init) {
-        this.result += `void ${replEnv.generateExecFuncName()} {\n`;
+        this.result += `void ${replEnv.generateExecFuncName()}() {\n`;
         this.result += `${varName} = `
         this.visit(node.init, env);
         if (isValueT(varType)) {

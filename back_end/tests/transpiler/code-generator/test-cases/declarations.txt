@@ -53,7 +53,7 @@ let s:string = "Hello world!";
 
 ### c
 value_t s = gc_new_string("Hello world!");
-gc_array_set(global_root_set_array, int_to_value(1), s);
+gc_array_set(gc_global_root_set_array, int_to_value(1), s);
 
 --- Variable declaration (const, integer) with init
 ### ts
@@ -82,7 +82,7 @@ const s:string = "Hello world!";
 
 ### c
 const value_t s = gc_new_string("Hello world!");
-gc_array_set(global_root_set_array, int_to_value(1), s);
+gc_array_set(gc_global_root_set_array, int_to_value(1), s);
 
 --- Variable declaration (const, string) with init, 2 string declaration
 ### ts
@@ -91,9 +91,9 @@ const s2:string = "Foo!";
 
 ### c
 const value_t s1 = gc_new_string("Hello world!");
-gc_array_set(global_root_set_array, int_to_value(1), s1);
+gc_array_set(gc_global_root_set_array, int_to_value(1), s1);
 const value_t s2 = gc_new_string("Foo!");
-gc_array_set(global_root_set_array, int_to_value(2), s2);
+gc_array_set(gc_global_root_set_array, int_to_value(2), s2);
 
 --- Variable declaration multi
 ### ts
@@ -304,5 +304,5 @@ function func1():integer {
 ### c
 int32_t func1() {
 ss = gc_new_string("Foo!");
-gc_array_set(global_root_set_array, int_to_value(0), ss);
+gc_array_set(gc_global_root_set_array, int_to_value(0), ss);
 };

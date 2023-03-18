@@ -1,6 +1,6 @@
 import BaseTable from "./base-table";
 import Constants from "../../constants";
-import {SymbolModel} from "../../models/symbol-model";
+import {DBSymbol} from "./model/db-symbol";
 
 // TODO: nameで一意に保てるようにする。
 export default class DBSymbolsTable extends BaseTable{
@@ -10,7 +10,7 @@ export default class DBSymbolsTable extends BaseTable{
     super(filePath);
   }
 
-  public async addSymbols(symbols: SymbolModel[]):Promise<void> {
+  public async addSymbols(symbols: DBSymbol[]):Promise<void> {
     const promises: Promise<void>[] = [];
     symbols.forEach(symbol => {
       promises.push(this.insert(symbol));
@@ -18,12 +18,8 @@ export default class DBSymbolsTable extends BaseTable{
     await Promise.all(promises);
   }
 
-  public async getAllSymbols():Promise<SymbolModel[]> {
+  public async getAllSymbols():Promise<DBSymbol[]> {
     return this.find({});
-  }
-
-  public async getPublicSymbols():Promise<SymbolModel[]> {
-    return this.find({access:"public"});
   }
 
   public async clear() {
