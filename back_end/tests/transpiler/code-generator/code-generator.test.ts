@@ -3,7 +3,7 @@ import {CodeGenerator} from "../../../src/transpiler/code-generator/code-generat
 import testCaseReader from "../test-case-reader";
 import {runBabelParser} from "../../../src/transpiler/utils";
 import {runTypeChecker} from "../../../src/transpiler/type-checker/type-checker";
-import {FunctionType} from "../../../src/transpiler/types";
+import {ArrayType, FunctionType} from "../../../src/transpiler/types";
 import {GlobalNameTable, NameInfo} from "../../../src/transpiler/type-checker/names";
 import {GlobalRootSet} from "../../../src/transpiler/code-generator/root-set";
 
@@ -18,6 +18,7 @@ describe('expressions', () => {
       globalNameTable.record("f", new NameInfo("float"));
       globalNameTable.record("b", new NameInfo("boolean"));
       globalNameTable.record("s", new NameInfo("string"));
+      globalNameTable.record("arr", new NameInfo(new ArrayType("integer")));
       globalNameTable.record("greeting", new NameInfo(new FunctionType("void", [])));
       globalNameTable.record("console_log_number", new NameInfo(new FunctionType("void", ["integer"])));
       globalNameTable.record("add", new NameInfo(new FunctionType("void", ["integer", "integer"])));
@@ -41,6 +42,7 @@ describe('declarations', () => {
       const globalNameTable = new GlobalNameTable();
       globalNameTable.record("ii", new NameInfo("integer"));
       globalNameTable.record("ss", new NameInfo("string"));
+      globalNameTable.record("arr", new NameInfo(new ArrayType("integer")))
       runTypeChecker(ast, globalNameTable);
 
       const codeGenerator = new CodeGenerator();
@@ -51,7 +53,6 @@ describe('declarations', () => {
     });
   }
 });
-// TODO: 関数がstringをそのまま返す場合の対処は？ 例：return "Hello!"
 
 describe('statements', () => {
   const calculationCases = testCaseReader("statements.txt");

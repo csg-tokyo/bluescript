@@ -1,11 +1,7 @@
 import Environment from "../visitor";
 import {BlockNameTable, FunctionNameTable, GlobalNameTable, NameTable} from "../type-checker/names";
-import {isValueT, StaticType} from "../types";
-
-// GC function, object names
-export const GCGlobalRootSetArray = "gc_global_root_set_array";
-export const GCNewString = "gc_new_string";
-export const GCArraySet = "gc_array_set"; // value_t gc_array_set(value_t obj, value_t index, value_t new_value)
+import {isValueT} from "./gc";
+import {GCArraySet, GCGlobalRootSetArray} from "./gc";
 
 
 export interface RootSet extends Environment {
@@ -25,7 +21,6 @@ export class GlobalRootSet implements RootSet {
     let rootIndex = 0;
     for (const [name, info] of Object.entries(nameTable.names)) {
       if (isValueT(info.type)) {
-        console.log(name)
         this.rootTable[name] = rootIndex;
         rootIndex++;
       }

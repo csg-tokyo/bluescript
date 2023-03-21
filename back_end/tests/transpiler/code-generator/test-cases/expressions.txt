@@ -33,12 +33,19 @@
 ### c
 2.3 * 1;
 
---- Binary expression with variable
+--- Binary expression with variable(integer)
 ### ts
 i + 1;
 
 ### c
 i + 1;
+
+--- Binary expression with variable(array)
+### ts
+arr[2] + 1;
+
+### c
+value_to_int(gc_array_get(arr, int_to_value(2))) + 1;
 
 --- Assignment expression (=)
 ### ts
@@ -125,6 +132,13 @@ s = "Foo!";
 s = gc_new_string("Foo!");
 gc_array_set(gc_global_root_set_array, int_to_value(0), s);
 
+--- Assignment expression with array
+### ts
+arr[2] = 3;
+
+### c
+gc_array_set(arr, int_to_value(2), int_to_value(3));
+
 --- Update expression with addition prefix
 ### ts
 ++i;
@@ -152,6 +166,20 @@ i--;
 
 ### c
 i--;
+
+--- Update expression(array) with addition prefix;
+### ts
+++arr[0];
+
+### c
+++arr[0];
+
+--- Update expression(array) with addition suffix;
+### ts
+arr[0]++;
+
+### c
+INCREMENT(arr[0]);
 
 --- Unary expression (+)
 ### ts

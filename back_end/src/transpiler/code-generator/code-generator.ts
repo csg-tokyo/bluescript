@@ -1,10 +1,11 @@
 import { Identifier, Node } from "@babel/types";
 import * as AST from '@babel/types';
 import * as visitor from "../visitor";
+import * as GC from "./gc";
 import {ErrorLog} from "../utils";
-import {ArrayType, FunctionType, isValueT, StaticType} from "../types";
+import {ArrayType, FunctionType, StaticType} from "../types";
 import {BlockNameTable, FunctionNameTable, getNameTable, getStaticType} from "../type-checker/names";
-import {BlockRootSet, FunctionRootSet, GCNewString, RootSet} from "./root-set";
+import {BlockRootSet, FunctionRootSet, RootSet} from "./root-set";
 
 
 export function staticTypeToCType(staticType: StaticType | undefined):string {
@@ -49,7 +50,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   stringLiteral(node: AST.StringLiteral, env: RootSet): void {
-    this.result += `${GCNewString}("${node.value}")`
+    this.result += `${GC.GCNewString}("${node.value}")`
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: RootSet): void {
@@ -155,18 +156,23 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   variableDeclarator(node: AST.VariableDeclarator, env: RootSet): void {
-    const varName = (node.id as Identifier).name
+    const varName = (node.id as Identifier).name;
     const varType = env.nameTable.lookup(varName)?.type;
     this.result += staticTypeToCType(varType) + " ";
     this.result += varName;
-    if (node.init) {
+    if (AST.isArrayExpression(node.init) || (varType instanceof ArrayType && !node.init)) {
       this.result += " = ";
-      this.visit(node.init, env);
-      if (isValueT(env.nameTable.lookup(varName)?.type)) {
-        this.result += ";\n";
-        this.result += env.generateSetStatement(varName);
-      }
+      this.result += GC.gcNewArray(node.init?.elements.length ?? 0);
+    } else if (node.init) {
+      this.result += " = ";
+        this.visit(node.init, env);
     }
+    if (GC.isValueT(varType)) {
+      this.result += ";\n";
+      this.result += env.generateSetStatement(varName);
+    }
+    if (AST.isArrayExpression(node.init))
+      this.arrayExpressionWithParentData(varName,(varType as ArrayType).elementType, node.init, env);
   }
 
   functionDeclaration(node: AST.FunctionDeclaration, env: RootSet): void {
@@ -215,7 +221,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
     this.visit(node.left, env);
     this.result += ` ${node.operator} `;
     this.visit(node.right, env);
-    if (AST.isIdentifier(node.left) && isValueT(env.nameTable.lookup(node.left.name)?.type)) {
+    if (AST.isIdentifier(node.left) && GC.isValueT(env.nameTable.lookup(node.left.name)?.type)) {
       this.result += ";\n";
       this.result += env.generateUpdateStatement(node.left.name);
     }
@@ -255,12 +261,32 @@ export class CodeGenerator extends visitor.NodeVisitor {
     this.result += ")";
   }
 
+  arrayExpressionWithParentData(varName:string, elementType: StaticType, node: AST.ArrayExpression, env: RootSet):void {
+    for (const [i, element] of node.elements.entries()) {
+      this.result += ";\n";
+      this.result += `${GC.GCArraySet}(${varName}, ${GC.IntToValue}(${i}), `;
+      if (!element || !elementType) {
+        this.result += GC.ValueUndef
+      } else {
+        const valueTWrapper = GC.PrimitiveToValueString(elementType);
+        if (valueTWrapper) {
+          this.result += `${valueTWrapper}(`;
+          this.visit(element, env);
+          this.result += ")";
+        } else {
+          this.visit(element, env)
+        }
+      }
+      this.result += ")";
+    }
+  }
+
   arrayExpression(node: AST.ArrayExpression, env: RootSet):void {
-    return
+    throw Error("arrayExpression called");
   }
 
   memberExpression(node: AST.MemberExpression, env: RootSet):void {
-    return
+    const arrName = node.object
   }
 
   tsAsExpression(node: AST.TSAsExpression, env: RootSet): void {

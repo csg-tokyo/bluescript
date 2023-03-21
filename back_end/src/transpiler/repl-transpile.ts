@@ -27,7 +27,6 @@ export function replTranspile(tsString: string, existingSymbols: {name: string, 
 }
 
 function generateNewSymbols(nameTable: GlobalNameTable, existingSymbols: {name: string, type: StaticType}[]): EnvNewSymbol[] {
-  // TODO: Functionに対応
   const existingSymbolsSet = new Set(existingSymbols.map(s => s.name));
   const newSymbols:EnvNewSymbol[] = [];
   for (const [name, nameInfo] of Object.entries(nameTable.names)) {
