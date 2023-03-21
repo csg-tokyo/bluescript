@@ -28,6 +28,14 @@
     "cDeclaration": "value_t gc_new_string(char* str);"
   },
   {
+    "name": "gc_new_array",
+    "cDeclaration": "value_t gc_new_array(int32_t n);"
+  },
+  {
+    "name": "gc_array_get",
+    "cDeclaration": "value_t gc_array_get(value_t obj, value_t index);"
+  },
+  {
     "name": "gc_array_set",
     "cDeclaration": "value_t gc_array_set(value_t obj, value_t index, value_t new_value);"
   },

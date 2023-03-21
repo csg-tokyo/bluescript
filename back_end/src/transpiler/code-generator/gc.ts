@@ -25,11 +25,11 @@ export function gcNewArray(elementNum: number = 0):string {
   return `${GCNewArray}(${elementNum})`;
 }
 
-export function PrimitiveToValueString(staticType: StaticType):string| null {
-  if (isValueT(staticType)) {
+export function PrimitiveToValueString(from: StaticType):string| null {
+  if (isValueT(from)) {
     return null;
   }
-  switch (staticType) {
+  switch (from) {
     case "integer":
       return IntToValue;
     case "float":

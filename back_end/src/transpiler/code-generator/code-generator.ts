@@ -1,4 +1,4 @@
-import {Identifier, Node, valueToNode} from "@babel/types";
+import {Identifier, isMemberExpression, Node, valueToNode} from "@babel/types";
 import * as AST from '@babel/types';
 import * as visitor from "../visitor";
 import * as GC from "./gc";
@@ -198,6 +198,10 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   updateExpression(node: AST.UpdateExpression, env: RootSet): void {
+    if (isMemberExpression(node.argument)){
+      this.updateExWithMemberEx(node, env);
+      return;
+    }
     if (node.prefix) {
       this.result += node.operator;
       this.visit(node.argument, env);
@@ -205,6 +209,22 @@ export class CodeGenerator extends visitor.NodeVisitor {
       this.visit(node.argument, env);
       this.result += node.operator;
     }
+  }
+
+  updateExWithMemberEx(node: AST.UpdateExpression, env: RootSet): void {
+    const argNode = node.argument as AST.MemberExpression;
+    this.result += `${GC.ValueToPrimitiveString("any", getStaticType(node) ?? "any")}(${GC.GCArraySet}(`;
+    this.visit(argNode.object, env);
+    this.result += `, ${GC.IntToValue}(`;
+    this.visit(argNode.property, env);
+    this.result += "), "
+    const toValueStr = GC.PrimitiveToValueString(getStaticType(argNode) ?? "any");
+    this.result += `${toValueStr}(`;
+    this.visit(argNode, env);
+    // operator: `++` | `--`
+    this.result += ` ${node.operator === "++" ? "+" : "-"} 1)))`;
+    if (!node.prefix)
+      this.result += ` ${node.operator === "++" ? "-" : "+"} 1`;
   }
 
   binaryExpression(node: AST.BinaryExpression, env: RootSet): void {
@@ -239,8 +259,14 @@ export class CodeGenerator extends visitor.NodeVisitor {
     this.result += `, ${GC.IntToValue}(`;
     this.visit(leftNode.property, env);
     this.result += "), "
+    const toValueStr = GC.PrimitiveToValueString(getStaticType(node.right) ?? "any");
+    this.result += `${toValueStr}(`;
     if (node.operator === "=") {
-      this.result += ``
+      this.visit(node.right, env);
+    } else {
+      this.visit(leftNode, env);
+      this.result += ` ${node.operator.replace("=", "")} `;
+      this.visit(node.right, env);
     }
     this.result += "))";
   }

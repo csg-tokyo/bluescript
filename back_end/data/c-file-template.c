@@ -7,8 +7,6 @@ typedef uint32_t value_t;
 #define VALUE_FALSE   0         // 0000 ... 0000 (integer 0)
 #define VALUE_TRUE    4         // 0000 ... 0100 (integer 1)
 
-#define INCREMENT(x) ((x += 4) - 4)  // i++ for value_t(integer)
-
 static inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 static inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
 static inline bool is_int_value(value_t v) { return (v & 3) == 0; }

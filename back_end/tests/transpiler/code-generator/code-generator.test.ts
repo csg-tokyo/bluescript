@@ -19,6 +19,7 @@ describe('expressions', () => {
       globalNameTable.record("b", new NameInfo("boolean"));
       globalNameTable.record("s", new NameInfo("string"));
       globalNameTable.record("arr", new NameInfo(new ArrayType("integer")));
+      globalNameTable.record("arr_float", new NameInfo(new ArrayType("float")));
       globalNameTable.record("greeting", new NameInfo(new FunctionType("void", [])));
       globalNameTable.record("console_log_number", new NameInfo(new FunctionType("void", ["integer"])));
       globalNameTable.record("add", new NameInfo(new FunctionType("void", ["integer", "integer"])));
