@@ -5,6 +5,7 @@ export const GCGlobalRootSetArray = "gc_global_root_set_array";
 export const GCNewString = "gc_new_string";
 export const GCNewArray = "gc_new_array";
 export const GCArraySet = "gc_array_set"; // value_t gc_array_set(value_t obj, value_t index, value_t new_value)
+export const GCArrayGet = "gc_array_get"; // value_t gc_array_get(value_t obj, value_t index);
 
 // to value_t
 export const IntToValue = "int_to_value";

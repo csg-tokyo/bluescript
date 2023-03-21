@@ -217,6 +217,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
       this.result += " )"
   }
 
+  // TODO: 返り値を考慮
   assignmentExpression(node: AST.AssignmentExpression, env: RootSet): void {
     this.visit(node.left, env);
     this.result += ` ${node.operator} `;
@@ -286,7 +287,15 @@ export class CodeGenerator extends visitor.NodeVisitor {
   }
 
   memberExpression(node: AST.MemberExpression, env: RootSet):void {
-    const arrName = node.object
+    const returnType = getStaticType(node);
+    const toPrimitiveString = GC.ValueToPrimitiveString("any", returnType ?? "any")
+    this.result += toPrimitiveString ? `${toPrimitiveString}(` : "";
+    this.result += `${GC.GCArrayGet}(`;
+    this.visit(node.object, env);
+    this.result += `, ${GC.IntToValue}(`;
+    this.visit(node.property, env);
+    this.result += "))";
+    this.result += toPrimitiveString ? ")" : "";
   }
 
   tsAsExpression(node: AST.TSAsExpression, env: RootSet): void {
