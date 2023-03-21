@@ -495,8 +495,10 @@ export default class TypeChecker extends visitor.NodeVisitor {
     this.visit(node.property, env)
     this.assert(this.result === Integer, 'an array index must be an integer', node.property)
     this.visit(node.object, env)
-    if (this.result instanceof ArrayType)
+    if (this.result instanceof ArrayType) {
       this.result = this.result.elementType
+      this.addStaticType(node, this.result)
+    }
     else
       this.assert(false, 'an element access to a non-array', node.object)
   }
