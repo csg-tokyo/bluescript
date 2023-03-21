@@ -314,6 +314,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
     else  // 'typeof' | 'void' | 'delete' | 'throw'
       this.assert(false, `not supported operator ${op}.`, node)
+    addStaticType(node, this.result)
   }
 
   invalidOperandMessage(op: string, t1: StaticType) {
@@ -328,6 +329,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     const op = node.operator    // ++ or --
     this.assert(this.isNumeric(this.result),
       this.invalidOperandMessage(op, this.result), node);
+    addStaticType(node, this.result)
   }
 
   binaryExpression(node: AST.BinaryExpression, env: Environment): void {
@@ -374,6 +376,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
       this.assert(false, `not supported operator '${op}'`, node)
       this.result = Boolean
     }
+    addStaticType(node, this.result)
   }
 
   invalidOperandsMessage(op: string, t1: StaticType, t2: StaticType) {
@@ -408,6 +411,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
       this.assert(false, `not supported operator '${op}'`, node)
 
     this.result = left_type
+    addStaticType(node, this.result)
   }
 
   logicalExpression(node: AST.LogicalExpression, env: Environment): void {
@@ -423,6 +427,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
     else  // '??'
       this.assert(false, `not supported operator '${op}'`, node)
+    addStaticType(node, this.result)
   }
 
   conditionalExpression(node: AST.ConditionalExpression, env: Environment): void {
@@ -439,6 +444,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
     else
       this.result = result_type
+    addStaticType(node, this.result)
   }
 
   callExpression(node: AST.CallExpression, env: Environment): void {
@@ -461,6 +467,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
       this.assert(this.firstPass, 'the callee is not a function', node.callee)
       this.result = Any
     }
+    addStaticType(node, this.result)
   }
 
   arrayExpression(node: AST.ArrayExpression, env: Environment): void {
@@ -485,6 +492,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     const atype = new ArrayType(etype)
     this.addStaticType(node, atype)
     this.result = atype
+    addStaticType(node, this.result)
   }
 
   memberExpression(node: AST.MemberExpression, env: Environment): void {
@@ -501,6 +509,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
     else
       this.assert(false, 'an element access to a non-array', node.object)
+    addStaticType(node, this.result)
   }
 
   tsAsExpression(node: AST.TSAsExpression, env: Environment): void {
@@ -511,6 +520,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     this.assert(exprType === Any || asType === Any || (this.isNumeric(exprType) && this.isNumeric(asType)),
       this.invalidOperandsMessage('as', exprType, this.result), node)
     this.result = asType
+    addStaticType(node, this.result)
   }
 
   tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {
