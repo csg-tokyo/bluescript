@@ -15,7 +15,7 @@ test("transpile", () => {
 })
 
 test("playground", () => {
-  const tsString = "arr1[0] += 3;";
+  const tsString = "1 + 1";
 
   const ast = runBabelParser(tsString, 1);
   console.log(JSON.stringify(ast));

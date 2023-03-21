@@ -1,4 +1,4 @@
-import { Identifier, Node } from "@babel/types";
+import {Identifier, Node, valueToNode} from "@babel/types";
 import * as AST from '@babel/types';
 import * as visitor from "../visitor";
 import * as GC from "./gc";
@@ -219,6 +219,10 @@ export class CodeGenerator extends visitor.NodeVisitor {
 
   // TODO: 返り値を考慮
   assignmentExpression(node: AST.AssignmentExpression, env: RootSet): void {
+    if (AST.isMemberExpression(node.left)) {
+      this.assignmentExWithMemberEx(node, env);
+      return;
+    }
     this.visit(node.left, env);
     this.result += ` ${node.operator} `;
     this.visit(node.right, env);
@@ -226,6 +230,19 @@ export class CodeGenerator extends visitor.NodeVisitor {
       this.result += ";\n";
       this.result += env.generateUpdateStatement(node.left.name);
     }
+  }
+
+  assignmentExWithMemberEx(node: AST.AssignmentExpression, env: RootSet): void {
+    const leftNode = node.left as AST.MemberExpression;
+    this.result += `${GC.GCArraySet}(`;
+    this.visit(leftNode.object, env);
+    this.result += `, ${GC.IntToValue}(`;
+    this.visit(leftNode.property, env);
+    this.result += "), "
+    if (node.operator === "=") {
+      this.result += ``
+    }
+    this.result += "))";
   }
 
   logicalExpression(node: AST.LogicalExpression, env: RootSet): void {
