@@ -27,14 +27,14 @@ void speaker_off(void);
 
 void wait_ms(int ms);
 
-void console_log(char *str);
-void console_log_number(value_t n);
+void console_log(value_t str);
+void console_log_number(int32_t n);
 
 struct my_rel_table_entry {
     char symbol_name[50];
     void* address;
 };
-extern struct my_rel_table_entry my_rel_table[10];
+extern struct my_rel_table_entry my_rel_table[15];
 
 
 #endif /* __UTILS__ */

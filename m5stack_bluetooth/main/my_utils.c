@@ -95,19 +95,20 @@ void wait_ms(int ms) {
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }
 
-void console_log(char *str) {
-    printf("%s\n", str);
-    write_string_log(str);
+void console_log(value_t str) {
+    char *str_ptr = gc_string_literal_cstr(str);
+    printf("%p\n", str_ptr);
+    printf("%s\n", str_ptr);
+    write_string_log(str_ptr);
 }
 
-void console_log_number(value_t n) {
-    int i = value_to_int(n);
-    printf("%d\n", i);
-    write_number_log(i);
+void console_log_number(int32_t n) {
+    printf("%d\n", n);
+    write_number_log(n);
 }
 
 // TODO: 改善。以下がないと使わない関数のコードが消されてしまう。
-struct my_rel_table_entry my_rel_table[10] = {
+struct my_rel_table_entry my_rel_table[15] = {
         {"blink_led", blink_led},
         {"led_on", led_on},
         {"led_off", led_off},
@@ -117,5 +118,7 @@ struct my_rel_table_entry my_rel_table[10] = {
         {"speaker_off", speaker_off},
         {"console_log", console_log},
         {"console_log_number", console_log_number},
+        {"gc_new_string", gc_new_string},
+        {"gc_array_set", gc_array_set},
         {"gc_run", gc_run}
 };
