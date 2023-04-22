@@ -19,6 +19,15 @@ export class NameInfo {
   }
 }
 
+export class FreeNameInfo extends NameInfo {
+  nameInfo: NameInfo
+
+  constructor(name: NameInfo) {
+    super(name.type)
+    this.nameInfo = name
+  }
+}
+
 // Name table
 
 export interface NameTable extends Environment {
@@ -88,6 +97,22 @@ export class FunctionNameTable extends BlockNameTable {
   constructor(parent: NameTable) {
     super(parent)
     this.thisReturnType = undefined
+  }
+
+  lookup(key: string): NameInfo | undefined {
+    const found = this.names[key]
+    if (found === undefined) {
+      const freeVariable = this.parent.lookup(key)
+      if (freeVariable === undefined)
+        return freeVariable
+      else {
+        const info = new FreeNameInfo(freeVariable)
+        this.names[key] = info
+        return info
+      }
+    }
+    else
+      return found
   }
 
   returnType(): StaticType | undefined | null {
