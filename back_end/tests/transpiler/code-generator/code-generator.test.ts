@@ -1,10 +1,11 @@
 import * as visitor from "../../../src/transpiler/visitor";
-import {CodeGenerator, GlobalRootSet} from "../../../src/transpiler/code-generator/code-generator";
+import {CodeGenerator} from "../../../src/transpiler/code-generator/code-generator";
 import testCaseReader from "../test-case-reader";
 import {runBabelParser} from "../../../src/transpiler/utils";
 import {runTypeChecker} from "../../../src/transpiler/type-checker/type-checker";
-import {FunctionType} from "../../../src/transpiler/types";
-import {GlobalNameTable} from "../../../src/transpiler/type-checker/names";
+import {ArrayType, FunctionType} from "../../../src/transpiler/types";
+import {GlobalNameTable, NameInfo} from "../../../src/transpiler/type-checker/names";
+import {GlobalRootSet} from "../../../src/transpiler/code-generator/root-set";
 
 describe('expressions', () => {
   const calculationCases = testCaseReader("expressions.txt");
@@ -13,16 +14,19 @@ describe('expressions', () => {
       const ast = runBabelParser(cs.ts,1);
 
       const globalNameTable = new GlobalNameTable();
-      globalNameTable.record("i", "integer");
-      globalNameTable.record("f", "float");
-      globalNameTable.record("b", "boolean");
-      globalNameTable.record("greeting", new FunctionType("void", []));
-      globalNameTable.record("console_log_number", new FunctionType("void", ["integer"]));
-      globalNameTable.record("add", new FunctionType("void", ["integer", "integer"]));
+      globalNameTable.record("i", new NameInfo("integer"));
+      globalNameTable.record("f", new NameInfo("float"));
+      globalNameTable.record("b", new NameInfo("boolean"));
+      globalNameTable.record("s", new NameInfo("string"));
+      globalNameTable.record("arr", new NameInfo(new ArrayType("integer")));
+      globalNameTable.record("arr_float", new NameInfo(new ArrayType("float")));
+      globalNameTable.record("greeting", new NameInfo(new FunctionType("void", [])));
+      globalNameTable.record("console_log_number", new NameInfo(new FunctionType("void", ["integer"])));
+      globalNameTable.record("add", new NameInfo(new FunctionType("void", ["integer", "integer"])));
       runTypeChecker(ast, globalNameTable)
 
       const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet();
+      const rootSet = new GlobalRootSet(globalNameTable);
       visitor.file(ast, rootSet, codeGenerator);
 
       expect(codeGenerator.result).toBe(cs.c)
@@ -37,10 +41,13 @@ describe('declarations', () => {
       const ast = runBabelParser(cs.ts, 1);
 
       const globalNameTable = new GlobalNameTable();
+      globalNameTable.record("ii", new NameInfo("integer"));
+      globalNameTable.record("ss", new NameInfo("string"));
+      globalNameTable.record("arr", new NameInfo(new ArrayType("integer")))
       runTypeChecker(ast, globalNameTable);
 
       const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet();
+      const rootSet = new GlobalRootSet(globalNameTable);
       visitor.file(ast, rootSet, codeGenerator);
 
       expect(codeGenerator.result).toBe(cs.c);
@@ -55,12 +62,12 @@ describe('statements', () => {
       const ast = runBabelParser(cs.ts, 1);
 
       const globalNameTable = new GlobalNameTable();
-      globalNameTable.record("i", "integer");
-      globalNameTable.record("f", "float");
+      globalNameTable.record("i", new NameInfo("integer"));
+      globalNameTable.record("f", new NameInfo("float"));
       runTypeChecker(ast, globalNameTable);
 
       const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet();
+      const rootSet = new GlobalRootSet(globalNameTable);
       visitor.file(ast, rootSet, codeGenerator);
 
       expect(codeGenerator.result).toBe(cs.c);

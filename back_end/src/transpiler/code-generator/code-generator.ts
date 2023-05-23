@@ -1,39 +1,16 @@
-import { Identifier, Node } from "@babel/types";
+import {Identifier, isMemberExpression, Node, valueToNode} from "@babel/types";
 import * as AST from '@babel/types';
-import Environment, * as visitor from "../visitor";
+import * as visitor from "../visitor";
+import * as GC from "./gc";
 import {ErrorLog} from "../utils";
-import {StaticType} from "../types";
-import {BlockNameTable, getNameTable, NameTable} from "../type-checker/names";
+import {ArrayType, FunctionType, StaticType} from "../types";
+import {BlockNameTable, FunctionNameTable, getNameTable, getStaticType} from "../type-checker/names";
+import {BlockRootSet, FunctionRootSet, RootSet} from "./root-set";
 
-
-// GC function, object names
-export const GlobalNameTableArray = "global_name_table_array";
-export const GCNewString = "gc_new_string";
-export const GCArraySet = "gc_array_set";
-
-
-export interface RootSet extends Environment {
-  generateValueSettingString(variableName: string):string;
-}
-
-export class GlobalRootSet implements RootSet {
-  globalRootSetIndex:number;
-
-  constructor(globalRootSetIndex: number = 0) {
-    this.globalRootSetIndex = globalRootSetIndex;
-  }
-
-  generateValueSettingString(variableName: string):string {
-    // value_t gc_array_set(value_t obj, value_t index, value_t new_value)
-    const s = `${GCArraySet}(${GlobalNameTableArray}, int_to_value(${this.globalRootSetIndex}), ${variableName})`;
-    this.globalRootSetIndex++;
-    return s;
-  }
-}
-
-// TODO: BlockRootSet なるものが必要？
 
 export function staticTypeToCType(staticType: StaticType | undefined):string {
+  if (staticType instanceof FunctionType || staticType instanceof ArrayType)
+    return "value_t";
   switch (staticType) {
     case "integer":
       return "int32_t";
@@ -43,6 +20,10 @@ export function staticTypeToCType(staticType: StaticType | undefined):string {
       return "bool";
     case "string":
       return "value_t"
+    case "void":
+      return "void"
+    case "any":
+      return "value_t"
     default:
       throw Error(`${staticType} has not been supported yet.`);
   }
@@ -51,14 +32,12 @@ export function staticTypeToCType(staticType: StaticType | undefined):string {
 export class CodeGenerator extends visitor.NodeVisitor {
   result: string = ""
   errorLog = new ErrorLog()
-  nameTable?: NameTable
 
-  file(node: AST.File, env: Environment): void {
+  file(node: AST.File, env: RootSet): void {
     visitor.file(node, env, this)
   }
 
-  program(node: AST.Program, env: Environment): void {
-    this.nameTable = getNameTable(node)
+  program(node: AST.Program, env: RootSet): void {
     for (const child of node.body) {
       this.visit(child, env);
       this.result += ";\n";
@@ -66,34 +45,34 @@ export class CodeGenerator extends visitor.NodeVisitor {
     this.result += "\n";
   }
 
-  nullLiteral(node: AST.NullLiteral, env: Environment): void {
+  nullLiteral(node: AST.NullLiteral, env: RootSet): void {
     this.result += "NULL";
   }
 
-  stringLiteral(node: AST.StringLiteral, env: Environment): void {
-    this.result += `"${node.value}"`
+  stringLiteral(node: AST.StringLiteral, env: RootSet): void {
+    this.result += `${GC.GCNewString}("${node.value}")`
   }
 
-  booleanLiteral(node: AST.BooleanLiteral, env: Environment): void {
+  booleanLiteral(node: AST.BooleanLiteral, env: RootSet): void {
     this.result += node.value ? "true" : "false";
   }
 
-  numericLiteral(node: AST.NumericLiteral, env: Environment): void {
+  numericLiteral(node: AST.NumericLiteral, env: RootSet): void {
     this.result += String(node.value)
   }
 
-  identifier(node: AST.Identifier, env: Environment): void {
+  identifier(node: AST.Identifier, env: RootSet): void {
     this.result += node.name;
   }
 
-  whileStatement(node: AST.WhileStatement, env: Environment): void {
+  whileStatement(node: AST.WhileStatement, env: RootSet): void {
     this.result += "while (";
     this.visit(node.test, env);
     this.result += ") ";
     this.visit(node.body, env);
   }
 
-  ifStatement(node: AST.IfStatement, env: Environment): void {
+  ifStatement(node: AST.IfStatement, env: RootSet): void {
     this.result += "if (";
     this.visit(node.test, env);
     this.result += ") ";
@@ -105,61 +84,66 @@ export class CodeGenerator extends visitor.NodeVisitor {
     }
   }
 
-  forStatement(node: AST.ForStatement, env: Environment): void {
-    this.nameTable = getNameTable(node);
+  // TODO: initでobjectが指定された場合は？
+  forStatement(node: AST.ForStatement, env: RootSet): void {
+    const blockNameTable = getNameTable(node) as BlockNameTable;
+    const blockRootSet = new BlockRootSet(env, blockNameTable);
     this.result += "for (";
 
     if (node.init)
-      this.visit(node.init, env)
+      this.visit(node.init, blockRootSet);
     this.result += "; "
 
     if (node.test)
-      this.visit(node.test, env)
+      this.visit(node.test, blockRootSet);
     this.result += "; "
 
     if (node.update)
-      this.visit(node.update, env)
+      this.visit(node.update, blockRootSet);
     this.result += ";"
 
     this.result += ") ";
-    this.visit(node.body, env)
-    this.nameTable = (this.nameTable as BlockNameTable).parent // TODO: nameTable戻す場所ここではないのでは？
+    this.visit(node.body, blockRootSet
+    );
   }
 
-  expressionStatement(node: AST.ExpressionStatement, env: Environment): void {
+  expressionStatement(node: AST.ExpressionStatement, env: RootSet): void {
     this.visit(node.expression, env)
   }
 
-  blockStatement(node: AST.BlockStatement, env: Environment): void {
-    this.nameTable = getNameTable(node)
+  blockStatement(node: AST.BlockStatement, env: RootSet): void {
+    const blockNameTable = getNameTable(node) as BlockNameTable;
+    const blockRootSet = new BlockRootSet(env, blockNameTable)
     this.result += "{\n";
+    this.result += blockRootSet.generateInitStatement();
     for (const child of node.body){
-      this.visit(child, env);
+      this.visit(child, blockRootSet);
       this.result += ";\n";
     }
+    this.result += blockRootSet.generateCleanUpStatement();
     this.result += "}";
-    this.nameTable = (this.nameTable as BlockNameTable).parent
   }
 
-  returnStatement(node: AST.ReturnStatement, env: Environment): void {
+  returnStatement(node: AST.ReturnStatement, env: RootSet): void {
+    this.result += (env as BlockRootSet).generateCleanUpStatement();
     this.result += "return ";
     if (node.argument)
       this.visit(node.argument, env);
   }
 
-  emptyStatement(node: AST.EmptyStatement, env: Environment): void {
+  emptyStatement(node: AST.EmptyStatement, env: RootSet): void {
     return
   }
 
-  breakStatement(node: AST.BreakStatement, env: Environment): void {
+  breakStatement(node: AST.BreakStatement, env: RootSet): void {
     this.result += "break"
   }
 
-  continueStatement(node: AST.ContinueStatement, env: Environment): void {
+  continueStatement(node: AST.ContinueStatement, env: RootSet): void {
     this.result += "continue"
   }
 
-  variableDeclaration(node: AST.VariableDeclaration, env: Environment): void {
+  variableDeclaration(node: AST.VariableDeclaration, env: RootSet): void {
     let kindString = "";
     if (node.kind === "const")
       kindString += "const ";
@@ -171,34 +155,53 @@ export class CodeGenerator extends visitor.NodeVisitor {
   this.result = this.result.slice(0, -2);
   }
 
-  variableDeclarator(node: AST.VariableDeclarator, env: Environment): void {
-    const varName = (node.id as Identifier).name
-    const varType = this.nameTable?.lookup(varName)?.type;
+  variableDeclarator(node: AST.VariableDeclarator, env: RootSet): void {
+    const varName = (node.id as Identifier).name;
+    const varType = env.nameTable.lookup(varName)?.type;
     this.result += staticTypeToCType(varType) + " ";
     this.result += varName;
-    if (node.init) {
-      if (varType === "string") {
-        this.result += ` = ${GCNewString}(`;
+    if (AST.isArrayExpression(node.init) || (varType instanceof ArrayType && !node.init)) {
+      this.result += " = ";
+      this.result += GC.gcNewArray(node.init?.elements.length ?? 0);
+    } else if (node.init) {
+      this.result += " = ";
         this.visit(node.init, env);
-        this.result += ");\n";
-        this.result += (env as GlobalRootSet).generateValueSettingString(varName);
-      } else {
-        this.result += " = ";
-        this.visit(node.init, env);
-      }
     }
+    if (GC.isValueT(varType)) {
+      this.result += ";\n";
+      this.result += env.generateSetStatement(varName);
+    }
+    if (AST.isArrayExpression(node.init))
+      this.arrayExpressionWithParentData(varName,(varType as ArrayType).elementType, node.init, env);
   }
 
-  functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void {
-    return
+  functionDeclaration(node: AST.FunctionDeclaration, env: RootSet): void {
+    const funcName = (node.id as Identifier).name
+    const funcType = getStaticType(node) as FunctionType;
+    this.result += `${staticTypeToCType(funcType.returnType)} ${funcName}(`;
+    for (let i = 0; i < funcType.paramTypes.length; i++) {
+      const paramName = (node.params[i] as Identifier).name;
+      const paramType = funcType.paramTypes[i];
+      this.result += `${staticTypeToCType(paramType)} ${paramName}, `;
+    }
+    if (node.params.length > 0)
+      this.result = this.result.slice(0, -2);
+    this.result += ") ";
+    const funcNameTable = getNameTable(node) as FunctionNameTable;
+    const funcRootSet = new FunctionRootSet(env, funcNameTable);
+    this.visit(node.body, funcRootSet);
   }
 
-  unaryExpression(node: AST.UnaryExpression, env: Environment): void {
+  unaryExpression(node: AST.UnaryExpression, env: RootSet): void {
     this.result += node.operator;
     this.visit(node.argument, env);
   }
 
-  updateExpression(node: AST.UpdateExpression, env: Environment): void {
+  updateExpression(node: AST.UpdateExpression, env: RootSet): void {
+    if (isMemberExpression(node.argument)){
+      this.updateExWithMemberEx(node, env);
+      return;
+    }
     if (node.prefix) {
       this.result += node.operator;
       this.visit(node.argument, env);
@@ -208,7 +211,23 @@ export class CodeGenerator extends visitor.NodeVisitor {
     }
   }
 
-  binaryExpression(node: AST.BinaryExpression, env: Environment): void {
+  updateExWithMemberEx(node: AST.UpdateExpression, env: RootSet): void {
+    const argNode = node.argument as AST.MemberExpression;
+    this.result += `${GC.ValueToPrimitiveString("any", getStaticType(node) ?? "any")}(${GC.GCArraySet}(`;
+    this.visit(argNode.object, env);
+    this.result += `, ${GC.IntToValue}(`;
+    this.visit(argNode.property, env);
+    this.result += "), "
+    const toValueStr = GC.PrimitiveToValueString(getStaticType(argNode) ?? "any");
+    this.result += `${toValueStr}(`;
+    this.visit(argNode, env);
+    // operator: `++` | `--`
+    this.result += ` ${node.operator === "++" ? "+" : "-"} 1)))`;
+    if (!node.prefix)
+      this.result += ` ${node.operator === "++" ? "-" : "+"} 1`;
+  }
+
+  binaryExpression(node: AST.BinaryExpression, env: RootSet): void {
     if (node.extra?.parenthesized)
       this.result += "( "
     this.visit(node.left, env);
@@ -218,17 +237,41 @@ export class CodeGenerator extends visitor.NodeVisitor {
       this.result += " )"
   }
 
-  assignmentExpression(node: AST.AssignmentExpression, env: Environment): void {
-    // TODO: integer, float以外の代入に対応。
+  // TODO: 返り値を考慮
+  assignmentExpression(node: AST.AssignmentExpression, env: RootSet): void {
+    if (AST.isMemberExpression(node.left)) {
+      this.assignmentExWithMemberEx(node, env);
+      return;
+    }
     this.visit(node.left, env);
-    if (["=", "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=", "<<=", ">>="].includes(node.operator))
-      this.result += ` ${node.operator} `;
-    else
-      this.assert(false, `${node.operator} has not been supported yet.`, node)
+    this.result += ` ${node.operator} `;
     this.visit(node.right, env);
+    if (AST.isIdentifier(node.left) && GC.isValueT(env.nameTable.lookup(node.left.name)?.type)) {
+      this.result += ";\n";
+      this.result += env.generateUpdateStatement(node.left.name);
+    }
   }
 
-  logicalExpression(node: AST.LogicalExpression, env: Environment): void {
+  assignmentExWithMemberEx(node: AST.AssignmentExpression, env: RootSet): void {
+    const leftNode = node.left as AST.MemberExpression;
+    this.result += `${GC.GCArraySet}(`;
+    this.visit(leftNode.object, env);
+    this.result += `, ${GC.IntToValue}(`;
+    this.visit(leftNode.property, env);
+    this.result += "), "
+    const toValueStr = GC.PrimitiveToValueString(getStaticType(node.right) ?? "any");
+    this.result += `${toValueStr}(`;
+    if (node.operator === "=") {
+      this.visit(node.right, env);
+    } else {
+      this.visit(leftNode, env);
+      this.result += ` ${node.operator.replace("=", "")} `;
+      this.visit(node.right, env);
+    }
+    this.result += "))";
+  }
+
+  logicalExpression(node: AST.LogicalExpression, env: RootSet): void {
     if (node.extra?.parenthesized)
       this.result += "( ";
     this.visit(node.left, env);
@@ -238,7 +281,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
       this.result += " )";
   }
 
-  conditionalExpression(node: AST.ConditionalExpression, env: Environment): void {
+  conditionalExpression(node: AST.ConditionalExpression, env: RootSet): void {
     if (node.extra?.parenthesized)
       this.result += "( ";
     this.visit(node.test, env);
@@ -250,7 +293,7 @@ export class CodeGenerator extends visitor.NodeVisitor {
       this.result += " )";
   }
 
-  callExpression(node: AST.CallExpression, env: Environment): void {
+  callExpression(node: AST.CallExpression, env: RootSet): void {
     this.visit(node.callee, env);
     this.result += "(";
     for (const argument of node.arguments) {
@@ -262,55 +305,87 @@ export class CodeGenerator extends visitor.NodeVisitor {
     this.result += ")";
   }
 
-  arrayExpression(node: AST.ArrayExpression, env: Environment):void {
+  arrayExpressionWithParentData(varName:string, elementType: StaticType, node: AST.ArrayExpression, env: RootSet):void {
+    for (const [i, element] of node.elements.entries()) {
+      this.result += ";\n";
+      this.result += `${GC.GCArraySet}(${varName}, ${GC.IntToValue}(${i}), `;
+      if (!element || !elementType) {
+        this.result += GC.ValueUndef
+      } else {
+        const valueTWrapper = GC.PrimitiveToValueString(elementType);
+        if (valueTWrapper) {
+          this.result += `${valueTWrapper}(`;
+          this.visit(element, env);
+          this.result += ")";
+        } else {
+          this.visit(element, env)
+        }
+      }
+      this.result += ")";
+    }
+  }
+
+  arrayExpression(node: AST.ArrayExpression, env: RootSet):void {
+    throw Error("arrayExpression called");
+  }
+
+  memberExpression(node: AST.MemberExpression, env: RootSet):void {
+    const returnType = getStaticType(node);
+    const toPrimitiveString = GC.ValueToPrimitiveString("any", returnType ?? "any")
+    this.result += toPrimitiveString ? `${toPrimitiveString}(` : "";
+    this.result += `${GC.GCArrayGet}(`;
+    this.visit(node.object, env);
+    this.result += `, ${GC.IntToValue}(`;
+    this.visit(node.property, env);
+    this.result += "))";
+    this.result += toPrimitiveString ? ")" : "";
+  }
+
+  tsAsExpression(node: AST.TSAsExpression, env: RootSet): void {
     return
   }
 
-  tsAsExpression(node: AST.TSAsExpression, env: Environment): void {
-    return
-  }
-
-  tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {
+  tsTypeAnnotation(node: AST.TSTypeAnnotation, env: RootSet): void {
     this.visit(node.typeAnnotation, env)
   }
 
-  tsTypeReference(node: AST.TSTypeReference, env: Environment): void {
+  tsTypeReference(node: AST.TSTypeReference, env: RootSet): void {
     return
   }
 
-  tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {
+  tsNumberKeyword(node: AST.TSNumberKeyword, env: RootSet): void {
     return
   }
 
-  tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void {
+  tsVoidKeyword(node: AST.TSVoidKeyword, env: RootSet): void {
     return
   }
 
-  tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void {
+  tsBooleanKeyword(node: AST.TSBooleanKeyword, env: RootSet): void {
     return
   }
 
-  tsStringKeyword(node: AST.TSStringKeyword, env: Environment): void {
+  tsStringKeyword(node: AST.TSStringKeyword, env: RootSet): void {
     return
   }
 
-  tsObjectKeyword(node: AST.TSObjectKeyword, env: Environment): void {
+  tsObjectKeyword(node: AST.TSObjectKeyword, env: RootSet): void {
     return
   }
 
-  tsAnyKeyword(node: AST.TSAnyKeyword, env: Environment): void {
+  tsAnyKeyword(node: AST.TSAnyKeyword, env: RootSet): void {
     return
   }
 
-  tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void {
+  tsNullKeyword(node: AST.TSNullKeyword, env: RootSet): void {
     return
   }
 
-  tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void {
+  tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: RootSet): void {
     return
   }
 
-  tsArrayType(node: AST.TSArrayType, env: Environment) {
+  tsArrayType(node: AST.TSArrayType, env: RootSet) {
     return
   }
 

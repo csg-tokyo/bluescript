@@ -86,6 +86,8 @@ void gc_initialize() {
     heap_memory[1] = 2;  // the size of the reserved space (first two words).
     heap_memory[2] = HEAP_SIZE;
     heap_memory[3] = HEAP_SIZE - 2;
+
+    gc_global_root_set_array = gc_new_array(20);
 #ifdef BIT64
     initialize_pointer_table();
 #endif
@@ -404,6 +406,8 @@ static pointer_t allocate_heap(uint16_t word_size) {
 }
 
 struct gc_root_set* gc_root_set_head = NULL;
+
+value_t gc_global_root_set_array;
 
 #define GET_MARK_BIT(ptr)      (((ptr)->header & 1))
 #define CLEAR_MARK_BIT(ptr)    ((ptr)->header &= ~1)

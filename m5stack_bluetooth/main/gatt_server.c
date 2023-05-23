@@ -600,6 +600,8 @@ void app_main(void)
     printf("gc_root_set_head: %p\n", gc_root_set_head);
     gc_initialize();
 
+    gc_array_set(gc_global_root_set_array, int_to_value(0), 1234);
+
     configure_led();
     configure_speaker();
 

@@ -115,14 +115,16 @@ extern value_t gc_vector_size(value_t obj);
 extern value_t gc_vector_get(value_t obj, value_t index);
 extern value_t gc_vector_set(value_t obj, value_t index, value_t new_value);
 
-extern value_t gc_allocate_array(int32_t n);
+extern value_t gc_new_array(int32_t n);
 extern value_t gc_array_length(value_t obj);
-extern value_t gc_array_get(value_t obj, uint32_t index);
-extern value_t gc_array_set(value_t obj, uint32_t index, value_t new_value);
+extern value_t gc_array_get(value_t obj, value_t index);
+extern value_t gc_array_set(value_t obj, value_t index, value_t new_value);
 
 extern void gc_init_rootset(struct gc_root_set* set);
 extern void gc_run();
 
 extern struct gc_root_set* gc_root_set_head;
+
+extern value_t gc_global_root_set_array;
 
 #endif

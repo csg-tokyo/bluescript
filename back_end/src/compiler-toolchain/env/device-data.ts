@@ -2,7 +2,7 @@ import Elf from "../../utils/elf-parser/elf";
 import {Buffer} from "node:buffer";
 import * as fs from 'fs';
 import CONSTANTS from "../../constants";
-import {SectionModel} from "../../models/section-model";
+import {DBSection} from "../../utils/db/model/db-section";
 
 export default class DeviceData {
   elf: Elf;
@@ -13,8 +13,8 @@ export default class DeviceData {
   }
 
   // 各セクションがデバイス上で配置されるアドレスを返す。
-  public getSections(): SectionModel[] {
-    const sections:SectionModel[] = [];
+  public getSections(): DBSection[] {
+    const sections:DBSection[] = [];
     if (!this.elf.symbolNameSectionHeader) {
       throw Error("There is no symbol section name section header in elf file.");
     }
@@ -22,17 +22,17 @@ export default class DeviceData {
       const symbolNameStart = this.elf.symbolNameSectionHeader.shOffset + symbol.stName;
       switch (this.elf.getStringFromBuffer(symbolNameStart)) {
         case CONSTANTS.DD_TEXT_SECTION_NAME:
-          sections.push({name:"text", address: symbol.stValue + CONSTANTS.DD_LITERAL_SECTION_SIZE, usedMemorySize: 0});
-          sections.push({name: "literal", address: symbol.stValue, usedMemorySize: 0});
+          sections.push({name:"text", address: symbol.stValue + CONSTANTS.DD_LITERAL_SECTION_SIZE, baseAddress: symbol.stValue + CONSTANTS.DD_LITERAL_SECTION_SIZE});
+          sections.push({name: "literal", address: symbol.stValue, baseAddress: symbol.stValue});
           break;
         case CONSTANTS.DD_DATA_SECTION_NAME:
-          sections.push({name: "data", address: symbol.stValue, usedMemorySize: 0});
+          sections.push({name: "data", address: symbol.stValue, baseAddress: symbol.stValue});
           break;
         case CONSTANTS.DD_RODATA_SECTION_NAME:
-          sections.push({name: "rodata", address: symbol.stValue, usedMemorySize: 0});
+          sections.push({name: "rodata", address: symbol.stValue, baseAddress: symbol.stValue});
           break;
         case CONSTANTS.DD_BSS_SECTION_NAME:
-          sections.push({name: "bss", address: symbol.stValue, usedMemorySize: 0});
+          sections.push({name: "bss", address: symbol.stValue, baseAddress:symbol.stValue});
           break
         default:
           break;

@@ -11,7 +11,7 @@ export default class ReplCompileHandler {
       throw Error("Request body should contain tsString key.");
     }
     this.tsString = requestBody.tsString;
-    this.isFirst = Boolean(requestBody.isFirst)
+    this.isFirst = Boolean(requestBody.isFirst);
   }
 
   public async handle(): Promise<ResponseType> {

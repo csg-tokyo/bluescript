@@ -1,25 +1,15 @@
-import {SymbolModel} from "../../src/models/symbol-model";
 import {replTranspile} from "../../src/transpiler/repl-transpile";
+import {StaticType} from "../../src/transpiler/types";
 
 test("repl-transpile", () => {
-  const existingSymbol:SymbolModel[] = [
+  const existingSymbol:{name: string, type: StaticType}[] = [
     {
       "name": "i",
-      "access": "public",
-      "declaration": "int32_t i;",
-      "type": {
-        "symbolType": "variable",
-        "variableType": "integer"
-      }
+      "type": "integer"
     },
     {
       "name": "s",
-      "access": "public",
-      "declaration": "value_t s;",
-      "type": {
-        "symbolType": "variable",
-        "variableType": "string"
-      }
+      "type": "string"
     },
   ]
   const tsString = `let f:float = 3.4;
@@ -28,37 +18,29 @@ test("repl-transpile", () => {
   const {cString, newSymbols, execFuncNames} = replTranspile(tsString, existingSymbol);
 
   const expectedCString = `float f;
-void ___bluescript_exec_func_0 {
+void ___bluescript_exec_func_0() {
 f = 3.4;
 };
-void ___bluescript_exec_func_1 {
+void ___bluescript_exec_func_1() {
 f * i;
 };
 value_t s1;
-void ___bluescript_exec_func_2 {
+void ___bluescript_exec_func_2() {
 s1 = gc_new_string("Hello world!");
-gc_array_set(global_name_table_array, int_to_value(1), s1);
+gc_array_set(gc_global_root_set_array, int_to_value(1), s1);
 };
 
 `;
-  const expectedNewSymbols:SymbolModel[] = [
+  const expectedNewSymbols = [
     {
       "name": "f",
-      "access": "public",
-      "declaration": "float f;",
-      "type": {
-        "symbolType": "variable",
-        "variableType": "float"
-      }
+      "type": "float",
+      "cDeclaration": "extern float f;",
     },
     {
       "name": "s1",
-      "access": "public",
-      "declaration": "value_t s1;",
-      "type": {
-        "symbolType": "variable",
-        "variableType": "string"
-      }
+      "type": "string",
+      "cDeclaration": "extern value_t s1;",
     }
   ];
 
