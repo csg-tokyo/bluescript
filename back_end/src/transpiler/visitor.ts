@@ -1,14 +1,12 @@
 import AST, { Node } from "@babel/types"
 import { ErrorLog } from "./utils"
 
-export default interface Environment {}
-
 // For the specifications of Node objects,
 // see https://github.com/babel/babel/blob/main/packages/babel-parser/ast/spec.md
 
-type VisitorHandler = (visitor: NodeVisitor, node: Node, env: Environment) => void
+type VisitorHandler = <E>(visitor: NodeVisitor<E>, node: Node, env: E) => void
 
-export abstract class NodeVisitor {
+export abstract class NodeVisitor<Environment> {
     static handlers = new Map<string, VisitorHandler>([
         [ 'File', (visitor, node, env) => visitor.file(node as AST.File, env) ],
         [ 'Program', (visitor, node, env) => visitor.program(node as AST.Program, env) ],
@@ -56,6 +54,7 @@ export abstract class NodeVisitor {
         [ 'TSAnyKeyword', (visitor, node, env) => visitor.tsAnyKeyword(node as AST.TSAnyKeyword, env) ],
         [ 'TSNullKeyword', (visitor, node, env) => visitor.tsNullKeyword(node as AST.TSNullKeyword, env) ],
         [ 'TSUndefinedKeyword', (visitor, node, env) => visitor.tsUndefinedKeyword(node as AST.TSUndefinedKeyword, env) ],
+        [ 'TSTypeAliasDeclaration', (visitor, node, env) => visitor.tsTypeAliasDeclaration(node as AST.TSTypeAliasDeclaration, env) ],
     ])
 
     visit(node: Node, env: Environment): void {
@@ -68,7 +67,7 @@ export abstract class NodeVisitor {
 
     unknownNode(node: Node, env: Environment) {
         const err = new ErrorLog()
-        throw err.push(`unsupported syntax ${node.type}`, node)
+        throw err.push(`unsupported syntax: ${node.type}`, node)
     }
 
     abstract file(node: AST.File, env: Environment): void
@@ -111,9 +110,10 @@ export abstract class NodeVisitor {
     abstract tsAnyKeyword(node: AST.TSAnyKeyword, env: Environment): void
     abstract tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void
     abstract tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void
+    abstract tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: Environment): void
 }
 
-export class NullVisitor extends NodeVisitor {
+export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     file(node: AST.File, env: Environment): void {}
     program(node: AST.Program, env: Environment): void {}
     nullLiteral(node: AST.NullLiteral, env: Environment): void {}
@@ -154,30 +154,31 @@ export class NullVisitor extends NodeVisitor {
     tsAnyKeyword(node: AST.TSAnyKeyword, env: Environment): void {}
     tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void {}
     tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void {}
+    tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: Environment): void {}
 }
 
-export function file(node: AST.File, env: Environment, v: NodeVisitor): void {
+export function file<E>(node: AST.File, env: E, v: NodeVisitor<E>): void {
     v.visit(node.program, env)
 }
 
-export function program(node: AST.Program, env: Environment, v: NodeVisitor): void {
+export function program<E>(node: AST.Program, env: E, v: NodeVisitor<E>): void {
     for (const child of node.body)
         v.visit(child, env)
 }
 
-export function whileStatement(node: AST.WhileStatement, env: Environment, v: NodeVisitor): void {
+export function whileStatement<E>(node: AST.WhileStatement, env: E, v: NodeVisitor<E>): void {
     v.visit(node.test, env)
     v.visit(node.body, env)
 }
 
-export function ifStatement(node: AST.IfStatement, env: Environment, v: NodeVisitor): void {
+export function ifStatement<E>(node: AST.IfStatement, env: E, v: NodeVisitor<E>): void {
     v.visit(node.test, env)
     v.visit(node.consequent, env)
     if (node.alternate)
         v.visit(node.alternate, env)
 }
 
-export function forStatement(node: AST.ForStatement, env: Environment, v: NodeVisitor): void {
+export function forStatement<E>(node: AST.ForStatement, env: E, v: NodeVisitor<E>): void {
     if (node.init)
         v.visit(node.init, env)
 
@@ -190,31 +191,31 @@ export function forStatement(node: AST.ForStatement, env: Environment, v: NodeVi
     v.visit(node.body, env)
 }
 
-export function expressionStatement(node: AST.ExpressionStatement, env: Environment, v: NodeVisitor): void {
+export function expressionStatement<E>(node: AST.ExpressionStatement, env: E, v: NodeVisitor<E>): void {
     v.visit(node.expression, env)
 }
 
-export function blockStatement(node: AST.BlockStatement, env: Environment, v: NodeVisitor): void {
+export function blockStatement<E>(node: AST.BlockStatement, env: E, v: NodeVisitor<E>): void {
     for (const child of node.body)
         v.visit(child, env)
 }
 
-export function returnStatement(node: AST.ReturnStatement, env: Environment, v: NodeVisitor): void {
+export function returnStatement<E>(node: AST.ReturnStatement, env: E, v: NodeVisitor<E>): void {
     if (node.argument)
         v.visit(node.argument, env)
 }
 
-export function variableDeclaration(node: AST.VariableDeclaration, env: Environment, v: NodeVisitor): void {
+export function variableDeclaration<E>(node: AST.VariableDeclaration, env: E, v: NodeVisitor<E>): void {
     for (const decl of node.declarations)
         v.visit(decl, env)
 }
 
-export function variableDeclarator(node: AST.VariableDeclarator, env: Environment, v: NodeVisitor): void {
+export function variableDeclarator<E>(node: AST.VariableDeclarator, env: E, v: NodeVisitor<E>): void {
     if (node.init)
         v.visit(node.init, env)
 }
 
-export function functionDeclaration(node: AST.FunctionDeclaration, env: Environment, v: NodeVisitor): void {
+export function functionDeclaration<E>(node: AST.FunctionDeclaration, env: E, v: NodeVisitor<E>): void {
     if (node.id)
         v.visit(node.id, env)
 
@@ -224,22 +225,22 @@ export function functionDeclaration(node: AST.FunctionDeclaration, env: Environm
     v.visit(node.body, env)
 }
 
-export function binaryExpression(node: AST.BinaryExpression, env: Environment, v: NodeVisitor): void {
+export function binaryExpression<E>(node: AST.BinaryExpression, env: E, v: NodeVisitor<E>): void {
     v.visit(node.left, env)
     v.visit(node.right, env)
 }
 
-export function assignmentExpression(node: AST.AssignmentExpression, env: Environment, v: NodeVisitor): void {
+export function assignmentExpression<E>(node: AST.AssignmentExpression, env: E, v: NodeVisitor<E>): void {
     v.visit(node.left, env)
     v.visit(node.right, env)
 }
 
-export function logicalExpression(node: AST.LogicalExpression, env: Environment, v: NodeVisitor): void {
+export function logicalExpression<E>(node: AST.LogicalExpression, env: E, v: NodeVisitor<E>): void {
     v.visit(node.left, env)
     v.visit(node.right, env)
 }
 
-export function callExpression(node: AST.CallExpression, env: Environment, v: NodeVisitor): void {
+export function callExpression<E>(node: AST.CallExpression, env: E, v: NodeVisitor<E>): void {
     v.visit(node.callee, env)
     for (const a of node.arguments)
         v.visit(a, env)

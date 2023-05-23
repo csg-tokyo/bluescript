@@ -29,6 +29,15 @@ export class ErrorLog {
     return this.messages.length > 0
   }
 
+  toString() {
+    let text = ''
+    for (const m of this.messages) {
+      const line = m.location?.start.line
+      text += `${m.message} in line ${line ? line : '??'}\n`
+    }
+    return text
+  }
+
   push(msg: string, node: Node): this {
     this.messages.push({message: msg, location: node.loc})
     return this

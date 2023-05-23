@@ -1,66 +1,79 @@
-import { Identifier, Node } from "@babel/types"
-import * as AST from "@babel/types"
-import { ErrorLog } from "../utils"
-import Environment, * as visitor from "../visitor"
+import * as AST from '@babel/types'
+import { ErrorLog } from '../utils'
+import * as visitor from '../visitor'
 
-import { ArrayType, StaticType } from "../types"
+import { ArrayType, StaticType, isPrimitiveType } from "../types"
 
 import {
   Integer, Float, Boolean, String, Void, Null, Any,
   ObjectType, FunctionType, objectType,
-  typeToString, isSubtype, isConsistent, commonSuperType
-} from "../types"
+  typeToString, isSubtype, isConsistent, commonSuperType,
+  isNumeric
+} from '../types'
 
 import {
-  NameInfo, NameTable, BlockNameTable, addNameTable,
-  getNameTable, addStaticType, FunctionNameTable, getStaticType, GlobalNameTable
-} from "./names"
+  NameTable, NameTableMaker, GlobalNameTable, NameInfo,
+  addNameTable, addStaticType, getStaticType, BasicNameTableMaker,
+  addCoercionFlag
+} from './names'
 
 
-export function runTypeChecker(ast: Node, env: GlobalNameTable): GlobalNameTable {
-  const typeChecker = new TypeChecker()
+// entry point for running a type checker
+export function runTypeChecker(ast: AST.Node, names: GlobalNameTable<NameInfo>) {
+  const maker = new BasicNameTableMaker()
+  return typecheck(ast, maker, names)
+}
+
+export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTableMaker<Info>, names: NameTable<Info>): NameTable<Info> {
+  const typeChecker = new TypeChecker(maker)
   typeChecker.firstPass = true
   typeChecker.result = Any
-  typeChecker.visit(ast, env)
+  typeChecker.visit(ast, names)
   if (typeChecker.errorLog.hasError())
     throw typeChecker.errorLog
 
   typeChecker.firstPass = false
   typeChecker.result = Any
-  typeChecker.visit(ast, env)
+  typeChecker.visit(ast, names)
   if (typeChecker.errorLog.hasError())
     throw typeChecker.errorLog
 
-  return env
+  return names
 }
 
-export default class TypeChecker extends visitor.NodeVisitor {
+export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisitor<NameTable<Info>> {
+  maker: NameTableMaker<Info>
   errorLog = new ErrorLog()
   result: StaticType = Any
   firstPass = true
 
-  file(node: AST.File, env: Environment): void {
-    visitor.file(node, env, this)
+  constructor(maker: NameTableMaker<Info>) {
+    super()
+    this.maker = maker
   }
 
-  program(node: AST.Program, env: Environment): void {
-    addNameTable(node, env as NameTable)
-    visitor.program(node, env, this)
+  file(node: AST.File, names: NameTable<Info>): void {
+    visitor.file(node, names, this)
   }
 
-  nullLiteral(node: AST.NullLiteral, env: Environment): void {
+  program(node: AST.Program, names: NameTable<Info>): void {
+    addNameTable(node, names)
+    visitor.program(node, names, this)
+  }
+
+  nullLiteral(node: AST.NullLiteral, names: NameTable<Info>): void {
     this.result = Null
   }
 
-  stringLiteral(node: AST.StringLiteral, env: Environment): void {
+  stringLiteral(node: AST.StringLiteral, names: NameTable<Info>): void {
     this.result = String
   }
 
-  booleanLiteral(node: AST.BooleanLiteral, env: Environment): void {
+  booleanLiteral(node: AST.BooleanLiteral, names: NameTable<Info>): void {
     this.result = Boolean
   }
 
-  numericLiteral(node: AST.NumericLiteral, env: Environment): void {
+  numericLiteral(node: AST.NumericLiteral, names: NameTable<Info>): void {
     const literal = node.extra?.raw as string
     if (/^[0-9A-Fa-fXx]+$/.test(literal))
       this.result = Integer
@@ -72,8 +85,7 @@ export default class TypeChecker extends visitor.NodeVisitor {
     this.addStaticType(node, this.result)
   }
 
-  identifier(node: AST.Identifier, env: Environment): void {
-    const names = env as NameTable
+  identifier(node: AST.Identifier, names: NameTable<Info>): void {
     const nameInfo = names.lookup(node.name)
     if (nameInfo !== undefined) {
       const info = nameInfo as NameInfo
@@ -88,63 +100,62 @@ export default class TypeChecker extends visitor.NodeVisitor {
     this.result = Any
   }
 
-  whileStatement(node: AST.WhileStatement, env: Environment): void {
-    this.visit(node.test, env)
+  whileStatement(node: AST.WhileStatement, names: NameTable<Info>): void {
+    this.visit(node.test, names)
     this.addCoercionForBoolean(node.test, this.result)
-    this.visit(node.body, env)
+    this.visit(node.body, names)
   }
 
-  ifStatement(node: AST.IfStatement, env: Environment): void {
-    this.visit(node.test, env)
+  ifStatement(node: AST.IfStatement, names: NameTable<Info>): void {
+    this.visit(node.test, names)
     this.addCoercionForBoolean(node.test, this.result)
-    this.visit(node.consequent, env)
+    this.visit(node.consequent, names)
     if (node.alternate)
-      this.visit(node.alternate, env)
+      this.visit(node.alternate, names)
   }
 
-  forStatement(node: AST.ForStatement, env: Environment): void {
-    const block_env = new BlockNameTable(env as NameTable)
+  forStatement(node: AST.ForStatement, names: NameTable<Info>): void {
+    const block_names = this.maker.block(names)
     if (!this.firstPass)
-      addNameTable(node, block_env)
+      addNameTable(node, block_names)
 
     if (node.init)
-      this.visit(node.init, block_env)
+      this.visit(node.init, block_names)
 
     if (node.test) {
-      this.visit(node.test, block_env)
+      this.visit(node.test, block_names)
       this.addCoercionForBoolean(node.test, this.result)
     }
 
     if (node.update)
-      this.visit(node.update, block_env)
+      this.visit(node.update, block_names)
 
-    this.visit(node.body, block_env)
+    this.visit(node.body, block_names)
   }
 
-  expressionStatement(node: AST.ExpressionStatement, env: Environment): void {
-    this.visit(node.expression, env)
+  expressionStatement(node: AST.ExpressionStatement, names: NameTable<Info>): void {
+    this.visit(node.expression, names)
   }
 
-  blockStatement(node: AST.BlockStatement, env: Environment): void {
+  blockStatement(node: AST.BlockStatement, names: NameTable<Info>): void {
     this.assertSyntax(node.directives.length === 0, node)
-    const block_env = new BlockNameTable(env as NameTable)
+    const block_names = this.maker.block(names)
     if (!this.firstPass)
-      addNameTable(node, block_env)
+      addNameTable(node, block_names)
 
     for (const child of node.body)
-      this.visit(child, block_env)
+      this.visit(child, block_names)
   }
 
-  returnStatement(node: AST.ReturnStatement, env: Environment): void {
-    const names = env as NameTable
+  returnStatement(node: AST.ReturnStatement, names: NameTable<Info>): void {
     const rtype = names.returnType()
     this.assert(rtype !== null, 'return must be in a function body', node)
     if (node.argument) {
-      this.visit(node.argument, env)
+      this.visit(node.argument, names)
       if (rtype == undefined)
         names.setReturnType(this.result)
       else if (isConsistent(this.result, rtype))
-        this.addStaticType(node.argument, this.result)
+        this.addCoercion(node.argument, this.result)
       else
         this.assert(isSubtype(this.result, rtype),
           `Type '${typeToString(this.result)}' does not match type '${typeToString(rtype)}'.`, node)
@@ -156,56 +167,56 @@ export default class TypeChecker extends visitor.NodeVisitor {
         this.assert(rtype === Void, 'a void function cannot return a value', node)
   }
 
-  emptyStatement(node: AST.EmptyStatement, env: Environment): void { }
+  emptyStatement(node: AST.EmptyStatement, names: NameTable<Info>): void { }
 
-  breakStatement(node: AST.BreakStatement, env: Environment): void {
+  breakStatement(node: AST.BreakStatement, names: NameTable<Info>): void {
     this.assert(!node.label, 'labeled break is not supported', node)
   }
 
-  continueStatement(node: AST.ContinueStatement, env: Environment): void {
+  continueStatement(node: AST.ContinueStatement, names: NameTable<Info>): void {
     this.assert(!node.label, 'labeled continue is not supported', node)
   }
 
-  variableDeclaration(node: AST.VariableDeclaration, env: Environment): void {
+  variableDeclaration(node: AST.VariableDeclaration, names: NameTable<Info>): void {
     const kind = node.kind
     this.assert(kind === 'const' || kind === 'let', 'only const and let are available', node)
     for (const decl of node.declarations)
       if (this.assert(decl.type === 'VariableDeclarator',
                       `unsupported variable declarator ${decl.type}`, decl))
-        this.checkVariableDeclarator(decl, kind === 'const', env)
+        this.checkVariableDeclarator(decl, kind === 'const', names)
   }
 
-  variableDeclarator(node: AST.VariableDeclarator, env: Environment): void {
-    throw Error('cannot directly visit AST.VariableDeclarator')
+  variableDeclarator(node: AST.VariableDeclarator, names: NameTable<Info>): void {
+    throw new Error('cannot directly visit AST.VariableDeclarator')
   }
 
-  checkVariableDeclarator(node: AST.VariableDeclarator, isConst: boolean, env: Environment): void {
+  checkVariableDeclarator(node: AST.VariableDeclarator, isConst: boolean, names: NameTable<Info>): void {
     const lvalue = node.id   // LVal = Identifier | ...
     this.assertVariable(lvalue)
-    const id = lvalue as Identifier
+    const id = lvalue as AST.Identifier
     const varName = id.name
     let varType: StaticType | undefined = undefined
     const typeAnno = id.typeAnnotation
     let alreadyDeclared = false
     if (!this.firstPass) {
-      varType = (env as NameTable).lookup(varName)?.type
+      varType = names.lookup(varName)?.type
       if (varType !== undefined)         // If a variable is global, lookup() does not return undefined
         alreadyDeclared = true         // during the 2nd pass.  Otherwise, lookup() returns undefined.
     }
 
     if (varType === undefined && typeAnno != null) {
       this.assertSyntax(AST.isTSTypeAnnotation(typeAnno), typeAnno)
-      this.visit(typeAnno, env)
+      this.visit(typeAnno, names)
       varType = this.result
     }
 
     if (node.init) {    // a const declaration must have an initializer.  a let declaration may not.
-      this.visit(node.init, env)
+      this.visit(node.init, names)
       this.assert(this.result !== Void, 'void may not be an initial value.', node.init)
       if (varType === undefined)
         varType = this.result
       else if (isConsistent(this.result, varType))
-        this.addStaticType(node.init, this.result)
+        this.addCoercion(node.init, this.result)
       else
         this.assert(isSubtype(this.result, varType),
           `Type '${typeToString(this.result)}' is not assignable to type '${typeToString(varType)}'.`, node)
@@ -215,36 +226,35 @@ export default class TypeChecker extends visitor.NodeVisitor {
       varType = Any
 
     if (!alreadyDeclared) {
-      const info = new NameInfo(varType)
+      const info = this.maker.info(varType)
       info.isConst = isConst
-      const success = (env as NameTable).record(varName, info)
+      const success = names.record(varName, info)
       this.assert(success, `Identifier '${varName}' has already been declared..`, node)
     }
   }
 
-  functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void {
+  functionDeclaration(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
     if (this.firstPass)
-      this.functionDeclarationPass1(node, env)
+      this.functionDeclarationPass1(node, names)
     else
-      this.functionDeclarationPass2(node, env)
+      this.functionDeclarationPass2(node, names)
   }
 
-  functionDeclarationPass1(node: AST.FunctionDeclaration, env: Environment): void {
+  functionDeclarationPass1(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
     this.assert(!node.generator, 'generator functions are not supported.', node)
     this.assert(!node.async, 'async functions are not supported.', node)
-    const outerEnv = env as NameTable
-    const funcEnv = new FunctionNameTable(outerEnv)
+    const funcEnv = this.maker.function(names)
     const paramTypes = this.functionParameters(node, funcEnv)
     funcEnv.thisReturnType = undefined
     const typeAnno = node.returnType
     if (typeAnno != null) {
       this.assertSyntax(AST.isTSTypeAnnotation(typeAnno), typeAnno)
-      this.visit(typeAnno, env)
+      this.visit(typeAnno, names)
       funcEnv.thisReturnType = this.result
     }
 
     if (node.id != null)
-      this.assert(outerEnv.lookup(node.id.name) === undefined,
+      this.assert(names.lookup(node.id.name) === undefined,
         `function '${node.id.name}' has been already declared.`, node)
 
     this.visit(node.body, funcEnv)
@@ -257,64 +267,65 @@ export default class TypeChecker extends visitor.NodeVisitor {
     const ftype = new FunctionType(rtype, paramTypes)
     addStaticType(node, ftype)
     if (node.id != null)
-      outerEnv.record(node.id.name, new NameInfo(ftype))
+      names.record(node.id.name, this.maker.info(ftype).setup(_ => _.isFunction = true))
   }
 
-  functionDeclarationPass2(node: AST.FunctionDeclaration, env: Environment): void {
-    const outerEnv = env as NameTable
-    const funcEnv = new FunctionNameTable(outerEnv)
+  functionDeclarationPass2(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
+    const funcEnv = this.maker.function(names)
     this.functionParameters(node, funcEnv)
     const ftype = getStaticType(node)
     if (ftype === undefined || !(ftype instanceof FunctionType))
-      throw Error(`fatal: a function type is not recorded in pass 1: ${node.id}`)
+      throw new Error(`fatal: a function type is not recorded in pass 1: ${node.id}`)
 
     funcEnv.thisReturnType = ftype.returnType
     this.visit(node.body, funcEnv)
-    addNameTable(node, funcEnv);
+    addNameTable(node, funcEnv)
   }
 
-  functionParameters(node: AST.FunctionDeclaration, env: NameTable): StaticType[] {
+  functionParameters(node: AST.FunctionDeclaration, names: NameTable<Info>): StaticType[] {
     const paramTypes: StaticType[] = []
     for (const param of node.params) {
       this.assert(AST.isIdentifier(param), 'bad parameter name', node)
-      const id = param as Identifier
+      const id = param as AST.Identifier
       const varName = id.name
       let varType: StaticType = Any
       const typeAnno = id.typeAnnotation
       if (typeAnno != null) {
         this.assertSyntax(AST.isTSTypeAnnotation(typeAnno), typeAnno)
-        this.visit(typeAnno, env)
+        this.visit(typeAnno, names)
         varType = this.result
       }
 
-      this.assert(env.lookup(varName)?.type == undefined,
+      this.assert(names.lookup(varName)?.type == undefined,
         `duplicated parameter name: ${varName}`, node)
-      env.record(varName, new NameInfo(varType))
+      names.record(varName, this.maker.info(varType))
       paramTypes.push(varType)
     }
 
     return paramTypes
   }
 
-  unaryExpression(node: AST.UnaryExpression, env: Environment): void {
-    this.assert(node.prefix, 'prefixed unary operator is not supported', node)
-    this.visit(node.argument, env)
+  unaryExpression(node: AST.UnaryExpression, names: NameTable<Info>): void {
+    this.assert(node.prefix, 'only prefixed unary operator is supported', node)
+    this.visit(node.argument, names)
     this.addCoercionIfAny(node.argument, this.result)
     const op = node.operator
     if (op === '-' || op === '+')
-      this.assert(this.isNumeric(this.result),
+      this.assert(isNumeric(this.result) || this.result === Any,
         this.invalidOperandMessage(op, this.result), node);
     else if (op === '!') {
       this.addCoercionForBoolean(node.argument, this.result)
       this.result = Boolean
     }
     else if (op === '~') {
-      this.assert(this.result === Integer,
+      // this.result must be integer or any-type.
+      // It must not be an array type or a function type.
+      this.assert(this.result === Integer || this.result === Any,
         this.invalidOperandMessage(op, this.result), node)
+      this.result = Integer
     }
     else  // 'typeof' | 'void' | 'delete' | 'throw'
       this.assert(false, `not supported operator ${op}.`, node)
-    addStaticType(node, this.result)
   }
 
   invalidOperandMessage(op: string, t1: StaticType) {
@@ -322,31 +333,32 @@ export default class TypeChecker extends visitor.NodeVisitor {
     return `invalid operand to ${op} (${t1name}).`
   }
 
-  updateExpression(node: AST.UpdateExpression, env: Environment): void {
+  updateExpression(node: AST.UpdateExpression, names: NameTable<Info>): void {
     // const prefix = node.prefix           true if ++k, but false if k++
-    this.assertLvalue(node.argument, env as NameTable)
-    this.visit(node.argument, env)
+    this.assertLvalue(node.argument, names)
+    this.visit(node.argument, names)
     const op = node.operator    // ++ or --
-    this.assert(this.isNumeric(this.result),
+    this.assert(isNumeric(this.result),
       this.invalidOperandMessage(op, this.result), node);
-    addStaticType(node, this.result)
   }
 
-  binaryExpression(node: AST.BinaryExpression, env: Environment): void {
-    this.visit(node.left, env)
+  binaryExpression(node: AST.BinaryExpression, names: NameTable<Info>): void {
+    this.visit(node.left, names)
     const left_type = this.result
-    this.visit(node.right, env)
+    this.visit(node.right, names)
     const right_type = this.result
     const op = node.operator
     if (op === '==' || op === '!=' || op === '===' || op === '!==') {
       if (left_type === Boolean || right_type === Boolean) {
         this.assert(left_type === right_type, 'a boolean must be compared with a boolean', node)
-        this.addStaticType(node.left, left_type)
-        this.addStaticType(node.right, right_type)
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
       }
       else if (left_type === Any || right_type === Any) {
-        this.addStaticType(node.left, left_type)
-        this.addStaticType(node.right, right_type)
+        // the above condition must not be isAny(left_type) || isAny(right_type)
+        // if type are any-type, they must not be an array type or a function type.
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
       }
       else
         this.assert(isSubtype(left_type, right_type) || isSubtype(right_type, left_type),
@@ -355,14 +367,23 @@ export default class TypeChecker extends visitor.NodeVisitor {
       this.result = Boolean
     }
     else if (op === '<' || op === '<=' || op === '>' || op === '>=') {
-      this.assert(this.isNumeric(left_type) && this.isNumeric(right_type),
+      this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
         this.invalidOperandsMessage(op, left_type, right_type), node)
+      if (left_type === Any || right_type === Any) {
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
+      }
       this.result = Boolean
     }
     else if (op === '+' || op === '-' || op === '*' || op === '/') {
-      this.assert(this.isNumeric(left_type) && this.isNumeric(right_type),
+      this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
         this.invalidOperandsMessage(op, left_type, right_type), node)
-      if (left_type === Float || right_type === Float)
+      if (left_type === Any || right_type === Any) {
+          this.addCoercion(node.left, left_type)
+          this.addCoercion(node.right, right_type)
+          this.result = Any
+      }
+      else if (left_type === Float || right_type === Float)
         this.result = Float
       else
         this.result = Integer
@@ -376,7 +397,6 @@ export default class TypeChecker extends visitor.NodeVisitor {
       this.assert(false, `not supported operator '${op}'`, node)
       this.result = Boolean
     }
-    addStaticType(node, this.result)
   }
 
   invalidOperandsMessage(op: string, t1: StaticType, t2: StaticType) {
@@ -385,39 +405,38 @@ export default class TypeChecker extends visitor.NodeVisitor {
     return `invalid operands to ${op} (${t1name} and ${t2name}).`
   }
 
-  assignmentExpression(node: AST.AssignmentExpression, env: Environment): void {
-    this.assertLvalue(node.left, env as NameTable)
-    this.visit(node.left, env)
+  assignmentExpression(node: AST.AssignmentExpression, names: NameTable<Info>): void {
+    this.assertLvalue(node.left, names)
+    this.visit(node.left, names)
     const left_type = this.result
-    this.visit(node.right, env)
+    this.visit(node.right, names)
     const right_type = this.result
     const op = node.operator
     if (op === '=')
       if (isConsistent(right_type, left_type)) {
-        this.addStaticType(node.left, left_type)
-        this.addStaticType(node.right, right_type)
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
       }
       else
         this.assert(isSubtype(right_type, left_type),
           `Type '${typeToString(right_type)}' is not assignable to type '${typeToString(left_type)}'.`,
           node)
-    else if (op === '+=' || op === '-=' || op === '*=' || op === '/=' || op === '%=')
-      this.assert(this.isNumeric(left_type) && this.isNumeric(right_type),
+    else if (op === '+=' || op === '-=' || op === '*=' || op === '/=')
+      this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
         this.invalidOperandsMessage(op, left_type, right_type), node)
-    else if (op === '|=' || op === '^=' || op === '&=' || op === '<<=' || op === '>>=')
+    else if (op === '|=' || op === '^=' || op === '&=' || op === '%=' || op === '<<=' || op === '>>=')
       this.assert(left_type === Integer && right_type === Integer,
         this.invalidOperandsMessage(op, left_type, right_type), node)
     else  // '||=', '&&=', '>>>=', '**=', op === '??='
       this.assert(false, `not supported operator '${op}'`, node)
 
     this.result = left_type
-    addStaticType(node, this.result)
   }
 
-  logicalExpression(node: AST.LogicalExpression, env: Environment): void {
-    this.visit(node.left, env)
+  logicalExpression(node: AST.LogicalExpression, names: NameTable<Info>): void {
+    this.visit(node.left, names)
     const left_type = this.result
-    this.visit(node.right, env)
+    this.visit(node.right, names)
     const right_type = this.result
     const op = node.operator
     if (op === '||' || op === '&&') {
@@ -427,15 +446,14 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
     else  // '??'
       this.assert(false, `not supported operator '${op}'`, node)
-    addStaticType(node, this.result)
   }
 
-  conditionalExpression(node: AST.ConditionalExpression, env: Environment): void {
-    this.visit(node.test, env)
+  conditionalExpression(node: AST.ConditionalExpression, names: NameTable<Info>): void {
+    this.visit(node.test, names)
     this.addCoercionForBoolean(node.test, this.result)
-    this.visit(node.consequent, env)
+    this.visit(node.consequent, names)
     const then_type = this.result
-    this.visit(node.alternate, env)
+    this.visit(node.alternate, names)
     const else_type = this.result
     const result_type = commonSuperType(then_type, else_type)
     if (result_type === undefined) {
@@ -444,37 +462,37 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
     else
       this.result = result_type
-    addStaticType(node, this.result)
   }
 
-  callExpression(node: AST.CallExpression, env: Environment): void {
-    this.visit(node.callee, env)
+  callExpression(node: AST.CallExpression, names: NameTable<Info>): void {
+    this.visit(node.callee, names)
     if (this.result instanceof FunctionType) {
       const func_type = this.result
       for (let i = 0; i < node.arguments.length; i++) {
         const arg = node.arguments[i]
-        this.visit(arg, env)
+        this.visit(arg, names)
         if (isConsistent(this.result, func_type.paramTypes[i]))
-          this.addStaticType(arg, this.result)
+          this.addCoercion(arg, this.result)
         else
           this.assert(isSubtype(this.result, func_type.paramTypes[i]),
             `passing an incompatible argument (${this.result} to ${func_type.paramTypes[i]})`,
             node)
       }
+      this.addStaticType(node.callee, func_type)
       this.result = func_type.returnType
     }
     else {
       this.assert(this.firstPass, 'the callee is not a function', node.callee)
       this.result = Any
     }
-    addStaticType(node, this.result)
   }
 
-  arrayExpression(node: AST.ArrayExpression, env: Environment): void {
+  arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {
     let etype: StaticType | undefined = undefined
     for (const ele of node.elements)
       if (ele != null) {
-        this.visit(ele, env)
+        this.visit(ele, names)
+        this.addStaticType(ele, this.result)
         if (etype === undefined)
           etype = this.result
         else {
@@ -492,51 +510,50 @@ export default class TypeChecker extends visitor.NodeVisitor {
     const atype = new ArrayType(etype)
     this.addStaticType(node, atype)
     this.result = atype
-    addStaticType(node, this.result)
   }
 
-  memberExpression(node: AST.MemberExpression, env: Environment): void {
+  memberExpression(node: AST.MemberExpression, names: NameTable<Info>): void {
     // an array access is recognized as a member access.
     this.assert(AST.isExpression(node.object), 'not supported object', node.object)
     this.assert(node.computed, 'a property access are not supported', node)
     this.assert(AST.isExpression(node.property), 'a wrong property name', node.property)
-    this.visit(node.property, env)
+    this.visit(node.property, names)
     this.assert(this.result === Integer, 'an array index must be an integer', node.property)
-    this.visit(node.object, env)
+    this.visit(node.object, names)
     if (this.result instanceof ArrayType) {
       this.result = this.result.elementType
       this.addStaticType(node, this.result)
     }
     else
       this.assert(false, 'an element access to a non-array', node.object)
-    addStaticType(node, this.result)
   }
 
-  tsAsExpression(node: AST.TSAsExpression, env: Environment): void {
-    this.visit(node.expression, env)
+  tsAsExpression(node: AST.TSAsExpression, names: NameTable<Info>): void {
+    this.visit(node.expression, names)
     const exprType = this.result
-    this.visit(node.typeAnnotation, env)
+    this.visit(node.typeAnnotation, names)
     const asType = this.result
-    this.assert(exprType === Any || asType === Any || (this.isNumeric(exprType) && this.isNumeric(asType)),
+    this.assert(exprType === Any || asType === Any || (isNumeric(exprType) && isNumeric(asType)),
       this.invalidOperandsMessage('as', exprType, this.result), node)
+    this.addStaticType(node.expression, exprType)
+    this.addStaticType(node, asType)
     this.result = asType
-    addStaticType(node, this.result)
   }
 
-  tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {
-    this.visit(node.typeAnnotation, env)
+  tsTypeAnnotation(node: AST.TSTypeAnnotation, names: NameTable<Info>): void {
+    this.visit(node.typeAnnotation, names)
   }
 
-  tsTypeReference(node: AST.TSTypeReference, env: Environment): void {
+  tsTypeReference(node: AST.TSTypeReference, names: NameTable<Info>): void {
     this.assertSyntax(AST.isIdentifier(node.typeName), node)
     this.assertSyntax(node.typeParameters === undefined, node)
-    const name = (node.typeName as Identifier).name
+    const name = (node.typeName as AST.Identifier).name
     if (name === Float)
       this.result = Float
     else if (name === Integer)
       this.result = Integer
     else {
-      const nameInfo = (env as NameTable).lookup(name)
+      const nameInfo = names.lookup(name)
       if (this.assert(nameInfo !== undefined, `unknown type name: ${name}`, node)) {
         const info = nameInfo as NameInfo
         const isType = info.isTypeName
@@ -550,67 +567,77 @@ export default class TypeChecker extends visitor.NodeVisitor {
     }
   }
 
-  tsArrayType(node: AST.TSArrayType, env: Environment): void {
-    this.visit(node.elementType, env)
+  tsArrayType(node: AST.TSArrayType, names: NameTable<Info>): void {
+    this.visit(node.elementType, names)
     const elementType = this.result
     this.result = new ArrayType(elementType);
   }
 
-  tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {
+  tsNumberKeyword(node: AST.TSNumberKeyword, names: NameTable<Info>): void {
     this.result = Integer
   }
 
-  tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void {
+  tsVoidKeyword(node: AST.TSVoidKeyword, names: NameTable<Info>): void {
     this.result = Void
   }
 
-  tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void {
+  tsBooleanKeyword(node: AST.TSBooleanKeyword, names: NameTable<Info>): void {
     this.result = Boolean
   }
 
-  tsStringKeyword(node: AST.TSStringKeyword, env: Environment): void {
+  tsStringKeyword(node: AST.TSStringKeyword, names: NameTable<Info>): void {
     this.result = String
   }
 
-  tsObjectKeyword(node: AST.TSObjectKeyword, env: Environment): void {
+  tsObjectKeyword(node: AST.TSObjectKeyword, names: NameTable<Info>): void {
     this.result = objectType
   }
 
-  tsAnyKeyword(node: AST.TSAnyKeyword, env: Environment): void {
+  tsAnyKeyword(node: AST.TSAnyKeyword, names: NameTable<Info>): void {
     this.result = Any
   }
 
-  tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void {
+  tsNullKeyword(node: AST.TSNullKeyword, names: NameTable<Info>): void {
     this.result = Null
   }
 
-  tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void {
+  tsUndefinedKeyword(node: AST.TSUndefinedKeyword, names: NameTable<Info>): void {
     // we do not distinguish null type and undefined type
     this.result = Null
   }
 
-  isNumeric(t: StaticType) {
-    return t === Integer || t === Float
+  tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: NameTable<Info>): void {
+    const name = node.id.name
+    this.assert(name === 'integer' || name === 'float', 'type alias is not supported', node)
   }
 
-  addStaticType(expr: Node, type: StaticType) {
+  addStaticType(expr: AST.Node, type: StaticType) {
     if (!this.firstPass)
       addStaticType(expr, type)
   }
 
-  addCoercionIfAny(expr: Node, type: StaticType): void {
+  addCoercion(expr: AST.Node, type: StaticType) {
+    if (!this.firstPass) {
+      addStaticType(expr, type)
+      addCoercionFlag(expr, true)
+    }
+  }
+
+  addCoercionIfAny(expr: AST.Node, type: StaticType): void {
     // if the expression type is Any type, mark it for coercion
     if (!this.firstPass && type === Any)
-      addStaticType(expr, type)
+      this.addCoercion(expr, type)
   }
 
-  addCoercionForBoolean(expr: Node, type: StaticType): void {
+  addCoercionForBoolean(expr: AST.Node, type: StaticType): void {
     // if the expression needs coercion to be tested as a boolean value.
     // In C, 0, 0.0, and NULL are false.
-    this.addCoercionIfAny(expr, type)
+    // Note that a Null-type value might not be NULL.
+    if (!this.firstPass && !isPrimitiveType(type))
+      this.addCoercion(expr, type)
   }
 
-  assertLvalue(node: Node, table: NameTable) {
+  assertLvalue(node: AST.Node, table: NameTable<Info>) {
     if (AST.isIdentifier(node)) {
       const info = table.lookup(node.name)
       if (info !== undefined)
@@ -622,15 +649,15 @@ export default class TypeChecker extends visitor.NodeVisitor {
       this.assert(false, 'invalid left-hand side in assignment.', node)
   }
 
-  assertVariable(node: Node) {
+  assertVariable(node: AST.Node) {
     this.assert(AST.isIdentifier(node), 'invalid variable name', node)
   }
 
-  assertSyntax(test: boolean, node: Node) {
+  assertSyntax(test: boolean, node: AST.Node) {
     this.assert(test, 'syntax error', node)
   }
 
-  assert(test: boolean, msg: string, node: Node) {
+  assert(test: boolean, msg: string, node: AST.Node) {
     if (!test)
       this.errorLog.push(msg, node)
 

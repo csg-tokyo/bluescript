@@ -9,6 +9,15 @@ export const Any = 'any'
 export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' |
   ObjectType | FunctionType
 
+export function isPrimitiveType(type: StaticType) {
+  // unless String, Null, Any, object type, or function type
+  return type === Integer || type === Float || type === Boolean || type === Void
+}
+
+export function isNumeric(t: StaticType) {
+  return t === Integer || t === Float
+}
+
 export class ObjectType {
   name() {
     return 'object'
