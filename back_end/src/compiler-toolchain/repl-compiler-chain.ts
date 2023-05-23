@@ -1,68 +1,63 @@
 import CONSTANTS from "../constants";
-import CompilerToolChainEnv from "./env/compiler-tool-chain-env";
 import {Buffer} from "node:buffer";
-import {SectionNameArr} from "../models/section-model";
+import {SectionNameArr} from "../linker/models";
 import * as fs from "fs";
 import {execSync} from "child_process";
-import SectionValueFactory from "./linker/section-value-factory";
-import ReplTranslator from "../utils/translator/repl-translator";
+import SectionValueFactory from "../linker/section-value-factory";
+import ReplEnv from "./env/repl-env";
+import {replTranspile} from "../transpiler/repl-transpile";
+
+
+const C_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.C_FILE_NAME;
+const OBJ_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.OBJ_FILE_NAME;
 
 export default class ReplCompilerChain {
-  private C_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.C_FILE_NAME;
-  private OBJ_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.OBJ_FILE_NAME;
-
-  private readonly env: CompilerToolChainEnv;
+  private readonly env: ReplEnv;
 
   constructor() {
-    const tableDir = CONSTANTS.DEV_DB_ONCE_PATH;
-    this.env = new CompilerToolChainEnv(tableDir);
+    const tableDir = CONSTANTS.DEV_DB_REPL_PATH;
+    this.env = new ReplEnv(tableDir);
   }
 
   public async clearEnv() {
-    await this.env.initialize();
+    await this.env.initTable();
   }
 
   public async exec(tsString: string, isFirst: boolean = false):Promise<{values:{[name: string]: string}, execFuncOffsets: number[]}> {
-    if (isFirst) {
-      await this.env.initialize();
-    }
-    const {cString,newDefinedSymbolNames, execFuncNames} = await this.translate(tsString);
-    const elfBuffer = await this.compile(cString);
-    const {values, execFuncOffsets} =  await this.link(elfBuffer, newDefinedSymbolNames, execFuncNames);
-    await this.env.storeNewDataToDB();
+    await this.env.load(isFirst)
+    const cString = this.translate(tsString);
+    const elfBuffer = this.compile(cString);
+    const {values, execFuncOffsets} =  await this.link(elfBuffer);
+    await this.env.store();
     return {values, execFuncOffsets};
   }
 
-  private async translate(tsString: string): Promise<{cString: string, newDefinedSymbolNames:string[], execFuncNames: string[]}> {
-    const publicSymbols = await this.env.generatePublicSymbolTypes();
-    const translator = new ReplTranslator(tsString, publicSymbols);
-    const {cString, newDefinedSymbols, execFuncNames} = translator.translate();
-    await this.env.setNewDefinedSymbols(newDefinedSymbols);
-    return {cString,newDefinedSymbolNames: newDefinedSymbols.map(s => s.name), execFuncNames};
+  private translate(tsString: string): string {
+    const existingSymbols = this.env.getSymbolTypes();
+    const {cString, newSymbols, execFuncNames} = replTranspile(tsString, existingSymbols);
+    this.env.setNewSymbols(newSymbols);
+    this.env.setExecFuncNames(execFuncNames)
+    return cString;
   }
 
-  private async compile(cString: string):Promise<Buffer> {
+  private compile(cString: string):Buffer {
     // write c file
     let cFileString = fs.readFileSync(CONSTANTS.C_FILE_TEMPLATE_PATH).toString();
-    const symbols = await this.env.generateSymbolDeclarations();
-    symbols.forEach(symbol => {
-      if (symbol.symbolType === "variable") {
-        cFileString += `extern ${symbol.declaration}\n`;
-      } else {
-        cFileString += `${symbol.declaration}\n`
-      }
+    const symbols = this.env.getSymbolDeclarations();
+    symbols.forEach(declaration => {
+      cFileString += `${declaration}\n`
     });
     cFileString += cString;
-    fs.writeFileSync(this.C_FILE_PATH, cFileString);
+    fs.writeFileSync(C_FILE_PATH, cFileString);
     // compile
-    execSync(`xtensa-esp32-elf-gcc -c -O1 ${this.C_FILE_PATH} -o ${this.OBJ_FILE_PATH} -w`);
-    return fs.readFileSync(this.OBJ_FILE_PATH);
+    execSync(`xtensa-esp32-elf-gcc -c -O0 ${C_FILE_PATH} -o ${OBJ_FILE_PATH} -w`);
+    return fs.readFileSync(OBJ_FILE_PATH);
   }
 
-  private async link(elfBuffer: Buffer,newDefinedSymbolNames: string[], execFuncNames:string[]):Promise<{values:{[name: string]: string}, execFuncOffsets: number[]}> {
+  private async link(elfBuffer: Buffer):Promise<{values:{[name: string]: string}, execFuncOffsets: number[]}> {
     // Prepare data.
-    const sectionAddresses = await this.env.generateSectionStartAddresses();
-    const symbolAddresses = await this.env.generateSymbolAddresses();
+    const sectionAddresses = this.env.getSectionAddresses();
+    const symbolAddresses = this.env.getSymbolAddresses();
     // Link.
     const factory = new SectionValueFactory(elfBuffer, symbolAddresses, sectionAddresses);
     const strategy = factory.generateStrategy();
@@ -73,15 +68,15 @@ export default class ReplCompilerChain {
       sectionValues[sectionName] = value.getLinkedValue(strategy).toString("hex");
       useMemorySizes[sectionName] = value.getSize();
     });
-    const execFuncAddresses = factory.getDefinedSymbolAddresses(execFuncNames);
-    const newDefinedSymbolAddresses = factory.getDefinedSymbolAddresses(newDefinedSymbolNames);
+    const execFuncAddresses = factory.getSymbolAddresses(this.env.execFuncNames);
+    const newSymbolAddresses = factory.getSymbolAddresses(Object.keys(this.env.newSymbols));
     // Set to env.
-    this.env.setNewDefinedSymbolAddresses(newDefinedSymbolAddresses);
-    this.env.setSectionUsedMemorySizes(useMemorySizes);
+    this.env.setSymbolAddresses(newSymbolAddresses);
+    this.env.setUsedMemorySize(useMemorySizes);
     // get execFuncOffsets
     const execFuncOffsets:number[] = [];
-    const textSectionAddress = await this.env.generateTextSectionAddress();
-    execFuncNames.forEach(name => {
+    const textSectionAddress = this.env.getTextSectionBaseAddress();
+    this.env.execFuncNames.forEach(name => {
       execFuncOffsets.push(execFuncAddresses[name] - textSectionAddress);
     })
 

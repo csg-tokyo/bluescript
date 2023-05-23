@@ -25,14 +25,16 @@ static inline bool value_to_bool(value_t v) { return v != VALUE_FALSE; }
 #define ROOT_SET(name,n)     struct { struct gc_root_set* next; uint32_t length; value_t values[n]; } name;
 #define DELETE_ROOT_SET(name)     { gc_root_set_head = name.next; }
 
+void console_log(value_t str);
+void console_log_number(int32_t n);
+extern value_t str;
 extern struct gc_root_set* gc_root_set_head;
-void func1();
-void blink_led();
-extern value_t i;
-void gc_run();
-void console_log_number(value_t n);
+value_t gc_new_string(char* str);
 void *memset(void *buf, int ch, long unsigned int n);
-void func3();
-void loIfcewCXl() {
-func3();
+void gc_run();
+value_t gc_array_set(value_t obj, value_t index, value_t new_value);
+extern value_t gc_global_root_set_array;
+void ___bluescript_exec_func_0() {
+console_log(gc_new_string("Foo"));
 };
+
