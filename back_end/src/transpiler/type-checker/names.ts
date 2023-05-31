@@ -31,6 +31,8 @@ export class FreeNameInfo extends NameInfo {
   constructor(name: NameInfo) {
     super(name.type)
     this.nameInfo = name
+    this.isConst = name.isConst
+    this.isFunction = name.isFunction
   }
 }
 
@@ -38,27 +40,30 @@ export class FreeNameInfo extends NameInfo {
 
 // a factory for NameTable<T>
 export interface NameTableMaker<Info extends NameInfo> {
-  global(): NameTable<Info>
   block(parent: NameTable<Info>): NameTable<Info>
   function(parent: NameTable<Info>): FunctionNameTable<Info>
   info(t: StaticType): Info
+  globalInfo(t: StaticType): Info
 }
 
-export interface NameTable<Info> {
+export interface NameTable<Info extends NameInfo> {
   names(): {[key: string]: Info}      // debugging purpose only
   forEach(f: (value: Info, key: string) => void): void
 
-  record(key: string, info: Info): boolean
+  record(key: string, t: StaticType, maker: NameTableMaker<Info>,
+         init?: (i: Info) => void): boolean
   lookup(key: string): Info | undefined
   returnType(): StaticType | undefined | null   // null if the table is for top-level
   setReturnType(t: StaticType): void
 }
 
-export class GlobalNameTable<Info> implements NameTable<Info> {
+export class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
   map: Map<string, Info>
+  parent?: NameTable<Info>
 
-  constructor() {
+  constructor(parent?: NameTable<Info>) {
     this.map = new Map()
+    this.parent = parent
   }
 
   names() {
@@ -74,14 +79,23 @@ export class GlobalNameTable<Info> implements NameTable<Info> {
     this.map.forEach(f)
   }
 
-  record(key: string, info: Info): boolean {
+  record(key: string, t: StaticType, maker: NameTableMaker<Info>,
+         init?: (i: Info) => void): boolean {
     const old = this.map.get(key)
+    const info = maker.globalInfo(t)
+    if (init !== undefined)
+      init(info)
+
     this.map.set(key, info)
     return old === undefined
   }
 
   lookup(key: string): Info | undefined {
-    return this.map.get(key)
+    const found = this.map.get(key)
+    if (found === undefined)
+      return this.parent?.lookup(key)
+    else
+      return found
   }
 
   returnType(): StaticType | undefined | null {
@@ -93,7 +107,7 @@ export class GlobalNameTable<Info> implements NameTable<Info> {
   }
 }
 
-export class BlockNameTable<Info> implements NameTable<Info> {
+export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
   elements: {[key: string]: Info}
   parent: NameTable<Info>
 
@@ -109,8 +123,13 @@ export class BlockNameTable<Info> implements NameTable<Info> {
       f(this.elements[k], k)
   }
  
-  record(key: string, info: Info): boolean {
+  record(key: string, t: StaticType, maker: NameTableMaker<Info>,
+         init?: (i: Info) => void): boolean {
     const old = this.elements[key]
+    const info = maker.info(t)
+    if (init !== undefined)
+      init(info)
+
     this.elements[key] = info
     return old === undefined
   }
@@ -168,11 +187,11 @@ export abstract class FunctionNameTable<Info extends NameInfo> extends BlockName
   }
 }
 
-export function addNameTable<Info>(node: Node, st: NameTable<Info>) {
+export function addNameTable<Info extends NameInfo>(node: Node, st: NameTable<Info>) {
   ((node as unknown) as { symbolTable: NameTable<Info> }).symbolTable = st
 }
 
-export function getNameTable<Info>(node: Node) {
+export function getNameTable<Info extends NameInfo>(node: Node) {
   return ((node as unknown) as { symbolTable?: NameTable<Info> })?.symbolTable
 }
 
@@ -195,10 +214,10 @@ export function getCoercionFlag(node: Node) {
 // utility classes for running a type checker with NameTable<NameInfo>
 
 export class BasicNameTableMaker implements NameTableMaker<NameInfo> {
-  global() { return new GlobalNameTable<NameInfo>() }
   block(parent: NameTable<NameInfo>) { return new BlockNameTable<NameInfo>(parent) }
   function(parent: NameTable<NameInfo>) { return new BasicFunctionNameTable(parent) }
   info(t: StaticType) { return new NameInfo(t) }
+  globalInfo(t: StaticType) { return new NameInfo(t) }
 }
 
 class BasicFunctionNameTable extends FunctionNameTable<NameInfo> {

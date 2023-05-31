@@ -18,7 +18,7 @@ import {
 } from './names'
 
 
-// entry point for running a type checker
+// entry point for just running a type checker
 export function runTypeChecker(ast: AST.Node, names: GlobalNameTable<NameInfo>) {
   const maker = new BasicNameTableMaker()
   return typecheck(ast, maker, names)
@@ -226,9 +226,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       varType = Any
 
     if (!alreadyDeclared) {
-      const info = this.maker.info(varType)
-      info.isConst = isConst
-      const success = names.record(varName, info)
+      const success = names.record(varName, varType, this.maker, _ => _.isConst = isConst)
       this.assert(success, `Identifier '${varName}' has already been declared..`, node)
     }
   }
@@ -267,7 +265,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const ftype = new FunctionType(rtype, paramTypes)
     addStaticType(node, ftype)
     if (node.id != null)
-      names.record(node.id.name, this.maker.info(ftype).setup(_ => _.isFunction = true))
+      names.record(node.id.name, ftype, this.maker, _ => _.isFunction = true)
   }
 
   functionDeclarationPass2(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
@@ -298,7 +296,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
       this.assert(names.lookup(varName)?.type == undefined,
         `duplicated parameter name: ${varName}`, node)
-      names.record(varName, this.maker.info(varType))
+      names.record(varName, varType, this.maker)
       paramTypes.push(varType)
     }
 
@@ -336,10 +334,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   updateExpression(node: AST.UpdateExpression, names: NameTable<Info>): void {
     // const prefix = node.prefix           true if ++k, but false if k++
     this.assertLvalue(node.argument, names)
-    this.visit(node.argument, names)
+    if (AST.isMemberExpression(node.argument))
+      this.lvalueMember(node.argument, names)
+    else
+      this.visit(node.argument, names)
+
     const op = node.operator    // ++ or --
     this.assert(isNumeric(this.result),
-      this.invalidOperandMessage(op, this.result), node);
+                this.invalidOperandMessage(op, this.result), node);
   }
 
   binaryExpression(node: AST.BinaryExpression, names: NameTable<Info>): void {
@@ -407,7 +409,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   assignmentExpression(node: AST.AssignmentExpression, names: NameTable<Info>): void {
     this.assertLvalue(node.left, names)
-    this.visit(node.left, names)
+    if (AST.isMemberExpression(node.left))
+      this.lvalueMember(node.left, names)
+    else
+      this.visit(node.left, names)
+
     const left_type = this.result
     this.visit(node.right, names)
     const right_type = this.result
@@ -528,6 +534,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(false, 'an element access to a non-array', node.object)
   }
 
+  private lvalueMember(node: AST.MemberExpression, names: NameTable<Info>): void {
+    this.memberExpression(node, names)
+    this.addStaticType(node, Any)
+    this.result = Any
+  }
+
   tsAsExpression(node: AST.TSAsExpression, names: NameTable<Info>): void {
     this.visit(node.expression, names)
     const exprType = this.result
@@ -643,8 +655,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       if (info !== undefined)
         this.assert(!info.isConst, 'assignment to constant variable', node)
     }
-    else if (AST.isMemberExpression(node))
-      this.memberExpression(node, table)
+    else if (AST.isMemberExpression(node)) {
+    }
     else
       this.assert(false, 'invalid left-hand side in assignment.', node)
   }

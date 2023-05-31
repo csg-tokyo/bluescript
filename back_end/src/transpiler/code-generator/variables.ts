@@ -1,19 +1,16 @@
 import * as AST from '@babel/types'
-import { StaticType, isPrimitiveType } from '../types'
+import { FunctionType, StaticType, isPrimitiveType } from '../types'
 import { NameTable, NameTableMaker, GlobalNameTable, 
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../type-checker/names'
+import { rootSetVariable } from './c-runtime'
 
 
-export function rootSetVariable(index: number | undefined) {
-  return `_func_rootset.values[${index}]`
-}
-
-function globalVariableName(name: string | undefined) {
-  if (name === undefined)
-    throw new Error('a global variable name is undefined')
+function globalVariableName(varName: string, index?: number) {
+  if (index === undefined)
+    return `_${varName}`
   else
-    return name
+    return rootSetVariable(index, varName)
 }
 
 export class VariableInfo extends NameInfo {
@@ -23,36 +20,57 @@ export class VariableInfo extends NameInfo {
     super(t)
   }
 
-  transpile() { return rootSetVariable(this.index) }
+  // Name used for its declaration.
+  // the returned value should be the same as the value
+  // returned by transpile() when this.index === undefined.
+  transpiledName(name: string) { return `_${name}` }
+
+  transpile(name: string) {
+    if (this.index === undefined)
+      return `_${name}`
+    else
+      return rootSetVariable(this.index) }
 }
   
 class FreeVariableInfo extends VariableInfo {
-  nameInfo: NameInfo
-  variableName?: string
+  nameInfo: VariableInfo
   
-  constructor(name: NameInfo) {
+  constructor(name: VariableInfo) {
     super(name.type)
+    this.nameInfo = name
+    this.isConst = name.isConst
+    this.isFunction = name.isFunction
+
     this.nameInfo = name
   }
 
-  transpile() { return globalVariableName(this.variableName) }
+  transpile(name: string) { return this.nameInfo.transpile(name) }
 }
+
+class GlobalVariableInfo extends VariableInfo {
+  variableName: string = '??'
+
+  transpiledName(name: string) { return `_${name}` }
+  transpile(name: string) { return this.variableName }
+}
+
+// A variable name table refers to NameTable<VariableInfo>.
 
 // to customize TypeChecker to use VariableInfo instead of NameInfo
-export class VariableTableMaker implements NameTableMaker<VariableInfo> {
-  global() { return new GlobalNameTable<VariableInfo>() }
+export class VariableNameTableMaker implements NameTableMaker<VariableInfo> {
   block(parent: NameTable<VariableInfo>) { return new BlockNameTable<VariableInfo>(parent) }
-  function(parent: NameTable<VariableInfo>) { return new FunctionVarTable(parent) }
+  function(parent: NameTable<VariableInfo>) { return new FunctionVarNameTable(parent) }
   info(t: StaticType) { return new VariableInfo(t) }
+  globalInfo(t: StaticType) { return new GlobalVariableInfo(t) }
 }
 
-class FunctionVarTable extends FunctionNameTable<VariableInfo> {
-  override makeFreeInfo(free: NameInfo) {
+class FunctionVarNameTable extends FunctionNameTable<VariableInfo> {
+  override makeFreeInfo(free: VariableInfo) {
     return new FreeVariableInfo(free)
   }
 }
 
-export function getVariableTable(node: AST.Node) {
+export function getVariableNameTable(node: AST.Node): NameTable<VariableInfo> {
   const vt = getNameTable<VariableInfo>(node)
   if (vt === undefined)
     throw new Error(`a symbol table is not available ${node}`)
@@ -60,7 +78,11 @@ export function getVariableTable(node: AST.Node) {
     return vt
 }
 
-// Variable Environment
+// Variable Environment.
+
+// This mainly manages memory allocation for local/global variables,
+// in particular, when a variable is allocated in a local root set.
+// It is a wrapper for NameTable<VariableInfo>.
 export class VariableEnv {
   table: NameTable<VariableInfo>
   parent: VariableEnv | null
@@ -90,7 +112,7 @@ export class VariableEnv {
     let num = 0
     this.table.forEach((info, key) => {
       if (info instanceof FreeVariableInfo) {
-        info.variableName = key
+        // do nothing
       }
       else if (!isPrimitiveType(info.type)) {
         info.index = this.allocate()
@@ -123,11 +145,37 @@ export class FunctionEnv extends VariableEnv {
 
   override deallocate(num: number) { this.nextVar -= num }
 }
-  
+
+export class GlobalEnv extends FunctionEnv {
+  rootset: string
+
+  constructor(table: NameTable<VariableInfo>, rootset: string) {
+    super(table, null)
+    this.rootset = rootset
+  }
+
+  override allocateRootSet() {
+    let num = 0
+    this.table.forEach((info, key) => {
+      if (info instanceof GlobalVariableInfo) {
+        if (isPrimitiveType(info.type))
+          info.variableName = globalVariableName(key)
+        else if (info.type instanceof FunctionType)
+          info.variableName = globalVariableName(key)
+        else
+          info.variableName = globalVariableName(this.rootset, num++)
+      }
+      else
+        throw new Error(`bad global info ${info}`)
+    })
+    return num
+  }
+}
+
 export class CodeWriter {
-  static indentSpaces = ['', '  ', '    ', '      ']
-  code = ''
-  indentLevel = 0
+  private static indentSpaces = ['', '  ', '    ', '      ']
+  private code = ''
+  private indentLevel = 0
 
   copy() {
     const writer = new CodeWriter()

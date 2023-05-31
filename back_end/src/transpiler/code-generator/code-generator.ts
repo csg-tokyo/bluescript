@@ -1,156 +1,70 @@
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog } from '../utils'
-import {
-  Integer, Float, Boolean, String, Void, Null, Any,
-  ObjectType, FunctionType,
-  StaticType, isPrimitiveType, } from '../types'
+import { Integer, Float, Boolean, String, Void, Null, Any,
+         ObjectType, FunctionType,
+         StaticType, isPrimitiveType, } from '../types'
 import * as visitor from '../visitor'
 import { GlobalNameTable,
          getCoercionFlag, getStaticType } from '../type-checker/names'
 import { typecheck } from '../type-checker/type-checker'
-import { CodeWriter, VariableInfo, VariableEnv, FunctionEnv, VariableTableMaker,
-         getVariableTable, rootSetVariable} from './variables'
+import { CodeWriter, VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
+         getVariableNameTable } from './variables'
+import * as cr from './c-runtime'
 
-export function transpile(src: string, startLine: number = 1) {
+// sessionId: an integer more than zero.  It is used for generating a unique name.
+export function transpile(sessionId: number, src: string, gnt?: GlobalNameTable<VariableInfo>, startLine: number = 1) {
   const ast = runBabelParser(src, startLine);
-  const maker = new VariableTableMaker()
-  const nameTable = new GlobalNameTable<VariableInfo>()
+  const maker = new VariableNameTableMaker()
+  const nameTable = new GlobalNameTable<VariableInfo>(gnt)
   typecheck(ast, maker, nameTable)
-  const env = new VariableEnv(nameTable, null)
-  const generator = new CodeGenerator()
-  generator.visit(ast, env)
-  return generator.result.getCode()
+  const nullEnv = new GlobalEnv(new GlobalNameTable<VariableInfo>(), cr.globalRootSetName)
+  const initFuncName = `${cr.initializeFunctionName}${sessionId}`
+  const generator = new CodeGenerator(initFuncName, `${cr.globalRootSetName}${sessionId}`)
+  generator.visit(ast, nullEnv)   // nullEnv will not be used.
+  return { code: generator.getCode(), init: initFuncName, names: nameTable }
 }
-
-// variables.ts also includes some functions where the names of C functions
-// are embedded.
-
-function typeToCType(type: StaticType):string {
-  if (type instanceof ObjectType)
-    return 'value_t';
-  else
-    switch (type) {
-    case Integer:
-      return 'int32_t'
-    case Float:
-      return 'float'
-    case Boolean:
-      return 'int32_t'
-    case Void:
-      return 'void'
-    case String:
-    case Null:
-    case Any:
-      return 'value_t'
-    default:
-      throw new Error(`${type} has not been supported yet.`)
-  }
-}
-
-function typeConversion(from: StaticType | undefined, to: StaticType | undefined) {
-  let fname
-  switch (to) {
-    case Integer:
-      if (from === Float)
-        return '(int32_t)'
-      else
-        fname = 'value_to_int'
-      break
-    case Float:
-      if (from === Integer)
-        return '(float)'
-      else
-        fname = 'value_to_float'
-      break
-    case Boolean:
-      fname = 'value_to_bool'
-      break
-    case Void:
-      throw new Error('cannot convert void to other types')
-    default:
-      switch (from) {
-        case Integer:
-          return 'int_to_value'
-        case Float:
-          return 'float_to_value'
-        case Boolean:
-          return 'bool_to_value'
-        case Void:
-          throw new Error('cannot convert void to other types')
-        default:
-          return ''
-      }
-  }
-
-  if (from !== undefined && !isPrimitiveType(from))
-    return fname
-  else
-    return ''
-}
-
-// covert any, null, array, function type to a boolean value
-const convertToCondition = 'value_to_truefalse'
-
-function arithmeticOpForAny(op: string) {
-  switch(op) {
-    case '<':
-      return 'any_less'     // returns boolean
-    case '<=':
-      return 'any_less_eq'
-    case '>':
-      return 'any_greater'
-    case '>=':
-      return 'any_greater_eq'
-    case '+':
-      return 'anY_add'      // return any
-    case '-':
-      return 'any_subtract'
-    case '*':
-      return 'any_multiply'
-    case '/':
-      return 'any_divide'
-    case '+=':
-      return 'any_add_assign'
-    case '-=':
-      return 'any_subtract_assign'
-    case '*=':
-      return 'any_multiply_assign'
-    case '/-':
-      return 'any_divide_assign'
-    default:
-      throw new Error(`bad operator ${op}`)
-  }
-}
-
-function makeRootSet(n: number) {
-  return `ROOT_SET(_func_rootset, ${n})`
-}
-
-const deleteRootSet = 'DELETE_ROOT_SET(_func_rootset)'
-
-// compute a nagative value of an any-type value
-const minusAnyValue = '_minus_any_value'
-
-// a getter function for arrays
-const arrayElementGetter = 'gc_array_get'    // (value_t, int32_t) => value_t
-
-// makes an array object from elements
-const arrayFromElements = 'gc_make_array'         // (value_t, ...) => value_t
-
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
-  result =  new CodeWriter()
-  errorLog = new ErrorLog()
-  endWithReturn = false
+  private errorLog = new ErrorLog()
+  private result =  new CodeWriter()
+  private signatures = ''                   // function prototypes etc.
+  private declarations = new CodeWriter()   // function declarations etc.
+  private endWithReturn = false
+  private initializerName                   // the name of an initializer function
+  private globalRootSetName                 // the rootset name for global variables
+
+  constructor(initializerName: string, globalRootsetName: string) {
+    super()
+    this.initializerName = initializerName
+    this.globalRootSetName = globalRootsetName
+  }
+
+  getCode() {
+    return this.signatures + this.declarations.getCode() + this.result.getCode()
+  }
 
   file(node: AST.File, env: VariableEnv): void {
     visitor.file(node, env, this)
   }
 
   program(node: AST.Program, env: VariableEnv): void {
-    env = new VariableEnv(getVariableTable(node), env)
+    const env2 = new GlobalEnv(getVariableNameTable(node), this.globalRootSetName)
+    const size = env2.allocateRootSet()
+    const oldResult = this.result
+    this.result = new CodeWriter().right()
     for (const child of node.body)
-      this.visit(child, env);
+      this.visit(child, env2);
+
+    this.signatures += `void ${this.initializerName}();\n${cr.declareRootSet(this.globalRootSetName, size)}\n`
+    oldResult.write(`\nvoid ${this.initializerName}() {`)
+             .right().nl()
+             .write(cr.initRootSet(this.globalRootSetName, size))
+             .nl().write(cr.makeRootSet(env2.getNumOfVars()))
+             .write(this.result.getCode())
+             .nl().write(cr.deleteRootSet)
+             .left().write('\n}\n')
+
+    this.result = oldResult
   }
 
   nullLiteral(node: AST.NullLiteral, env: VariableEnv): void {
@@ -172,12 +86,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   identifier(node: AST.Identifier, env: VariableEnv): void {
     const info = env.table.lookup(node.name)
-    if (info !== undefined) {
-      if (info.index === undefined)
-        this.result.write(node.name)
-      else
-        this.result.write(info.transpile())
-    }
+    if (info !== undefined)
+      this.result.write(info.transpile(node.name))
   }
 
   whileStatement(node: AST.WhileStatement, env: VariableEnv): void {
@@ -199,7 +109,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   testExpression(test: AST.Node, env: VariableEnv) {
     const test_type = this.needsCoercion(test)
     if (test_type !== undefined && !isPrimitiveType(test_type)) {
-      this.result.write(`${convertToCondition}(`)
+      this.result.write(`${cr.convertToCondition}(`)
       this.visit(test, env)
       this.result.write(')')
     }
@@ -239,7 +149,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   forStatement(node: AST.ForStatement, env: VariableEnv): void {
-    const env2 = new VariableEnv(getVariableTable(node), env)
+    const env2 = new VariableEnv(getVariableNameTable(node), env)
     const num = env2.allocateRootSet()
     this.result.nl()
     this.result.write('for (')
@@ -275,7 +185,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   blockStatement(node: AST.BlockStatement, env: VariableEnv): void {
-    const env2 = new VariableEnv(getVariableTable(node), env)
+    const env2 = new VariableEnv(getVariableNameTable(node), env)
     const num = env2.allocateRootSet()
     this.result.write('{')
     this.result.right()
@@ -291,20 +201,25 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   returnStatement(node: AST.ReturnStatement, env: VariableEnv): void {
     this.result.nl()
-    this.result.write(`{ ${deleteRootSet}; return `)
     if (node.argument) {
-      const type = this.needsCoercion(node.argument)
       const retType = env.returnType()
-      if (type && retType !== null) {
-        this.result.write(`${typeConversion(type, retType)}(`)
+      if (retType !== null && retType !== undefined) {
+        const typeName = cr.typeToCType(retType)
+        const type = this.needsCoercion(node.argument)
+        if (type)
+          this.result.write(`{ ${typeName} ${cr.returnValueVariable} = ${cr.typeConversion(type, retType)}(`)
+        else
+          this.result.write(`{ ${typeName} ${cr.returnValueVariable} = (`)
+
         this.visit(node.argument, env)
-        this.result.write(')')
+        this.result.write(`); ${cr.deleteRootSet}; return ${cr.returnValueVariable}; }`)
       }
       else
-        this.visit(node.argument, env)
+        throw this.errorLog.push('returns unknown type', node)
     }
+    else
+      this.result.write(`{ ${cr.deleteRootSet}; return; }`)
 
-    this.result.write('; }')
     this.endWithReturn = true
   }
 
@@ -325,35 +240,23 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   variableDeclaration(node: AST.VariableDeclaration, env: VariableEnv): void {
+    let sig: string | undefined = undefined
+    if (env instanceof GlobalEnv)
+      sig = ''
+
     let type = undefined
     for (const decl of node.declarations) {
       const varName = (decl.id as AST.Identifier).name
       const info = env.table.lookup(varName)
       if (info !== undefined) {
-        const typeName = typeToCType(info.type)
+        const typeName = cr.typeToCType(info.type)
         if (type === undefined || type === typeName) {
-          if (isPrimitiveType(info.type))
-            if (type === undefined) {
-              type = typeName
-              this.result.nl().write(`${typeName} ${varName} `)
-            }
-            else
-              this.result.write(`, ${varName}`)
-          else {
-            if (type === undefined) {
-              this.result.nl()
-              type = typeName
-            }
-            else
-              this.result.write(', ')
-
-            this.result.write(info.transpile())
-          }
+          [type, sig] = this.varDeclarator(info, type, typeName, varName, sig)
 
           if (decl.init) {
             const initType = this.needsCoercion(decl.init)
             if (initType) {
-              this.result.write(` = ${typeConversion(initType, info.type)}(`)
+              this.result.write(` = ${cr.typeConversion(initType, info.type)}(`)
               this.visit(decl.init, env)
               this.result.write(')')
             }
@@ -372,8 +275,45 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       }
     }
 
+    if (sig !== undefined && sig !== '')
+      this.signatures += sig + ';\n'
+
     this.result.write(';')
     this.endWithReturn = false
+  }
+
+  // If signature is not undefined, this is a top-level declaration.
+  // A declaration is separated from its initialization.
+  private varDeclarator(info: VariableInfo, type: any, typeName: string,
+                        varName: string, signature: string | undefined) {
+    if (isPrimitiveType(info.type)) {
+      const name = info.transpiledName(varName)
+      if (type === undefined) {
+        type = typeName
+        if (signature === undefined)
+          this.result.nl().write(`${typeName} ${name}`)
+        else {
+          this.result.nl().write(name)
+          signature += `${typeName} ${name}`
+        }
+      }
+      else {
+        this.result.write(`, ${name}`)
+        if (signature !== undefined)
+          signature += `, ${name}`
+      }
+    }
+    else {
+      if (type === undefined) {
+        this.result.nl()
+        type = typeName
+      }
+      else
+        this.result.write(', ')
+
+      this.result.write(info.transpile(varName))
+    }
+    return [type, signature]
   }
 
   private needsCoercion(node: AST.Node) {
@@ -385,46 +325,55 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   variableDeclarator(node: AST.VariableDeclarator, env: VariableEnv): void {
-    throw new Error('cannot directly visit AST.VariableDeclarator')
+    throw this.errorLog.push('cannot directly visit AST.VariableDeclarator', node)
   }
 
   functionDeclaration(node: AST.FunctionDeclaration, env: VariableEnv): void {
-    const fenv = new FunctionEnv(getVariableTable(node), env)
+    const fenv = new FunctionEnv(getVariableNameTable(node), env)
     const funcName = (node.id as AST.Identifier).name
     const funcType = getStaticType(node) as FunctionType;
+    const prevResult = this.result
+    this.result = this.declarations
     const newResult = this.result.copy()
     newResult.right()
     fenv.allocateRootSet()
 
-    this.result.nl().write(`${typeToCType(funcType.returnType)} ${funcName}(`)
+    const funcInfo = env.table.lookup(funcName)
+    const transpiledFuncName = funcInfo ? funcInfo.transpiledName(funcName) : funcName
+    let sig = `${cr.typeToCType(funcType.returnType)} ${transpiledFuncName}(`
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       if (i > 0)
-        this.result.write(', ')
+        sig += ', '
 
       const paramName = (node.params[i] as AST.Identifier).name;
       const paramType = funcType.paramTypes[i];
-      this.result.write(`${typeToCType(paramType)} ${paramName}`)
-
       let info = fenv.table.lookup(paramName)
-      if (info?.index !== undefined)
-        newResult.nl().write(info.transpile()).write(` = ${paramName};`)
+      if (info !== undefined) {
+        const name = info.transpiledName(paramName)
+        sig += `${cr.typeToCType(paramType)} ${name}`
+        if (info.index !== undefined)
+          newResult.nl().write(info.transpile(paramName)).write(` = ${name};`)
+      }
     }
 
-    this.result.write(') {')
+    sig += ')'
+    this.signatures += sig + ';\n'
+    this.result.nl().write(sig)
+    this.result.write(' {')
     this.result.right()
-    const oldResult = this.result
+    const declarations = this.result  // this is equal to this.declarations
     this.result = newResult
-  
+
     this.result.nl()
     this.visit(node.body, fenv)
-  
-    oldResult.nl().write(makeRootSet(fenv.getNumOfVars()))
-    oldResult.write(this.result.getCode())
-    if (funcType.returnType === Void && !this.endWithReturn)
-      oldResult.nl().write(deleteRootSet)
 
-    oldResult.left().nl().write('}').nl()
-    this.result = oldResult
+    declarations.nl().write(cr.makeRootSet(fenv.getNumOfVars()))
+    declarations.write(this.result.getCode())
+    if (funcType.returnType === Void && !this.endWithReturn)
+      declarations.nl().write(cr.deleteRootSet)
+
+    declarations.left().nl().write('}').nl()
+    this.result = prevResult
   }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
@@ -432,7 +381,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const type = this.needsCoercion(node.argument)
     if (type)
       if (node.operator === '-')
-        this.result.write(`${minusAnyValue}(`)
+        this.result.write(`${cr.minusAnyValue}(`)
       else if (node.operator === '!') {
         this.result.write('!(')
         this.testExpression(node.argument, env)
@@ -440,7 +389,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         return
       }
       else if (node.operator === '~')
-        this.result.write(`~${typeConversion(type, Integer)}(`)
+        this.result.write(`~${cr.typeConversion(type, Integer)}(`)
       else
         this.result.write('(')
     else {
@@ -481,13 +430,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.numericBinaryExprssion(op, left, right, env)
     }
     else
-      throw new Error(`bad binary operator ${op}`)
-  
+      throw this.errorLog.push(`bad binary operator ${op}`, node)
+
     if (node.extra?.parenthesized)
       this.result.write(')')
   }
 
-  equalityExpression(op: string, left: AST.Node, right: AST.Node, env: VariableEnv): void {
+  private equalityExpression(op: string, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     let op2: string
     if (op === '===')
       op2 = '=='
@@ -498,12 +447,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if ((left_type === Boolean || right_type === Boolean) 
+    if ((left_type === Boolean || right_type === Boolean)
       // if either left or right operand is boolean, the other is boolean
         || (left_type === Any || right_type === Any)) {
-      this.result.write(`${typeConversion(left_type, Any)}(`)
+      this.result.write(`${cr.typeConversion(left_type, Any)}(`)
       this.visit(left, env)
-      this.result.write(`) ${op2} ${typeConversion(right_type, Any)}(`)
+      this.result.write(`) ${op2} ${cr.typeConversion(right_type, Any)}(`)
       this.visit(right, env)
       this.result.write(')')
     }
@@ -512,13 +461,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   // +, -, *, /, <, <=, ... for integer, float, or any-type values
-  basicBinaryExpression(op: string, left: AST.Node, right: AST.Node, env: VariableEnv): void {
+  private basicBinaryExpression(op: string, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
     if (left_type === Any || right_type === Any) {
-      this.result.write(`${arithmeticOpForAny(op)}(${typeConversion(left_type, Any)}(`)
+      this.result.write(`${cr.arithmeticOpForAny(op)}(${cr.typeConversion(left_type, Any)}(`)
       this.visit(left, env)
-      this.result.write(`), ${typeConversion(right_type, Any)}(`)
+      this.result.write(`), ${cr.typeConversion(right_type, Any)}(`)
       this.visit(right, env)
       this.result.write('))')
     }
@@ -527,7 +476,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   // binary expression for numeric (integer or float) values
-  numericBinaryExprssion(op: string, left: AST.Node, right: AST.Node, env: VariableEnv) {
+  private numericBinaryExprssion(op: string, left: AST.Node, right: AST.Node, env: VariableEnv) {
     this.visit(left, env)
     this.result.write(` ${op} `)
     this.visit(right, env)
@@ -545,9 +494,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (op === '=') {
       let func: string
       if (left_type === Any)
-        func = typeConversion(right_type, Any)
+        func = cr.typeConversion(right_type, Any)
       else if (right_type === Any)
-        func = typeConversion(Any, left_type)
+        func = cr.typeConversion(Any, left_type)
       else
         func = ''
 
@@ -578,16 +527,16 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
                                right: AST.Expression, rightType: StaticType | undefined,
                                env: VariableEnv): void {
     if (leftType === Any) {
-      this.result.write(`${arithmeticOpForAny(op)}(&(`)
+      this.result.write(`${cr.arithmeticOpForAny(op)}(&(`)
       this.visit(left, env)
-      this.result.write(`), ${typeConversion(rightType, Any)}(`)
+      this.result.write(`), ${cr.typeConversion(rightType, Any)}(`)
       this.visit(right, env)
       this.result.write('))')
     }
     else if (rightType === Any) {
       this.visit(left, env)
       this.result.write(op)
-      this.result.write(` ${typeConversion(Any, leftType)}(`)
+      this.result.write(` ${cr.typeConversion(Any, leftType)}(`)
       this.visit(right, env)
       this.result.write(')')
     }
@@ -635,14 +584,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (!isPrimitiveType(ftype.paramTypes[i])) {
         ++numOfObjectArgs
         const index = env.allocate()
-        this.result.write(rootSetVariable(index)).write('=')
+        this.result.write(cr.rootSetVariable(index)).write('=')
       }
 
       const arg_type = this.needsCoercion(arg)
       if (arg_type === undefined)
         this.visit(arg, env)
       else {
-        this.result.write(`${typeConversion(arg_type, ftype.paramTypes[i])}(`)
+        this.result.write(`${cr.typeConversion(arg_type, ftype.paramTypes[i])}(`)
         this.visit(arg, env)
         this.result.write(')')
       }
@@ -653,7 +602,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {
-    this.result.write(`${arrayFromElements}(`)
+    this.result.write(`${cr.arrayFromElements}(`)
     let first = true
     for (const ele of node.elements)
       if (ele !== null) {
@@ -663,17 +612,16 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           this.result.write(', ')
 
         const type = getStaticType(ele)
-        this.result.write(`${typeConversion(type, Any)}(`)
+        this.result.write(`${cr.typeConversion(type, Any)}(`)
         this.visit(ele, env)
         this.result.write(')')
       }
     this.result.write(')')
   }
 
-  // reader only
   memberExpression(node: AST.MemberExpression, env: VariableEnv): void {
     const elementType = getStaticType(node)
-    this.result.write(`${typeConversion(Any, elementType)}(${arrayElementGetter}()`)
+    this.result.write(`${cr.typeConversion(Any, elementType)}(*${cr.arrayElementGetter}(`)
     this.visit(node.object, env)
     this.result.write(', ')
     this.visit(node.property, env)
@@ -683,7 +631,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   tsAsExpression(node: AST.TSAsExpression, env: VariableEnv): void {
     const exprType = getStaticType(node.expression)
     const asType = getStaticType(node)
-    this.result.write(`${typeConversion(exprType, asType)}(`)
+    this.result.write(`${cr.typeConversion(exprType, asType)}(`)
     this.visit(node.expression, env)
     this.result.write(')')
   }
