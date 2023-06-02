@@ -1,4 +1,6 @@
 // Test code
+// To cmpile,
+// cc -DBIT64 -I../../src/transpiler/code-generator/ c-runtime-test.c
 
 #include <string.h>
 #include "c-runtime.c"

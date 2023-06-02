@@ -1,8 +1,9 @@
 // Test code for c-runtime.c
-// To compile, cc c-runtime.c c-runtime-test2.c
+// To compile,
+// cc -DBIT64 ../../src/transpiler/code-generator/c-runtime.c c-runtime-test2.c
 
 #include <stdio.h>
-#include "c-runtime.h"
+#include "../../src/transpiler/code-generator/c-runtime.h"
 
 static int nerrors = 0;
 
@@ -192,9 +193,12 @@ int main() {
     test_safe_value_to();
     test_array();
     test_string_literal();
-    if (nerrors > 0)
+    if (nerrors > 0) {
         puts("Test failed");
-    else
+        return 1;
+    }
+    else {
         puts("Test succeeded");
-    return 0;
+        return 0;
+    }
 }

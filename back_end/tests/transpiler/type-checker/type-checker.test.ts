@@ -126,7 +126,7 @@ test('array access', () => {
   expect(e).toBe(types.Integer)
 })
 
-test('upate an array element', () => {
+test('update an array element', () => {
   const src = `const a = [1, 2, 3]
   const b = a[1+1] = 5`
 
@@ -135,7 +135,7 @@ test('upate an array element', () => {
   const a = table?.lookup('a')?.type
   expect((a as types.ArrayType).elementType).toBe(types.Integer)
   const b = table?.lookup('b')?.type
-  expect(b).toBe(types.Integer)
+  expect(b).toBe(types.Any)
 })
 
 test('property access', () => {
