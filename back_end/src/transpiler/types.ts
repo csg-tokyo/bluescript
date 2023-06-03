@@ -102,6 +102,7 @@ export class ArrayType extends ObjectType {
   }
 }
 
+// type name used for error messages
 export function typeToString(type: StaticType): string {
   if (type instanceof ObjectType)
     return type.name()

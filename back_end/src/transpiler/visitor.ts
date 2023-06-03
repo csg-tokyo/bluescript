@@ -10,6 +10,7 @@ export abstract class NodeVisitor<Environment> {
     static handlers = new Map<string, VisitorHandler>([
         [ 'File', (visitor, node, env) => visitor.file(node as AST.File, env) ],
         [ 'Program', (visitor, node, env) => visitor.program(node as AST.Program, env) ],
+        [ 'ImportDeclaration', (visitor, node, env) => visitor.importDeclaration(node as AST.ImportDeclaration, env) ],
         // Literal
         [ 'NullLiteral',  (visitor, node, env) => visitor.nullLiteral(node as AST.NullLiteral, env) ],
         [ 'StringLiteral',  (visitor, node, env) => visitor.stringLiteral(node as AST.StringLiteral, env) ],
@@ -72,6 +73,7 @@ export abstract class NodeVisitor<Environment> {
 
     abstract file(node: AST.File, env: Environment): void
     abstract program(node: AST.Program, env: Environment): void
+    abstract importDeclaration(node: AST.ImportDeclaration, env: Environment): void
     abstract nullLiteral(node: AST.NullLiteral, env: Environment): void
     abstract stringLiteral(node: AST.StringLiteral, env: Environment): void
     abstract booleanLiteral(node: AST.BooleanLiteral, env: Environment): void
@@ -116,6 +118,7 @@ export abstract class NodeVisitor<Environment> {
 export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     file(node: AST.File, env: Environment): void {}
     program(node: AST.Program, env: Environment): void {}
+    importDeclaration(node: AST.ImportDeclaration, env: Environment): void {}
     nullLiteral(node: AST.NullLiteral, env: Environment): void {}
     stringLiteral(node: AST.StringLiteral, env: Environment): void {}
     booleanLiteral(node: AST.BooleanLiteral, env: Environment): void {}

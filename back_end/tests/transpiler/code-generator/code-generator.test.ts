@@ -1,77 +1,63 @@
-import * as visitor from "../../../src/transpiler/visitor";
-import {CodeGenerator} from "../../../src/transpiler/code-generator/code-generator";
-import testCaseReader from "../test-case-reader";
-import {runBabelParser} from "../../../src/transpiler/utils";
-import {runTypeChecker} from "../../../src/transpiler/type-checker/type-checker";
-import {ArrayType, FunctionType} from "../../../src/transpiler/types";
-import {GlobalNameTable, NameInfo} from "../../../src/transpiler/type-checker/names";
-import {GlobalRootSet} from "../../../src/transpiler/code-generator/root-set";
+import { compileAndRun } from './test-code-generator'
 
-describe('expressions', () => {
-  const calculationCases = testCaseReader("expressions.txt");
-  for (const cs of calculationCases) {
-    test(cs.name, () => {
-      const ast = runBabelParser(cs.ts,1);
+test('simple code', () => {
+  const src = 'print(1 + 1)'
 
-      const globalNameTable = new GlobalNameTable();
-      globalNameTable.record("i", new NameInfo("integer"));
-      globalNameTable.record("f", new NameInfo("float"));
-      globalNameTable.record("b", new NameInfo("boolean"));
-      globalNameTable.record("s", new NameInfo("string"));
-      globalNameTable.record("arr", new NameInfo(new ArrayType("integer")));
-      globalNameTable.record("arr_float", new NameInfo(new ArrayType("float")));
-      globalNameTable.record("greeting", new NameInfo(new FunctionType("void", [])));
-      globalNameTable.record("console_log_number", new NameInfo(new FunctionType("void", ["integer"])));
-      globalNameTable.record("add", new NameInfo(new FunctionType("void", ["integer", "integer"])));
-      runTypeChecker(ast, globalNameTable)
+  expect(compileAndRun(src)).toEqual('2\n')
+})
 
-      const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet(globalNameTable);
-      visitor.file(ast, rootSet, codeGenerator);
+test('runtime type checking', () => {
+  const src = `function foo(n: any) { return n + 1 }
+  print(foo(3))
+  `
+  expect(compileAndRun(src)).toEqual('4\n')
 
-      expect(codeGenerator.result).toBe(cs.c)
-    });
+  const src2 = `function foo(n: any) { return n + 1 }
+  print(foo('foo'))
+  `
+  expect(() => { compileAndRun(src2) }).toThrow(/runtime type error: bad operand for +/)
+})
+
+test('string concatenation', () => {
+  const src = 'print("foo" + 1)'
+
+  expect(() => { compileAndRun(src) }).toThrow(/invalid operands to +/)
+})
+
+test('fact function', () => {
+  const src = `
+  function fact(n: integer) {
+    if (n == 0)
+      return 1
+    else
+      return n * fact(n - 1)
   }
-});
+  print(fact(4))`
 
-describe('declarations', () => {
-  const calculationCases = testCaseReader("declarations.txt");
-  for (const cs of calculationCases) {
-    test(cs.name, () => {
-      const ast = runBabelParser(cs.ts, 1);
+  expect(compileAndRun(src)).toBe('24\n')
+})
 
-      const globalNameTable = new GlobalNameTable();
-      globalNameTable.record("ii", new NameInfo("integer"));
-      globalNameTable.record("ss", new NameInfo("string"));
-      globalNameTable.record("arr", new NameInfo(new ArrayType("integer")))
-      runTypeChecker(ast, globalNameTable);
-
-      const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet(globalNameTable);
-      visitor.file(ast, rootSet, codeGenerator);
-
-      expect(codeGenerator.result).toBe(cs.c);
-    });
+test('array access', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const s = [ n ]
+    return s[0] + 3
   }
-});
+  print(foo(4))`
 
-describe('statements', () => {
-  const calculationCases = testCaseReader("statements.txt");
-  for (const cs of calculationCases) {
-    test(cs.name, () => {
-      const ast = runBabelParser(cs.ts, 1);
+  expect(compileAndRun(src)).toBe('7\n')
+})
 
-      const globalNameTable = new GlobalNameTable();
-      globalNameTable.record("i", new NameInfo("integer"));
-      globalNameTable.record("f", new NameInfo("float"));
-      runTypeChecker(ast, globalNameTable);
 
-      const codeGenerator = new CodeGenerator();
-      const rootSet = new GlobalRootSet(globalNameTable);
-      visitor.file(ast, rootSet, codeGenerator);
-
-      expect(codeGenerator.result).toBe(cs.c);
-    });
+test('bad value assignment to an array', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const s = [ n ]
+    s[0] = "foo"
+    return s[0] + 3
   }
-});
 
+  print(foo(4))`
+
+  expect(() => { compileAndRun(src) }).toThrow(/not assignable to element type/)
+})

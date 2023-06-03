@@ -2,7 +2,7 @@ import AST, {Node, SourceLocation} from '@babel/types'
 import * as babelParser from "@babel/parser";
 
 export function runBabelParser(src: string, startLine: number): AST.File {
-  const options: babelParser.ParserOptions = { plugins: ['typescript'],startLine }
+  const options: babelParser.ParserOptions = { sourceType: 'module', plugins: ['typescript'], startLine }
   try {
     return babelParser.parse(src, options)
   } catch (e: any) {

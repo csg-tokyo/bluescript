@@ -18,10 +18,10 @@ export function transpile(sessionId: number, src: string, gnt?: GlobalNameTable<
   const nameTable = new GlobalNameTable<VariableInfo>(gnt)
   typecheck(ast, maker, nameTable)
   const nullEnv = new GlobalEnv(new GlobalNameTable<VariableInfo>(), cr.globalRootSetName)
-  const initFuncName = `${cr.initializeFunctionName}${sessionId}`
-  const generator = new CodeGenerator(initFuncName, `${cr.globalRootSetName}${sessionId}`)
+  const mainFuncName = `${cr.mainFunctionName}${sessionId}`
+  const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${sessionId}`)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
-  return { code: generator.getCode(), init: initFuncName, names: nameTable }
+  return { code: generator.getCode(), main: mainFuncName, names: nameTable }
 }
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
@@ -65,6 +65,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
              .left().write('\n}\n')
 
     this.result = oldResult
+  }
+
+  importDeclaration(node: AST.ImportDeclaration, env: VariableEnv): void {
+    // ignore
   }
 
   nullLiteral(node: AST.NullLiteral, env: VariableEnv): void {
@@ -602,17 +606,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {
-    this.result.write(`${cr.arrayFromElements}(`)
-    let first = true
+    this.result.write(`${cr.arrayFromElements}(${node.elements.length}`)
     for (const ele of node.elements)
       if (ele !== null) {
-        if (first)
-          first = false
-        else
-          this.result.write(', ')
-
         const type = getStaticType(ele)
-        this.result.write(`${cr.typeConversion(type, Any)}(`)
+        this.result.write(`, ${cr.typeConversion(type, Any)}(`)
         this.visit(ele, env)
         this.result.write(')')
       }

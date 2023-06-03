@@ -42,8 +42,7 @@ function printEpilog(initName: string) {
   console.log(`
 int main() {
   gc_initialize();
-  try_and_catch(${initName});
-  return 0;
+  return try_and_catch(${initName});
 }
 `)
 }
@@ -60,7 +59,7 @@ export function compile(file: string) {
     globalNames = result2.names
     console.log(prologCcode)
     console.log(result2.code)
-    printEpilog(result2.init)
+    printEpilog(result2.main)
   }
   catch (e) {
     if (e instanceof ErrorLog)
@@ -70,5 +69,5 @@ export function compile(file: string) {
   }
 }
 
-// compile(process.argv[2])
-compile('./dist/test.ts')
+compile(process.argv[2])
+// compile('./test.ts')

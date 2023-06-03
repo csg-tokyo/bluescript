@@ -61,6 +61,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     visitor.program(node, names, this)
   }
 
+  importDeclaration(node: AST.ImportDeclaration, env: NameTable<Info>): void {
+    // ignore
+  }
+
   nullLiteral(node: AST.NullLiteral, names: NameTable<Info>): void {
     this.result = Null
   }
@@ -335,7 +339,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     // const prefix = node.prefix           true if ++k, but false if k++
     this.assertLvalue(node.argument, names)
     if (AST.isMemberExpression(node.argument))
-      this.lvalueMember(node.argument, names)
+      this.lvalueMember(node.argument, names)   // this.value will be Any
     else
       this.visit(node.argument, names)
 
@@ -409,14 +413,22 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   assignmentExpression(node: AST.AssignmentExpression, names: NameTable<Info>): void {
     this.assertLvalue(node.left, names)
+    let elementType: StaticType | undefined
     if (AST.isMemberExpression(node.left))
-      this.lvalueMember(node.left, names)
-    else
+      elementType = this.lvalueMember(node.left, names)
+    else {
+      elementType = undefined
       this.visit(node.left, names)
+    }
 
     const left_type = this.result
     this.visit(node.right, names)
     const right_type = this.result
+    if (elementType !== undefined)
+      this.assert(isSubtype(right_type, elementType),
+        `Type '${typeToString(right_type)}' is not assignable to element type '${typeToString(elementType)}'.`,
+        node)
+
     const op = node.operator
     if (op === '=')
       if (isConsistent(right_type, left_type)) {
@@ -534,10 +546,16 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(false, 'an element access to a non-array', node.object)
   }
 
-  private lvalueMember(node: AST.MemberExpression, names: NameTable<Info>): void {
+  // As an L-value, an array element must be always regarded as an any-type value
+  // since an array element is stored after conversion to an any-type value.
+  // However, the type checker must provent bad assingment to an array element.
+  // For example, when an array is integer[], a string must not be assigned to its element.
+  private lvalueMember(node: AST.MemberExpression, names: NameTable<Info>): StaticType {
     this.memberExpression(node, names)
     this.addStaticType(node, Any)
+    const elementType = this.result
     this.result = Any
+    return elementType
   }
 
   tsAsExpression(node: AST.TSAsExpression, names: NameTable<Info>): void {
