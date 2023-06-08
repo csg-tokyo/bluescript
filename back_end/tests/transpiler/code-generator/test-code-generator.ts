@@ -7,9 +7,8 @@ function print(m: any) {}
 `
 
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
-
 #include <stdio.h>
-#include "src/transpiler/code-generator/c-runtime.h"
+#include "../../m5stack_bluetooth/main/c-runtime.h"
 
 static void _print(value_t m) {
   if (is_int_value(m))
@@ -37,9 +36,9 @@ export function compileAndRun(src: string) {
     let globalNames = result1.names
     const result2 = transpile(2, src, globalNames)
     globalNames = result2.names
-    const destFile = './bscript.c'
+    const destFile = './temp-files/bscript.c'
     fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main));
     // throw an Error when compilation fails.
-    execSync(`cc -DBIT64 -g -O2 ${destFile} ./src/transpiler/code-generator/c-runtime.c`)
-    return execSync(`./a.out`).toString()   // returns the printed text
+    execSync(`cc -DBIT64 -g -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript.o`)
+    return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
 }

@@ -13,7 +13,8 @@ const CONSTANTS = {
   DD_DATA_SECTION_NAME: "my_data",
   DD_RODATA_SECTION_NAME: "my_rodata",
   DD_BSS_SECTION_NAME: "my_bss",
-  DD_LITERAL_SECTION_SIZE: 100
+  DD_LITERAL_SECTION_SIZE: 100,
+  VIRTUAL_SECTION_NAMES: ["virtual_text", "virtual_literal", "virtual_data", "virtual_rodata", "virtual_bss"]
 };
 
 export default CONSTANTS;

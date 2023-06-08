@@ -8,6 +8,10 @@
     "cDeclaration": "extern struct gc_root_set* gc_root_set_head;"
   },
   {
+    "name": "gc_init_rootset",
+    "cDeclaration": "extern void gc_init_rootset(struct gc_root_set* set, uint32_t length);"
+  },
+  {
     "name": "gc_global_root_set_array",
     "cDeclaration": "extern value_t gc_global_root_set_array;"
   },
@@ -40,7 +44,7 @@
     "cDeclaration": "value_t gc_array_set(value_t obj, value_t index, value_t new_value);"
   },
   {
-    "name": "console_log_number",
+    "name": "_console_log_number",
     "cDeclaration": "void console_log_number(int32_t n);",
     "type": {
       "kind": "function",

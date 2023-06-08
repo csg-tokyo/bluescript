@@ -4,10 +4,12 @@ import ReplCompileHandler from "./path-handlers/repl-compile-handler";
 import TsOnetimeCompileHandler from "./path-handlers/ts-onetime-compile-handler";
 import ReplClearHandler from "./path-handlers/repl-clear-handler";
 import COnetimeCompileHandler from "./path-handlers/c-onetime-compile-handler";
+import {Stream} from "stream";
 
 export default class HttpServer {
   readonly PORT = 8080;
   server: http.Server;
+  stream?: Stream;
 
   constructor() {
     this.server = http.createServer();

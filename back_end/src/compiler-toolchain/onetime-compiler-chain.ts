@@ -5,7 +5,7 @@ import * as fs from "fs";
 import {execSync} from "child_process";
 import SectionValueFactory from "../linker/section-value-factory";
 import OnetimeEnv from "./env/onetime-env";
-import {transpile} from "../transpiler/transpile";
+import {transpile} from "../transpiler/code-generator/code-generator";
 
 const C_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.C_FILE_NAME;
 const OBJ_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.OBJ_FILE_NAME;
@@ -33,21 +33,19 @@ export default class OnetimeCompilerChain {
   }
 
   private translate(tsString: string): string {
-    const existingSymbols = this.env.getSymbolTypes();
-    return transpile(tsString, existingSymbols);
+    const prolog = "function console_log_number(i: integer) {}"
+    const prologCcode = "#include \"../../m5stack_bluetooth/main/c-runtime.h\" \n"
+    const result1 = transpile(1, prolog)
+    let globalNames = result1.names
+    const result2 = transpile(2, tsString, globalNames)
+    globalNames = result2.names
+    return prologCcode + result2.code
   }
 
   private compile(cString: string):Buffer {
-    // write c file
-    let cFileString = fs.readFileSync(CONSTANTS.C_FILE_TEMPLATE_PATH).toString();
-    const symbols = this.env.getSymbolDeclarations();
-    symbols.forEach(declaration => {
-      cFileString += `${declaration}\n`
-    });
-    cFileString += cString;
-    fs.writeFileSync(C_FILE_PATH, cFileString);
+    fs.writeFileSync(C_FILE_PATH, cString);
     // compile
-    execSync(`xtensa-esp32-elf-gcc -c -O0 ${C_FILE_PATH} -o ${OBJ_FILE_PATH} -w`);
+    execSync(`xtensa-esp32-elf-gcc -c -O2 ${C_FILE_PATH} -o ${OBJ_FILE_PATH} -w`);
     return fs.readFileSync(OBJ_FILE_PATH);
   }
 
@@ -61,11 +59,11 @@ export default class OnetimeCompilerChain {
       const value = factory.generateSectionValue(sectionName);
       sectionValues[sectionName] = value.getLinkedValue(strategy).toString("hex");
     });
-    const execFuncAddresses = factory.getSymbolAddresses(["main"]);
+    const execFuncAddresses = factory.getSymbolAddresses(["bluescript_main2"]);
     console.log(execFuncAddresses)
     return {
       values: sectionValues,
-      execFuncOffsets: [execFuncAddresses.main - sectionAddresses.text]
+      execFuncOffsets: [execFuncAddresses.bluescript_main2 - sectionAddresses.text]
     }
   }
 }

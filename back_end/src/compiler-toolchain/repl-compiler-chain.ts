@@ -5,7 +5,7 @@ import * as fs from "fs";
 import {execSync} from "child_process";
 import SectionValueFactory from "../linker/section-value-factory";
 import ReplEnv from "./env/repl-env";
-import {replTranspile} from "../transpiler/repl-transpile";
+// import {replTranspile} from "../transpiler/repl-transpile";
 
 
 const C_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.C_FILE_NAME;
@@ -34,10 +34,11 @@ export default class ReplCompilerChain {
 
   private translate(tsString: string): string {
     const existingSymbols = this.env.getSymbolTypes();
-    const {cString, newSymbols, execFuncNames} = replTranspile(tsString, existingSymbols);
-    this.env.setNewSymbols(newSymbols);
-    this.env.setExecFuncNames(execFuncNames)
-    return cString;
+    // const {cString, newSymbols, execFuncNames} = replTranspile(tsString, existingSymbols);
+    // this.env.setNewSymbols(newSymbols);
+    // this.env.setExecFuncNames(execFuncNames)
+    return "foo"
+    // return cString;
   }
 
   private compile(cString: string):Buffer {
@@ -50,7 +51,7 @@ export default class ReplCompilerChain {
     cFileString += cString;
     fs.writeFileSync(C_FILE_PATH, cFileString);
     // compile
-    execSync(`xtensa-esp32-elf-gcc -c -O0 ${C_FILE_PATH} -o ${OBJ_FILE_PATH} -w`);
+    execSync(`xtensa-esp32-elf-gcc -c -O2 ${C_FILE_PATH} -o ${OBJ_FILE_PATH} -w`);
     return fs.readFileSync(OBJ_FILE_PATH);
   }
 
