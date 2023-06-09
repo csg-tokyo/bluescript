@@ -15,18 +15,18 @@
 #include "esp_bt_main.h"
 #include "esp_gatt_common_api.h"
 
-#include "write_value.h"
-#include "my_utils.h"
+#include "executor.h"
+#include "utils.h"
 #include "handle_log.h"
-#include "gc.h"
+#include "c-runtime.h"
 
 
-#define GATTS_TABLE_TAG "CODE_SEND_DEMO"
+#define GATTS_TABLE_TAG "BLUETOOTH"
 
 #define PROFILE_NUM                 1
 #define PROFILE_APP_IDX             0
 #define ESP_APP_ID                  0x55
-#define SAMPLE_DEVICE_NAME          "CODE_SEND_DEMO"
+#define DEVICE_NAME          "BLUESCRIPT"
 #define SVC_INST_ID                 0
 
 /* The max length of characteristic value. When the GATT client performs a write or prepare write operation,
@@ -38,6 +38,8 @@
 
 #define ADV_CONFIG_FLAG             (1 << 0)
 #define SCAN_RSP_CONFIG_FLAG        (1 << 1)
+
+#define WRITE_EVENT_NUM 3
 
 /* Attributes State Machine */
 enum
@@ -58,8 +60,14 @@ enum
     CODE_IDX_NB,
 };
 
-uint16_t code_handle_table[CODE_IDX_NB];
 
+
+uint16_t gatt_event_handle_table[CODE_IDX_NB];
+
+// Store functions which will be called when write event happens.
+void (* write_event_handler_table[WRITE_EVENT_NUM])(uint8_t*, int) = {0, 0, 0};
+
+// Used for storing buffer
 typedef struct {
     uint8_t                 *prepare_buf;
     int                     prepare_len;
@@ -142,7 +150,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
 					esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 
 /* One gatt-based profile one app_id and one gatts_if, this array will store the gatts_if returned by ESP_GATTS_REG_EVT */
-static struct gatts_profile_inst code_profile_table[PROFILE_NUM] = {
+static struct gatts_profile_inst gatt_profile_table[PROFILE_NUM] = {
     [PROFILE_APP_IDX] = {
         .gatts_cb = gatts_profile_event_handler,
         .gatts_if = ESP_GATT_IF_NONE,       /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
@@ -159,7 +167,7 @@ static const uint16_t primary_service_uuid         = ESP_GATT_UUID_PRI_SERVICE;
 static const uint16_t character_declaration_uuid   = ESP_GATT_UUID_CHAR_DECLARE;
 static const uint16_t character_client_config_uuid = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
 static const uint8_t char_prop_read_write_notify   =  ESP_GATT_CHAR_PROP_BIT_WRITE | ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
-static const uint8_t heart_measurement_ccc[3]      = {0x00, 0x00, 0x00};
+static const uint8_t client_characteristic_descriptor[3]      = {0x00, 0x00, 0x00};
 static const uint8_t char_value[4]                 = {0x11, 0x22, 0x33, 0x44};
 
 /* Full Database Description - Used to add attributes into the database */
@@ -185,7 +193,7 @@ static const esp_gatts_attr_db_t gatt_db[CODE_IDX_NB] =
     /* Client Characteristic Configuration Descriptor */
     [IDX_CHAR_CFG_A]  =
     {{ESP_GATT_RSP_BY_APP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-      sizeof(heart_measurement_ccc), sizeof(heart_measurement_ccc), (uint8_t *)heart_measurement_ccc}},
+      sizeof(client_characteristic_descriptor), sizeof(client_characteristic_descriptor), (uint8_t *)client_characteristic_descriptor}},
 
     /* Characteristic Declaration */
     [IDX_CHAR_B]      =
@@ -200,7 +208,7 @@ static const esp_gatts_attr_db_t gatt_db[CODE_IDX_NB] =
     /* Client Characteristic Configuration Descriptor */
     [IDX_CHAR_CFG_B]  =
     {{ESP_GATT_RSP_BY_APP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-      sizeof(heart_measurement_ccc), sizeof(heart_measurement_ccc), (uint8_t *)heart_measurement_ccc}},
+      sizeof(client_characteristic_descriptor), sizeof(client_characteristic_descriptor), (uint8_t *)client_characteristic_descriptor}},
 
     /* Characteristic Declaration */
     [IDX_CHAR_C]      =
@@ -215,7 +223,7 @@ static const esp_gatts_attr_db_t gatt_db[CODE_IDX_NB] =
     /* Client Characteristic Configuration Descriptor */
     [IDX_CHAR_CFG_C]  =
     {{ESP_GATT_RSP_BY_APP}, {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid, ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
-      sizeof(heart_measurement_ccc), sizeof(heart_measurement_ccc), (uint8_t *)heart_measurement_ccc}},
+      sizeof(client_characteristic_descriptor), sizeof(client_characteristic_descriptor), (uint8_t *)client_characteristic_descriptor}},
 };
 
 
@@ -267,7 +275,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
     }
 }
 
-void example_prepare_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param)
+void prepare_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param)
 {
     ESP_LOGI(GATTS_TABLE_TAG, "prepare write, handle = %d, value len = %d", param->write.handle, param->write.len);
     write_exec_handle = param->write.handle;
@@ -314,18 +322,17 @@ void example_prepare_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t 
 }
 
 
-void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
+void exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param){
     if (param->exec_write.exec_write_flag == ESP_GATT_PREP_WRITE_EXEC && prepare_write_env->prepare_buf){
-        //esp_log_buffer_hex(GATTS_TABLE_TAG, prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
-        if (code_handle_table[IDX_CHAR_VAL_A] == write_exec_handle)
+        if (gatt_event_handle_table[IDX_CHAR_VAL_A] == write_exec_handle && write_event_handler_table[0])
         {
-            write_value_A(prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
-        }else if (code_handle_table[IDX_CHAR_VAL_B] == write_exec_handle)
+            write_event_handler_table[0](prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
+        }else if (gatt_event_handle_table[IDX_CHAR_VAL_B] == write_exec_handle && write_event_handler_table[1])
         {
-            write_value_B(prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
-        }else if (code_handle_table[IDX_CHAR_VAL_C] == write_exec_handle)
+            write_event_handler_table[1](prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
+        }else if (gatt_event_handle_table[IDX_CHAR_VAL_C] == write_exec_handle && write_event_handler_table[2])
         {
-            write_value_C(prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
+            write_event_handler_table[2](prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
         }
         
         
@@ -344,7 +351,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 {
     switch (event) {
         case ESP_GATTS_REG_EVT:{
-            esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(SAMPLE_DEVICE_NAME);
+            esp_err_t set_dev_name_ret = esp_ble_gap_set_device_name(DEVICE_NAME);
             if (set_dev_name_ret){
                 ESP_LOGE(GATTS_TABLE_TAG, "set device name failed, error code = %x", set_dev_name_ret);
             }
@@ -380,7 +387,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         case ESP_GATTS_WRITE_EVT:
             if (!param->write.is_prep){
                 // the data length of gattc write  must be less than GATTS_DEMO_CHAR_VAL_LEN_MAX.
-                ESP_LOGI(GATTS_TABLE_TAG, "idx char config a : %d, idx char val a: %d", code_handle_table[IDX_CHAR_CFG_A], code_handle_table[IDX_CHAR_VAL_A]);
+                ESP_LOGI(GATTS_TABLE_TAG, "idx char config a : %d, idx char val a: %d", gatt_event_handle_table[IDX_CHAR_CFG_A], gatt_event_handle_table[IDX_CHAR_VAL_A]);
                 ESP_LOGI(GATTS_TABLE_TAG, "GATT_WRITE_EVT, handle = %d, value len = %d, value :", param->write.handle, param->write.len);
                 if (param->write.len == 2)
                 { // For notify
@@ -400,15 +407,15 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                         esp_log_buffer_hex(GATTS_TABLE_TAG, param->write.value, param->write.len);
                     }
                 } else { // For write action.
-                    if (code_handle_table[IDX_CHAR_VAL_A] == param->write.handle)
+                    if ((gatt_event_handle_table[IDX_CHAR_VAL_A] == param->write.handle) && write_event_handler_table[0])
                     {
-                        write_value_A(param->write.value, param->write.len);
-                    } else if (code_handle_table[IDX_CHAR_VAL_B] == param->write.handle)
+                        write_event_handler_table[0](param->write.value, param->write.len);
+                    } else if ((gatt_event_handle_table[IDX_CHAR_VAL_B] == param->write.handle) && write_event_handler_table[1])
                     {
-                        write_value_B(param->write.value, param->write.len);
-                    } else if (code_handle_table[IDX_CHAR_VAL_C] == param->write.handle)
+                        write_event_handler_table[1](param->write.value, param->write.len);
+                    } else if ((gatt_event_handle_table[IDX_CHAR_VAL_C] == param->write.handle) && write_event_handler_table[2])
                     {
-                        write_value_C(param->write.value, param->write.len);
+                        write_event_handler_table[2](param->write.value, param->write.len);
                     }
                 }
                 /* send response when param->write.need_rsp is true*/
@@ -417,13 +424,13 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 }
             }else{
                 /* handle prepare write */
-                example_prepare_write_event_env(gatts_if, &prepare_write_env, param);
+                prepare_write_event_env(gatts_if, &prepare_write_env, param);
             }
       	    break;
         case ESP_GATTS_EXEC_WRITE_EVT:
             // the length of gattc prepare write data must be less than GATTS_DEMO_CHAR_VAL_LEN_MAX.
             ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_EXEC_WRITE_EVT");
-            example_exec_write_event_env(&prepare_write_env, param);
+            exec_write_event_env(&prepare_write_env, param);
             break;
         case ESP_GATTS_MTU_EVT:
             ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_MTU_EVT, MTU %d", param->mtu.mtu);
@@ -461,8 +468,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             }
             else {
                 ESP_LOGI(GATTS_TABLE_TAG, "create attribute table successfully, the number handle = %d\n",param->add_attr_tab.num_handle);
-                memcpy(code_handle_table, param->add_attr_tab.handles, sizeof(code_handle_table));
-                esp_ble_gatts_start_service(code_handle_table[IDX_SVC]);
+                memcpy(gatt_event_handle_table, param->add_attr_tab.handles, sizeof(gatt_event_handle_table));
+                esp_ble_gatts_start_service(gatt_event_handle_table[IDX_SVC]);
             }
             break;
         }
@@ -485,7 +492,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
     /* If event is register event, store the gatts_if for each profile */
     if (event == ESP_GATTS_REG_EVT) {
         if (param->reg.status == ESP_GATT_OK) {
-            code_profile_table[PROFILE_APP_IDX].gatts_if = gatts_if;
+            gatt_profile_table[PROFILE_APP_IDX].gatts_if = gatts_if;
         } else {
             ESP_LOGE(GATTS_TABLE_TAG, "reg app failed, app_id %04x, status %d",
                     param->reg.app_id,
@@ -493,49 +500,15 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
             return;
         }
     }
-    do {
-        int idx;
-        for (idx = 0; idx < PROFILE_NUM; idx++) {
-            /* ESP_GATT_IF_NONE, not specify a certain gatt_if, need to call every profile cb function */
-            if (gatts_if == ESP_GATT_IF_NONE || gatts_if == code_profile_table[idx].gatts_if) {
-                if (code_profile_table[idx].gatts_cb) {
-                    code_profile_table[idx].gatts_cb(event, gatts_if, param);
-                }
-            }
+    if (gatts_if == ESP_GATT_IF_NONE || gatts_if == gatt_profile_table[PROFILE_APP_IDX].gatts_if) {
+        if (gatt_profile_table[PROFILE_APP_IDX].gatts_cb) {
+            gatt_profile_table[PROFILE_APP_IDX].gatts_cb(event, gatts_if, param);
         }
-    } while (0);
-}
-
-// Bluetoothによって送信されてきた関数を実行する。
-void execution_loop(void *args) {
-    while (1)
-    {
-        if (can_exec)
-        {
-            for (uint8_t i = 0; i < exec_func_num; i++)
-            {
-                ((void(*)(void))(my_text + my_literal_size + exec_func_offsets[i]))();
-            }
-            can_exec = 0;
-        }
-        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }
 
-void notification_loop(void *args) {
-    uint8_t log_str[LOG_SIZE] = {0};
-    while (1) {
-        int log_length = get_new_log(log_str);
-        if (notify_enabled && log_length)
-        {
-            printf("notify\n");
-            esp_ble_gatts_send_indicate(notify_gatt_if, notify_cnn_id, code_handle_table[IDX_CHAR_VAL_C], log_length, log_str, false);
-        }
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-    }
-}
 
-void app_main(void)
+void init_bluetooth(void)
 {
     esp_err_t ret;
 
@@ -596,17 +569,13 @@ void app_main(void)
     if (local_mtu_ret){
         ESP_LOGE(GATTS_TABLE_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
-    printf("symbol: %s, address: %p\n", my_rel_table[0].symbol_name, my_rel_table[0].address);
-    printf("gc_root_set_head: %p\n", gc_root_set_head);
-    gc_initialize();
+    printf("address: %p\n", my_rel_table[0].address);
+}
 
-    gc_array_set(gc_global_root_set_array, int_to_value(0), 1234);
-
-    configure_led();
-    configure_speaker();
-
-    // create task
-    // xTaskCreate(&notification_loop, "notification-task", 8192, NULL, 4, NULL);
-    xTaskCreatePinnedToCore(notification_loop, "notification-task", 4096, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(execution_loop, "execution-task", 4096, NULL, 1, NULL, 0);
+void register_event_handler(int index, void (* handler)(uint8_t*, int)) {
+    if (index > (WRITE_EVENT_NUM - 1)) {
+       ESP_LOGE(GATTS_TABLE_TAG, "The index is larger than maximum value.");
+       return;
+    }
+    write_event_handler_table[index] = handler;
 }

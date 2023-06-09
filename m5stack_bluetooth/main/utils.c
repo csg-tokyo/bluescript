@@ -1,5 +1,15 @@
-#include "my_utils.h"
-#include "gc.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <esp_task_wdt.h>
+#include <driver/gpio.h>
+#include "esp_log.h"
+#include "led_strip.h"
+#include <driver/gpio.h>
+#include <driver/ledc.h>
+#include "handle_log.h"
+#include "utils.h"
+#include "c-runtime.h"
 
 static const char *TAG = "blink";
 #define BLINK_GPIO GPIO_NUM_15
@@ -96,10 +106,9 @@ void wait_ms(int ms) {
 }
 
 void console_log(value_t str) {
-    char *str_ptr = gc_string_literal_cstr(str);
-    printf("%p\n", str_ptr);
-    printf("%s\n", str_ptr);
-    write_string_log(str_ptr);
+    // printf("%p\n", str_ptr);
+    // printf("%s\n", str_ptr);
+    // write_string_log(str_ptr);
 }
 
 void console_log_number(int32_t n) {
@@ -107,18 +116,60 @@ void console_log_number(int32_t n) {
     write_number_log(n);
 }
 
+void _console_log_number(int32_t n) {
+    printf("%d\n", n);
+}
+
 // TODO: 改善。以下がないと使わない関数のコードが消されてしまう。
-struct my_rel_table_entry my_rel_table[15] = {
-        {"blink_led", blink_led},
-        {"led_on", led_on},
-        {"led_off", led_off},
-        {"wait", wait_ms},
-        {"configure_speaker", configure_speaker},
-        {"speaker_on", speaker_on},
-        {"speaker_off", speaker_off},
-        {"console_log", console_log},
-        {"console_log_number", console_log_number},
-        {"gc_new_string", gc_new_string},
-        {"gc_array_set", gc_array_set},
-        {"gc_run", gc_run}
+struct my_rel_table_entry my_rel_table[100] = {
+        {blink_led},
+        {led_on},
+        {led_off},
+        {wait_ms},
+        {configure_speaker},
+        {speaker_on},
+        {speaker_off},
+        {console_log},
+        {console_log_number},
+        {_console_log_number},
+        {try_and_catch},
+        {safe_value_to_int},
+        {safe_value_to_float},
+        {safe_value_to_bool},
+        {value_to_truefalse},
+        {any_add},
+        {any_subtract},
+        {any_multiply},
+        {any_divide},
+        {any_less},
+        {any_less_eq},
+        {any_greater},
+        {any_greater_eq},
+        {any_add_assign},
+        {any_subtract_assign},
+        {any_multiply_assign},
+        {any_divide_assign},
+        {minus_any_value},
+        {gc_initialize},
+        {gc_get_class_of},
+        {gc_allocate_object},
+        {gc_new_string},
+        {gc_is_string_literal},
+        {gc_string_literal_cstr},
+        {gc_new_bytearray},
+        {gc_bytearray_size},
+        {gc_bytearray_get},
+        {gc_bytearray_set},
+        {gc_bytearray_set_raw_word},
+        {gc_new_vector},
+        {gc_vector_size},
+        {gc_vector_get},
+        {gc_vector_set},
+        {gc_make_array},
+        {gc_array_length},
+        {gc_array_get},
+        {gc_array_set},
+        {gc_init_rootset},
+        {gc_run},
+        // {gc_root_set_head}
 };

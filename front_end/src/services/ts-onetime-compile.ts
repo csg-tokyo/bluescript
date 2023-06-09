@@ -1,14 +1,7 @@
 import axios from "axios";
 
 export type TSCompileResult = {
-  values: {
-    text: string,
-    literal: string,
-    data: string,
-    rodata: string,
-    bss: string
-  }
-  execFuncOffsets: number[]
+  exe: string
 }
 
 export default async function tsOnetimeCompile(tsString:string):Promise<TSCompileResult> {

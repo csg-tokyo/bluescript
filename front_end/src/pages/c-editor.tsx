@@ -18,9 +18,9 @@ export default function CEditor() {
 
   const execCode = async () => {
     try {
-      const {values, execFuncOffsets} = await COnetimeCompile(code);
-      const {text, literal, data, rodata, bss} = values;
-      await bluetooth.sendMachineCode(text, literal, data, rodata, bss, execFuncOffsets[0]);
+      // const {values, execFuncOffsets} = await COnetimeCompile(code);
+      // const {text, literal, data, rodata, bss} = values;
+      // await bluetooth.sendMachineCode(text, literal, data, rodata, bss, execFuncOffsets[0]);
     } catch (error: any) {
       window.alert(`Failed to compile: ${error.message}`);
     }

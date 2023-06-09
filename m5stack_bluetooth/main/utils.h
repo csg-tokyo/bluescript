@@ -1,18 +1,9 @@
-#ifndef __MY_UTILS__
-#define __MY_UTILS__
+#ifndef __UTILS__
+#define __UTILS__
 #include <stdio.h>
 #include <string.h>
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include <esp_task_wdt.h>
-#include <driver/gpio.h>
-#include "esp_log.h"
-#include "led_strip.h"
-#include <driver/gpio.h>
-#include <driver/ledc.h>
-#include "handle_log.h"
-#include "gc.h"
+#include <stdint.h>
+#include "c-runtime.h"
 
 
 void blink_led();
@@ -30,11 +21,12 @@ void wait_ms(int ms);
 void console_log(value_t str);
 void console_log_number(int32_t n);
 
+void _console_log_number(int32_t n);
+
 struct my_rel_table_entry {
-    char symbol_name[50];
     void* address;
 };
-extern struct my_rel_table_entry my_rel_table[15];
+extern struct my_rel_table_entry my_rel_table[100];
 
 
 #endif /* __UTILS__ */

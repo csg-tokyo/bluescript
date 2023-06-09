@@ -9,23 +9,16 @@ export default class Bluetooth {
     this.serviceUUID = serviceUUID;
   }
 
-  public async sendMachineCode(text: string, literal: string, data: string, rodata: string, bss: string, mainFuncOffset: number) {
+  public async sendMachineCode(exe: string) {
     await this.init();
     const char02 = await this.service?.getCharacteristic(0xff02);
-    const textBuf = Buffer.from(text, "hex");
-    const literalBuf = Buffer.from(literal, "hex");
-    const dataBuf = Buffer.from(data, "hex");
-    const rodataBuf = Buffer.from(rodata, "hex");
-    const bssBuf = Buffer.from(bss, "hex");
-    const machineCodeBuf = Buffer.concat([
-      Buffer.from([textBuf.length, literalBuf.length, dataBuf.length, rodataBuf.length, bssBuf.length, mainFuncOffset]),
-      textBuf,
-      literalBuf,
-      dataBuf,
-      rodataBuf,
-      bssBuf
-    ]);
-    await char02?.writeValue(machineCodeBuf);
+    await char02?.writeValue(Buffer.from(exe, "hex"));
+  }
+
+  public async dummySend() {
+    await this.init();
+    const char01 = await this.service?.getCharacteristic(0xff01);
+    await char01?.writeValue(Buffer.from([1,2,3]));
   }
 
   public async addMachineCode(text: string, literal: string, data: string, rodata: string, bss: string, execFuncOffset: number[]) {
