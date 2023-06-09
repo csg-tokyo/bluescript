@@ -1,7 +1,6 @@
 import {ElfRelocation, ElfSymbol} from "./models";
 import {Buffer} from "node:buffer";
 import ELF_PARSER_CONSTANTS from "../utils/elf-parser/static/elf-parser-constants";
-import {SectionName} from "./models";
 
 export default class LinkStrategy {
   sectionAddresses: {[name: string]: number};
@@ -14,7 +13,7 @@ export default class LinkStrategy {
     this.elfSymbols = elfSymbols;
   }
 
-  link(sectionName: SectionName, unlinkedValue:Buffer, relocations: ElfRelocation[]): Buffer {
+  link(sectionName: string, unlinkedValue:Buffer, relocations: ElfRelocation[]): Buffer {
     const value = Buffer.allocUnsafe(unlinkedValue.length);
     unlinkedValue.copy(value);
     relocations.forEach(relocation => {
@@ -55,7 +54,7 @@ export default class LinkStrategy {
     }
   }
 
-  private linkRXtensaSlot0Op(sectionName: SectionName, value: Buffer, relocation: ElfRelocation) {
+  private linkRXtensaSlot0Op(sectionName: string, value: Buffer, relocation: ElfRelocation) {
     const elfSymbol = this.elfSymbols[relocation.symbolId];
     let jumpedAddress: number;
     let relocationTargetAddress: number;
@@ -71,7 +70,7 @@ export default class LinkStrategy {
       case ELF_PARSER_CONSTANTS.STT_SECTION:
         const base = value.readUint16LE(relocation.offset);
         if (base % 16 === 1) { // l32r命令だったら
-          if(elfSymbol.residesSectionName == null)  throw new Error("something wrong happened with linkRXtensaSlot0Op");
+          if(elfSymbol.residesSectionName == null) throw new Error("something wrong happened with linkRXtensaSlot0Op");
           jumpedAddress = this.sectionAddresses[elfSymbol.residesSectionName] + relocation.addEnd;
           relocationTargetAddress = this.sectionAddresses[sectionName] + relocation.offset;
           instruction = this.linkL32r(base, jumpedAddress, relocationTargetAddress);

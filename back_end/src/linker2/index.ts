@@ -1,7 +1,7 @@
 import AddressTable from "./addresses";
-import SectionValueFactory from "../linker/section-value-factory";
-import {SectionNameArr} from "../linker/models";
+import SectionValueFactory from "../linker2/section-value-factory";
 import {Buffer} from "node:buffer";
+import CONSTANTS from "../constants";
 
 
 export function link(sessionId: number, elfBuffer: Buffer, newSymbolNames: string[], addressTable: AddressTable) {
@@ -14,12 +14,13 @@ export function link(sessionId: number, elfBuffer: Buffer, newSymbolNames: strin
   const strategy = factory.generateStrategy()
   const sectionValues:{[name: string]: Buffer} = {}
   const useMemorySizes: {[name: string]: number} = {}
-  SectionNameArr.forEach(sectionName => {
-    const value = factory.generateSectionValue(sectionName)
-    sectionValues[sectionName] = value.getLinkedValue(strategy)
-    useMemorySizes[sectionName] = value.getSize()
+  CONSTANTS.VIRTUAL_SECTION_NAMES.forEach(sectionName => {
+    const value = factory.generateSectionValue(sectionName.realName)
+    sectionValues[sectionName.realName] = value.getLinkedValue(strategy)
+    useMemorySizes[sectionName.realName] = value.getSize()
   });
-  const entryPoint = factory.getSymbolAddresses(["bluescript_main" + sessionId])[0]
+  const sessionMain = "bluescript_main" + sessionId
+  const entryPoint = factory.getSymbolAddresses([sessionMain])[sessionMain]
   const newSymbolAddresses = factory.getSymbolAddresses(newSymbolNames)
 
   // record new data
@@ -28,12 +29,18 @@ export function link(sessionId: number, elfBuffer: Buffer, newSymbolNames: strin
 
   // return value
   const exeBuffer = generateExeBuffer(sectionValues, entryPoint)
+  console.log(exeBuffer.toString("hex"))
   return {exe: exeBuffer.toString("hex"), addressTable}
 }
 
 function generateExeBuffer(sectionValues: {[name: string]: Buffer}, entryPoint: number):Buffer {
-  const lengths = Buffer.from(SectionNameArr.map(name => sectionValues[name].length))
-  const epBuffer = Buffer.from([entryPoint])
-  const values = Buffer.concat(SectionNameArr.map(name => sectionValues[name]))
+  Object.keys(sectionValues).forEach(sectionName => {
+    console.log(sectionName, sectionValues[sectionName].toString("hex"), sectionValues[sectionName].length.toString(16))
+  })
+  console.log(entryPoint.toString(16))
+  const lengths = Buffer.from(CONSTANTS.VIRTUAL_SECTION_NAMES.map(name => sectionValues[name.realName].length))
+  const epBuffer = Buffer.from(entryPoint.toString(16), "hex")
+  console.log(epBuffer)
+  const values = Buffer.concat(CONSTANTS.VIRTUAL_SECTION_NAMES.map(name => sectionValues[name.realName]))
   return Buffer.concat([lengths, epBuffer, values])
 }

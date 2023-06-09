@@ -60,7 +60,6 @@ export default class OnetimeCompilerChain {
       sectionValues[sectionName] = value.getLinkedValue(strategy).toString("hex");
     });
     const execFuncAddresses = factory.getSymbolAddresses(["bluescript_main2"]);
-    console.log(execFuncAddresses)
     return {
       values: sectionValues,
       execFuncOffsets: [execFuncAddresses.bluescript_main2 - sectionAddresses.text]

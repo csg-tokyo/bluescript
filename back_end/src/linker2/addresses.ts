@@ -9,7 +9,17 @@ export default class AddressTable {
 
   constructor(symbolNames: string[]) {
     const symbols = this.microcontrollerAddresses(symbolNames)
-    const sections = this.microcontrollerAddresses(CONSTANTS.VIRTUAL_SECTION_NAMES)
+    const virtualSections = this.microcontrollerAddresses(CONSTANTS.VIRTUAL_SECTION_NAMES.map(name => name.virtualName))
+    // Convert virtual section names to real name.
+    const sections:{[name: string]: number} = {}
+    Object.keys(virtualSections).forEach(virtualName => {
+      const realName = CONSTANTS.VIRTUAL_SECTION_NAMES.find(name => name.virtualName == virtualName)?.realName
+      if (realName)
+        sections[realName] = virtualSections[virtualName]
+      else
+        throw Error("Something wrong happens when converting the virtual section name to real section name.")
+    })
+
     this.symbolTable = new SymbolTable(symbols)
     this.sectionTable = new SectionTable(sections)
   }

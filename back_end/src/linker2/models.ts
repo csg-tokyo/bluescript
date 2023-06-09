@@ -9,9 +9,5 @@ export type ElfSymbol = {
   name: string,
   type: number,
   offset: number,
-  residesSectionName: SectionName|null
+  residesSectionName: string | null
 }
-
-export const SectionNameArr = ["text", "literal", "data", "rodata", "bss"] as const;
-
-export type SectionName = typeof SectionNameArr[number]
