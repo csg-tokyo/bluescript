@@ -14,5 +14,6 @@ int32_t _main(int32_t _n) {
 void bluescript_main2() {
   ROOT_SET_INIT(global_rootset2, 0)
   ROOT_SET(func_rootset, 0)
+  _console_log_number(3);
   DELETE_ROOT_SET(func_rootset)
 }

@@ -108,7 +108,7 @@ export default class SectionValueFactory {
     if (symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_ABS || symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_UNDEF)
       return null;
     if (symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_COMMON)
-      return "bss"; // TODO: 本当にこれで良いのか？
+      return ".bss"; // TODO: 本当にこれで良いのか？
     // 一番最初の"."を取り除いたものがSectionNameArrに含まれていたら、SectionNameを返す。
     const sectionNameStr: string = this.elf.getStringFromBuffer(this.elf.sectionNameSectionHeader.shOffset + this.elf.sectionHeaders[symbol.stShndx].shName);
     const realSectionNames = CONSTANTS.VIRTUAL_SECTION_NAMES.map(name => name.realName)
