@@ -15,11 +15,11 @@ SemaphoreHandle_t executor_semphr;
 
 
 uint8_t __attribute__((section(".iram0.data"))) virtual_text[1000] = {0x36, 0x41, 0x00, 0x0c, 0x22, 0x1d, 0xf0, 0x00};
-uint8_t __attribute__((section(".iram0.data"))) virtual_literal[100];
-// uint8_t virtual_text[1000]; // literal section is the first part of the text section.
+uint8_t __attribute__((section(".iram0.data"))) virtual_literal[500];
 uint8_t virtual_data[1000];
 uint8_t virtual_rodata[1000];
 uint8_t virtual_bss[200];
+
 
 uint32_t entry_point;
 

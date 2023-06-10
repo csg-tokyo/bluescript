@@ -14,7 +14,7 @@ export default function TsEditor() {
   const exitCode = async () => {
     try {
       const {exe} = await tsOnetimeCompile(code);
-      await bluetooth.sendMachineCode(exe);
+      // await bluetooth.sendMachineCode(exe);
     } catch (error: any) {
       window.alert(`Failed to compile: ${error.message}`);
     }

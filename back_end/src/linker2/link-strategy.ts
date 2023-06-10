@@ -33,10 +33,12 @@ export default class LinkStrategy {
 
   private linkRXtensa32(value: Buffer, relocation: ElfRelocation) {
     const elfSymbol = this.elfSymbols[relocation.symbolId];
+    console.log(relocation, elfSymbol);
     let jumpedAddress: number;
     switch (elfSymbol.type) {
       case ELF_PARSER_CONSTANTS.STT_NOTYPE:
         jumpedAddress = this.getDDSymbolAddress(elfSymbol) + value.readUint32LE(relocation.offset);
+        console.log(jumpedAddress)
         value.writeIntLE(jumpedAddress, relocation.offset, 4);
         break;
       case ELF_PARSER_CONSTANTS.STT_SECTION:
@@ -71,9 +73,11 @@ export default class LinkStrategy {
         const base = value.readUint16LE(relocation.offset);
         if (base % 16 === 1) { // l32r命令だったら
           if(elfSymbol.residesSectionName == null) throw new Error("something wrong happened with linkRXtensaSlot0Op");
+          console.log(sectionName, relocation, elfSymbol)
           jumpedAddress = this.sectionAddresses[elfSymbol.residesSectionName] + relocation.addEnd;
           relocationTargetAddress = this.sectionAddresses[sectionName] + relocation.offset;
           instruction = this.linkL32r(base, jumpedAddress, relocationTargetAddress);
+          console.log(instruction)
           value.writeIntLE(instruction, relocation.offset, 3);
         }
         break;
