@@ -273,7 +273,7 @@ static class_object* get_objects_class(pointer_t obj) {
 // Gets the class of the given value if it is an object.
 // Otherwise, this returns NULL.
 class_object* gc_get_class_of(value_t value) {
-    if (is_ptr_value(value)) {
+    if (is_ptr_value(value) && value != VALUE_NULL) {
         pointer_t obj = value_to_ptr(value);
         return get_objects_class(obj);
     }

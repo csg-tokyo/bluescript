@@ -21,11 +21,14 @@ export function transpile(sessionId: number, src: string, gnt?: GlobalNameTable<
   const mainFuncName = `${cr.mainFunctionName}${sessionId}`
   const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${sessionId}`)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
-  return { code: generator.getCode(), main: mainFuncName, names: nameTable }
+  if (generator.errorLog.hasError())
+    throw generator.errorLog
+  else
+    return { code: generator.getCode(), main: mainFuncName, names: nameTable }
 }
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
-  private errorLog = new ErrorLog()
+  errorLog = new ErrorLog()
   private result =  new CodeWriter()
   private signatures = ''                   // function prototypes etc.
   private declarations = new CodeWriter()   // function declarations etc.
@@ -160,7 +163,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (node.init)
       this.visit(node.init, env2)
 
-    this.result.write('; ')
+    if (!node.init || AST.isExpression(node.init))
+      this.result.write('; ')
+
     if (node.test)
       this.testExpression(node.test, env2)
 
@@ -373,8 +378,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     declarations.nl().write(cr.makeRootSet(fenv.getNumOfVars()))
     declarations.write(this.result.getCode())
-    if (funcType.returnType === Void && !this.endWithReturn)
-      declarations.nl().write(cr.deleteRootSet)
+    if (!this.endWithReturn)
+      if (funcType.returnType === Void)
+        declarations.nl().write(cr.deleteRootSet)
+      else
+        this.errorLog.push('a non-void function must return a value', node)
 
     declarations.left().nl().write('}').nl()
     this.result = prevResult

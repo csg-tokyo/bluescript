@@ -168,7 +168,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       if (rtype == undefined)
         names.setReturnType(Void)
       else
-        this.assert(rtype === Void, 'a void function cannot return a value', node)
+        this.assert(rtype === Void, 'a non-void function must return a value', node)
   }
 
   emptyStatement(node: AST.EmptyStatement, names: NameTable<Info>): void { }
