@@ -1,14 +1,13 @@
 import {Buffer} from "node:buffer";
-import {ElfRelocation} from "./models";
-import {SectionName} from "./models";
+import {ElfRelocation} from "./section-value-factory";
 import LinkStrategy from "./link-strategy";
 
 export default class SectionValue {
-  sectionName: SectionName;
+  sectionName: string;
   relocations: ElfRelocation[];
   value: Buffer;
 
-  constructor(sectionName: SectionName, relocations: ElfRelocation[], value: Buffer) {
+  constructor(sectionName: string, relocations: ElfRelocation[], value: Buffer) {
     this.sectionName = sectionName;
     this.relocations = relocations;
     this.value = value;

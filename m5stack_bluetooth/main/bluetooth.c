@@ -17,7 +17,6 @@
 
 #include "executor.h"
 #include "utils.h"
-#include "handle_log.h"
 #include "c-runtime.h"
 
 
@@ -578,4 +577,11 @@ void register_event_handler(int index, void (* handler)(uint8_t*, int)) {
        return;
     }
     write_event_handler_table[index] = handler;
+}
+
+void send_notification(uint8_t *str, int length) {
+    if (notify_enabled) {
+        printf("notify\n");
+        esp_ble_gatts_send_indicate(notify_gatt_if, notify_cnn_id, gatt_event_handle_table[IDX_CHAR_VAL_C], length, str, false);
+    }
 }

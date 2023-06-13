@@ -1,9 +1,8 @@
-import {CSSProperties, KeyboardEvent} from 'react';
+import {CSSProperties} from 'react';
 import CodeEditor from '@uiw/react-textarea-code-editor';
 import {Card} from "@mui/material";
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import {grey} from "@mui/material/colors";
 
 type Props = {

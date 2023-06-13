@@ -5,8 +5,8 @@ import {execSync} from "child_process";
 import * as fs from "fs";
 import CONSTANTS from "../constants";
 import {Buffer} from "node:buffer";
-import AddressTable from "../linker2/addresses";
-import {link} from "../linker2";
+import AddressTable from "../linker/addresses";
+import {link} from "../linker";
 
 const C_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.C_FILE_NAME;
 const OBJ_FILE_PATH = CONSTANTS.CODE_FILES_DIR_PATH + CONSTANTS.OBJ_FILE_NAME;
@@ -50,8 +50,6 @@ export class Stream {
   }
 
   private link(buffer: Buffer): string {
-    console.log(this.addressTable.sectionTable.sections())
-    console.log(this.addressTable.symbolTable.symbols())
     const newSymbolNames = Object.keys(this.nameTable.names())
     const result = link(this.sessionId, buffer, newSymbolNames, this.addressTable)
     this.addressTable = result.addressTable

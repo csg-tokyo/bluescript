@@ -85,7 +85,6 @@ void executor_set_onetime(uint8_t *value, int value_len) {
 }
 
 
-// Clear
 void executor_crear(uint8_t *value, int value_len) {
     ESP_LOGI(TAG, "CLEAR");
     init();
@@ -97,6 +96,6 @@ void exec_code_task(void *arg) {
 
     while (true) {
         xSemaphoreTake(executor_semphr, portMAX_DELAY);
-        ((void(*)(void))(entry_point))();
+        try_and_catch(entry_point);
     }
 }

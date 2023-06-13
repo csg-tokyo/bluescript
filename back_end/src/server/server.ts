@@ -53,17 +53,17 @@ export default class HttpServer {
       switch (request.url) {
         case "/repl-compile":
           if (!this.stream) { this.stream = new Stream() }
-          responseBody = {exe: this.stream.execute(JSON.parse(requestBody).tsString)}
+          responseBody = {exe: this.stream.execute(JSON.parse(requestBody).src)}
           statusCode = 200;
           break;
-        case "/repl-clear":
+        case "/clear":
           this.stream = new Stream()
           responseBody = {}
           statusCode = 200;
           break;
-        case "/ts-onetime-compile":
+        case "/onetime-compile":
           this.stream = new Stream()
-          responseBody = {exe: this.stream.execute(JSON.parse(requestBody).tsString)}
+          responseBody = {exe: this.stream.execute(JSON.parse(requestBody).src)}
           statusCode = 200;
           break;
         default:

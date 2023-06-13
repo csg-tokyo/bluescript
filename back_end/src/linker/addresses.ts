@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import CONSTANTS from "../constants";
-import Elf from "../utils/elf-parser/elf";
+import Elf from "./elf-parser/elf";
 
 
 export default class AddressTable {

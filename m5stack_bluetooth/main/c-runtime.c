@@ -90,7 +90,6 @@ static char error_message[256];
 
 // This returns 1 when an error is signaled.
 // Otherwise, 0.
-__attribute__((used))
 int32_t try_and_catch(void (*main_function)()) {
     error_message[0] = '\0';
     if (setjmp(long_jump_buffer) != 0) {

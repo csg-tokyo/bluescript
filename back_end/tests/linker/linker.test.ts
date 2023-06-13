@@ -2,32 +2,35 @@ import {execSync} from "child_process";
 import SectionValueFactory from "../../src/linker/section-value-factory";
 import {generateExpectedResult, getL32r, getLinkedCall8} from "./common";
 import {Buffer} from "node:buffer";
-import {SectionNameArr} from "../../src/models/section-model";
 import * as fs from "fs";
+import CONSTANTS from "../../src/constants";
 
-
-describe('linker once test', () => {
+describe('linker test', () => {
   const dirPath = "./tests/linker/";
 
   for (let i = 0; i <= 7; i++) {
     test(`case${i}`, () => {
+      // Files
       const cFilePath = dirPath + `test-cases/case${i}.c`;
       const objFilePath = dirPath + `obj-files/case${i}.o`;
       const expectedResultPath = dirPath + `expected-results/case${i}.txt`;
-      // 実行
-      execSync(`xtensa-esp32-elf-gcc -c -O0 ${cFilePath} -o ${objFilePath} -w`);
-      const sectionAddresses = {text: 100, literal: 0, data: 1000, rodata: 2000, bss: 3000};
+
+      // Prepare data.
+      const sectionAddresses = {".text": 100, ".literal": 0, ".data": 1000, ".rodata": 2000, ".bss": 3000};
       const symbolAddresses = {"blink_led": 1020, "console_log": 1030};
+      execSync(`xtensa-esp32-elf-gcc -c -O0 ${cFilePath} -o ${objFilePath} -w`);
       const elfBuffer = fs.readFileSync(objFilePath);
-      const factory = new SectionValueFactory(elfBuffer, symbolAddresses, sectionAddresses);
-      const strategy = factory.generateStrategy();
-      const values:{[name: string]: string} = {};
-      SectionNameArr.forEach(sectionName => {
-        const value = factory.generateSectionValue(sectionName);
-        values[sectionName] = value.getLinkedValue(strategy).toString("hex");
+
+      // Link.
+      const factory = new SectionValueFactory(elfBuffer, symbolAddresses, sectionAddresses)
+      const strategy = factory.generateStrategy()
+      let result = ""
+      CONSTANTS.VIRTUAL_SECTION_NAMES.forEach(sectionName => {
+        const value = factory.generateSectionValue(sectionName.realName)
+        result += value.getLinkedValue(strategy).toString("hex")
       });
-      const result = values.literal + values.text + values.data + values.rodata + values.bss
-      // 検証
+
+      // Verify
       const expectedResult = generateExpectedResult(expectedResultPath);
       expect(result).toBe(expectedResult);
     })

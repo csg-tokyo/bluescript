@@ -1,5 +1,3 @@
-<.literal>
-
 <.text>
 # func1
 100: 364100
@@ -14,6 +12,8 @@
 117: e5feff
 120: 2d0a
 122: 1df0
+
+<.literal>
 
 <.data>
 

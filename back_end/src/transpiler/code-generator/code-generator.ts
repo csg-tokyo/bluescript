@@ -10,6 +10,7 @@ import { typecheck } from '../type-checker/type-checker'
 import { CodeWriter, VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
+import CONSTANTS from "../../constants";
 
 // sessionId: an integer more than zero.  It is used for generating a unique name.
 export function transpile(sessionId: number, src: string, gnt?: GlobalNameTable<VariableInfo>, startLine: number = 1) {
@@ -18,7 +19,7 @@ export function transpile(sessionId: number, src: string, gnt?: GlobalNameTable<
   const nameTable = new GlobalNameTable<VariableInfo>(gnt)
   typecheck(ast, maker, nameTable)
   const nullEnv = new GlobalEnv(new GlobalNameTable<VariableInfo>(), cr.globalRootSetName)
-  const mainFuncName = `${cr.mainFunctionName}${sessionId}`
+  const mainFuncName = `${CONSTANTS.ENTRY_POINT_NAME}${sessionId}`
   const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${sessionId}`)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   return { code: generator.getCode(), main: mainFuncName, names: nameTable }
@@ -351,7 +352,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
       const paramName = (node.params[i] as AST.Identifier).name;
       const paramType = funcType.paramTypes[i];
-      let info = fenv.table.lookup(paramName)
+      const info = fenv.table.lookup(paramName)
       if (info !== undefined) {
         const name = info.transpiledName(paramName)
         sig += `${cr.typeToCType(paramType)} ${name}`

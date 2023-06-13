@@ -1,11 +1,24 @@
-import {ElfRelocation, ElfSymbol} from "./models";
 import {Buffer} from "node:buffer";
-import Elf from "../utils/elf-parser/elf";
-import ELF_PARSER_CONSTANTS from "../utils/elf-parser/static/elf-parser-constants";
-import Elf32Sym from "../utils/elf-parser/elf32/elf32-sym";
-import {SectionName, SectionNameArr} from "./models";
+import Elf from "./elf-parser/elf";
+import ELF_PARSER_CONSTANTS from "./elf-parser/static/elf-parser-constants";
+import Elf32Sym from "./elf-parser/elf32/elf32-sym";
 import LinkStrategy from "./link-strategy";
 import SectionValue from "./section-value";
+import CONSTANTS from "../constants";
+
+export type ElfRelocation = {
+  offset: number,
+  symbolId: number,
+  type: number,
+  addEnd: number
+}
+
+export type ElfSymbol = {
+  name: string,
+  type: number,
+  offset: number,
+  residesSectionName: string | null
+}
 
 
 export default class SectionValueFactory {
@@ -19,7 +32,7 @@ export default class SectionValueFactory {
     this.sectionAddresses = sectionAddresses;
   }
 
-  public generateSectionValue(name: SectionName): SectionValue {
+  public generateSectionValue(name: string): SectionValue {
     const relocations = this.getRelocations(name);
     const value = this.getSectionValue(name);
     return new SectionValue(name, relocations, value);
@@ -69,9 +82,9 @@ export default class SectionValueFactory {
     return linkerSymbols;
   }
 
-  private getRelocations(sectionName: SectionName): ElfRelocation[] {
+  private getRelocations(sectionName: string): ElfRelocation[] {
     const relocations: ElfRelocation[] = [];
-    const targetRelSectionName = ".rela." + sectionName;
+    const targetRelSectionName = ".rela" + sectionName;
     this.elf.relocationTables.forEach(table => {
       const relSectionHeader = this.elf.sectionHeaders[table.sectionHeaderId];
       const relSectionName = this.elf.getStringFromBuffer(this.elf.sectionNameSectionHeader.shOffset + relSectionHeader.shName);
@@ -89,29 +102,28 @@ export default class SectionValueFactory {
     return relocations;
   }
 
-  private getSectionValue(sectionName: SectionName): Buffer {
+  private getSectionValue(sectionName: string): Buffer {
     let value: Buffer;
     for (const sectionHeader of this.elf.sectionHeaders) {
       const sectionNameStart = this.elf.sectionNameSectionHeader.shOffset + sectionHeader.shName;
       const name = this.elf.getStringFromBuffer(sectionNameStart);
-      if (name === "." + sectionName) {
+      if (name === sectionName) {
         value = this.elf.getSubBuffer(sectionHeader.shOffset, sectionHeader.shSize);
         return value;
       }
     }
-    // もし見つからなかったら
     console.log("Could not find section value: " + sectionName);
     return Buffer.from([]);
   }
 
-  private getSymbolResidesSectionName(symbol: Elf32Sym): SectionName|null {
+  private getSymbolResidesSectionName(symbol: Elf32Sym): string | null {
     if (symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_ABS || symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_UNDEF)
       return null;
     if (symbol.stShndx === ELF_PARSER_CONSTANTS.SHN_COMMON)
-      return "bss"; // TODO: 本当にこれで良いのか？
-    // 一番最初の"."を取り除いたものがSectionNameArrに含まれていたら、SectionNameを返す。
+      return ".bss"; // TODO: 本当にこれで良いのか？
     const sectionNameStr: string = this.elf.getStringFromBuffer(this.elf.sectionNameSectionHeader.shOffset + this.elf.sectionHeaders[symbol.stShndx].shName);
-    const sectionNameIndex = SectionNameArr.findIndex(str => str === sectionNameStr.substring(1))
-    return sectionNameIndex === -1 ? null : SectionNameArr[sectionNameIndex];
+    const realSectionNames = CONSTANTS.VIRTUAL_SECTION_NAMES.map(name => name.realName)
+    const sectionNameIndex = realSectionNames.findIndex(str => str === sectionNameStr)
+    return sectionNameIndex === -1 ? null : realSectionNames[sectionNameIndex];
   }
 }

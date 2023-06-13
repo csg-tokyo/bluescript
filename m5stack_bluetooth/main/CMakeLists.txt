@@ -1,2 +1,2 @@
-idf_component_register(SRCS "main.c" "bluetooth.c" "executor.c" "handle_log.c" "utils.c" "c-runtime.c"
+idf_component_register(SRCS "bluescript-log.c" "main.c" "bluetooth.c" "executor.c" "utils.c" "c-runtime.c"
                     INCLUDE_DIRS ".")

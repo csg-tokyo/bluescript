@@ -2,18 +2,17 @@ import {useState} from 'react';
 import {Button} from '@mui/material';
 import {ButtonGroup} from "@mui/material";
 
-import Bluetooth from '../services/bluetooth';
-import replCompile from '../services/repl-compile';
+import Bluetooth, {CHARACTERISTIC_IDS} from '../services/bluetooth';
+import * as network from "../services/network"
 import BSCodeEditorCell from "../components/code-editor-cell";
 import BSCodeEditorCellDisabled from "../components/code-editor-cell-disabled";
-import replClear from "../services/repl-clear";
 import {Buffer} from "buffer";
 import Grid2 from "@mui/material/Unstable_Grid2";
 import BSLogArea from "../components/log-area";
 
-const bluetooth = new Bluetooth(0x00ff);
+const bluetooth = new Bluetooth();
 
-export default function Interpreter() {
+export default function Repl() {
   const [code, setCode] = useState("function main(n: number):number {\n  return 2;\n}");
   const [exitedCodes, setExitedCodes] = useState<string[]>([]);
   const [log, setLog] = useState("");
@@ -21,9 +20,8 @@ export default function Interpreter() {
 
   const exitCode = async () => {
     try {
-      const {values, execFuncOffsets} = await replCompile(code, code.length === 0);
-      const {text, literal, data, rodata, bss} = values;
-      await bluetooth.addMachineCode(text, literal, data, rodata, bss, execFuncOffsets);
+      const {exe} = await network.replCompile(code);
+      await bluetooth.sendMachineCode(CHARACTERISTIC_IDS.REPL, exe);
       setExitedCodes([...exitedCodes, code]);
       setCode("");
     } catch (error: any) {
@@ -35,8 +33,8 @@ export default function Interpreter() {
   const onClearPushed = async () => {
     try {
       await Promise.all([
-        replClear(),
-        bluetooth.clearMachineCode()
+        network.clear(),
+        bluetooth.sendMachineCode(CHARACTERISTIC_IDS.CLEAR, "")
       ]);
       setExitedCodes([]);
       setCode("");

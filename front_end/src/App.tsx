@@ -3,8 +3,7 @@ import { AppBar, Toolbar, Typography } from '@mui/material';
 
 import Home from './pages/home';
 import TsEditor from "./pages/ts-editor";
-import CEditor from "./pages/c-editor";
-import Interpreter from "./pages/interpreter";
+import Repl from "./pages/repl";
 
 function App() {
   return (
@@ -20,8 +19,7 @@ function App() {
         <Routes>
           <Route path={`/`} element={<Home />} />
           <Route path={`/ts-editor`} element={<TsEditor />} />
-          <Route path={`/c-editor`} element={<CEditor />} />
-          <Route path={`/interpreter`} element={<Interpreter />} />
+          <Route path={`/repl`} element={<Repl />} />
         </Routes>
       </BrowserRouter>
     </div>
