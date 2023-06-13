@@ -214,6 +214,22 @@ ANY_ASSIGN_OP_FUNC(subtract,-)
 ANY_ASSIGN_OP_FUNC(multiply,*)
 ANY_ASSIGN_OP_FUNC(divide,/)
 
+#define ANY_UPDATE(name, op, code) \
+value_t any_##name(value_t* expr) {\
+    value_t v;\
+    if (is_int_value(*expr))\
+        v = int_to_value(value_to_int(*expr) op 1);\
+    else if (is_float_value(*expr))\
+        v = float_to_value(value_to_float(*expr) op 1);\
+    else\
+        return runtime_type_error("bad operand for " #op #op);\
+    code }
+
+ANY_UPDATE(increment,+,{return *expr=v;})
+ANY_UPDATE(decrement,-,{return *expr=v;})
+ANY_UPDATE(post_increment,+,{value_t nv = *expr; *expr=v; return nv;})
+ANY_UPDATE(post_decrement,-,{value_t nv = *expr; *expr=v; return nv;})
+
 value_t minus_any_value(value_t v) {
     if (is_int_value(v))
         return int_to_value(-value_to_int(v));

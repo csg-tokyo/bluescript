@@ -389,7 +389,6 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
-    this.result.write(node.operator)
     const type = this.needsCoercion(node.argument)
     if (type)
       if (node.operator === '-')
@@ -405,8 +404,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else
         this.result.write('(')
     else {
-      this.result.write('(')
       this.result.write(node.operator)
+      this.visit(node.argument, env)
+      return
     }
 
     this.visit(node.argument, env)
@@ -414,15 +414,21 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   updateExpression(node: AST.UpdateExpression, env: VariableEnv): void {
-    // node.argument is not value_t
-    if (node.prefix) {
-      this.result.write(node.operator)
+    const type = this.needsCoercion(node.argument)
+    if (type === Any) {
+      this.result.write(`${cr.updateOpForAny(node.prefix, node.operator)}(&`)
       this.visit(node.argument, env)
+      this.result.write(')')
     }
-    else {
-      this.visit(node.argument, env)
-      this.result.write(node.operator)
-    }
+    else
+      if (node.prefix) {
+        this.result.write(node.operator)
+        this.visit(node.argument, env)
+      }
+      else {
+        this.visit(node.argument, env)
+        this.result.write(node.operator)
+      }
   }
 
   binaryExpression(node: AST.BinaryExpression, env: VariableEnv): void {

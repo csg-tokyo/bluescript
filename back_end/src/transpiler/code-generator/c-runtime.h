@@ -125,6 +125,11 @@ extern value_t any_subtract_assign(value_t* a, value_t b);
 extern value_t any_multiply_assign(value_t* a, value_t b);
 extern value_t any_divide_assign(value_t* a, value_t b);
 
+extern value_t any_increment(value_t* expr);
+extern value_t any_decrement(value_t* expr);
+extern value_t any_post_increment(value_t* expr);
+extern value_t any_post_decrement(value_t* expr);
+
 extern value_t minus_any_value(value_t v);
 
 extern void gc_initialize();

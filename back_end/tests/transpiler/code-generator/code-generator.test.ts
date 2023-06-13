@@ -84,6 +84,30 @@ test('control structuers', () => {
   expect(compileAndRun(src)).toBe('31\n')
 })
 
+test('empty loop body', () => {
+  const src = `
+  function foo(n: integer): integer {
+    let c = n
+    while (c-- > 0)
+      ;
+    c = n
+    while (c-- > 0) {}
+    for (let i = 0; i < n; i++)
+      ;
+    for (let i = 0; i < n; i++) {}
+    if (n > 10)
+      ;
+    else
+      ;
+
+    if (n > 10) {} else {}
+    return n
+  }
+  print(foo(5))
+  `
+  expect(compileAndRun(src)).toBe('5\n')
+})
+
 test('for loops', () => {
   const src = `
   function foo(n: integer): integer {
@@ -106,6 +130,58 @@ test('for loops', () => {
   expect(compileAndRun(src)).toBe('30\n')
 })
 
+test('boolean conditions', () => {
+  const src = `
+    function foo(n: integer) {
+      let b = true, j = 3
+      while (b) {
+        if (j-- < 0)
+          b = false
+        else if (j < -10) {
+          print(100)
+          print(j); return
+          let str: any = null
+          let k = str + 1
+        }
+      }
+
+      let c: any = 3
+      while (c)
+        if (c-- < 0)
+          b = null
+        else if (c < -10) {
+          let str: any = null
+          let k = str + 1
+        }
+
+      c = 3
+      while (c)
+        if (c-- < 0)
+          b = false
+        else if (c < -10) {
+          let str: any = null
+          let k = str + 1
+        }
+
+      c = 3
+      while (c)
+        if (c-- < -10) {
+          let str: any = null
+          let k = str + 1
+        }
+
+      c = 3.0
+      while (c)
+        if (c-- < -10) {
+          let str: any = null
+          let k = str + 1
+        }
+    }
+    foo(3)
+`
+  expect(compileAndRun(src, 'foo.c')).toEqual('')
+})
+
 test('literals', () => {
   const src = `
   function foo(n: integer) {
@@ -115,7 +191,7 @@ test('literals', () => {
     const b1 = true
     const b2 = false
     const str = 'test'
-    print (empty)
+    print(empty)
     print(i)
     print(f)
     print(b1)
@@ -126,6 +202,11 @@ test('literals', () => {
   foo(33)
   `
   expect(compileAndRun(src)).toBe('null\n33\n7.400000\n1\n0\ntest\n')
+})
+
+test('undefined', () => {
+  const src = 'const k = undefined'
+  expect(() => { compileAndRun(src) }).toThrow(/unknown name: undefined/)
 })
 
 test('bad return statement', () => {

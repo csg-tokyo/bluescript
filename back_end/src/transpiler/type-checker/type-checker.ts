@@ -344,8 +344,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.visit(node.argument, names)
 
     const op = node.operator    // ++ or --
-    this.assert(isNumeric(this.result),
+    this.assert(isNumeric(this.result) || this.result === Any,
                 this.invalidOperandMessage(op, this.result), node);
+    this.addCoercion(node.argument, this.result)
   }
 
   binaryExpression(node: AST.BinaryExpression, names: NameTable<Info>): void {
