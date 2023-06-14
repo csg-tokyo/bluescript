@@ -8,7 +8,7 @@
 #include "sdkconfig.h"
 #include "executor.h"
 #include "c-runtime.h"
-#include "bluescript-log.h"
+#include "bs-log.h"
 #include "bluetooth.h"
 
 #define TAG "LOGGER"
@@ -39,8 +39,8 @@ void push_log(char *log) {
         memcpy(f.str, log_with_nl + i * LOG_QUEUE_ITEM_LENGTH, fragment_size);
         xQueueSend(log_queue, &f, portMAX_DELAY);
     }
-    
 }
+
 
 void send_log_task(void *arg) {
     log_fragment buff;

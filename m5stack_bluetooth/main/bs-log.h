@@ -4,8 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void push_log();
-
+void push_log(char *log);
 
 void send_log_task(void *arg);
 

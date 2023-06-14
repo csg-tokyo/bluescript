@@ -1,6 +1,12 @@
 import * as http from "http";
 import {Buffer} from "node:buffer";
 import {Stream} from "./stream";
+import {ErrorLog} from "../transpiler/utils";
+
+const ERROR_CODE = {
+  COMPILE_ERROR: 460,
+  LINK_ERROR: 461
+}
 
 export default class HttpServer {
   readonly PORT = 8080;
@@ -73,8 +79,13 @@ export default class HttpServer {
       }
     } catch (e) {
       console.log(e);
-      responseBody = {message: e};
-      statusCode = 500;
+      if (e instanceof ErrorLog) {
+        responseBody = {message: e};
+        statusCode = ERROR_CODE.COMPILE_ERROR;
+      } else {
+        responseBody = {message: e};
+        statusCode = 500;
+      }
     }
     return [JSON.stringify(responseBody), statusCode];
   }

@@ -9,7 +9,7 @@
 #include <driver/ledc.h>
 #include "utils.h"
 #include "c-runtime.h"
-#include "bluescript-log.h"
+#include "bs-log.h"
 
 static const char *TAG = "blink";
 #define BLINK_GPIO GPIO_NUM_15

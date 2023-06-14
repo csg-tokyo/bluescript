@@ -1,4 +1,5 @@
 import axios from "axios";
+import { CompileError } from "../utils/error";
 
 export async function onetimeCompile(src: string): Promise<{exe: string}> {
     return post("onetime-compile", {src});
@@ -18,10 +19,19 @@ async function post(path: string, body: object) {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
   };
-  const response = await axios.post(
+  try {
+    const response = await axios.post(
     baseURL + path,
     body,
     { headers }
   );
   return JSON.parse(response.data);
+  } catch (e) {
+    if (e instanceof axios.AxiosError) {
+      if (e.response?.status === CompileError.errorCode) {
+        throw new CompileError(JSON.parse(e.response?.data).message.messages)
+      }
+    }
+    throw e;
+  }
 }

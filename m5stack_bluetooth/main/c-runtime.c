@@ -32,6 +32,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include "c-runtime.h"
+#include "bs-log.h"
 
 #ifdef BIT64
 
@@ -93,7 +94,7 @@ static char error_message[256];
 int32_t try_and_catch(void (*main_function)()) {
     error_message[0] = '\0';
     if (setjmp(long_jump_buffer) != 0) {
-        fputs(error_message, stderr);
+        push_log(error_message);
         return 1;
     }
     else {

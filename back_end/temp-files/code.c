@@ -6,6 +6,6 @@ ROOT_SET_DECL(global_rootset2, 0)
 void bluescript_main2() {
   ROOT_SET_INIT(global_rootset2, 0)
   ROOT_SET(func_rootset, 0)
-  _console_log_number(3);
+  _console_log_number();
   DELETE_ROOT_SET(func_rootset)
 }

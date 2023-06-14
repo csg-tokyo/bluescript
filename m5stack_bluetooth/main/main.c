@@ -7,7 +7,7 @@
 #include "executor.h"
 #include "c-runtime.h"
 #include "utils.h"
-#include "bluescript-log.h"
+#include "bs-log.h"
 
 
 void app_main(void)
