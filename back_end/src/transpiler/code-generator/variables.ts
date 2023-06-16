@@ -137,8 +137,8 @@ export class FunctionEnv extends VariableEnv {
 
   override allocate() {
     const next = this.nextVar++
-    if (next <= this.numOfVars)
-      this.numOfVars++
+    if (this.numOfVars < this.nextVar)
+      this.numOfVars = this.nextVar
 
     return next
   }
@@ -173,9 +173,11 @@ export class GlobalEnv extends FunctionEnv {
 }
 
 export class CodeWriter {
-  private static indentSpaces = ['', '  ', '    ', '      ']
+  private static indentSpaces = ['', '  ', '    ', '      ', '        ',
+                                 '          ']
   private code = ''
   private indentLevel = 0
+  private spaceIndex = 0
 
   copy() {
     const writer = new CodeWriter()
@@ -191,25 +193,27 @@ export class CodeWriter {
   }
 
   right() {
-    this.indentLevel++
-    if (this.indentLevel >= CodeWriter.indentSpaces.length)
-      this.indentLevel = CodeWriter.indentSpaces.length - 1
-
+    this.updateIndent(++this.indentLevel)
     return this
   }
 
   left() {
-    this.indentLevel--
-    if (this.indentLevel < 0)
-      this.indentLevel = 0
-
+    this.updateIndent(--this.indentLevel)
     return this
+  }
+
+  updateIndent(level: number) {
+    if (level >= CodeWriter.indentSpaces.length)
+      this.spaceIndex = CodeWriter.indentSpaces.length - 1
+    else if (level < 0)
+      this.spaceIndex = 0
+    else
+      this.spaceIndex = level
   }
 
   nl() {    // new line
     this.code += '\n'
-    const level = this.indentLevel
-    this.code += CodeWriter.indentSpaces[level]
+    this.code += CodeWriter.indentSpaces[this.spaceIndex]
     return this
   }
 }

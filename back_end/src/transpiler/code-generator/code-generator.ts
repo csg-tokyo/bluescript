@@ -22,11 +22,14 @@ export function transpile(sessionId: number, src: string, gnt?: GlobalNameTable<
   const mainFuncName = `${CONSTANTS.ENTRY_POINT_NAME}${sessionId}`
   const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${sessionId}`)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
-  return { code: generator.getCode(), main: mainFuncName, names: nameTable }
+  if (generator.errorLog.hasError())
+    throw generator.errorLog
+  else
+    return { code: generator.getCode(), main: mainFuncName, names: nameTable }
 }
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
-  private errorLog = new ErrorLog()
+  errorLog = new ErrorLog()
   private result =  new CodeWriter()
   private signatures = ''                   // function prototypes etc.
   private declarations = new CodeWriter()   // function declarations etc.
@@ -161,7 +164,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (node.init)
       this.visit(node.init, env2)
 
-    this.result.write('; ')
+    if (!node.init || AST.isExpression(node.init))
+      this.result.write('; ')
+
     if (node.test)
       this.testExpression(node.test, env2)
 
@@ -374,15 +379,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     declarations.nl().write(cr.makeRootSet(fenv.getNumOfVars()))
     declarations.write(this.result.getCode())
-    if (funcType.returnType === Void && !this.endWithReturn)
-      declarations.nl().write(cr.deleteRootSet)
+    if (!this.endWithReturn)
+      if (funcType.returnType === Void)
+        declarations.nl().write(cr.deleteRootSet)
+      else
+        this.errorLog.push('a non-void function must return a value', node)
 
     declarations.left().nl().write('}').nl()
     this.result = prevResult
   }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
-    this.result.write(node.operator)
     const type = this.needsCoercion(node.argument)
     if (type)
       if (node.operator === '-')
@@ -398,8 +405,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else
         this.result.write('(')
     else {
-      this.result.write('(')
       this.result.write(node.operator)
+      this.visit(node.argument, env)
+      return
     }
 
     this.visit(node.argument, env)
@@ -407,15 +415,21 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   updateExpression(node: AST.UpdateExpression, env: VariableEnv): void {
-    // node.argument is not value_t
-    if (node.prefix) {
-      this.result.write(node.operator)
+    const type = this.needsCoercion(node.argument)
+    if (type === Any) {
+      this.result.write(`${cr.updateOpForAny(node.prefix, node.operator)}(&`)
       this.visit(node.argument, env)
+      this.result.write(')')
     }
-    else {
-      this.visit(node.argument, env)
-      this.result.write(node.operator)
-    }
+    else
+      if (node.prefix) {
+        this.result.write(node.operator)
+        this.visit(node.argument, env)
+      }
+      else {
+        this.visit(node.argument, env)
+        this.result.write(node.operator)
+      }
   }
 
   binaryExpression(node: AST.BinaryExpression, env: VariableEnv): void {

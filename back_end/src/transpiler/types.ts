@@ -139,8 +139,10 @@ export function sameType(t1: StaticType, t2: StaticType) {
 // isConsistent(t1, t2) is true when a t1 value is assignable to a t2 variable
 // after explicit conversion.  That conversion may throw a runtime type error.
 export function isConsistent(t1: StaticType, t2: StaticType) {
-  if (t1 === Any || t2 === Any)
-    return t1 !== t2
+  if (t1 === Any)
+    return t1 !== t2 && t2 !== Void
+  else if (t2 === Any)
+    return t1 !== Void
   else
     return false
 }

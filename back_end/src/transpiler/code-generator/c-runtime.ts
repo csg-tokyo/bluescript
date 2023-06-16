@@ -102,6 +102,19 @@ export function arithmeticOpForAny(op: string) {
   }
 }
 
+export function updateOpForAny(prefix: boolean, op: string) {
+  if (prefix)
+    if (op === '++')
+      return 'any_increment'
+    else
+      return 'any_decrement'
+  else
+    if (op === '++')
+      return 'any_post_increment'
+    else
+      return 'any_post_decrement'
+}
+
 export const globalRootSetName = 'global_rootset'
 
 export function makeRootSet(n: number) {
