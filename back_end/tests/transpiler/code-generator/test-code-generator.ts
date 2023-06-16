@@ -42,3 +42,16 @@ export function compileAndRun(src: string) {
     execSync(`cc -DBIT64 -g -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript.o`)
     return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
 }
+
+export function compileFileAndRun() {
+    const result1 = transpile(1, prolog)
+    let globalNames = result1.names
+    const src = fs.readFileSync("./sample/nbody.ts").toString();
+    const result2 = transpile(2, src, globalNames)
+    globalNames = result2.names
+    const destFile = './temp-files/bscript.c'
+    fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main));
+    // throw an Error when compilation fails.
+    execSync(`cc -DBIT64 -g -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript.o`)
+    return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
+}

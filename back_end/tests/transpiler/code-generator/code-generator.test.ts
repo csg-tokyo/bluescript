@@ -1,4 +1,4 @@
-import { compileAndRun } from './test-code-generator'
+import {compileAndRun, compileFileAndRun} from './test-code-generator'
 
 test('simple code', () => {
   const src = 'print(1 + 1)'
@@ -60,4 +60,8 @@ test('bad value assignment to an array', () => {
   print(foo(4))`
 
   expect(() => { compileAndRun(src) }).toThrow(/not assignable to element type/)
+})
+
+test("dammy", () => {
+  compileFileAndRun();
 })
