@@ -1,23 +1,22 @@
 import * as AST from '@babel/types'
-import { runBabelParser, ErrorLog } from '../utils'
+import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
          ObjectType, FunctionType,
          StaticType, isPrimitiveType, } from '../types'
 import * as visitor from '../visitor'
-import { GlobalNameTable,
-         getCoercionFlag, getStaticType } from '../type-checker/names'
+import { getCoercionFlag, getStaticType } from '../type-checker/names'
 import { typecheck } from '../type-checker/type-checker'
-import { CodeWriter, VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
-         getVariableNameTable } from './variables'
+import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
+         GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
 
 // sessionId: an integer more than zero.  It is used for generating a unique name.
-export function transpile(sessionId: number, src: string, gnt?: GlobalNameTable<VariableInfo>, startLine: number = 1) {
+export function transpile(sessionId: number, src: string, gvnt?: GlobalVariableNameTable, startLine: number = 1) {
   const ast = runBabelParser(src, startLine);
   const maker = new VariableNameTableMaker()
-  const nameTable = new GlobalNameTable<VariableInfo>(gnt)
+  const nameTable = new GlobalVariableNameTable(gvnt)
   typecheck(ast, maker, nameTable)
-  const nullEnv = new GlobalEnv(new GlobalNameTable<VariableInfo>(), cr.globalRootSetName)
+  const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
   const mainFuncName = `${cr.mainFunctionName}${sessionId}`
   const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${sessionId}`)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
@@ -57,6 +56,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result = new CodeWriter().right()
     for (const child of node.body)
       this.visit(child, env2);
+
+    const externalRoots: { [key: string]: boolean } = {}
+    env2.forEachExternalVariable((name, type) => {
+      if (type === Null) {
+        if (externalRoots[name])
+          externalRoots[name] = true
+          this.signatures += `extern ${cr.declareRootSet(name, 1)}\n`
+      }
+      else
+        this.signatures += `extern ${cr.typeToCType(type, name)};\n`
+    })
 
     this.signatures += `void ${this.initializerName}();\n${cr.declareRootSet(this.globalRootSetName, size)}\n`
     oldResult.write(`\nvoid ${this.initializerName}() {`)
@@ -213,12 +223,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (node.argument) {
       const retType = env.returnType()
       if (retType !== null && retType !== undefined) {
-        const typeName = cr.typeToCType(retType)
+        const typeAndVar = cr.typeToCType(retType, cr.returnValueVariable)
         const type = this.needsCoercion(node.argument)
         if (type)
-          this.result.write(`{ ${typeName} ${cr.returnValueVariable} = ${cr.typeConversion(type, retType)}(`)
+          this.result.write(`{ ${typeAndVar} = ${cr.typeConversion(type, retType)}(`)
         else
-          this.result.write(`{ ${typeName} ${cr.returnValueVariable} = (`)
+          this.result.write(`{ ${typeAndVar} = (`)
 
         this.visit(node.argument, env)
         this.result.write(`); ${cr.deleteRootSet}; return ${cr.returnValueVariable}; }`)
@@ -349,7 +359,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const funcInfo = env.table.lookup(funcName)
     const transpiledFuncName = funcInfo ? funcInfo.transpiledName(funcName) : funcName
-    let sig = `${cr.typeToCType(funcType.returnType)} ${transpiledFuncName}(`
+    let sig = `${cr.typeToCType(funcType.returnType, transpiledFuncName)}(`
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       if (i > 0)
         sig += ', '
@@ -359,7 +369,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       let info = fenv.table.lookup(paramName)
       if (info !== undefined) {
         const name = info.transpiledName(paramName)
-        sig += `${cr.typeToCType(paramType)} ${name}`
+        sig += cr.typeToCType(paramType, name)
         if (info.index !== undefined)
           newResult.nl().write(info.transpile(paramName)).write(` = ${name};`)
       }

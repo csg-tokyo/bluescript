@@ -6,7 +6,33 @@ import { Integer, Float, Boolean, String, Void, Null, Any,
 export const mainFunctionName = 'bluescript_main'
 export const returnValueVariable = 'ret_value_'
 
-export function typeToCType(type: StaticType):string {
+export function typeToCType(type: StaticType, name: string = ''): string {
+  if (type instanceof FunctionType) {
+    let typename = typeToCType(type.returnType)
+    typename += ' '
+    if (typename !== '')
+      typename += name
+
+    typename += '('
+    let first = true
+    for (const param of type.paramTypes) {
+      if (first)
+        first = false
+      else
+        typename += ', '
+
+      typename += typeToCType(param)
+    }
+
+    return typename + ')'
+  }
+  else if (name === '')
+    return typeToCType2(type)
+  else
+    return `${typeToCType2(type)} ${name}`
+}
+
+function typeToCType2(type: StaticType): string {
   if (type instanceof ObjectType)
     return 'value_t';
   else

@@ -12,14 +12,14 @@ import {
 } from '../types'
 
 import {
-  NameTable, NameTableMaker, GlobalNameTable, NameInfo,
+  NameTable, NameTableMaker, BasicGlobalNameTable, NameInfo,
   addNameTable, addStaticType, getStaticType, BasicNameTableMaker,
   addCoercionFlag
 } from './names'
 
 
 // entry point for just running a type checker
-export function runTypeChecker(ast: AST.Node, names: GlobalNameTable<NameInfo>) {
+export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable) {
   const maker = new BasicNameTableMaker()
   return typecheck(ast, maker, names)
 }
@@ -487,16 +487,20 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.visit(node.callee, names)
     if (this.result instanceof FunctionType) {
       const func_type = this.result
-      for (let i = 0; i < node.arguments.length; i++) {
-        const arg = node.arguments[i]
-        this.visit(arg, names)
-        if (isConsistent(this.result, func_type.paramTypes[i]))
-          this.addCoercion(arg, this.result)
-        else
-          this.assert(isSubtype(this.result, func_type.paramTypes[i]),
-            `passing an incompatible argument (${this.result} to ${func_type.paramTypes[i]})`,
-            node)
-      }
+      if (node.arguments.length !== func_type.paramTypes.length)
+        this.assert(false, 'wrong number of arguments', node)
+      else
+        for (let i = 0; i < node.arguments.length; i++) {
+          const arg = node.arguments[i]
+          this.visit(arg, names)
+          if (isConsistent(this.result, func_type.paramTypes[i]))
+            this.addCoercion(arg, this.result)
+          else
+            this.assert(isSubtype(this.result, func_type.paramTypes[i]),
+              `passing an incompatible argument (${this.result} to ${func_type.paramTypes[i]})`,
+              node)
+        }
+
       this.addStaticType(node.callee, func_type)
       this.result = func_type.returnType
     }

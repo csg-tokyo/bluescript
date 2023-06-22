@@ -23,8 +23,10 @@ export class ObjectType {
     return 'object'
   }
 
+  getSuperType(): ObjectType | null { return null }
+
   isSubtypeOf(t: StaticType): boolean {
-    return this === t
+    return this === t || this.getSuperType()?.isSubtypeOf(t) || false
   }
 
   sameType(t: StaticType): boolean {
@@ -47,6 +49,8 @@ export class FunctionType extends ObjectType {
   name() {
     return `${this.paramTypes.map(typeToString)} -> ${typeToString(this.returnType)}`
   }
+
+  override getSuperType(): ObjectType | null { return null }
 
   isSubtypeOf(t: StaticType): boolean {
     if (t instanceof FunctionType)
@@ -87,11 +91,10 @@ export class ArrayType extends ObjectType {
     return `${typeToString(this.elementType)}[]`
   }
 
-  isSubtypeOf(t: StaticType): boolean {
-    if (t instanceof ArrayType)
-      return isSubtype(this.elementType, t.elementType)
+  getSuperType(): ObjectType | null { return null }
 
-    return false
+  isSubtypeOf(t: StaticType): boolean {
+    return this.sameType(t)
   }
 
   sameType(t: StaticType): boolean {
@@ -148,10 +151,17 @@ export function isConsistent(t1: StaticType, t2: StaticType) {
 }
 
 export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | undefined {
-  if (isSubtype(t1, t2))
+  if (t1 === Float && t2 === Integer)
+    return Float
+  else if (isSubtype(t1, t2))
     return t2
   else if (isSubtype(t2, t1))
     return t1
-  else
-    return undefined
+  else if (t1 instanceof ObjectType) {
+    const s = t1.getSuperType()
+    if (s !== null)
+      return commonSuperType(s, t2)
+  }
+
+  return undefined
 }

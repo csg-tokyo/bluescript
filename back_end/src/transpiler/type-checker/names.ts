@@ -18,6 +18,14 @@ export class NameInfo {
     this.captured = false
   }
 
+  copyFrom(info: NameInfo) {
+    this.type = info.type
+    this.isTypeName = info.isTypeName
+    this.isConst = info.isConst
+    this.isFunction = info.isFunction
+    this.captured = info.captured
+  }
+
   setup(f: (obj: this) => void) {
     f(this)
     return this
@@ -57,7 +65,7 @@ export interface NameTable<Info extends NameInfo> {
   setReturnType(t: StaticType): void
 }
 
-export class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
+export abstract class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
   map: Map<string, Info>
   parent?: NameTable<Info>
 
@@ -92,11 +100,22 @@ export class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
 
   lookup(key: string): Info | undefined {
     const found = this.map.get(key)
-    if (found === undefined)
-      return this.parent?.lookup(key)
+    if (found === undefined) {
+      // return this.parent?.lookup(key)
+      const freeVariable = this.parent?.lookup(key)
+      if (freeVariable === undefined)
+        return undefined
+      else {
+        const info = this.makeFreeInfo(freeVariable)
+        this.map.set(key, info)
+        return info
+      }
+    }
     else
       return found
   }
+
+  abstract makeFreeInfo(free: Info): Info
 
   returnType(): StaticType | undefined | null {
     return null     // not in a function body.
@@ -226,3 +245,8 @@ class BasicFunctionNameTable extends FunctionNameTable<NameInfo> {
   }
 }
 
+export class BasicGlobalNameTable extends GlobalNameTable<NameInfo> {
+  override makeFreeInfo(free: NameInfo) {
+    return new FreeNameInfo(free)
+  }
+}
