@@ -87,9 +87,11 @@ export abstract class GlobalNameTable<Info extends NameInfo> implements NameTabl
     this.map.forEach(f)
   }
 
+  // It does not record a name if the name is already recorded
+  // in a parent NameTable.
   record(key: string, t: StaticType, maker: NameTableMaker<Info>,
          init?: (i: Info) => void): boolean {
-    const old = this.map.get(key)
+    const old = this.lookup(key)
     const info = maker.globalInfo(t)
     if (init !== undefined)
       init(info)
@@ -98,10 +100,11 @@ export abstract class GlobalNameTable<Info extends NameInfo> implements NameTabl
     return old === undefined
   }
 
+  // When it finds a name in a parent NameTable,
+  // it will add a FreeNameInfo object to its table.
   lookup(key: string): Info | undefined {
     const found = this.map.get(key)
     if (found === undefined) {
-      // return this.parent?.lookup(key)
       const freeVariable = this.parent?.lookup(key)
       if (freeVariable === undefined)
         return undefined
@@ -195,7 +198,8 @@ export abstract class FunctionNameTable<Info extends NameInfo> extends BlockName
       return found
   }
 
-  abstract makeFreeInfo(free: Info): Info
+  abstract makeFreeInfo(free: Info): Info     // make a free variable name
+  abstract isFreeInfo(free: Info): boolean    // true if it is a free variable name
 
   returnType(): StaticType | undefined | null {
     return this.thisReturnType
@@ -243,6 +247,7 @@ class BasicFunctionNameTable extends FunctionNameTable<NameInfo> {
   override makeFreeInfo(free: NameInfo) {
     return new FreeNameInfo(free)
   }
+  isFreeInfo(free: NameInfo): boolean { return free instanceof FreeNameInfo }
 }
 
 export class BasicGlobalNameTable extends GlobalNameTable<NameInfo> {

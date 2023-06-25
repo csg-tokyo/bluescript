@@ -81,6 +81,8 @@ class FunctionVarNameTable extends FunctionNameTable<VariableInfo> {
   override makeFreeInfo(free: VariableInfo) {
     return new FreeVariableInfo(free)
   }
+
+  isFreeInfo(free: NameInfo): boolean { return free instanceof FreeVariableInfo }
 }
 
 export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {

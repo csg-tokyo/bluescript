@@ -204,8 +204,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     let alreadyDeclared = false
     if (!this.firstPass) {
       varType = names.lookup(varName)?.type
-      if (varType !== undefined)         // If a variable is global, lookup() does not return undefined
-        alreadyDeclared = true         // during the 2nd pass.  Otherwise, lookup() returns undefined.
+      if (varType !== undefined)         // If a variable is global, lookup().type does not return undefined
+        alreadyDeclared = true           // during the 2nd pass.  Otherwise, lookup().type returns undefined.
     }
 
     if (varType === undefined && typeAnno != null) {
@@ -255,9 +255,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       funcEnv.thisReturnType = this.result
     }
 
-    if (node.id != null)
-      this.assert(names.lookup(node.id.name) === undefined,
-        `function '${node.id.name}' has been already declared.`, node)
+    let info: Info | undefined = undefined
+    // reports an error when a function is declared more than once
+    // within the same global environment.
+    if (node.id != null) {
+      info = names.lookup(node.id.name)
+      this.assert(info === undefined || funcEnv.isFreeInfo(info),
+            `function '${node.id.name}' has been already declared.`, node)
+    }
 
     this.visit(node.body, funcEnv)
     let rtype: StaticType
@@ -269,7 +274,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const ftype = new FunctionType(rtype, paramTypes)
     addStaticType(node, ftype)
     if (node.id != null)
-      names.record(node.id.name, ftype, this.maker, _ => _.isFunction = true)
+      if (info === undefined)   // if new declaration
+        names.record(node.id.name, ftype, this.maker, _ => _.isFunction = true)
+      else
+        this.assert(isSubtype(ftype, info.type),
+            `function '${node.id.name}' is declared again with a different type`, node)
   }
 
   functionDeclarationPass2(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
@@ -298,9 +307,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         varType = this.result
       }
 
-      this.assert(names.lookup(varName)?.type == undefined,
+      this.assert(names.record(varName, varType, this.maker),
         `duplicated parameter name: ${varName}`, node)
-      names.record(varName, varType, this.maker)
       paramTypes.push(varType)
     }
 

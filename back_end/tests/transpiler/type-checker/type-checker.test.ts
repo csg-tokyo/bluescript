@@ -151,3 +151,15 @@ test('bad index type', () => {
 
   expect(() => tested.transpile(src)).toThrow()
 })
+
+test('duplicated parameter names', () => {
+  const src = `function foo(a: number, b, a) { return a }`
+  expect(() => tested.transpile(src)).toThrow()
+})
+
+
+test('duplicated function declarations', () => {
+  const src = `function foo(a: number) { return a }
+function foo(a: number) { return a + 1}`
+  expect(() => tested.transpile(src)).toThrow()
+})

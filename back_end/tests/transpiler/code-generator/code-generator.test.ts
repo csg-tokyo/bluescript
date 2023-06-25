@@ -372,10 +372,42 @@ print(str)
 test('redeefine a global variable', () => {
   const src1 = 'let k = 3'
 
+  const src2 = `let k = true
+`
+  expect(() => { multiCompileAndRun(src1, src2) }).toThrow(/already been declared/)
+})
+
+test('redeefine a global variable after using it', () => {
+  const src1 = 'let k = 3'
+
   const src2 = `function bar(n: integer) {
     return n + k
   }
 let k = true
 `
   expect(() => { multiCompileAndRun(src1, src2) }).toThrow(/already been declared/)
+})
+
+test('forward reference to a global variable', () => {
+  const src1 = 'let j = 3'
+
+  const src2 = `function bar(n: integer) {
+    return n + k + j
+  }
+let k = 10
+print(bar(100))
+`
+  expect(multiCompileAndRun(src1, src2)).toBe('113\n')
+})
+
+test('bad duplicted function declarations', () => {
+  const src1 = 'function foo(a: number): number { return a + 1 }'
+
+  const src2 = `function foo(n: integer): string {
+    return 'test'
+  }
+
+print(foo(100))
+`
+  expect(() => { multiCompileAndRun(src1, src2) }).toThrow(/declared again with a different type/)
 })
