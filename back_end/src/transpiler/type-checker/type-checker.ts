@@ -616,6 +616,26 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.result = new ArrayType(elementType);
   }
 
+  tsFunctionType(node: AST.TSFunctionType, names: NameTable<Info>): void {
+    const params = node.parameters.map(e => {
+      if (e.typeAnnotation) {
+        this.visit(e.typeAnnotation, names);
+        return this.result
+      }
+      else
+        return Any
+    })
+    let ret: StaticType
+    if (node.typeAnnotation) {
+      this.visit(node.typeAnnotation, names)
+      ret = this.result
+    }
+    else
+      ret = Any
+
+    this.result = new FunctionType(ret, params)
+  }
+
   tsNumberKeyword(node: AST.TSNumberKeyword, names: NameTable<Info>): void {
     this.result = Integer
   }

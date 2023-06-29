@@ -47,6 +47,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'TSTypeAnnotation', (visitor, node, env) => visitor.tsTypeAnnotation(node as AST.TSTypeAnnotation, env) ],
         [ 'TSTypeReference', (visitor, node, env) => visitor.tsTypeReference(node as AST.TSTypeReference, env) ],
         [ 'TSArrayType', (visitor, node, env) => visitor.tsArrayType(node as AST.TSArrayType, env) ],
+        [ 'TSFunctionType', (visitor, node, env) => visitor.tsFunctionType(node as AST.TSFunctionType, env) ],
         [ 'TSNumberKeyword', (visitor, node, env) => visitor.tsNumberKeyword(node as AST.TSNumberKeyword, env) ],
         [ 'TSVoidKeyword', (visitor, node, env) => visitor.tsVoidKeyword(node as AST.TSVoidKeyword, env) ],
         [ 'TSBooleanKeyword', (visitor, node, env) => visitor.tsBooleanKeyword(node as AST.TSBooleanKeyword, env) ],
@@ -104,6 +105,7 @@ export abstract class NodeVisitor<Environment> {
     abstract tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void
     abstract tsTypeReference(node: AST.TSTypeReference, env: Environment): void
     abstract tsArrayType(node: AST.TSArrayType, env: Environment): void
+    abstract tsFunctionType(node: AST.TSFunctionType, env: Environment): void
     abstract tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void
     abstract tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void
     abstract tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void
@@ -149,6 +151,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {}
     tsTypeReference(node: AST.TSTypeReference, env: Environment): void {}
     tsArrayType(node: AST.TSArrayType, env: Environment): void {}
+    tsFunctionType(node: AST.TSFunctionType, env: Environment): void {}
     tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {}
     tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void {}
     tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void {}

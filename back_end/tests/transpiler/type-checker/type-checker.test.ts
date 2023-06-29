@@ -173,3 +173,14 @@ test('assign to a function name', () => {
   `
   expect(() => tested.transpile(src)).toThrow(/assignment to constant.*line 3/)
 })
+
+test('function type', () => {
+  const src = `let foo: (a: float, b: string)=>integer
+`
+  const ast = tested.transpile(src)
+  const table = names.getNameTable(ast.program)
+  const a = table?.lookup('foo')?.type
+  expect((a as types.FunctionType).paramTypes[0]).toBe(types.Float)
+  expect((a as types.FunctionType).paramTypes[1]).toBe(types.String)
+  expect((a as types.FunctionType).returnType).toBe(types.Integer)
+})

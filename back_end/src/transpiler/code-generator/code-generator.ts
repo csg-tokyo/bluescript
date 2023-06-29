@@ -722,5 +722,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   tsArrayType(node: AST.TSArrayType, env: VariableEnv) {}
 
+  tsFunctionType(node: AST.TSFunctionType, env: VariableEnv): void {}
+
   tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: VariableEnv): void {}
 }
