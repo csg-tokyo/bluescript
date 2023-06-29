@@ -10,21 +10,30 @@ export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | '
   ObjectType | FunctionType
 
 export function isPrimitiveType(type: StaticType) {
-  // unless String, Null, Any, object type, or function type
-  return type === Integer || type === Float || type === Boolean || type === Void
+  // unless String, Null, Any, or object type
+  return type === Integer || type === Float || type === Boolean || type === Void || type instanceof FunctionType
 }
 
 export function isNumeric(t: StaticType) {
   return t === Integer || t === Float
 }
 
-export class ObjectType {
+abstract class CompositeType {
+  abstract name(): string
+  abstract isSubtypeOf(t: StaticType): boolean
+  abstract sameType(t: StaticType): boolean
+
+  getSuperType(): ObjectType | null { return null }
+}
+
+// type represented by value_t
+export class ObjectType extends CompositeType {
   name() {
     return 'object'
   }
 
   isSubtypeOf(t: StaticType): boolean {
-    return this === t
+    return this === t || this.getSuperType()?.isSubtypeOf(t) || false
   }
 
   sameType(t: StaticType): boolean {
@@ -34,7 +43,8 @@ export class ObjectType {
 
 export const objectType = new ObjectType()
 
-export class FunctionType extends ObjectType {
+// this is one of primitive types
+export class FunctionType extends CompositeType {
   returnType: StaticType
   paramTypes: StaticType[]
 
@@ -88,10 +98,7 @@ export class ArrayType extends ObjectType {
   }
 
   isSubtypeOf(t: StaticType): boolean {
-    if (t instanceof ArrayType)
-      return isSubtype(this.elementType, t.elementType)
-
-    return false
+    return this.sameType(t)
   }
 
   sameType(t: StaticType): boolean {
@@ -104,10 +111,38 @@ export class ArrayType extends ObjectType {
 
 // type name used for error messages
 export function typeToString(type: StaticType): string {
-  if (type instanceof ObjectType)
+  if (type instanceof CompositeType)
     return type.name()
   else
     return type
+}
+
+export function encodeType(type: StaticType): string {
+  switch (type) {
+  case Integer:
+    return 'i'
+  case Float:
+    return 'f'
+  case Boolean:
+    return 'b'
+  case String:
+    return 's'
+  case Void:
+    return 'v'
+  case Null:
+    return 'n'
+  case Any:
+    return 'a'
+  default:
+    if (type instanceof ArrayType)
+      return '[' + encodeType(type.elementType)
+    else if (type instanceof FunctionType)
+      return `(${type.paramTypes.map(e => encodeType(e)).join('')})${encodeType(type.returnType)}`
+    else if (type instanceof ObjectType)
+      return `'${type.name()}'`
+    else
+      throw new Error(`cannot encode: ${typeToString(type)}`)
+  }
 }
 
 // t1 is a subtype of t2 when a t1 value is assignable to a t2 variable without explicit conversion
@@ -121,7 +156,7 @@ export function isSubtype(subtype: StaticType, type: StaticType): boolean {
     return true
   else if (type === Boolean)
     return subtype !== Void && subtype !== Any
-  else if (subtype instanceof ObjectType)
+  else if (subtype instanceof CompositeType)
     return subtype.isSubtypeOf(type)
   else
     return false
@@ -130,7 +165,7 @@ export function isSubtype(subtype: StaticType, type: StaticType): boolean {
 export function sameType(t1: StaticType, t2: StaticType) {
   if (t1 === t2)
     return true
-  else if (t1 instanceof ObjectType)
+  else if (t1 instanceof CompositeType)
     return t1.sameType(t2)
   else
     return false
@@ -140,18 +175,25 @@ export function sameType(t1: StaticType, t2: StaticType) {
 // after explicit conversion.  That conversion may throw a runtime type error.
 export function isConsistent(t1: StaticType, t2: StaticType) {
   if (t1 === Any)
-    return t1 !== t2 && t2 !== Void
+    return t1 !== t2 && t2 !== Void && !(t2 instanceof FunctionType)
   else if (t2 === Any)
-    return t1 !== Void
+    return t1 !== Void && !(t1 instanceof FunctionType)
   else
     return false
 }
 
 export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | undefined {
-  if (isSubtype(t1, t2))
+  if (t1 === Float && t2 === Integer)
+    return Float
+  else if (isSubtype(t1, t2))
     return t2
   else if (isSubtype(t2, t1))
     return t1
-  else
-    return undefined
+  else if (t1 instanceof CompositeType) {
+    const s = t1.getSuperType()
+    if (s !== null)
+      return commonSuperType(s, t2)
+  }
+
+  return undefined
 }

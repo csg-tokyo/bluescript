@@ -1,31 +1,32 @@
 import * as AST from '@babel/types'
-import { runBabelParser, ErrorLog } from '../utils'
+import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
          ObjectType, FunctionType,
-         StaticType, isPrimitiveType, } from '../types'
+         StaticType, isPrimitiveType, encodeType, sameType } from '../types'
 import * as visitor from '../visitor'
-import { GlobalNameTable,
-         getCoercionFlag, getStaticType } from '../type-checker/names'
+import { getCoercionFlag, getStaticType } from '../type-checker/names'
 import { typecheck } from '../type-checker/type-checker'
-import { CodeWriter, VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
-         getVariableNameTable } from './variables'
+import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
+         GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
 import CONSTANTS from "../../constants";
 
-// sessionId: an integer more than zero.  It is used for generating a unique name.
-export function transpile(sessionId: number, src: string, gnt?: GlobalNameTable<VariableInfo>, startLine: number = 1) {
+// codeId: an integer more than zero.  It is used for generating a unique name.
+export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
+                          startLine: number = 1, header: string = '') {
   const ast = runBabelParser(src, startLine);
   const maker = new VariableNameTableMaker()
-  const nameTable = new GlobalNameTable<VariableInfo>(gnt)
+  const nameTable = new GlobalVariableNameTable(gvnt)
   typecheck(ast, maker, nameTable)
-  const nullEnv = new GlobalEnv(new GlobalNameTable<VariableInfo>(), cr.globalRootSetName)
-  const mainFuncName = `${CONSTANTS.ENTRY_POINT_NAME}${sessionId}`
-  const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${sessionId}`)
+  const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
+  const mainFuncName = `${CONSTANTS.ENTRY_POINT_NAME}${codeId}`
+  const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${codeId}`)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   if (generator.errorLog.hasError())
     throw generator.errorLog
   else
-    return { code: generator.getCode(), main: mainFuncName, names: nameTable }
+    return { code: generator.getCode(header),
+             main: mainFuncName, names: nameTable }
 }
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
@@ -43,8 +44,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.globalRootSetName = globalRootsetName
   }
 
-  getCode() {
-    return this.signatures + this.declarations.getCode() + this.result.getCode()
+  getCode(header: string) {
+    return `${this.signatures}${header}${this.declarations.getCode()}${this.result.getCode()}`
   }
 
   file(node: AST.File, env: VariableEnv): void {
@@ -58,6 +59,19 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result = new CodeWriter().right()
     for (const child of node.body)
       this.visit(child, env2);
+
+    const externalRoots: { [key: string]: boolean } = {}
+    env2.forEachExternalVariable((name, type) => {
+      if (type === Null) {
+        if (externalRoots[name])
+          externalRoots[name] = true
+          this.signatures += `extern ${cr.declareRootSet(name, 1)}\n`
+      }
+      else if (type instanceof FunctionType)
+        this.signatures += this.makeFunctionStruct(name, type)
+      else
+        this.signatures += `extern ${cr.typeToCType(type, name)};\n`
+    })
 
     this.signatures += `void ${this.initializerName}();\n${cr.declareRootSet(this.globalRootSetName, size)}\n`
     oldResult.write(`\nvoid ${this.initializerName}() {`)
@@ -94,8 +108,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   identifier(node: AST.Identifier, env: VariableEnv): void {
     const info = env.table.lookup(node.name)
-    if (info !== undefined)
-      this.result.write(info.transpile(node.name))
+    if (info !== undefined) {
+      if (info.isFunction)
+        this.result.write(`${info.transpile(node.name)}.${cr.functionPtr}`)
+      else
+        this.result.write(info.transpile(node.name))
+    }
   }
 
   whileStatement(node: AST.WhileStatement, env: VariableEnv): void {
@@ -214,12 +232,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (node.argument) {
       const retType = env.returnType()
       if (retType !== null && retType !== undefined) {
-        const typeName = cr.typeToCType(retType)
+        const typeAndVar = cr.typeToCType(retType, cr.returnValueVariable)
         const type = this.needsCoercion(node.argument)
         if (type)
-          this.result.write(`{ ${typeName} ${cr.returnValueVariable} = ${cr.typeConversion(type, retType)}(`)
+          this.result.write(`{ ${typeAndVar} = ${cr.typeConversion(type, retType)}(`)
         else
-          this.result.write(`{ ${typeName} ${cr.returnValueVariable} = (`)
+          this.result.write(`{ ${typeAndVar} = (`)
 
         this.visit(node.argument, env)
         this.result.write(`); ${cr.deleteRootSet}; return ${cr.returnValueVariable}; }`)
@@ -254,14 +272,19 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (env instanceof GlobalEnv)
       sig = ''
 
-    let type = undefined
+    let isFirst = true
+    let thisType: StaticType = Void
     for (const decl of node.declarations) {
       const varName = (decl.id as AST.Identifier).name
       const info = env.table.lookup(varName)
       if (info !== undefined) {
         const typeName = cr.typeToCType(info.type)
-        if (type === undefined || type === typeName) {
-          [type, sig] = this.varDeclarator(info, type, typeName, varName, sig)
+        if (isFirst || sameType(thisType, info.type)) {
+          sig = this.varDeclarator(info, isFirst, varName, sig)
+          if (isFirst) {
+            isFirst = false
+            thisType = info.type
+          }
 
           if (decl.init) {
             const initType = this.needsCoercion(decl.init)
@@ -279,8 +302,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
             this.result.write(' = 0')   // even when the type is float
         }
         else {
-            this.errorLog.push('mixed type declaration is not supported', node)
-            break
+          // A declaration with more than one function-type variable is also an error.
+          this.errorLog.push('mixed-type declaration is not supported', node)
+          break
         }
       }
     }
@@ -294,17 +318,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   // If signature is not undefined, this is a top-level declaration.
   // A declaration is separated from its initialization.
-  private varDeclarator(info: VariableInfo, type: any, typeName: string,
+  private varDeclarator(info: VariableInfo, isFirst: boolean,
                         varName: string, signature: string | undefined) {
     if (isPrimitiveType(info.type)) {
       const name = info.transpiledName(varName)
-      if (type === undefined) {
-        type = typeName
+      const typeAndVarName = cr.typeToCType(info.type, name)
+      if (isFirst) {
         if (signature === undefined)
-          this.result.nl().write(`${typeName} ${name}`)
+          this.result.nl().write(typeAndVarName)
         else {
           this.result.nl().write(name)
-          signature += `${typeName} ${name}`
+          signature += typeAndVarName
         }
       }
       else {
@@ -314,16 +338,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       }
     }
     else {
-      if (type === undefined) {
+      if (isFirst)
         this.result.nl()
-        type = typeName
-      }
       else
         this.result.write(', ')
 
       this.result.write(info.transpile(varName))
     }
-    return [type, signature]
+    return signature
   }
 
   private needsCoercion(node: AST.Node) {
@@ -338,47 +360,41 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     throw this.errorLog.push('cannot directly visit AST.VariableDeclarator', node)
   }
 
+  /* For this function:
+       function foo(n: integer) { return n + 1 }
+     This method generates the following C code:
+       extern struct _foo {
+         int32_t (*fptr)(int32_t);
+         const char* sig; } _foo;
+       static int32_t fbody_foo(int32_t _n) { ... function body ... }
+       struct _foo _foo = { fbody_foo, "..." };
+
+     A function-type value is a pointer to _foo of type struct _foo.
+  */
   functionDeclaration(node: AST.FunctionDeclaration, env: VariableEnv): void {
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
     const funcName = (node.id as AST.Identifier).name
     const funcType = getStaticType(node) as FunctionType;
     const prevResult = this.result
     this.result = this.declarations
-    const newResult = this.result.copy()
-    newResult.right()
+    const bodyResult = this.result.copy()
+    bodyResult.right()
     fenv.allocateRootSet()
 
     const funcInfo = env.table.lookup(funcName)
+    let sig = this.makeParameterList(funcType, node, fenv, bodyResult)
     const transpiledFuncName = funcInfo ? funcInfo.transpiledName(funcName) : funcName
-    let sig = `${cr.typeToCType(funcType.returnType)} ${transpiledFuncName}(`
-    for (let i = 0; i < funcType.paramTypes.length; i++) {
-      if (i > 0)
-        sig += ', '
-
-      const paramName = (node.params[i] as AST.Identifier).name;
-      const paramType = funcType.paramTypes[i];
-      const info = fenv.table.lookup(paramName)
-      if (info !== undefined) {
-        const name = info.transpiledName(paramName)
-        sig += `${cr.typeToCType(paramType)} ${name}`
-        if (info.index !== undefined)
-          newResult.nl().write(info.transpile(paramName)).write(` = ${name};`)
-      }
-    }
-
-    sig += ')'
-    this.signatures += sig + ';\n'
-    this.result.nl().write(sig)
-    this.result.write(' {')
+    let funcHeader = cr.typeToCType(funcType.returnType, 'fbody' + transpiledFuncName)
+    this.result.nl().write(`static ${funcHeader}${sig} {`)
     this.result.right()
-    const declarations = this.result  // this is equal to this.declarations
-    this.result = newResult
+    const declarations = this.result  // this.result == this.declarations
+    this.result = bodyResult
 
     this.result.nl()
     this.visit(node.body, fenv)
 
     declarations.nl().write(cr.makeRootSet(fenv.getNumOfVars()))
-    declarations.write(this.result.getCode())
+    declarations.write(this.result.getCode())   // = .write(bodyResult.getCode())
     if (!this.endWithReturn)
       if (funcType.returnType === Void)
         declarations.nl().write(cr.deleteRootSet)
@@ -386,7 +402,43 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         this.errorLog.push('a non-void function must return a value', node)
 
     declarations.left().nl().write('}').nl()
+
+    const fname = transpiledFuncName
+    if (fenv.isFreeVariable(funcInfo))
+      prevResult.nl().write(`${fname}.${cr.functionPtr} = fbody${fname};`).nl()
+    else {
+      this.signatures += this.makeFunctionStruct(fname, funcType)
+      declarations.write(`struct ${fname} ${fname} = { fbody${fname}, "${encodeType(funcType)}" };`).nl()
+    }
+
     this.result = prevResult
+  }
+
+  private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration,
+                            fenv: FunctionEnv, bodyResult: CodeWriter) {
+    let sig = '('
+    for (let i = 0; i < funcType.paramTypes.length; i++) {
+      if (i > 0)
+        sig += ', '
+
+      const paramName = (node.params[i] as AST.Identifier).name
+      const paramType = funcType.paramTypes[i]
+      let info = fenv.table.lookup(paramName)
+      if (info !== undefined) {
+        const name = info.transpiledName(paramName)
+        sig += cr.typeToCType(paramType, name)
+        if (info.index !== undefined)
+          bodyResult.nl().write(info.transpile(paramName)).write(` = ${name};`)
+      }
+    }
+
+    return sig + ')'
+  }
+
+  private makeFunctionStruct(name: string, type: StaticType) {
+    return `extern struct ${name} {
+  ${cr.typeToCType(type, cr.functionPtr)};
+  const char* sig; } ${name};\n`
   }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
@@ -593,7 +645,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   callExpression(node: AST.CallExpression, env: VariableEnv): void {
     const ftype = getStaticType(node.callee) as FunctionType
     this.visit(node.callee, env);
-    this.result.write('(')
+    this.result.write(`(`)
     let numOfObjectArgs = 0
     for (let i = 0; i < node.arguments.length; i++) {
       const arg = node.arguments[i]
@@ -670,6 +722,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: VariableEnv): void {}
 
   tsArrayType(node: AST.TSArrayType, env: VariableEnv) {}
+
+  tsFunctionType(node: AST.TSFunctionType, env: VariableEnv): void {}
 
   tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: VariableEnv): void {}
 }

@@ -13,7 +13,8 @@
         "variable-name": false,
         "no-empty": false,
         "triple-equals": false,
-        "no-unnecessary-initializer": false
+        "no-unnecessary-initializer": false,
+        "prefer-const": false
     },
     "rulesDirectory": []
 }

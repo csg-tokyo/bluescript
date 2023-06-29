@@ -8,17 +8,7 @@ test('syntax error', () => {
         return x + 1 k
     }`
 
-  let ok = true
-  try {
-    const ast = tested.transpile(src, 6)
-    ok = false
-  } catch (e: any) {
-    const loc = e.messages[0].location.start
-    expect(loc.line).toBe(7)
-    expect(loc.column).toBe(20)
-  }
-
-  expect(ok).toBeTruthy()
+  expect(() => tested.transpile(src, 6)).toThrow(/7:20/)
 })
 
 test('number literals', () => {
@@ -63,14 +53,7 @@ test('bad type declaraton', () => {
   let j = 7
   j = 'foo'`
 
-  let ok = true
-  try {
-    tested.transpile(src)
-    ok = false
-  } catch (e: any) {
-    expect(e.messages.length).toBe(2)
-  }
-  expect(ok).toBeTruthy()
+  expect(() => tested.transpile(src)).toThrow(/line 1.*\n.*line 3/)
 })
 
 test('const declaraton', () => {
@@ -150,4 +133,54 @@ test('bad index type', () => {
   const e = a[true]`
 
   expect(() => tested.transpile(src)).toThrow()
+})
+
+test('duplicated parameter names', () => {
+  const src = `function foo(a: number, b, a) { return a }`
+  expect(() => tested.transpile(src)).toThrow()
+})
+
+test('duplicated function declarations', () => {
+  const src = `function foo(a: number) { return a }
+function foo(a: number) { return a + 1}`
+  expect(() => tested.transpile(src)).toThrow()
+})
+
+test('type conversion from a function to any', () => {
+  const src = `function foo(a: number) { return a }
+const f:any = foo`
+  expect(() => tested.transpile(src)).toThrow()
+})
+
+test('type conversion to a function from any', () => {
+  const src = `function foo(a: number) { return a }
+let f = foo
+const g: any = null
+f = g
+`
+  expect(() => tested.transpile(src)).toThrow(/line 4/)
+})
+
+test('top-level return', () => {
+  const src = 'return 3'
+  expect(() => tested.transpile(src)).toThrow(/return.*outside/)
+})
+
+test('assign to a function name', () => {
+  const src = `function foo(x: integer) { return x }
+  function bar(x: integer) { return x + 1 }
+  function baz() { foo = bar }
+  `
+  expect(() => tested.transpile(src)).toThrow(/assignment to constant.*line 3/)
+})
+
+test('function type', () => {
+  const src = `let foo: (a: float, b: string)=>integer
+`
+  const ast = tested.transpile(src)
+  const table = names.getNameTable(ast.program)
+  const a = table?.lookup('foo')?.type
+  expect((a as types.FunctionType).paramTypes[0]).toBe(types.Float)
+  expect((a as types.FunctionType).paramTypes[1]).toBe(types.String)
+  expect((a as types.FunctionType).returnType).toBe(types.Integer)
 })

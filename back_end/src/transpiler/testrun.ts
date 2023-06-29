@@ -1,6 +1,6 @@
 import { runBabelParser } from './utils'
 import { runTypeChecker } from './type-checker/type-checker'
-import { GlobalNameTable, NameInfo } from './type-checker/names'
+import { BasicGlobalNameTable, NameInfo } from './type-checker/names'
 import { transpile } from './code-generator/code-generator'
 import { ErrorLog } from './utils'
 import * as fs from 'fs'
@@ -9,7 +9,7 @@ export function print(m: string) {}
 
 export function runTypecheck(src: string, startLine: number = 1) {
     const ast = runBabelParser(src, startLine);
-    const globalNameTable = new GlobalNameTable<NameInfo>()
+    const globalNameTable = new BasicGlobalNameTable()
     try {
         runTypeChecker(ast, globalNameTable)
         return ast
@@ -69,5 +69,5 @@ export function compile(file: string) {
   }
 }
 
-compile(process.argv[2])
+// compile(process.argv[2])
 // compile('./test.ts')

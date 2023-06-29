@@ -52,3 +52,49 @@ export class ErrorLog {
     return this
   }
 }
+
+export class CodeWriter {
+  private static indentSpaces = ['', '  ', '    ', '      ', '        ',
+                                 '          ']
+  private code = ''
+  private indentLevel = 0
+  private spaceIndex = 0
+
+  copy() {
+    const writer = new CodeWriter()
+    writer.indentLevel = this.indentLevel
+    return writer
+  }
+
+  getCode() { return this.code }
+
+  write(text: string) {
+    this.code += text
+    return this
+  }
+
+  right() {
+    this.updateIndent(++this.indentLevel)
+    return this
+  }
+
+  left() {
+    this.updateIndent(--this.indentLevel)
+    return this
+  }
+
+  updateIndent(level: number) {
+    if (level >= CodeWriter.indentSpaces.length)
+      this.spaceIndex = CodeWriter.indentSpaces.length - 1
+    else if (level < 0)
+      this.spaceIndex = 0
+    else
+      this.spaceIndex = level
+  }
+
+  nl() {    // new line
+    this.code += '\n'
+    this.code += CodeWriter.indentSpaces[this.spaceIndex]
+    return this
+  }
+}

@@ -1,11 +1,38 @@
+import { type } from 'node:os'
 import { Integer, Float, Boolean, String, Void, Null, Any,
     ObjectType, FunctionType,
-    StaticType, isPrimitiveType, } from '../types'
+    StaticType, isPrimitiveType, typeToString, } from '../types'
 
 
 export const returnValueVariable = 'ret_value_'
 
-export function typeToCType(type: StaticType):string {
+export function typeToCType(type: StaticType, name: string = ''): string {
+  if (type instanceof FunctionType) {
+    let typename = typeToCType(type.returnType)
+    typename += ' (*'
+    if (typename !== '')
+      typename += name
+
+    typename += ')('
+    let first = true
+    for (const param of type.paramTypes) {
+      if (first)
+        first = false
+      else
+        typename += ', '
+
+      typename += typeToCType(param)
+    }
+
+    return typename + ')'
+  }
+  else if (name === '')
+    return typeToCType2(type)
+  else
+    return `${typeToCType2(type)} ${name}`
+}
+
+function typeToCType2(type: StaticType): string {
   if (type instanceof ObjectType)
     return 'value_t';
   else
@@ -27,7 +54,14 @@ export function typeToCType(type: StaticType):string {
   }
 }
 
+// from or to is undefined when type conversion is unnecessary
 export function typeConversion(from: StaticType | undefined, to: StaticType | undefined) {
+  if (from instanceof FunctionType || from === Void || to instanceof FunctionType || to === Void) {
+    const fromType = from === undefined ? '?' : typeToString(from)
+    const toType = to === undefined ? '?' : typeToString(to)
+    throw new Error(`cannot convert ${fromType} to ${toType}`)
+  }
+
   let fname
   switch (to) {
     case Integer:
@@ -45,9 +79,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
     case Boolean:
       fname = 'safe_value_to_bool'
       break
-    case Void:
-      throw new Error('cannot convert void to other types')
-    default:
+    default:    // to is either String, Null, Any, object, or undefined
       switch (from) {
         case Integer:
           return 'int_to_value'
@@ -55,8 +87,6 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
           return 'float_to_value'
         case Boolean:
           return 'bool_to_value'
-        case Void:
-          throw new Error('cannot convert void to other types')
         default:
           return ''
       }
@@ -144,3 +174,5 @@ export const arrayElementGetter = 'gc_array_get'
 
 // makes an array object from elements
 export const arrayFromElements = 'gc_make_array'
+
+export const functionPtr = 'fptr'

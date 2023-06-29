@@ -18,6 +18,14 @@ export class NameInfo {
     this.captured = false
   }
 
+  copyFrom(info: NameInfo) {
+    this.type = info.type
+    this.isTypeName = info.isTypeName
+    this.isConst = info.isConst
+    this.isFunction = info.isFunction
+    this.captured = info.captured
+  }
+
   setup(f: (obj: this) => void) {
     f(this)
     return this
@@ -57,7 +65,7 @@ export interface NameTable<Info extends NameInfo> {
   setReturnType(t: StaticType): void
 }
 
-export class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
+export abstract class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
   map: Map<string, Info>
   parent?: NameTable<Info>
 
@@ -79,9 +87,11 @@ export class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
     this.map.forEach(f)
   }
 
+  // It does not record a name if the name is already recorded
+  // in a parent NameTable.
   record(key: string, t: StaticType, maker: NameTableMaker<Info>,
          init?: (i: Info) => void): boolean {
-    const old = this.map.get(key)
+    const old = this.lookup(key)
     const info = maker.globalInfo(t)
     if (init !== undefined)
       init(info)
@@ -90,13 +100,25 @@ export class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
     return old === undefined
   }
 
+  // When it finds a name in a parent NameTable,
+  // it will add a FreeNameInfo object to its table.
   lookup(key: string): Info | undefined {
     const found = this.map.get(key)
-    if (found === undefined)
-      return this.parent?.lookup(key)
+    if (found === undefined) {
+      const freeVariable = this.parent?.lookup(key)
+      if (freeVariable === undefined)
+        return undefined
+      else {
+        const info = this.makeFreeInfo(freeVariable)
+        this.map.set(key, info)
+        return info
+      }
+    }
     else
       return found
   }
+
+  abstract makeFreeInfo(free: Info): Info
 
   returnType(): StaticType | undefined | null {
     return null     // not in a function body.
@@ -176,7 +198,8 @@ export abstract class FunctionNameTable<Info extends NameInfo> extends BlockName
       return found
   }
 
-  abstract makeFreeInfo(free: Info): Info
+  abstract makeFreeInfo(free: Info): Info     // make a free variable name
+  abstract isFreeInfo(free: Info): boolean    // true if it is a free variable name
 
   returnType(): StaticType | undefined | null {
     return this.thisReturnType
@@ -224,5 +247,11 @@ class BasicFunctionNameTable extends FunctionNameTable<NameInfo> {
   override makeFreeInfo(free: NameInfo) {
     return new FreeNameInfo(free)
   }
+  isFreeInfo(free: NameInfo): boolean { return free instanceof FreeNameInfo }
 }
 
+export class BasicGlobalNameTable extends GlobalNameTable<NameInfo> {
+  override makeFreeInfo(free: NameInfo) {
+    return new FreeNameInfo(free)
+  }
+}

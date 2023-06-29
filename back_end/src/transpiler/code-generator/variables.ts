@@ -1,6 +1,6 @@
 import * as AST from '@babel/types'
-import { FunctionType, StaticType, isPrimitiveType } from '../types'
-import { NameTable, NameTableMaker, GlobalNameTable, 
+import { Null, FunctionType, StaticType, isPrimitiveType } from '../types'
+import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../type-checker/names'
 import { rootSetVariable } from './c-runtime'
@@ -29,7 +29,8 @@ export class VariableInfo extends NameInfo {
     if (this.index === undefined)
       return `_${name}`
     else
-      return rootSetVariable(this.index) }
+      return rootSetVariable(this.index)
+  }
 }
   
 class FreeVariableInfo extends VariableInfo {
@@ -37,21 +38,33 @@ class FreeVariableInfo extends VariableInfo {
   
   constructor(name: VariableInfo) {
     super(name.type)
-    this.nameInfo = name
-    this.isConst = name.isConst
-    this.isFunction = name.isFunction
+    this.copyFrom(name)
+    while (name instanceof FreeVariableInfo)
+      name = name.nameInfo
 
     this.nameInfo = name
   }
 
+  transpiledName(name: string) { return this.nameInfo.transpiledName(name) }
   transpile(name: string) { return this.nameInfo.transpile(name) }
 }
 
 class GlobalVariableInfo extends VariableInfo {
-  variableName: string = '??'
+  private variableName: string = '??'
+  private rootName?: string
+
+  setVariableName(name: string, rootName?: string) {
+    this.variableName = name
+    this.rootName = rootName
+  }
 
   transpiledName(name: string) { return `_${name}` }
   transpile(name: string) { return this.variableName }
+
+  // name and type used for extern declaration
+  externName(): [string, StaticType] {
+      return this.rootName ? [this.rootName, Null] : [this.variableName, this.type]
+  }
 }
 
 // A variable name table refers to NameTable<VariableInfo>.
@@ -65,6 +78,14 @@ export class VariableNameTableMaker implements NameTableMaker<VariableInfo> {
 }
 
 class FunctionVarNameTable extends FunctionNameTable<VariableInfo> {
+  override makeFreeInfo(free: VariableInfo) {
+    return new FreeVariableInfo(free)
+  }
+
+  isFreeInfo(free: NameInfo): boolean { return free instanceof FreeVariableInfo }
+}
+
+export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
   override makeFreeInfo(free: VariableInfo) {
     return new FreeVariableInfo(free)
   }
@@ -144,6 +165,10 @@ export class FunctionEnv extends VariableEnv {
   }
 
   override deallocate(num: number) { this.nextVar -= num }
+
+  isFreeVariable(info: VariableInfo | undefined) {
+    return info instanceof FreeVariableInfo
+  }
 }
 
 export class GlobalEnv extends FunctionEnv {
@@ -158,62 +183,28 @@ export class GlobalEnv extends FunctionEnv {
     let num = 0
     this.table.forEach((info, key) => {
       if (info instanceof GlobalVariableInfo) {
-        if (isPrimitiveType(info.type))
-          info.variableName = globalVariableName(key)
-        else if (info.type instanceof FunctionType)
-          info.variableName = globalVariableName(key)
+        if (isPrimitiveType(info.type))     // note: FunctionType is a primitive type
+          info.setVariableName(globalVariableName(key))
         else
-          info.variableName = globalVariableName(this.rootset, num++)
+          info.setVariableName(globalVariableName(this.rootset, num++), this.rootset)
       }
-      else
-        throw new Error(`bad global info ${info}`)
+      else if (!(info instanceof FreeVariableInfo))
+        throw new Error(`bad global info: ${key}, ${info.constructor.name}`)
     })
     return num
   }
-}
 
-export class CodeWriter {
-  private static indentSpaces = ['', '  ', '    ', '      ', '        ',
-                                 '          ']
-  private code = ''
-  private indentLevel = 0
-  private spaceIndex = 0
-
-  copy() {
-    const writer = new CodeWriter()
-    writer.indentLevel = this.indentLevel
-    return writer
-  }
-
-  getCode() { return this.code }
-
-  write(text: string) {
-    this.code += text
-    return this
-  }
-
-  right() {
-    this.updateIndent(++this.indentLevel)
-    return this
-  }
-
-  left() {
-    this.updateIndent(--this.indentLevel)
-    return this
-  }
-
-  updateIndent(level: number) {
-    if (level >= CodeWriter.indentSpaces.length)
-      this.spaceIndex = CodeWriter.indentSpaces.length - 1
-    else if (level < 0)
-      this.spaceIndex = 0
-    else
-      this.spaceIndex = level
-  }
-
-  nl() {    // new line
-    this.code += '\n'
-    this.code += CodeWriter.indentSpaces[this.spaceIndex]
-    return this
+  forEachExternalVariable(f: (name: string, type: StaticType) => void) {
+    this.table.forEach((info, key) => {
+      if (info instanceof FreeVariableInfo) {
+        const origInfo = info.nameInfo
+        if (origInfo instanceof GlobalVariableInfo) {
+          const nameAndType = origInfo.externName()
+          f(nameAndType[0], nameAndType[1])
+        }
+        else
+          throw new Error(`bad external name info: ${key}, ${origInfo.constructor.name}`)
+      }
+    })
   }
 }
