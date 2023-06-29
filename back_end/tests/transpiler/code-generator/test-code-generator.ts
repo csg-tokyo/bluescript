@@ -9,13 +9,13 @@ function print(m: any) {}
 `
 
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
-
 #include "src/transpiler/code-generator/c-runtime.h"
+
 `
 const prologCcode2 = `
 #include <stdio.h>
 
-void _print(value_t m) {
+static void fbody_print(value_t m) {
   if (is_int_value(m))
     printf("%d\\n", value_to_int(m));
   else if (is_float_value(m))
@@ -28,6 +28,9 @@ void _print(value_t m) {
     puts("??");
 }
 `
+
+const prologCode2b = 'struct _print _print = { fbody_print, "" };\n'
+const prologCode2c = 'struct _print { void (*fptr)(value_t); const char* sig; } _print = { fbody_print, "" };\n'
 
 function getEpilog(initName: string) {
   return `
@@ -56,7 +59,7 @@ export function compileAndRun(src: string, destFile = './bscript.c') {
     let globalNames = result1.names
     let result2
     try {
-      result2 = transpile(2, src, globalNames)
+      result2 = transpile(2, src, globalNames, 1, prologCcode2 + prologCode2b)
     }
     catch (e) {
       if (e instanceof ErrorLog)
@@ -64,7 +67,7 @@ export function compileAndRun(src: string, destFile = './bscript.c') {
       throw e
     }
     globalNames = result2.names
-    fs.writeFileSync(destFile, prologCcode + prologCcode2 + result2.code + getEpilog(result2.main))
+    fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main))
     // throw an Error when compilation fails.
     execSync(`cc -DBIT64 -O2 ${destFile} ./src/transpiler/code-generator/c-runtime.c`)
     return execSync(`./a.out`).toString()   // returns the printed text
@@ -73,7 +76,7 @@ export function compileAndRun(src: string, destFile = './bscript.c') {
 export function multiCompileAndRun(src: string, src2: string, destFile = './bscript') {
   const result1 = transpile(1, prolog)
   const firstFile = destFile + '1.c'
-  fs.writeFileSync(firstFile, prologCcode + prologCcode2)
+  fs.writeFileSync(firstFile, prologCcode + prologCcode2 + prologCode2c)
   let globalNames = result1.names
 
   const result2 = runTranspiler(2, src, globalNames)

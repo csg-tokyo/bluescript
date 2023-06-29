@@ -40,7 +40,7 @@ test('bad value assignment to an array', () => {
 test('boolean conditions', () => {
   const src = `
     function foo(n: integer) {
-      let b = true, j = 3
+      let b = true; let j = 3
       while (b) {
         if (j-- < 0)
           b = false
@@ -286,7 +286,7 @@ test('mixed type declaration', () => {
   }
   print(foo(8))
 `
-  expect(() => { compileAndRun(src) }).toThrow(/mixed type declaration/)
+  expect(() => { compileAndRun(src) }).toThrow(/mixed-type declaration/)
 })
 
 test('duplicated declaration', () => {
@@ -410,4 +410,28 @@ test('bad duplicted function declarations', () => {
 print(foo(100))
 `
   expect(() => { multiCompileAndRun(src1, src2) }).toThrow(/declared again with a different type/)
+})
+
+test('duplicted function declarations', () => {
+  const src1 = `function foo(a: number): number { return a + 1 }
+print(foo(10))`
+
+  const src2 = `function foo(n: integer): number {
+    return n + 2
+  }
+print(foo(10))
+`
+  expect(multiCompileAndRun(src1, src2)).toBe('11\n12\n')
+})
+
+test('a function is a value', () => {
+  const src1 = 'function foo(n: integer) { return n }'
+
+  const src2 = `function bar(n: integer) {
+    const f = foo
+    return f(n)
+  }
+print(bar(101))
+`
+  expect(multiCompileAndRun(src1, src2)).toBe('101\n')
 })

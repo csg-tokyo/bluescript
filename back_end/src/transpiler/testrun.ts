@@ -69,5 +69,5 @@ export function compile(file: string) {
   }
 }
 
-compile(process.argv[2])
+// compile(process.argv[2])
 // compile('./test.ts')

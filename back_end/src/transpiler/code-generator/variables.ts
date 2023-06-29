@@ -165,6 +165,10 @@ export class FunctionEnv extends VariableEnv {
   }
 
   override deallocate(num: number) { this.nextVar -= num }
+
+  isFreeVariable(info: VariableInfo | undefined) {
+    return info instanceof FreeVariableInfo
+  }
 }
 
 export class GlobalEnv extends FunctionEnv {
@@ -179,9 +183,7 @@ export class GlobalEnv extends FunctionEnv {
     let num = 0
     this.table.forEach((info, key) => {
       if (info instanceof GlobalVariableInfo) {
-        if (isPrimitiveType(info.type))
-          info.setVariableName(globalVariableName(key))
-        else if (info.type instanceof FunctionType)
+        if (isPrimitiveType(info.type))     // note: FunctionType is a primitive type
           info.setVariableName(globalVariableName(key))
         else
           info.setVariableName(globalVariableName(this.rootset, num++), this.rootset)

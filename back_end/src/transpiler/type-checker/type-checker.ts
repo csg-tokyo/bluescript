@@ -162,7 +162,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addCoercion(node.argument, this.result)
       else
         this.assert(isSubtype(this.result, rtype),
-          `Type '${typeToString(this.result)}' does not match type '${typeToString(rtype)}'.`, node)
+          `Type '${typeToString(this.result)}' does not match type '${typeToString(rtype)}'`, node)
     }
     else
       if (rtype == undefined)
@@ -216,14 +216,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     if (node.init) {    // a const declaration must have an initializer.  a let declaration may not.
       this.visit(node.init, names)
-      this.assert(this.result !== Void, 'void may not be an initial value.', node.init)
+      this.assert(this.result !== Void, 'void may not be an initial value', node.init)
       if (varType === undefined)
         varType = this.result
       else if (isConsistent(this.result, varType))
         this.addCoercion(node.init, this.result)
       else
         this.assert(isSubtype(this.result, varType),
-          `Type '${typeToString(this.result)}' is not assignable to type '${typeToString(varType)}'.`, node)
+          `Type '${typeToString(this.result)}' is not assignable to type '${typeToString(varType)}'`, node)
     }
 
     if (varType === undefined)
@@ -231,7 +231,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     if (!alreadyDeclared) {
       const success = names.record(varName, varType, this.maker, _ => _.isConst = isConst)
-      this.assert(success, `Identifier '${varName}' has already been declared..`, node)
+      this.assert(success, `Identifier '${varName}' has already been declared`, node)
     }
   }
 
@@ -243,8 +243,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   functionDeclarationPass1(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
-    this.assert(!node.generator, 'generator functions are not supported.', node)
-    this.assert(!node.async, 'async functions are not supported.', node)
+    this.assert(!node.generator, 'generator functions are not supported', node)
+    this.assert(!node.async, 'async functions are not supported', node)
     const funcEnv = this.maker.function(names)
     const paramTypes = this.functionParameters(node, funcEnv)
     funcEnv.thisReturnType = undefined
@@ -261,7 +261,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (node.id != null) {
       info = names.lookup(node.id.name)
       this.assert(info === undefined || funcEnv.isFreeInfo(info),
-            `function '${node.id.name}' has been already declared.`, node)
+            `function '${node.id.name}' has been already declared`, node)
     }
 
     this.visit(node.body, funcEnv)
@@ -275,7 +275,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     addStaticType(node, ftype)
     if (node.id != null)
       if (info === undefined)   // if new declaration
-        names.record(node.id.name, ftype, this.maker, _ => _.isFunction = true)
+        names.record(node.id.name, ftype, this.maker, _ => { _.isFunction = true; _.isConst = true })
       else
         this.assert(isSubtype(ftype, info.type),
             `function '${node.id.name}' is declared again with a different type`, node)
@@ -335,12 +335,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.result = Integer
     }
     else  // 'typeof' | 'void' | 'delete' | 'throw'
-      this.assert(false, `not supported operator ${op}.`, node)
+      this.assert(false, `not supported operator ${op}`, node)
   }
 
   invalidOperandMessage(op: string, t1: StaticType) {
     const t1name = typeToString(t1)
-    return `invalid operand to ${op} (${t1name}).`
+    return `invalid operand to ${op} (${t1name})`
   }
 
   updateExpression(node: AST.UpdateExpression, names: NameTable<Info>): void {
@@ -417,7 +417,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   invalidOperandsMessage(op: string, t1: StaticType, t2: StaticType) {
     const t1name = typeToString(t1)
     const t2name = typeToString(t2)
-    return `invalid operands to ${op} (${t1name} and ${t2name}).`
+    return `invalid operands to ${op} (${t1name} and ${t2name})`
   }
 
   assignmentExpression(node: AST.AssignmentExpression, names: NameTable<Info>): void {
@@ -435,7 +435,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const right_type = this.result
     if (elementType !== undefined)
       this.assert(isSubtype(right_type, elementType),
-        `Type '${typeToString(right_type)}' is not assignable to element type '${typeToString(elementType)}'.`,
+        `Type '${typeToString(right_type)}' is not assignable to element type '${typeToString(elementType)}'`,
         node)
 
     const op = node.operator
@@ -446,7 +446,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
       else
         this.assert(isSubtype(right_type, left_type),
-          `Type '${typeToString(right_type)}' is not assignable to type '${typeToString(left_type)}'.`,
+          `Type '${typeToString(right_type)}' is not assignable to type '${typeToString(left_type)}'`,
           node)
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=')
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
@@ -689,7 +689,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     else if (AST.isMemberExpression(node)) {
     }
     else
-      this.assert(false, 'invalid left-hand side in assignment.', node)
+      this.assert(false, 'invalid left-hand side in assignment', node)
   }
 
   assertVariable(node: AST.Node) {
