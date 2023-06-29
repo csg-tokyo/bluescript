@@ -10,3 +10,8 @@ void bluescript_main3() {
   _i = 4;
   DELETE_ROOT_SET(func_rootset)
 }
+
+
+int32_t func1(int32_t x) {
+    return x + 1;
+}
