@@ -10,16 +10,16 @@ import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMak
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
 
-// sessionId: an integer more than zero.  It is used for generating a unique name.
-export function transpile(sessionId: number, src: string, gvnt?: GlobalVariableNameTable,
+// codeId: an integer more than zero.  It is used for generating a unique name.
+export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
                           startLine: number = 1, header: string = '') {
   const ast = runBabelParser(src, startLine);
   const maker = new VariableNameTableMaker()
   const nameTable = new GlobalVariableNameTable(gvnt)
   typecheck(ast, maker, nameTable)
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
-  const mainFuncName = `${cr.mainFunctionName}${sessionId}`
-  const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${sessionId}`)
+  const mainFuncName = `${cr.mainFunctionName}${codeId}`
+  const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${codeId}`)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   if (generator.errorLog.hasError())
     throw generator.errorLog
