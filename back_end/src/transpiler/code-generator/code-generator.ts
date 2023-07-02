@@ -499,6 +499,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       // both left and right are integer or float.
       this.numericBinaryExprssion(op, left, right, env)
     }
+    else if (op === '>>>') {
+      // both left and right are integer or float.
+      this.unsignedRightShift(left, right, env)
+    }
     else
       throw this.errorLog.push(`bad binary operator ${op}`, node)
 
@@ -549,6 +553,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private numericBinaryExprssion(op: string, left: AST.Node, right: AST.Node, env: VariableEnv) {
     this.visit(left, env)
     this.result.write(` ${op} `)
+    this.visit(right, env)
+  }
+
+  private unsignedRightShift(left: AST.Node, right: AST.Node, env: VariableEnv) {
+    this.result.write(`(${cr.uint32type})(`)
+    this.visit(left, env)
+    this.result.write(') >> ')
     this.visit(right, env)
   }
 

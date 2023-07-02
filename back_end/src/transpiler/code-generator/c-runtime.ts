@@ -7,6 +7,8 @@ import { Integer, Float, Boolean, String, Void, Null, Any,
 export const mainFunctionName = 'bluescript_main'
 export const returnValueVariable = 'ret_value_'
 
+export const uint32type = 'uint32_t'
+
 export function typeToCType(type: StaticType, name: string = ''): string {
   if (type instanceof FunctionType) {
     let typename = typeToCType(type.returnType)
@@ -66,13 +68,13 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
   let fname
   switch (to) {
     case Integer:
-      if (from === Float)
+      if (from === Float || from === Integer)
         return '(int32_t)'
       else
         fname = 'safe_value_to_int'
       break
     case Float:
-      if (from === Integer)
+      if (from === Integer || from === Float)
         return '(float)'
       else
         fname = 'safe_value_to_float'

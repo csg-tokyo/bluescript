@@ -278,6 +278,21 @@ test('const declaration', () => {
   expect(() => { compileAndRun(src) }).toThrow(/assignment to constant/)
 })
 
+test('string declaration', () => {
+  const src = `
+  function foo(n: float) {
+    const k = n, m = k
+    const str = 'foo', str2 = 'bar'
+    print(str)
+    print(m)
+    print(str2)
+  }
+  foo(3)
+  `
+
+  expect(compileAndRun(src)).toBe("foo\n3.000000\nbar\n")
+})
+
 test('mixed type declaration', () => {
   const src = `
   function foo(n: integer) {
@@ -429,9 +444,116 @@ test('a function is a value', () => {
 
   const src2 = `function bar(n: integer) {
     const f = foo
-    return f(n)
+    const g: (n: integer) => integer = foo
+    return f(n) + g(11)
   }
 print(bar(101))
 `
-  expect(multiCompileAndRun(src1, src2)).toBe('101\n')
+  expect(multiCompileAndRun(src1, src2)).toBe('112\n')
+})
+
+test('unary operator', () => {
+  const src = `
+  function foo(n: integer) {
+    const i: any = n
+    const f: float = n
+    print(+n)
+    print(-n)
+    print(!n)
+    print(~n)
+    print(+i)
+    print(-i)
+    print(!i)
+    print(~i)
+    print(+f)
+    print(-f)
+    print(!f)
+  }
+  foo(3)
+`
+  expect(compileAndRun(src)).toBe('3\n-3\n0\n-4\n3\n-3\n0\n-4\n3.000000\n-3.000000\n0\n')
+})
+
+test('++/-- operator', () => {
+  const src = `
+  function foo(n: integer) {
+    let i: any = n
+    print(++n)
+    print(--n)
+    print(n++)
+    print(n--)
+    print(n)
+    print(++i)
+    print(--i)
+    print(i++)
+    print(i--)
+    print(i)
+  }
+  foo(5)
+`
+  expect(compileAndRun(src)).toBe('6\n5\n5\n6\n5\n6\n5\n5\n6\n5\n')
+})
+
+test('++ operator for const', () => {
+  const src = `
+  function foo(n: integer) {
+    const i = n
+    print(++i)
+    print(i--)
+  }
+  foo(5)
+`
+  expect(() => compileAndRun(src)).toThrow(/assignment to constant.*line 4\n.*line 5/)
+})
+
+test('equality operators', () => {
+  const src = `
+  function foo(m: integer, n: float) {
+    print(m === n)
+    print(m == n)
+    print(m !== n)
+    print(m != n)
+  }
+  foo(5, 5.0)
+`
+  expect(compileAndRun(src)).toBe([1, 1, 0, 0].join('\n') + '\n')
+})
+
+test('basic binary operators', () => {
+  const src = `
+  function foo(m: integer, n: float) {
+    print(m + n)
+    print(m * n)
+    print(m > n)
+    print(m >= n)
+    const a = m
+    const b = n
+    print(a - n)
+    print(m / b)
+    print(a < b)
+    print(a <= n)
+  }
+  foo(5, 3.0)
+`
+  expect(compileAndRun(src)).toBe(['8.000000', '15.000000', 1, 1, '2.000000', 1.666667, 0, 0].join('\n') + '\n')
+})
+
+test('integer binary operators', () => {
+  const src = `
+  function foo(m: integer, n: integer) {
+    print(m | n)
+    print(m ^ n)
+    print(m & n)
+    print(m % n)
+    print(m << n)
+    print(m >> n)
+    print(m >>> n)
+  }
+  foo(511, 2)
+  print_i32(0xff00ff21 >>> 2)
+  print_i32((0xff00ff21 as integer) >> 2)
+  print_i32(-5 >>> 2)
+  print_i32(-5 >> 2)
+`
+  expect(compileAndRun(src, true)).toBe([511, 509, 2, 1, 2044, 127, 127, 1069563848, -4177976, 1073741822, -2].join('\n') + '\n')
 })

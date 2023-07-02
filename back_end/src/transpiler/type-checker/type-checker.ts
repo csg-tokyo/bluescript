@@ -403,12 +403,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       else
         this.result = Integer
     }
-    else if (op === '|' || op === '^' || op === '&' || op === '%' || op === '<<' || op === '>>') {
+    else if (op === '|' || op === '^' || op === '&' || op === '%' || op === '<<' || op === '>>' || op === '>>>') {
       this.assert(left_type === Integer && right_type === Integer,
         this.invalidOperandsMessage(op, left_type, right_type), node)
       this.result = Integer
     }
-    else { // 'in', '>>>', '**', 'instanceof', '|>'
+    else { // 'in', '**', 'instanceof', '|>'
       this.assert(false, `not supported operator '${op}'`, node)
       this.result = Boolean
     }
