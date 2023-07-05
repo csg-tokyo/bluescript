@@ -1,17 +1,16 @@
 import * as fs from "fs";
 import {execSync} from "child_process";
 import CONSTANTS from "../../src/constants";
-import link, {addressTableAncestor} from "../../src/linker2";
+import link, {addressTableOrigin} from "../../src/linker2";
 import {translateExe} from "./common";
 import {Buffer} from "node:buffer";
-import {AddressTableAncestor} from "../../src/linker2/address-table";
+import {AddressTableOrigin} from "../../src/linker2/address-table";
 
 // File Path
 const MOCK_MCU_C_FILE = "./temp-files/mock-mcu.c";
 const MOCK_MCU_OBJ_FILE ="./temp-files/mock-mcu.o";
 const TEST_C_FILE = "./temp-files/linker-test.c";
 const TEST_OBJ_FILE = "./temp-files/linker-test.o";
-const GCC_PATH = "/Users/maejimafumika/.espressif/tools/xtensa-esp32-elf/esp-2021r2-patch3-8.4.0/xtensa-esp32-elf/bin";
 
 const mockMCUCode = `
 #include "stdint.h"
@@ -30,14 +29,14 @@ const nativeSymbolNames = ["_blink_led", "_console_log"];
 
 
 describe('test linker', () => {
-  let ata: AddressTableAncestor;
+  let addressTable: AddressTableOrigin;
 
   beforeAll(() => {
     fs.writeFileSync(MOCK_MCU_C_FILE, mockMCUCode);
-    execSync(`export PATH=$PATH:${GCC_PATH}; xtensa-esp32-elf-gcc -O2 ${MOCK_MCU_C_FILE} -o ${MOCK_MCU_OBJ_FILE} -w`);
+    execSync(`export PATH=$PATH:${CONSTANTS.GCC_PATH}; xtensa-esp32-elf-gcc -O2 ${MOCK_MCU_C_FILE} -o ${MOCK_MCU_OBJ_FILE} -w`);
     CONSTANTS.MCU_ELF_PATH = MOCK_MCU_OBJ_FILE;
-    ata = addressTableAncestor(nativeSymbolNames);
-  })
+    addressTable = addressTableOrigin(nativeSymbolNames);
+  });
 
   test("test single main function", () => {
     const cCode = `
@@ -65,9 +64,9 @@ describe('test linker', () => {
   `
 
     fs.writeFileSync(TEST_C_FILE, cCode);
-    execSync(`export PATH=$PATH:${GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
+    execSync(`export PATH=$PATH:${CONSTANTS.GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
     const elfBuffer = fs.readFileSync(TEST_OBJ_FILE);
-    const {exe, addressTable} = link(elfBuffer, "bluescript_main", ata);
+    const {exe} = link(elfBuffer, "bluescript_main", addressTable);
     expect(exe).toBe(translateExe(expectedExe));
   });
 
@@ -110,9 +109,9 @@ describe('test linker', () => {
   `
 
     fs.writeFileSync(TEST_C_FILE, cCode);
-    execSync(`export PATH=$PATH:${GCC_PATH}; xtensa-esp32-elf-gcc -c -O0 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
+    execSync(`export PATH=$PATH:${CONSTANTS.GCC_PATH}; xtensa-esp32-elf-gcc -c -O0 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
     const elfBuffer = fs.readFileSync(TEST_OBJ_FILE);
-    const {exe, addressTable} = link(elfBuffer, "bluescript_main", ata);
+    const {exe} = link(elfBuffer, "bluescript_main", addressTable);
     expect(exe).toBe(translateExe(expectedExe));
   });
 
@@ -144,9 +143,9 @@ describe('test linker', () => {
   `
 
     fs.writeFileSync(TEST_C_FILE, cCode);
-    execSync(`export PATH=$PATH:${GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
+    execSync(`export PATH=$PATH:${CONSTANTS.GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
     const elfBuffer = fs.readFileSync(TEST_OBJ_FILE);
-    const {exe, addressTable} = link(elfBuffer, "bluescript_main", ata);
+    const {exe} = link(elfBuffer, "bluescript_main", addressTable);
     expect(exe).toBe(translateExe(expectedExe));
   });
 
@@ -190,9 +189,9 @@ describe('test linker', () => {
   `
 
     fs.writeFileSync(TEST_C_FILE, cCode);
-    execSync(`export PATH=$PATH:${GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
+    execSync(`export PATH=$PATH:${CONSTANTS.GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
     const elfBuffer = fs.readFileSync(TEST_OBJ_FILE);
-    const {exe, addressTable} = link(elfBuffer, "bluescript_main", ata);
+    const {exe} = link(elfBuffer, "bluescript_main", addressTable);
     expect(exe).toBe(translateExe(expectedExe));
   });
 
@@ -236,9 +235,9 @@ describe('test linker', () => {
   `
 
     fs.writeFileSync(TEST_C_FILE, cCode);
-    execSync(`export PATH=$PATH:${GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
+    execSync(`export PATH=$PATH:${CONSTANTS.GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
     const elfBuffer = fs.readFileSync(TEST_OBJ_FILE);
-    const {exe, addressTable} = link(elfBuffer, "bluescript_main", ata);
+    const {exe} = link(elfBuffer, "bluescript_main", addressTable);
     expect(exe).toBe(translateExe(expectedExe));
   });
 
@@ -281,9 +280,9 @@ describe('test linker', () => {
   `
 
     fs.writeFileSync(TEST_C_FILE, cCode);
-    execSync(`export PATH=$PATH:${GCC_PATH}; xtensa-esp32-elf-gcc -c -O0 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
+    execSync(`export PATH=$PATH:${CONSTANTS.GCC_PATH}; xtensa-esp32-elf-gcc -c -O0 ${TEST_C_FILE} -o ${TEST_OBJ_FILE} -w`);
     const elfBuffer = fs.readFileSync(TEST_OBJ_FILE);
-    const {exe, addressTable} = link(elfBuffer, "bluescript_main", ata);
+    const {exe} = link(elfBuffer, "bluescript_main", addressTable);
     expect(exe).toBe(translateExe(expectedExe));
   });
 

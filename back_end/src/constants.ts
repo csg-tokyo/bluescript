@@ -9,6 +9,7 @@ const CONSTANTS = {
   C_RUNTIME_SYMBOLS_PATH: "./data/c-runtime-symbols.json",
   DEVICE_ELF_PATH: "../m5stack_bluetooth/build/blue_script.elf",
   MCU_ELF_PATH: "../m5stack_bluetooth/build/blue_script.elf",
+  GCC_PATH: "~/.espressif/tools/xtensa-esp32-elf/esp-2021r2-patch3-8.4.0/xtensa-esp32-elf/bin",
   ENTRY_POINT_NAME: "bluescript_main",
   VIRTUAL_SECTION_NAMES: [
     {realName: ".text", virtualName: "virtual_text"},

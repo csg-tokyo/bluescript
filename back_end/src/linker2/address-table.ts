@@ -45,7 +45,7 @@ export interface AddressTableInterface {
   getSymbols: () => Symbol[]; // For debugging.
 }
 
-export class AddressTableAncestor implements AddressTableInterface {
+export class AddressTableOrigin implements AddressTableInterface {
   public symbols: Map<string, Symbol>;
   public textSection: Section;
   public literalSection: Section;

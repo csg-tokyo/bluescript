@@ -1,9 +1,9 @@
 import {GlobalVariableNameTable} from "../transpiler/code-generator/variables";
-import {AddressTable, AddressTableInterface} from "../linker2/address-table";
+import {AddressTableInterface} from "../linker2/address-table";
 import * as fs from "fs";
 import CONSTANTS from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
-import link, {addressTableAncestor} from "../linker2";
+import link, {addressTableOrigin} from "../linker2";
 import {execSync} from "child_process";
 
 export default class Session {
@@ -19,7 +19,7 @@ export default class Session {
 
     const runtimeSymbols = JSON.parse(fs.readFileSync(CONSTANTS.C_RUNTIME_SYMBOLS_PATH).toString());
     const predefinedSymbolNames = runtimeSymbols.concat(Object.keys(this.nameTable.names()).map(name => "_" + name));
-    this.addressTable = addressTableAncestor(predefinedSymbolNames);
+    this.addressTable = addressTableOrigin(predefinedSymbolNames);
   }
 
   public execute(tsString: string): string {
@@ -28,17 +28,19 @@ export default class Session {
     // Transpile
     const tResult = transpile(this.currentCodeId, tsString, this.nameTable);
     const templateCode = fs.readFileSync(CONSTANTS.C_FILE_TEMPLATE_PATH);
-    this.nameTable = tResult.names;
     const entryPoint = tResult.main;
     const cString = templateCode + tResult.code;
 
     // Compile
     fs.writeFileSync(CONSTANTS.C_FILE_PATH, cString);
-    execSync(`xtensa-esp32-elf-gcc -c -O2 ${CONSTANTS.C_FILE_PATH} -o ${CONSTANTS.OBJ_FILE_PATH} -w`);
+    execSync(`export PATH=$PATH:${CONSTANTS.GCC_PATH}; xtensa-esp32-elf-gcc -c -O2 ${CONSTANTS.C_FILE_PATH} -o ${CONSTANTS.OBJ_FILE_PATH} -w`);
     const buffer = fs.readFileSync(CONSTANTS.OBJ_FILE_PATH);
 
     // Link
     const lResult = link(buffer, entryPoint, this.addressTable);
+
+    // Update tables.
+    this.nameTable = tResult.names;
     this.addressTable = lResult.addressTable;
 
     return lResult.exe;

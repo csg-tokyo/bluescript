@@ -28,13 +28,15 @@ static int get_num_length(int n) {
 }
 
 
-void _console_log_number(int32_t n) {
+void fbody_console_log_number(int32_t n) {
     int num_length = get_num_length(n);
     char str[num_length + 1];
     snprintf(str, num_length, "%d", n);
     push_log(str);
     printf("%d\n", n);
 }
+
+struct _console_log_number { void (*fptr)(value_t); const char* sig; } _console_log_number = { fbody_console_log_number, "" };
 
 // TODO: 改善。以下がないと使わない関数のコードが消されてしまう。
 struct my_rel_table_entry my_rel_table[100] = {

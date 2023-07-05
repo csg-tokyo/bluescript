@@ -1,6 +1,6 @@
 import {Buffer} from "node:buffer";
 import * as fs from 'fs';
-import {AddressTable, AddressTableAncestor, AddressTableInterface} from "./address-table";
+import {AddressTable, AddressTableOrigin, AddressTableInterface} from "./address-table";
 import {ExePart} from "./utils";
 import CONSTANTS from "../constants";
 import Elf32 from "./elf-parser/elf32";
@@ -24,7 +24,7 @@ export default function link(elfBuffer: Buffer, entryPointName: string, at: Addr
   return {exe: exePart.toString(), addressTable};
 }
 
-export function addressTableAncestor(nativeSymbolNames: string[]): AddressTableAncestor {
+export function addressTableOrigin(nativeSymbolNames: string[]): AddressTableOrigin {
   const mcuBuffer = fs.readFileSync(CONSTANTS.MCU_ELF_PATH);
-  return new AddressTableAncestor(new Elf32(mcuBuffer), nativeSymbolNames);
+  return new AddressTableOrigin(new Elf32(mcuBuffer), nativeSymbolNames);
 }
