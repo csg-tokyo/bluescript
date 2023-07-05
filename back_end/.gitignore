@@ -1,8 +1,6 @@
 dist/
 node_modules/
 package-lock.json
-.git_personal/
 .DS_Store
 .idea/
-data/db-dev/
 temp-files/

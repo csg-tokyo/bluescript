@@ -14,7 +14,9 @@
         "no-empty": false,
         "triple-equals": false,
         "no-unnecessary-initializer": false,
-        "prefer-const": false
+        "prefer-const": false,
+        "no-shadowed-variable": false,
+        "ban-types": false
     },
     "rulesDirectory": []
 }

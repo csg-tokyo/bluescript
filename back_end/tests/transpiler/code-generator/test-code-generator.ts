@@ -11,6 +11,7 @@ function print(m: any) {}
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
 #include "../../m5stack_bluetooth/main/c-runtime.h"
 
+void push_log(char *log) {};
 `
 const prologCcode2 = `
 #include <stdio.h>

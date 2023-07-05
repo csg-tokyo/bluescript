@@ -2,6 +2,7 @@ import Elf32BufferStream from "./elf32-buffer-stream";
 
 /**
  * Section Header for Elf32.
+ * https://refspecs.linuxbase.org/elf/gabi4+/ch4.sheader.html
  */
 export default class Elf32Shdr {
 

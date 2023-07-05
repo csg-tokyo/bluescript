@@ -1,7 +1,7 @@
 import * as http from "http";
 import {Buffer} from "node:buffer";
-import {Stream} from "./stream";
 import {ErrorLog} from "../transpiler/utils";
+import Session from "./session";
 
 const ERROR_CODE = {
   COMPILE_ERROR: 460,
@@ -11,7 +11,7 @@ const ERROR_CODE = {
 export default class HttpServer {
   readonly PORT = 8080;
   server: http.Server;
-  stream?: Stream;
+  session?: Session;
 
   constructor() {
     this.server = http.createServer();
@@ -58,18 +58,18 @@ export default class HttpServer {
       requestBody = await this.getRequestBody(request);
       switch (request.url) {
         case "/repl-compile":
-          if (!this.stream) { this.stream = new Stream() }
-          responseBody = {exe: this.stream.execute(JSON.parse(requestBody).src)}
+          if (!this.session) { this.session = new Session(); }
+          responseBody = {exe: this.session.execute(JSON.parse(requestBody).src)};
           statusCode = 200;
           break;
         case "/clear":
-          this.stream = new Stream()
-          responseBody = {}
+          this.session = new Session();
+          responseBody = {};
           statusCode = 200;
           break;
         case "/onetime-compile":
-          this.stream = new Stream()
-          responseBody = {exe: this.stream.execute(JSON.parse(requestBody).src)}
+          this.session = new Session();
+          responseBody = {exe: this.session.execute(JSON.parse(requestBody).src)};
           statusCode = 200;
           break;
         default:
