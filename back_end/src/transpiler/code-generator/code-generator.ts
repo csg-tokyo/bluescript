@@ -9,7 +9,6 @@ import { typecheck } from '../type-checker/type-checker'
 import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
-import CONSTANTS from "../../constants";
 
 // codeId: an integer more than zero.  It is used for generating a unique name.
 export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
@@ -19,7 +18,7 @@ export function transpile(codeId: number, src: string, gvnt?: GlobalVariableName
   const nameTable = new GlobalVariableNameTable(gvnt)
   typecheck(ast, maker, nameTable)
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
-  const mainFuncName = `${CONSTANTS.ENTRY_POINT_NAME}${codeId}`
+  const mainFuncName = `${cr.mainFunctionName}${codeId}`
   const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${codeId}`)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   if (generator.errorLog.hasError())

@@ -16,9 +16,7 @@ SemaphoreHandle_t executor_semphr;
 
 uint8_t __attribute__((section(".iram0.data"))) virtual_text[1000] = {0x36, 0x41, 0x00, 0x0c, 0x22, 0x1d, 0xf0, 0x00};
 uint8_t __attribute__((section(".iram0.data"))) virtual_literal[500];
-uint8_t virtual_data[1000];
-uint8_t virtual_rodata[1000];
-uint8_t virtual_bss[200];
+uint8_t virtual_data[2000];
 
 
 uint32_t entry_point;
@@ -26,8 +24,6 @@ uint32_t entry_point;
 int text_used_memory = 0;
 int literal_used_memory = 0;
 int data_used_memory = 0;
-int rodata_used_memory = 0;
-int bss_used_memory = 0;
 
 
 void init(void) {
@@ -35,36 +31,28 @@ void init(void) {
     memset(virtual_text, 0, sizeof(virtual_text));
     memset(virtual_literal, 0, sizeof(virtual_literal));
     memset(virtual_data, 0, sizeof(virtual_data));
-    memset(virtual_rodata, 0, sizeof(virtual_rodata));
-    memset(virtual_bss, 0, sizeof(virtual_bss));
     text_used_memory = 0;
     literal_used_memory = 0;
     data_used_memory = 0;
-    rodata_used_memory = 0;
-    bss_used_memory = 0;
 }
 
 
 void set_memories(uint8_t *exe) {
-    uint8_t new_text_size = exe[0];
-    uint8_t new_literal_size = exe[1];
-    uint8_t new_data_size = exe[2];
-    uint8_t new_rodata_size = exe[3];
-    printf("text: %d", new_text_size);
-    // uint8_t bss_size = value[4]; // Discard bss section size, because bss always same value.
-    entry_point = ((uint32_t)exe[5] << 24) | ((uint32_t)exe[6] << 16) | ((uint32_t) exe[7] << 8) | ((uint32_t) exe[8]);
+    uint8_t new_text_size = ((uint32_t) exe[0] << 8) | ((uint32_t) exe[1]);
+    uint8_t new_literal_size = ((uint32_t) exe[2] << 8) | ((uint32_t) exe[3]);
+    uint8_t new_data_size = ((uint32_t) exe[4] << 8) | ((uint32_t) exe[5]);
+
+    entry_point = ((uint32_t)exe[6] << 24) | ((uint32_t)exe[7] << 16) | ((uint32_t) exe[8] << 8) | ((uint32_t) exe[9]);
     printf("entry point %x\n", entry_point);
     printf("text address: %p\n", virtual_text);
-    int next_index = 9;
+    int next_index = 10;
     memcpy(virtual_text + text_used_memory, exe + next_index, new_text_size); // text
     memcpy(virtual_literal + literal_used_memory, exe + next_index + new_text_size, new_literal_size); // literal
     memcpy(virtual_data + data_used_memory, exe + next_index + new_text_size + new_literal_size, new_data_size); // data
-    memcpy(virtual_rodata + rodata_used_memory, exe + next_index + new_text_size + new_literal_size + new_data_size, new_rodata_size); // rodata
 
     text_used_memory += new_text_size;
     literal_used_memory += new_literal_size;
     data_used_memory += new_data_size;
-    rodata_used_memory += new_data_size;
 }
 
 

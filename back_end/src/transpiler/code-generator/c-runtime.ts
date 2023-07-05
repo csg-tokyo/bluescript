@@ -4,6 +4,7 @@ import { Integer, Float, Boolean, String, Void, Null, Any,
     StaticType, isPrimitiveType, typeToString, } from '../types'
 
 
+export const mainFunctionName = 'bluescript_main'
 export const returnValueVariable = 'ret_value_'
 
 export function typeToCType(type: StaticType, name: string = ''): string {

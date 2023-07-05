@@ -30,7 +30,8 @@ type SubSection = {
 type DataSection = {
   address: number,
   size: number,
-  subSections: Map<string, SubSection>
+  subSections: Map<string, SubSection>,
+  commonSize: number, // Sum of sizes of symbols whose stShndx is common.
 }
 
 export interface AddressTableInterface {
@@ -85,8 +86,10 @@ export class AddressTable implements AddressTableInterface {
     this.parent = parent;
     this.textSection = extractSection(elf32, TEXT_SECTION_NAME, parent.textSection.address + parent.textSection.size);
     this.literalSection = extractSection(elf32, LITERAL_SECTION_NAME, parent.literalSection.address + parent.literalSection.size);
-    this.dataSection = extractDataSection(elf32, parent.dataSection.address + parent.dataSection.size);
-    this.symbols = extractSymbols(elf32, this.textSection, this.dataSection);
+    this.dataSection = extractDataSection(elf32, parent.dataSection.address + parent.dataSection.size + parent.dataSection.commonSize);
+    const {symbols, commonSize} = extractSymbols(elf32, this.textSection, this.dataSection);
+    this.symbols = symbols;
+    this.dataSection.commonSize = commonSize
   }
 
   public getSymbolAddress(symbolName: string): number {
@@ -125,7 +128,7 @@ function extractSection(elf32: Elf32, targetName: string, address: number): Sect
   return {name: targetName, address, size: 0};
 }
 
-function extractDataSection(elf32: Elf32, address: number) {
+function extractDataSection(elf32: Elf32, address: number): DataSection {
   const subSections = new Map<string, SubSection>();
   let nextOffset = 0;
   elf32.shdrs.forEach(shdr => {
@@ -136,11 +139,12 @@ function extractDataSection(elf32: Elf32, address: number) {
       nextOffset += shdr.shSize;
     }
   });
-  return {address, size: nextOffset, subSections};
+  return {address, size: nextOffset, subSections, commonSize: 0};
 }
 
 function extractSymbols(elf32: Elf32, textSection: Section, dataSection: DataSection) {
   const result = new Map<string, Symbol>();
+  let commonSize = 0;
   elf32.symbols.forEach(symbol => {
     if (symbol.stType === STType.STT_FUNC) {
       const name = elf32.getSymbolName(symbol);
@@ -150,8 +154,10 @@ function extractSymbols(elf32: Elf32, textSection: Section, dataSection: DataSec
     if (symbol.stType === STType.STT_OBJECT) {
       const name = elf32.getSymbolName(symbol);
       let address: number;
-      if (symbol.stShndx === SHNType.SHN_COMMON)
-        address = 0;
+      if (symbol.stShndx === SHNType.SHN_COMMON) {
+        address = dataSection.address + dataSection.size + commonSize;
+        commonSize += symbol.stSize;
+      }
       else {
         const residesSectionName = elf32.getSectionName(elf32.shdrs[symbol.stShndx]);
         const residesSubSection = dataSection.subSections.get(residesSectionName);
@@ -162,7 +168,7 @@ function extractSymbols(elf32: Elf32, textSection: Section, dataSection: DataSec
       result.set(name, {name, address});
     }
   });
-  return result;
+  return {symbols: result, commonSize};
 }
 
 function extractMCUVSection(mcuElf32: Elf32, vSectionName: string): Section {
@@ -178,7 +184,7 @@ function extractMCUVDataSection(mcuElf32: Elf32, vSectionName: string): DataSect
   for (const symbol of mcuElf32.symbols) {
     const name = mcuElf32.getSymbolName(symbol);
     if (name === vSectionName)
-      return {size: 0, address: symbol.stValue, subSections: new Map<string, SubSection>()};
+      return {size: 0, address: symbol.stValue, subSections: new Map<string, SubSection>(), commonSize: 0};
   }
   throw Error(`Could not fine virtual section address. The virtual section name is ${vSectionName}`);
 }

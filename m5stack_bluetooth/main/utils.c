@@ -40,7 +40,7 @@ struct _console_log_number { void (*fptr)(value_t); const char* sig; } _console_
 
 // TODO: 改善。以下がないと使わない関数のコードが消されてしまう。
 struct my_rel_table_entry my_rel_table[100] = {
-        {_console_log_number},
+        {&_console_log_number},
         {try_and_catch},
         {safe_value_to_int},
         {safe_value_to_float},

@@ -26,6 +26,7 @@ export default function Repl() {
     setCompileError("");
     try {
       const {exe} = await network.replCompile(code);
+      console.log(exe);
       await bluetooth.sendMachineCode(CHARACTERISTIC_IDS.REPL, exe);
       setExitedCodes([...exitedCodes, code]);
       setCode("");
