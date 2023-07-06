@@ -75,7 +75,7 @@ Consider the function name you want to add to be `NEW_RUNTIME_FUNCTION`
     // }
    ```
 4. ./back_end/data/c-runtime-symbols.json
-   ```json
+   ```typescript
    // [
     "NEW_RUNTIME_FUNCTION",
    // ... 
