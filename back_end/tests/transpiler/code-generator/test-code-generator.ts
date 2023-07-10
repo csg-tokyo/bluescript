@@ -67,6 +67,7 @@ int main() {
 `
 }
 
+// print() must be called at least once in the given source code
 export function compileAndRun(src: string, usePrintI32 = false, destFile = './bscript.c') {
     const result1 = transpile(1, prolog)
     let globalNames = result1.names

@@ -26,11 +26,15 @@ abstract class CompositeType {
   getSuperType(): ObjectType | null { return null }
 }
 
+export const noRuntimeTypeInfo = '0'
+
 // type represented by value_t
 export class ObjectType extends CompositeType {
   name() {
     return 'object'
   }
+
+  runtimeTypeInfo() { return noRuntimeTypeInfo }
 
   isSubtypeOf(t: StaticType): boolean {
     return this === t || this.getSuperType()?.isSubtypeOf(t) || false

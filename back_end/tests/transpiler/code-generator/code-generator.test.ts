@@ -555,5 +555,72 @@ test('integer binary operators', () => {
   print_i32(-5 >>> 2)
   print_i32(-5 >> 2)
 `
-  expect(compileAndRun(src, true)).toBe([511, 509, 2, 1, 2044, 127, 127, 1069563848, -4177976, 1073741822, -2].join('\n') + '\n')
+  expect(compileAndRun(src, true, 'foo.c')).toBe([511, 509, 2, 1, 2044, 127, 127, 1069563848, -4177976, 1073741822, -2].join('\n') + '\n')
 })
+
+test('int % float is not valid', () => {
+  const src = `
+  function foo(m: integer, n: float) {
+    print(m % n)
+  }
+  foo(5, 3.0)
+`
+  expect(() => { compileAndRun(src) }).toThrow(/invalid operands.*line 3/)
+})
+
+test('assignment', () => {
+  const src = `
+  function foo(x: integer, s: string) {
+    let y
+    const a = x
+    let b: any = x
+    y = x
+    print(b + y)
+    b = s
+    print(b)
+  }
+  foo(7, 'test')
+  `
+
+  expect(compileAndRun(src)).toBe([14, 'test'].join('\n') + '\n')
+})
+
+test('assignment from any', () => {
+  const src = `
+  function foo(i, str) {
+    const j: integer = i
+    const s: string = str       // cast??
+    print(j)
+    print(s)
+  }
+  foo(7, 'test')
+  `
+
+  expect(compileAndRun(src)).toBe([7, 'test'].join('\n') + '\n')
+})
+
+test('any to null', () => {
+  const src = `
+  function foo(obj: any) {
+    const s: null = obj
+    return s
+  }
+  print(foo(null))
+  `
+
+  expect(compileAndRun(src)).toBe('null\n')
+})
+
+test('wrong assignment from any', () => {
+  const src = `
+  function foo(obj: any) {
+    const s: string = obj
+  }
+  print(0)
+  foo('test')
+  foo([1, 2])
+  `
+
+  expect(() => compileAndRun(src)).toThrow(/value_to_string/)
+})
+

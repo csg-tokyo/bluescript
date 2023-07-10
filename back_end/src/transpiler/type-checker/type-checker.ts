@@ -370,8 +370,6 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addCoercion(node.right, right_type)
       }
       else if (left_type === Any || right_type === Any) {
-        // the above condition must not be isAny(left_type) || isAny(right_type)
-        // if type are any-type, they must not be an array type or a function type.
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
