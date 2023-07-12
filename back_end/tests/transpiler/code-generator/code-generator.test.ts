@@ -6,35 +6,10 @@ test('simple code', () => {
   expect(compileAndRun(src)).toEqual('2\n')
 })
 
-test('string concatenation', () => {
+test('string concatenation is not available', () => {
   const src = 'print("foo" + 1)'    // + is available only for numbers
 
   expect(() => { compileAndRun(src) }).toThrow(/invalid operands to +/)
-})
-
-test('array access', () => {
-  const src = `
-  function foo(n: integer): integer {
-    const s = [ n ]
-    return s[0] + 3
-  }
-  print(foo(4))`
-
-  expect(compileAndRun(src)).toBe('7\n')
-})
-
-
-test('bad value assignment to an array', () => {
-  const src = `
-  function foo(n: integer): integer {
-    const s = [ n ]
-    s[0] = "foo"     // runtime type error
-    return s[0] + 3
-  }
-
-  print(foo(4))`
-
-  expect(() => { compileAndRun(src) }).toThrow(/not assignable to element type/)
 })
 
 test('boolean conditions', () => {
@@ -621,6 +596,67 @@ test('wrong assignment from any', () => {
   foo([1, 2])
   `
 
-  expect(() => compileAndRun(src)).toThrow(/value_to_string/)
+  expect(() => compileAndRun(src)).toThrow(/incompatible argument.*line 7/)
 })
 
+test('+= operator', () => {
+  const src = `
+  function foo(obj: any, n: integer): integer {
+    obj += n
+    print(obj)
+    n += obj
+    print(n)
+    obj += obj
+    return obj
+  }
+  print(foo(7, 3))
+  `
+
+  expect(compileAndRun(src)).toBe([10, 13, 20].join('\n') + '\n')
+})
+
+test('array access', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const s = [ n ]
+    return s[0] + 3
+  }
+  print(foo(4))`
+
+  expect(compileAndRun(src)).toBe('7\n')
+})
+
+test('bad value assignment to an array', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const s = [ n ]
+    s[0] = "foo"     // type error
+    return s[0] + 3
+  }
+
+  print(foo(4))`
+
+  expect(() => { compileAndRun(src) }).toThrow(/not assignable to element type/)
+})
+
+test('any array', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const arr = [ n ]
+    const s: any[] = (arr as any)             // int[] as any (error)
+    const s2: any = arr                       // any = integer[] (error)
+    const t1: integer[] = arr
+    const t2: integer[] = (arr as integer[])
+    const arr2: any[] = [ 1, "foo" ]
+    const u: any = arr2
+    const u2: any = arr2 as any               // any[] as any
+    const u3: any[] = u2
+    const u4: any[] = u2 as any[]             // any as any[]
+    const u5: integer[] = u2                  // (error)
+    const u6: integer[] = u2 as integer[]     // any as integer[] (error)
+    return s[0]
+  }
+  print(foo(4))`
+
+  expect(() => compileAndRun(src)).toThrow(/line 4\n.*line 5\n.*line 13\n.*line 14/)
+})

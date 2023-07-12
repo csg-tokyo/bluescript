@@ -446,9 +446,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.assert(isSubtype(right_type, left_type),
           `Type '${typeToString(right_type)}' is not assignable to type '${typeToString(left_type)}'`,
           node)
-    else if (op === '+=' || op === '-=' || op === '*=' || op === '/=')
+    else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
         this.invalidOperandsMessage(op, left_type, right_type), node)
+      if (left_type === Any || right_type === Any) {    // "if (isConsistent(...))" is wrong
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
+      }
+    }
     else if (op === '|=' || op === '^=' || op === '&=' || op === '%=' || op === '<<=' || op === '>>=')
       this.assert(left_type === Integer && right_type === Integer,
         this.invalidOperandsMessage(op, left_type, right_type), node)
@@ -503,7 +508,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             this.addCoercion(arg, this.result)
           else
             this.assert(isSubtype(this.result, func_type.paramTypes[i]),
-              `passing an incompatible argument (${this.result} to ${func_type.paramTypes[i]})`,
+              `passing an incompatible argument (${typeToString(this.result)} to ${typeToString(func_type.paramTypes[i])})`,
               node)
         }
 
@@ -574,8 +579,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const exprType = this.result
     this.visit(node.typeAnnotation, names)
     const asType = this.result
-    this.assert(exprType === Any || asType === Any || (isNumeric(exprType) && isNumeric(asType)),
-      this.invalidOperandsMessage('as', exprType, this.result), node)
+    if (!isSubtype(exprType, asType)
+        && !(isNumeric(exprType) && isNumeric(asType))
+        && !isConsistent(exprType, asType)
+        && !(asType instanceof ObjectType && isSubtype(asType, exprType)))
+      this.assert(false, this.invalidOperandsMessage('as', exprType, asType), node)
+
     this.addStaticType(node.expression, exprType)
     this.addStaticType(node, asType)
     this.result = asType

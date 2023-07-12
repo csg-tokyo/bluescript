@@ -180,8 +180,10 @@ export function sameType(t1: StaticType, t2: StaticType) {
 export function isConsistent(t1: StaticType, t2: StaticType) {
   if (t1 === Any)
     return t1 !== t2 && t2 !== Void && !(t2 instanceof FunctionType)
+           && !(t2 instanceof ArrayType && t2.elementType !== Any)
   else if (t2 === Any)
     return t1 !== Void && !(t1 instanceof FunctionType)
+           && !(t1 instanceof ArrayType && t1.elementType !== Any)
   else
     return false
 }

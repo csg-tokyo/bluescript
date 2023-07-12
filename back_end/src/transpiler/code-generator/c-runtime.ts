@@ -124,26 +124,26 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
           return '('
       }
     default:    // "to" is either String, Object, or Array
-      if (from === Any) {
+      if (from === Any || from instanceof ObjectType) {
         if (to === String)
           return 'safe_value_to_string('
         else if (to instanceof ObjectType) {
           const info = to.runtimeTypeInfo()
           if (to === objectType)
             return 'safe_value_to_object('
-          else if (to instanceof ArrayType)
-            if (info === noRuntimeTypeInfo)
-              return 'safe_value_to_array('
+          else {
+            if (to instanceof ArrayType) {
+              if (info === noRuntimeTypeInfo)
+                return 'safe_value_to_array('
+            }
+          }
 
           return `safe_value_to_value(${info}, `
         }
       }
-      else if (from === String) {
-        if (to === objectType)
-          return '('          // also return '(' if to is String
-      }
-      else if (from === Null || from instanceof ObjectType)
+      else if (from === Null)
         return '('
+      // else if (from === String), then this is an error.
   }
 
   throw typeConversionError(from, to, node)
