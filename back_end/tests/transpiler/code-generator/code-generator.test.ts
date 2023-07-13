@@ -530,7 +530,7 @@ test('integer binary operators', () => {
   print_i32(-5 >>> 2)
   print_i32(-5 >> 2)
 `
-  expect(compileAndRun(src, true, 'foo.c')).toBe([511, 509, 2, 1, 2044, 127, 127, 1069563848, -4177976, 1073741822, -2].join('\n') + '\n')
+  expect(compileAndRun(src, true)).toBe([511, 509, 2, 1, 2044, 127, 127, 1069563848, -4177976, 1073741822, -2].join('\n') + '\n')
 })
 
 test('int % float is not valid', () => {

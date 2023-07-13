@@ -12,7 +12,6 @@ function print_i32(m: integer) {}
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
 #include "../../m5stack_bluetooth/main/c-runtime.h"
 
-void push_log(char *log) {};
 `
 const prologCcode2 = `
 #include <stdio.h>
@@ -35,10 +34,10 @@ static void fbody_print_i32(int32_t i) {
 }
 `
 
-const prologCode2a = `struct _print _print = { fbody_print, "" };
+const prologCode2a = `struct _print _print = { fbody_print, "(a)v" };
 `
 
-const prologCode2b = `struct _print _print = { fbody_print, "" };
+const prologCode2b = `struct _print _print = { fbody_print, "(i)v" };
 struct _print_i32 _print_i32 = { fbody_print_i32, "" };
 `
 
@@ -84,8 +83,8 @@ export function compileAndRun(src: string, usePrintI32 = false, destFile = './te
     globalNames = result2.names
     fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main))
     // throw an Error when compilation fails.
-    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript.o`)
-    return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
+    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
+    return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
 export function multiCompileAndRun(src: string, src2: string, destFile = './temp-files/bscript') {
@@ -105,8 +104,8 @@ export function multiCompileAndRun(src: string, src2: string, destFile = './temp
   fs.writeFileSync(thirdFile, prologCcode + protoMain2 + result3.code + getEpilog2(result2.main, result3.main));
   // throw an Error when compilation fails.
 
-  execSync(`cc -g -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../m5stack_bluetooth/main/c-runtime.c`)
-  return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
+  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
+  return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
 function runTranspiler(id: number, src: string, names: GlobalVariableNameTable) {
