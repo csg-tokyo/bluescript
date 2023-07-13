@@ -234,7 +234,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         const typeAndVar = cr.typeToCType(retType, cr.returnValueVariable)
         const type = this.needsCoercion(node.argument)
         if (type)
-          this.result.write(`{ ${typeAndVar} = ${cr.typeConversion(type, retType)}(`)
+          this.result.write(`{ ${typeAndVar} = ${cr.typeConversion(type, retType, node)}`)
         else
           this.result.write(`{ ${typeAndVar} = (`)
 
@@ -288,7 +288,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           if (decl.init) {
             const initType = this.needsCoercion(decl.init)
             if (initType) {
-              this.result.write(` = ${cr.typeConversion(initType, info.type)}(`)
+              this.result.write(` = ${cr.typeConversion(initType, info.type, node)}`)
               this.visit(decl.init, env)
               this.result.write(')')
             }
@@ -452,7 +452,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         return
       }
       else if (node.operator === '~')
-        this.result.write(`~${cr.typeConversion(type, Integer)}(`)
+        this.result.write(`~${cr.typeConversion(type, Integer, node)}`)
       else
         this.result.write('(')
     else {
@@ -499,6 +499,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       // both left and right are integer or float.
       this.numericBinaryExprssion(op, left, right, env)
     }
+    else if (op === '>>>') {
+      // both left and right are integer or float.
+      this.unsignedRightShift(left, right, env)
+    }
     else
       throw this.errorLog.push(`bad binary operator ${op}`, node)
 
@@ -520,9 +524,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if ((left_type === Boolean || right_type === Boolean)
       // if either left or right operand is boolean, the other is boolean
         || (left_type === Any || right_type === Any)) {
-      this.result.write(`${cr.typeConversion(left_type, Any)}(`)
+      this.result.write(`${cr.typeConversion(left_type, Any, left)}`)
       this.visit(left, env)
-      this.result.write(`) ${op2} ${cr.typeConversion(right_type, Any)}(`)
+      this.result.write(`) ${op2} ${cr.typeConversion(right_type, Any, right)}`)
       this.visit(right, env)
       this.result.write(')')
     }
@@ -535,9 +539,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
     if (left_type === Any || right_type === Any) {
-      this.result.write(`${cr.arithmeticOpForAny(op)}(${cr.typeConversion(left_type, Any)}(`)
+      this.result.write(`${cr.arithmeticOpForAny(op)}(${cr.typeConversion(left_type, Any, left)}`)
       this.visit(left, env)
-      this.result.write(`), ${cr.typeConversion(right_type, Any)}(`)
+      this.result.write(`), ${cr.typeConversion(right_type, Any, right)}`)
       this.visit(right, env)
       this.result.write('))')
     }
@@ -549,6 +553,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private numericBinaryExprssion(op: string, left: AST.Node, right: AST.Node, env: VariableEnv) {
     this.visit(left, env)
     this.result.write(` ${op} `)
+    this.visit(right, env)
+  }
+
+  private unsignedRightShift(left: AST.Node, right: AST.Node, env: VariableEnv) {
+    this.result.write(`(${cr.uint32type})(`)
+    this.visit(left, env)
+    this.result.write(') >> ')
     this.visit(right, env)
   }
 
@@ -564,19 +575,19 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (op === '=') {
       let func: string
       if (left_type === Any)
-        func = cr.typeConversion(right_type, Any)
+        func = cr.typeConversion(right_type, Any, right)
       else if (right_type === Any)
-        func = cr.typeConversion(Any, left_type)
+        func = cr.typeConversion(Any, left_type, left)
       else
-        func = ''
+        func = '('
 
       this.visit(left, env)
-      if (func === '') {
+      if (func === '(') {
         this.result.write(' = ')
         this.visit(right, env)
       }
       else {
-        this.result.write(` = ${func}(`)
+        this.result.write(` = ${func}`)
         this.visit(right, env)
         this.result.write(')')
       }
@@ -599,14 +610,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (leftType === Any) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(&(`)
       this.visit(left, env)
-      this.result.write(`), ${cr.typeConversion(rightType, Any)}(`)
+      this.result.write(`), ${cr.typeConversion(rightType, Any, right)}`)
       this.visit(right, env)
       this.result.write('))')
     }
     else if (rightType === Any) {
       this.visit(left, env)
       this.result.write(op)
-      this.result.write(` ${cr.typeConversion(Any, leftType)}(`)
+      this.result.write(` ${cr.typeConversion(Any, leftType, left)}`)
       this.visit(right, env)
       this.result.write(')')
     }
@@ -661,7 +672,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (arg_type === undefined)
         this.visit(arg, env)
       else {
-        this.result.write(`${cr.typeConversion(arg_type, ftype.paramTypes[i])}(`)
+        this.result.write(`${cr.typeConversion(arg_type, ftype.paramTypes[i], arg)}`)
         this.visit(arg, env)
         this.result.write(')')
       }
@@ -676,7 +687,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     for (const ele of node.elements)
       if (ele !== null) {
         const type = getStaticType(ele)
-        this.result.write(`, ${cr.typeConversion(type, Any)}(`)
+        this.result.write(`, ${cr.typeConversion(type, Any, ele)}`)
         this.visit(ele, env)
         this.result.write(')')
       }
@@ -685,7 +696,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   memberExpression(node: AST.MemberExpression, env: VariableEnv): void {
     const elementType = getStaticType(node)
-    this.result.write(`${cr.typeConversion(Any, elementType)}(*${cr.arrayElementGetter}(`)
+    this.result.write(`${cr.typeConversion(Any, elementType, node)}*${cr.arrayElementGetter}(`)
     this.visit(node.object, env)
     this.result.write(', ')
     this.visit(node.property, env)
@@ -695,7 +706,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   tsAsExpression(node: AST.TSAsExpression, env: VariableEnv): void {
     const exprType = getStaticType(node.expression)
     const asType = getStaticType(node)
-    this.result.write(`${cr.typeConversion(exprType, asType)}(`)
+    this.result.write(`${cr.typeConversion(exprType, asType, node)}`)
     this.visit(node.expression, env)
     this.result.write(')')
   }

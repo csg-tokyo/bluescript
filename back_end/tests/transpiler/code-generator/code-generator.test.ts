@@ -6,35 +6,10 @@ test('simple code', () => {
   expect(compileAndRun(src)).toEqual('2\n')
 })
 
-test('string concatenation', () => {
+test('string concatenation is not available', () => {
   const src = 'print("foo" + 1)'    // + is available only for numbers
 
   expect(() => { compileAndRun(src) }).toThrow(/invalid operands to +/)
-})
-
-test('array access', () => {
-  const src = `
-  function foo(n: integer): integer {
-    const s = [ n ]
-    return s[0] + 3
-  }
-  print(foo(4))`
-
-  expect(compileAndRun(src)).toBe('7\n')
-})
-
-
-test('bad value assignment to an array', () => {
-  const src = `
-  function foo(n: integer): integer {
-    const s = [ n ]
-    s[0] = "foo"     // runtime type error
-    return s[0] + 3
-  }
-
-  print(foo(4))`
-
-  expect(() => { compileAndRun(src) }).toThrow(/not assignable to element type/)
 })
 
 test('boolean conditions', () => {
@@ -278,6 +253,21 @@ test('const declaration', () => {
   expect(() => { compileAndRun(src) }).toThrow(/assignment to constant/)
 })
 
+test('string declaration', () => {
+  const src = `
+  function foo(n: float) {
+    const k = n, m = k
+    const str = 'foo', str2 = 'bar'
+    print(str)
+    print(m)
+    print(str2)
+  }
+  foo(3)
+  `
+
+  expect(compileAndRun(src)).toBe("foo\n3.000000\nbar\n")
+})
+
 test('mixed type declaration', () => {
   const src = `
   function foo(n: integer) {
@@ -429,9 +419,244 @@ test('a function is a value', () => {
 
   const src2 = `function bar(n: integer) {
     const f = foo
-    return f(n)
+    const g: (n: integer) => integer = foo
+    return f(n) + g(11)
   }
 print(bar(101))
 `
-  expect(multiCompileAndRun(src1, src2)).toBe('101\n')
+  expect(multiCompileAndRun(src1, src2)).toBe('112\n')
+})
+
+test('unary operator', () => {
+  const src = `
+  function foo(n: integer) {
+    const i: any = n
+    const f: float = n
+    print(+n)
+    print(-n)
+    print(!n)
+    print(~n)
+    print(+i)
+    print(-i)
+    print(!i)
+    print(~i)
+    print(+f)
+    print(-f)
+    print(!f)
+  }
+  foo(3)
+`
+  expect(compileAndRun(src)).toBe('3\n-3\n0\n-4\n3\n-3\n0\n-4\n3.000000\n-3.000000\n0\n')
+})
+
+test('++/-- operator', () => {
+  const src = `
+  function foo(n: integer) {
+    let i: any = n
+    print(++n)
+    print(--n)
+    print(n++)
+    print(n--)
+    print(n)
+    print(++i)
+    print(--i)
+    print(i++)
+    print(i--)
+    print(i)
+  }
+  foo(5)
+`
+  expect(compileAndRun(src)).toBe('6\n5\n5\n6\n5\n6\n5\n5\n6\n5\n')
+})
+
+test('++ operator for const', () => {
+  const src = `
+  function foo(n: integer) {
+    const i = n
+    print(++i)
+    print(i--)
+  }
+  foo(5)
+`
+  expect(() => compileAndRun(src)).toThrow(/assignment to constant.*line 4\n.*line 5/)
+})
+
+test('equality operators', () => {
+  const src = `
+  function foo(m: integer, n: float) {
+    print(m === n)
+    print(m == n)
+    print(m !== n)
+    print(m != n)
+  }
+  foo(5, 5.0)
+`
+  expect(compileAndRun(src)).toBe([1, 1, 0, 0].join('\n') + '\n')
+})
+
+test('basic binary operators', () => {
+  const src = `
+  function foo(m: integer, n: float) {
+    print(m + n)
+    print(m * n)
+    print(m > n)
+    print(m >= n)
+    const a = m
+    const b = n
+    print(a - n)
+    print(m / b)
+    print(a < b)
+    print(a <= n)
+  }
+  foo(5, 3.0)
+`
+  expect(compileAndRun(src)).toBe(['8.000000', '15.000000', 1, 1, '2.000000', 1.666667, 0, 0].join('\n') + '\n')
+})
+
+test('integer binary operators', () => {
+  const src = `
+  function foo(m: integer, n: integer) {
+    print(m | n)
+    print(m ^ n)
+    print(m & n)
+    print(m % n)
+    print(m << n)
+    print(m >> n)
+    print(m >>> n)
+  }
+  foo(511, 2)
+  print_i32(0xff00ff21 >>> 2)
+  print_i32((0xff00ff21 as integer) >> 2)
+  print_i32(-5 >>> 2)
+  print_i32(-5 >> 2)
+`
+  expect(compileAndRun(src, true)).toBe([511, 509, 2, 1, 2044, 127, 127, 1069563848, -4177976, 1073741822, -2].join('\n') + '\n')
+})
+
+test('int % float is not valid', () => {
+  const src = `
+  function foo(m: integer, n: float) {
+    print(m % n)
+  }
+  foo(5, 3.0)
+`
+  expect(() => { compileAndRun(src) }).toThrow(/invalid operands.*line 3/)
+})
+
+test('assignment', () => {
+  const src = `
+  function foo(x: integer, s: string) {
+    let y
+    const a = x
+    let b: any = x
+    y = x
+    print(b + y)
+    b = s
+    print(b)
+  }
+  foo(7, 'test')
+  `
+
+  expect(compileAndRun(src)).toBe([14, 'test'].join('\n') + '\n')
+})
+
+test('assignment from any', () => {
+  const src = `
+  function foo(i, str) {
+    const j: integer = i
+    const s: string = str       // cast??
+    print(j)
+    print(s)
+  }
+  foo(7, 'test')
+  `
+
+  expect(compileAndRun(src)).toBe([7, 'test'].join('\n') + '\n')
+})
+
+test('any to null', () => {
+  const src = `
+  function foo(obj: any) {
+    const s: null = obj
+    return s
+  }
+  print(foo(null))
+  `
+
+  expect(compileAndRun(src)).toBe('null\n')
+})
+
+test('wrong assignment from any', () => {
+  const src = `
+  function foo(obj: any) {
+    const s: string = obj
+  }
+  print(0)
+  foo('test')
+  foo([1, 2])
+  `
+
+  expect(() => compileAndRun(src)).toThrow(/incompatible argument.*line 7/)
+})
+
+test('+= operator', () => {
+  const src = `
+  function foo(obj: any, n: integer): integer {
+    obj += n
+    print(obj)
+    n += obj
+    print(n)
+    obj += obj
+    return obj
+  }
+  print(foo(7, 3))
+  `
+
+  expect(compileAndRun(src)).toBe([10, 13, 20].join('\n') + '\n')
+})
+
+test('array access', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const s = [ n ]
+    return s[0] + 3
+  }
+  print(foo(4))`
+
+  expect(compileAndRun(src)).toBe('7\n')
+})
+
+test('bad value assignment to an array', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const s = [ n ]
+    s[0] = "foo"     // type error
+    return s[0] + 3
+  }
+
+  print(foo(4))`
+
+  expect(() => { compileAndRun(src) }).toThrow(/not assignable to element type/)
+})
+
+test('any array', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const arr = [ n ]
+    const s: any[] = (arr as any)             // int[] as any (error)
+    const s2: any = arr                       // any = integer[] (error)
+    const t1: integer[] = arr
+    const t2: integer[] = (arr as integer[])
+    const arr2: any[] = [ 1, "foo" ]
+    const u: any = arr2
+    const u2: any = arr2 as any               // any[] as any
+    const u3: any[] = u2
+    const u4: any[] = u2 as any[]             // any as any[]
+    const u5: integer[] = u2                  // (error)
+    const u6: integer[] = u2 as integer[]     // any as integer[] (error)
+    return s[0]
+  }
+  print(foo(4))`
+
+  expect(() => compileAndRun(src)).toThrow(/line 4\n.*line 5\n.*line 13\n.*line 14/)
 })

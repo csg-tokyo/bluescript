@@ -104,7 +104,7 @@ int32_t try_and_catch(void (*main_function)()) {
 
 // arithmetic operators for any-type values
 
-static value_t runtime_type_error(char* msg) {
+static value_t runtime_type_error(const char* msg) {
     const char fmt[] = "** runtime type error: %s\n";
     if (strlen(msg) + sizeof(fmt) / sizeof(fmt[0]) >= sizeof(error_message) / sizeof(error_message[0]))
         msg = "??";
@@ -146,6 +146,39 @@ bool safe_value_to_bool(value_t v) {
 
 bool value_to_truefalse(value_t v) {
     return v != VALUE_NULL && v != VALUE_UNDEF && v != VALUE_FALSE && v != VALUE_ZERO && v != VALUE_FZERO;
+}
+
+value_t safe_value_to_null(value_t v) {
+    if (v != VALUE_NULL)
+        runtime_type_error("value_to_null");
+
+    return v;
+}
+
+value_t safe_value_to_string(value_t v) {
+    if (!gc_is_string_literal(v))
+        runtime_type_error("value_to_string");
+
+    return v;
+}
+
+value_t safe_value_to_object(value_t v) {
+    // note: String is not a subtype of Object
+    if (!is_ptr_value(v) || gc_is_string_literal(v))
+        runtime_type_error("value_to_object");
+
+    return v;
+}
+
+value_t safe_value_to_value(const class_object* const clazz, value_t v) {
+    const class_object*  type = gc_get_class_of(v);
+    while (type != clazz && type != NULL)
+        type = type->superclass;
+
+    if (type == NULL)
+        runtime_type_error(clazz->name);
+
+    return v;
 }
 
 #define ANY_OP_FUNC(name, op) \
@@ -297,6 +330,9 @@ class_object* gc_get_class_of(value_t value) {
         return NULL;
 }
 
+static CLASS_OBJECT(object_class, 1) = {
+    .clazz = { .size = 0, .is_raw_data = false, .name = "Object", .superclass = NULL }};
+
 static pointer_t allocate_heap(uint16_t word_size);
 
 pointer_t gc_allocate_object(const class_object* clazz) {
@@ -315,7 +351,8 @@ pointer_t gc_allocate_object(const class_object* clazz) {
 // string_literal is a class for objects that contain a pointer to a C string.
 // This C string is not allocated in the heap memory managed by the garbage collector.
 
-static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.is_raw_data = true };
+static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.is_raw_data = true,
+                                           .clazz.name = "String", .clazz.superclass = NULL };
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
@@ -343,7 +380,8 @@ char* gc_string_literal_cstr(value_t obj) {
 #endif
 }
 
-static CLASS_OBJECT(bytearray_object, 1) = { .clazz = { .size = -1, .is_raw_data = true }};
+static CLASS_OBJECT(bytearray_object, 1) = {
+    .clazz = { .size = -1, .is_raw_data = true, .name = "ByteArray", .superclass = &object_class.clazz }};
 
 /*
   A byte (or unsigned 8 bit) array.  It cannot contain a pointer.
@@ -414,7 +452,8 @@ value_t* gc_bytearray_set_raw_word(value_t obj, int32_t index, uint32_t new_valu
     return &objp->body[index + 1];
 }
 
-static CLASS_OBJECT(vector_object, 1) = { .clazz = { .size = -1, .is_raw_data = false }};
+static CLASS_OBJECT(vector_object, 1) = {
+    .clazz = { .size = -1, .is_raw_data = false, .name = "Vector", .superclass = &object_class.clazz }};
 
 /*
   A fixed-length array.
@@ -476,7 +515,12 @@ inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_valu
     objp->body[index + 1] = new_value;
 }
 
-static CLASS_OBJECT(array_object, 1) = { .clazz = { .size = 2, .is_raw_data = false }};
+static CLASS_OBJECT(array_object, 1) = {
+    .clazz = { .size = 2, .is_raw_data = false, .name = "Array", .superclass = &object_class.clazz }};
+
+value_t safe_value_to_array(value_t v) {
+    return safe_value_to_value(&array_object.clazz, v);
+}
 
 /*
   An array.

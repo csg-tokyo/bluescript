@@ -6,12 +6,12 @@ import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/
 
 const prolog = `// predefined native functions
 function print(m: any) {}
+function print_i32(m: integer) {}
 `
 
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
 #include "../../m5stack_bluetooth/main/c-runtime.h"
 
-void push_log(char *log) {};
 `
 const prologCcode2 = `
 #include <stdio.h>
@@ -28,10 +28,22 @@ static void fbody_print(value_t m) {
   else
     puts("??");
 }
+
+static void fbody_print_i32(int32_t i) {
+  printf("%d\\n", i);
+}
 `
 
-const prologCode2b = 'struct _print _print = { fbody_print, "" };\n'
-const prologCode2c = 'struct _print { void (*fptr)(value_t); const char* sig; } _print = { fbody_print, "" };\n'
+const prologCode2a = `struct _print _print = { fbody_print, "(a)v" };
+`
+
+const prologCode2b = `struct _print _print = { fbody_print, "(i)v" };
+struct _print_i32 _print_i32 = { fbody_print_i32, "" };
+`
+
+const prologCode2c = `struct _print { void (*fptr)(value_t); const char* sig; } _print = { fbody_print, "" };
+struct _print_i32 { void (*fptr)(int32_t); const char* sig; } _print_i32 = { fbody_print_i32, "" };
+`
 
 function getEpilog(initName: string) {
   return `
@@ -55,12 +67,13 @@ int main() {
 `
 }
 
-export function compileAndRun(src: string, destFile = './temp-files/bscript.c') {
+// print() must be called at least once in the given source code
+export function compileAndRun(src: string, usePrintI32 = false, destFile = './temp-files/bscript.c') {
     const result1 = transpile(1, prolog)
     let globalNames = result1.names
     let result2
     try {
-      result2 = transpile(2, src, globalNames, 1, prologCcode2 + prologCode2b)
+      result2 = transpile(2, src, globalNames, 1, prologCcode2 + (usePrintI32 ? prologCode2b : prologCode2a))
     }
     catch (e) {
       if (e instanceof ErrorLog)
@@ -70,8 +83,8 @@ export function compileAndRun(src: string, destFile = './temp-files/bscript.c') 
     globalNames = result2.names
     fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main))
     // throw an Error when compilation fails.
-    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript.o`)
-    return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
+    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
+    return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
 export function multiCompileAndRun(src: string, src2: string, destFile = './temp-files/bscript') {
@@ -90,8 +103,9 @@ export function multiCompileAndRun(src: string, src2: string, destFile = './temp
   const protoMain2 = `extern void ${result2.main}();\n`
   fs.writeFileSync(thirdFile, prologCcode + protoMain2 + result3.code + getEpilog2(result2.main, result3.main));
   // throw an Error when compilation fails.
-  execSync(`cc -g -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../m5stack_bluetooth/main/c-runtime.c`)
-  return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
+
+  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
+  return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
 function runTranspiler(id: number, src: string, names: GlobalVariableNameTable) {

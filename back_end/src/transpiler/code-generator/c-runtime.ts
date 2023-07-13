@@ -1,11 +1,14 @@
-import { type } from 'node:os'
+import * as AST from '@babel/types'
+import { ErrorLog } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
-    ObjectType, FunctionType,
-    StaticType, isPrimitiveType, typeToString, } from '../types'
+    ObjectType, objectType, FunctionType,
+    StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, } from '../types'
 
 
 export const mainFunctionName = 'bluescript_main'
 export const returnValueVariable = 'ret_value_'
+
+export const uint32type = 'uint32_t'
 
 export function typeToCType(type: StaticType, name: string = ''): string {
   if (type instanceof FunctionType) {
@@ -55,48 +58,95 @@ function typeToCType2(type: StaticType): string {
   }
 }
 
-// from or to is undefined when type conversion is unnecessary
-export function typeConversion(from: StaticType | undefined, to: StaticType | undefined) {
-  if (from instanceof FunctionType || from === Void || to instanceof FunctionType || to === Void) {
-    const fromType = from === undefined ? '?' : typeToString(from)
-    const toType = to === undefined ? '?' : typeToString(to)
-    throw new Error(`cannot convert ${fromType} to ${toType}`)
-  }
+function typeConversionError(from: StaticType | undefined, to: StaticType | undefined,
+                             node: AST.Node) {
+  const fromType = from === undefined ? '?' : typeToString(from)
+  const toType = to === undefined ? '?' : typeToString(to)
+  return new ErrorLog().push(`internal error: cannot convert ${fromType} to ${toType}`, node)
+}
 
-  let fname
+// returns '(' or '<conversion function>('
+// "from" or "to" is undefined when type conversion is unnecessary
+export function typeConversion(from: StaticType | undefined, to: StaticType | undefined,
+                               node: AST.Node) {
+  if (from === undefined || to === undefined)
+    return '('
+
+  if (from === to)
+    if (from === Integer)
+      return '(int32_t)('
+    else if (from === Float)
+      return '(float)('
+    else
+      return '('
+
+  if (from instanceof FunctionType || from === Void || to instanceof FunctionType || to === Void)
+    throw typeConversionError(from, to, node)
+
   switch (to) {
     case Integer:
       if (from === Float)
-        return '(int32_t)'
-      else
-        fname = 'safe_value_to_int'
-      break
+        return '(int32_t)('
+      else if (from === Boolean)
+        return '('
+      else if (from === Any)
+        return 'safe_value_to_int('
+      else 
+        break
     case Float:
-      if (from === Integer)
-        return '(float)'
+      if (from === Integer || from === Boolean)
+        return '(float)('
+      else if (from === Any)
+        return 'safe_value_to_float('
       else
-        fname = 'safe_value_to_float'
-      break
+        break
     case Boolean:
-      fname = 'safe_value_to_bool'
-      break
-    default:    // to is either String, Null, Any, object, or undefined
+      if (from === Integer || from === Float)
+        return '('
+      else if (from === Any)
+        return 'safe_value_to_bool('
+      else
+        break
+    case Null:
+      if (from === Any)
+        return 'safe_value_to_null('
+      else
+        break
+    case Any:
       switch (from) {
         case Integer:
-          return 'int_to_value'
+          return 'int_to_value('
         case Float:
-          return 'float_to_value'
+          return 'float_to_value('
         case Boolean:
-          return 'bool_to_value'
+          return 'bool_to_value('
         default:
-          return ''
+          return '('
       }
+    default:    // "to" is either String, Object, or Array
+      if (from === Any || from instanceof ObjectType) {
+        if (to === String)
+          return 'safe_value_to_string('
+        else if (to instanceof ObjectType) {
+          const info = to.runtimeTypeInfo()
+          if (to === objectType)
+            return 'safe_value_to_object('
+          else {
+            if (to instanceof ArrayType) {
+              if (info === noRuntimeTypeInfo)
+                return 'safe_value_to_array('
+            }
+          }
+
+          return `safe_value_to_value(${info}, `
+        }
+      }
+      else if (from === Null)
+        return '('
+      // else if (from === String), then this is an error.
   }
 
-  if (from !== undefined && !isPrimitiveType(from))
-    return fname
-  else
-    return ''
+  throw typeConversionError(from, to, node)
 }
 
 // covert any, null, array, function type to a boolean value
@@ -177,3 +227,5 @@ export const arrayElementGetter = 'gc_array_get'
 export const arrayFromElements = 'gc_make_array'
 
 export const functionPtr = 'fptr'
+
+export const runtimeTypeArray = 'array_object'
