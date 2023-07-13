@@ -1,21 +1,20 @@
 import {useState, CSSProperties} from 'react';
 import {Button} from '@mui/material';
 
-import Bluetooth from '../services/bluetooth';
-import tsOnetimeCompile from "../services/ts-onetime-compile";
+import Bluetooth, {CHARACTERISTIC_IDS} from '../services/bluetooth';
+import {onetimeCompile} from "../services/network";
 import BSCodeEditorArea from "../components/code-editor-area";
 
 
-const bluetooth = new Bluetooth(0x00ff);
+const bluetooth = new Bluetooth();
 
 export default function TsEditor() {
-  const [code, setCode] = useState("function main(n: number):number {\n  return n + 2;\n}");
+  const [program, setProgram] = useState("function main(n: number):number {\n  return n + 2;\n}");
 
   const exitCode = async () => {
     try {
-      const {values, execFuncOffsets} = await tsOnetimeCompile(code);
-      const {text, literal, data, rodata, bss} = values;
-      await bluetooth.sendMachineCode(text, literal, data, rodata, bss, execFuncOffsets[0]);
+      const {exe} = await onetimeCompile(program);
+      await bluetooth.sendMachineCode(CHARACTERISTIC_IDS.ONETIME, exe);
     } catch (error: any) {
       window.alert(`Failed to compile: ${error.message}`);
     }
@@ -23,7 +22,7 @@ export default function TsEditor() {
 
   return (
     <div style={{marginTop: 100, paddingLeft: 100, paddingRight: 100, paddingBottom: 100}}>
-      <BSCodeEditorArea code={code} setCode={setCode} language={"ts"}/>
+      <BSCodeEditorArea code={program} setCode={setProgram}/>
       <div style={style.buttonBox}>
         <Button
           variant="contained"

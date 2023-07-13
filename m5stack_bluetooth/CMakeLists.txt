@@ -5,4 +5,8 @@ cmake_minimum_required(VERSION 3.5)
 set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/led_strip)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(gatt_server_service_table_demo)
+# include($ENV{IDF_PATH}/tools/cmake/build.cmake)
+
+# idf_build_set_property(C_COMPILE_OPTIONS "-Wl,--gc-keep-exported" APPEND)
+
+project(blue_script)

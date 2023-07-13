@@ -1,57 +1,27 @@
 import {Buffer} from "buffer";
 
+export const CHARACTERISTIC_IDS = {
+  REPL: 0xff01,
+  ONETIME: 0xff02,
+  CLEAR: 0xff03,
+  NOTIFICATION: 0xff03
+}
+
+const SERVICE_UUID = 0x00ff
+
 export default class Bluetooth {
   private serviceUUID: number;
   private device: BluetoothDevice | undefined = undefined;
   private service: BluetoothRemoteGATTService | undefined = undefined;
 
-  constructor(serviceUUID: number) {
-    this.serviceUUID = serviceUUID;
+  constructor() {
+    this.serviceUUID = SERVICE_UUID;
   }
 
-  public async sendMachineCode(text: string, literal: string, data: string, rodata: string, bss: string, mainFuncOffset: number) {
+  public async sendMachineCode(cid: number, exe: string) {
     await this.init();
-    const char02 = await this.service?.getCharacteristic(0xff02);
-    const textBuf = Buffer.from(text, "hex");
-    const literalBuf = Buffer.from(literal, "hex");
-    const dataBuf = Buffer.from(data, "hex");
-    const rodataBuf = Buffer.from(rodata, "hex");
-    const bssBuf = Buffer.from(bss, "hex");
-    const machineCodeBuf = Buffer.concat([
-      Buffer.from([textBuf.length, literalBuf.length, dataBuf.length, rodataBuf.length, bssBuf.length, mainFuncOffset]),
-      textBuf,
-      literalBuf,
-      dataBuf,
-      rodataBuf,
-      bssBuf
-    ]);
-    await char02?.writeValue(machineCodeBuf);
-  }
-
-  public async addMachineCode(text: string, literal: string, data: string, rodata: string, bss: string, execFuncOffset: number[]) {
-    await this.init();
-    const char01 = await this.service?.getCharacteristic(0xff01);
-    const textBuf = Buffer.from(text, "hex");
-    const literalBuf = Buffer.from(literal, "hex");
-    const dataBuf = Buffer.from(data, "hex");
-    const rodataBuf = Buffer.from(rodata, "hex");
-    const bssBuf = Buffer.from(bss, "hex");
-    const machineCodeBuf = Buffer.concat([
-      Buffer.from([textBuf.length, literalBuf.length, dataBuf.length, rodataBuf.length, bssBuf.length, execFuncOffset.length]),
-      Buffer.from(execFuncOffset),
-      textBuf,
-      literalBuf,
-      dataBuf,
-      rodataBuf,
-      bssBuf
-    ]);
-    await char01?.writeValue(machineCodeBuf);
-  }
-
-  public async clearMachineCode() {
-    await this.init();
-    const char03 = await this.service?.getCharacteristic(0xff03);
-    await char03?.writeValue(Buffer.from([]));
+    const characteristic = await this.service?.getCharacteristic(cid);
+    await characteristic?.writeValue(Buffer.from(exe, "hex"));
   }
 
   public async startNotifications(notificationHandler: (event:Event) => void) {

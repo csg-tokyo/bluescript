@@ -1,13 +1,17 @@
 import * as http from "http";
 import {Buffer} from "node:buffer";
-import ReplCompileHandler from "./path-handlers/repl-compile-handler";
-import TsOnetimeCompileHandler from "./path-handlers/ts-onetime-compile-handler";
-import ReplClearHandler from "./path-handlers/repl-clear-handler";
-import COnetimeCompileHandler from "./path-handlers/c-onetime-compile-handler";
+import {ErrorLog} from "../transpiler/utils";
+import Session from "./session";
+
+const ERROR_CODE = {
+  COMPILE_ERROR: 460,
+  LINK_ERROR: 461
+}
 
 export default class HttpServer {
   readonly PORT = 8080;
   server: http.Server;
+  session?: Session;
 
   constructor() {
     this.server = http.createServer();
@@ -48,60 +52,40 @@ export default class HttpServer {
     if (request.method === "OPTIONS") { // for preflight
       return ["", 200];
     }
-    let requestBody:string;
+    let requestBody: string;
 
-    switch (request.url) {
-      case "/repl-compile":
-        try {
-          requestBody = await this.getRequestBody(request);
-          const compileHandler = new ReplCompileHandler(JSON.parse(requestBody));
-          responseBody = await compileHandler.handle();
+    try {
+      requestBody = await this.getRequestBody(request);
+      switch (request.url) {
+        case "/repl-compile":
+          if (!this.session) { this.session = new Session(); }
+          responseBody = {exe: this.session.execute(JSON.parse(requestBody).src)};
           statusCode = 200;
-        } catch (e) {
-          console.log(e);
-          responseBody = {message: e};
-          statusCode = 500;
-        }
-        break;
-      case "/repl-clear":
-        try {
-          const clearHandler = new ReplClearHandler();
-          responseBody = await clearHandler.handle();
+          break;
+        case "/clear":
+          this.session = new Session();
+          responseBody = {};
           statusCode = 200;
-        } catch (e) {
-          console.log(e)
-          responseBody = {message: e}
-          statusCode = 500;
-        }
-        break;
-      case "/ts-onetime-compile":
-        try {
-          requestBody = await this.getRequestBody(request);
-          const tsOnceCompileHandler = new TsOnetimeCompileHandler(JSON.parse(requestBody));
-          responseBody = await tsOnceCompileHandler.handle();
+          break;
+        case "/onetime-compile":
+          this.session = new Session();
+          responseBody = {exe: this.session.execute(JSON.parse(requestBody).src)};
           statusCode = 200;
-        } catch (e) {
-          console.log(e);
-          responseBody = {message: e};
-          statusCode = 500;
-        }
-        break;
-      case "/c-onetime-compile":
-        try {
-          requestBody = await this.getRequestBody(request);
-          const cOnceCompileHandler = new COnetimeCompileHandler(JSON.parse(requestBody));
-          responseBody = await cOnceCompileHandler.handle();
-          statusCode = 200;
-        } catch (e) {
-          console.log(e);
-          responseBody = {message: e};
-          statusCode = 500;
-        }
-        break;
-      default:
-        responseBody = {message: "Page not found."};
-        statusCode = 404;
-        break;
+          break;
+        default:
+          responseBody = {message: "Page not found."};
+          statusCode = 404;
+          break;
+      }
+    } catch (e) {
+      console.log(e);
+      if (e instanceof ErrorLog) {
+        responseBody = {message: e};
+        statusCode = ERROR_CODE.COMPILE_ERROR;
+      } else {
+        responseBody = {message: e};
+        statusCode = 500;
+      }
     }
     return [JSON.stringify(responseBody), statusCode];
   }

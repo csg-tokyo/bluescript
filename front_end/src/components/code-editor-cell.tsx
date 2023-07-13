@@ -1,4 +1,4 @@
-import {CSSProperties, KeyboardEvent} from 'react';
+import {CSSProperties} from 'react';
 import CodeEditor from '@uiw/react-textarea-code-editor';
 import {Card} from "@mui/material";
 import Box from '@mui/material/Box';
@@ -13,13 +13,6 @@ type Props = {
 }
 
 export default function BSCodeEditorCell(props: Props) {
-  const onKeyDown = (keyEvent: KeyboardEvent) => {
-    if (keyEvent.key === "Enter" && keyEvent.shiftKey) {
-      // TODO: 改行してしまうのを防ぎたい。
-      props.exitCode();
-    }
-  }
-
   const calcRows = () => {
     const rows:number = props.code.split('\n').length;
     return rows > 4 ? rows : 4;
@@ -45,7 +38,6 @@ export default function BSCodeEditorCell(props: Props) {
             placeholder=""
             onChange={(evn) => props.setCode(evn.target.value)}
             style={style.codeEditor}
-            onKeyDown={onKeyDown}
             rows={calcRows()}
           />
         </Box>

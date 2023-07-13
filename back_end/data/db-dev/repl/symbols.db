@@ -1,9 +1,0 @@
-{"name":"console_log","cDeclaration":"void console_log(value_t str);","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[{"kind":"primitive","type":"string"}]},"address":1074625736,"_id":"HjPTYlChxk2LONMN"}
-{"name":"console_log_number","cDeclaration":"void console_log_number(int32_t n);","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[{"kind":"primitive","type":"integer"}]},"address":1074625768,"_id":"LlQURvm4aGV9g2WV"}
-{"name":"str","type":{"kind":"primitive","type":"string"},"address":1073525916,"cDeclaration":"extern value_t str;","_id":"U56jKprE4pyqgjgl"}
-{"name":"gc_root_set_head","cDeclaration":"extern struct gc_root_set* gc_root_set_head;","address":1073489980,"_id":"W4J0rHHtZJea1mt9"}
-{"name":"gc_new_string","cDeclaration":"value_t gc_new_string(char* str);","address":1074624700,"_id":"WQg39gDDR2dflcrl"}
-{"name":"memset","cDeclaration":"void *memset(void *buf, int ch, long unsigned int n);","address":1073792076,"_id":"X1sw8ZwfPveC4f2G"}
-{"name":"gc_run","cDeclaration":"void gc_run();","type":{"kind":"function","returnType":{"kind":"primitive","type":"void"},"params":[]},"address":1074624940,"_id":"hfr06fWKqFs8kXdY"}
-{"name":"gc_array_set","cDeclaration":"value_t gc_array_set(value_t obj, value_t index, value_t new_value);","address":1074624852,"_id":"iHDpHnutQoIIP8fL"}
-{"name":"gc_global_root_set_array","cDeclaration":"extern value_t gc_global_root_set_array;","address":1073525908,"_id":"u02OHOu3L11HdqiS"}

@@ -10,8 +10,9 @@ function print_i32(m: integer) {}
 `
 
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
-#include "src/transpiler/code-generator/c-runtime.h"
+#include "../../m5stack_bluetooth/main/c-runtime.h"
 
+void push_log(char *log) {};
 `
 const prologCcode2 = `
 #include <stdio.h>
@@ -68,7 +69,7 @@ int main() {
 }
 
 // print() must be called at least once in the given source code
-export function compileAndRun(src: string, usePrintI32 = false, destFile = './bscript.c') {
+export function compileAndRun(src: string, usePrintI32 = false, destFile = './temp-files/bscript.c') {
     const result1 = transpile(1, prolog)
     let globalNames = result1.names
     let result2
@@ -83,11 +84,11 @@ export function compileAndRun(src: string, usePrintI32 = false, destFile = './bs
     globalNames = result2.names
     fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main))
     // throw an Error when compilation fails.
-    execSync(`cc -DBIT64 -O2 ${destFile} ./src/transpiler/code-generator/c-runtime.c`)
-    return execSync(`./a.out`).toString()   // returns the printed text
+    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript.o`)
+    return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
 }
 
-export function multiCompileAndRun(src: string, src2: string, destFile = './bscript') {
+export function multiCompileAndRun(src: string, src2: string, destFile = './temp-files/bscript') {
   const result1 = transpile(1, prolog)
   const firstFile = destFile + '1.c'
   fs.writeFileSync(firstFile, prologCcode + prologCcode2 + prologCode2c)
@@ -103,8 +104,9 @@ export function multiCompileAndRun(src: string, src2: string, destFile = './bscr
   const protoMain2 = `extern void ${result2.main}();\n`
   fs.writeFileSync(thirdFile, prologCcode + protoMain2 + result3.code + getEpilog2(result2.main, result3.main));
   // throw an Error when compilation fails.
-  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ./src/transpiler/code-generator/c-runtime.c`)
-  return execSync(`./a.out`).toString()   // returns the printed text
+
+  execSync(`cc -g -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../m5stack_bluetooth/main/c-runtime.c`)
+  return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
 }
 
 function runTranspiler(id: number, src: string, names: GlobalVariableNameTable) {

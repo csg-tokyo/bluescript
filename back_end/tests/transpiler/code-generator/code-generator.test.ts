@@ -238,7 +238,7 @@ test('declarations', () => {
   }
   print(foo(3))
 `
-  expect(compileAndRun(src)).toBe('13.000000\n')  
+  expect(compileAndRun(src)).toBe('13.000000\n')
 })
 
 test('const declaration', () => {
