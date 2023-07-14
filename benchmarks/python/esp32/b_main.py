@@ -1,8 +1,13 @@
-from sieve import benchmark_main
-import utime
+# from sieve import benchmark_main, WARMUP, CYCLE, TAG
+# from nbody import benchmark_main, WARMUP, CYCLE, TAG
+#from permute import benchmark_main, WARMUP, CYCLE, TAG
+# from storage import benchmark_main, WARMUP, CYCLE, TAG
+# from queens import benchmark_main, WARMUP, CYCLE, TAG
+# from towers import benchmark_main, WARMUP, CYCLE, TAG
+# from list_ import benchmark_main, WARMUP, CYCLE, TAG
+from bounce import benchmark_main, WARMUP, CYCLE, TAG
 
-WARMUP = 1
-TIMES = 3
+import utime
 
 
 def run():
@@ -11,10 +16,14 @@ def run():
 
     start = utime.ticks_us()
 
-    for _ in range(TIMES):
+    for _ in range(CYCLE):
         benchmark_main()
 
     end = utime.ticks_us()
+    print(TAG)
     print(f"warm up: {WARMUP} cycle")
-    print(f"{TIMES} average: {(utime.ticks_diff(end, start)) / 1000 / TIMES} ms")    
+    print(f"{CYCLE} cycle average: {(utime.ticks_diff(end, start)) / 1000 / CYCLE} ms")    
     
+
+if __name__ == "__main__":
+    run()

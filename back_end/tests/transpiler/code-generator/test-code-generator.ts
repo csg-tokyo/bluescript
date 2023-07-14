@@ -70,7 +70,7 @@ export function compileAndRun(src: string, destFile = './temp-files/bscript.c') 
     globalNames = result2.names
     fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main))
     // throw an Error when compilation fails.
-    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript.o`)
+    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
     return execSync(`./temp-files/bscript.o`).toString()   // returns the printed text
 }
 

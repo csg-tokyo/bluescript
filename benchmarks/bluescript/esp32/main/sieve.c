@@ -3,7 +3,8 @@
 #include "utils.c"
 
 #define WARMUP 1
-#define TIMES 3
+#define CYCLE 3
+#define TAG "sieve"
 
 
 int32_t _SIZE;

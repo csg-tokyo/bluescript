@@ -73,7 +73,7 @@ static void* ptr32_to_ptr64(void* ptr32) {
 
 #endif /* BIT64 */
 
-#define HEAP_SIZE       (1024 * 32 + 2) // words (even number)
+#define HEAP_SIZE       (1024 * 64 + 2) // words (even number)
 
 static value_t heap_memory[HEAP_SIZE];
 

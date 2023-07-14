@@ -7,7 +7,8 @@
 #define RESULT 669
 
 #define WARMUP 50
-#define TIMES 50
+#define CYCLE 50
+#define TAG "storage"
 
 
 int seive(bool flags[SIZE], int size) {

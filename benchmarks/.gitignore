@@ -1,3 +1,5 @@
 bluescript/esp32/build/
 c/esp32/build/
 *a.out
+*.bin
+.vscode/

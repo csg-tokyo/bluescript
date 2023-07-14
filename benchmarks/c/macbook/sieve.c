@@ -3,6 +3,11 @@
 #include <assert.h>
 #include <stdio.h>
 
+#define WARMUP 100
+#define CYCLE 100
+#define TAG "sieve"
+
+
 #define SIZE 5000
 #define RESULT 669
 
