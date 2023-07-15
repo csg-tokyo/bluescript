@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <stdio.h>
+#include <math.h>
 #include "sample_data.c"
 
 #define WARMUP 1
@@ -39,6 +40,6 @@ void benchmark_main() {
     float rez[DATA_LEN];
     biquad(rez);
     for (int i = 0; i < DATA_LEN; i++) {
-        assert(rez[i] - ANSWER[i] < 0.0005);
+        assert(fabsf(rez[i] - ANSWER[i]) < 0.0005);
     }
 }

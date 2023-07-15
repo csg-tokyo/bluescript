@@ -6,7 +6,7 @@ import {nbody_main} from "./playground";
 
 const M_DIR_PATH = "../benchmarks/bluescript/macbook/";
 const BENCHMARK_PATH = "../benchmarks/bluescript/";
-const BENCHMARK_NAME = "biquad";
+const BENCHMARK_NAME = "fir";
 
 const prolog = `// predefined native functions
 function newArray(n: integer, init: any): any[] { return []; }
@@ -14,6 +14,7 @@ function arrayLength(arr: any[]):integer { return 2 }
 function assert(test: boolean) {}
 function sqrt(target: float): float { return 0.0 }
 function abs(i: integer): integer { return 0 }
+function fabs(f: float): float { return 0.0 }
 function console_log_float(f: float) {}
 `
 const prologCcode = `

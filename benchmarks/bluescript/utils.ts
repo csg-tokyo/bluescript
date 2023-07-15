@@ -13,4 +13,6 @@ export function sqrt(target: float): float { return 0.0 }
 
 export function abs(i: integer): integer { return 0 }
 
+export function fabs(f: float): float { return 0.0 }
+
 export function console_log_float(f: float) {}

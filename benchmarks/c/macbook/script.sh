@@ -30,6 +30,7 @@ case "$benchmark" in
   "bounce"    ) benchmark_num=7 ;;
   "mandelbrot") benchmark_num=8 ;;
   "biquad"    ) benchmark_num=9 ;;
+  "fir"       ) benchmark_num=10 ;;
 esac
 
 if [ -n "$benchmark_num" ]

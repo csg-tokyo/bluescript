@@ -17,7 +17,7 @@ Apple M1 Pro, Ventura13.4
 | bounce     |  0.011 ms |    2.103 ms |   0.173 ms |
 | mandelbrot |           | 2563.784 ms |            |
 | biquad     |  0.004 ms |    0.442 ms |   0.063 ms |
-| fir        |           |   16.618 ms |            |
+| fir        |  0.144 ms |   16.618 ms |            |
 
 - nbody: C言語での実装で、doubleでやった際は 12.497msだった。(上の結果はfloat)。doubleでやった場合精度は10^(-10).
 - mandelbrot: C言語での結果が合わない。精度の問題だと思うのだが、どうして精度が合わないのかわからない。
@@ -30,7 +30,7 @@ M5Stack fire
 | sieve   |     1.082 ms |     92.293 ms |     5.211 ms |
 | nbody   | 17300.680 ms | 476237.200 ms | 38885.829 ms |
 | permute |     2.126 ms |    342.279 ms |    15.845 ms |
-| storage |   143.197 ms |               |              |
+| storage |   143.197 ms |           NaN |              |
 | queens  |     1.301 ms |    233.184 ms |    10.047 ms |
 | towers  |     3.358 ms |    574.768 ms |              |
 | list    |     1.529 ms |    169.552 ms |              |

@@ -36,6 +36,8 @@
 #elif (defined(BENCHMARK) && (BENCHMARK == 9))
 #include "biquad.c"
 
+#elif (defined(BENCHMARK) && (BENCHMARK == 10))
+#include "fir.c"
 
 #else
 
