@@ -26,11 +26,15 @@ abstract class CompositeType {
   getSuperType(): ObjectType | null { return null }
 }
 
+export const noRuntimeTypeInfo = '0'
+
 // type represented by value_t
 export class ObjectType extends CompositeType {
   name() {
     return 'object'
   }
+
+  runtimeTypeInfo() { return noRuntimeTypeInfo }
 
   isSubtypeOf(t: StaticType): boolean {
     return this === t || this.getSuperType()?.isSubtypeOf(t) || false
@@ -176,8 +180,10 @@ export function sameType(t1: StaticType, t2: StaticType) {
 export function isConsistent(t1: StaticType, t2: StaticType) {
   if (t1 === Any)
     return t1 !== t2 && t2 !== Void && !(t2 instanceof FunctionType)
+           && !(t2 instanceof ArrayType && t2.elementType !== Any)
   else if (t2 === Any)
     return t1 !== Void && !(t1 instanceof FunctionType)
+           && !(t1 instanceof ArrayType && t1.elementType !== Any)
   else
     return false
 }
