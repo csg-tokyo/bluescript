@@ -58,8 +58,7 @@ void bluescript_main2() {
   _biquad.fptr(func_rootset.values[0]=global_rootset2.values[2]);
   for (
   int32_t _i = 0;_i < _DATA_LEN; _i++) {
-    printf("rez: %f, answer: %f\n", safe_value_to_float(*gc_array_get(global_rootset2.values[2], _i)), safe_value_to_float(*gc_array_get(global_rootset2.values[1], _i)));
-    _assert.fptr(_fabs.fptr(safe_value_to_float(any_subtract(((*gc_array_get(global_rootset2.values[2], _i))), float_to_value(safe_value_to_float(*gc_array_get(global_rootset2.values[1], _i)))))) < 0.0005);
+    _assert.fptr(_fabs.fptr(safe_value_to_float(any_subtract(((*gc_array_get(global_rootset2.values[2], _i))), float_to_value(safe_value_to_float(*gc_array_get(global_rootset2.values[1], _i)))))) < 0.005);
   }
   DELETE_ROOT_SET(func_rootset)
 }

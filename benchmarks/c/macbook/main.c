@@ -36,6 +36,12 @@
 #elif (defined(BENCHMARK) && (BENCHMARK == 10))
 #include "fir.c"
 
+#elif (defined(BENCHMARK) && (BENCHMARK == 11))
+#include "crc.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 12))
+#include "fft.c"
+
 #else
 #define WARMUP 10
 #define CYCLE 10

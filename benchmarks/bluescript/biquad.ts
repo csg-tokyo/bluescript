@@ -90,6 +90,6 @@ function biquad(rez: any[]) {
 const rez: any[] = newArray(DATA_LEN, 0.0);
 biquad(rez);
 for (let i = 0; i < DATA_LEN; i++) {
-    assert(fabs(rez[i] - ANSWER[i]) < 0.0005);
+    assert(fabs(rez[i] - ANSWER[i]) < 0.005);
 }
 

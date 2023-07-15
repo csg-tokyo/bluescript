@@ -27,12 +27,12 @@ static void fbody_fir(value_t _input, value_t _output) {
         _pos = 0;
       for (
       int32_t _n = _pos;_n < _COEFFS_LEN; _n++) {
-        _acc+=any_multiply(float_to_value(safe_value_to_float(*gc_array_get(global_rootset2.values[2], _coeffsPos))), ((*gc_array_get(func_rootset.values[2], _n))));
+        _acc+= safe_value_to_float(any_multiply(float_to_value(safe_value_to_float(*gc_array_get(global_rootset2.values[2], _coeffsPos))), ((*gc_array_get(func_rootset.values[2], _n)))));
         _coeffsPos-=1;
       }
       for (
       int32_t _n = 0;_n < _pos; _n++) {
-        _acc+=any_multiply(float_to_value(safe_value_to_float(*gc_array_get(global_rootset2.values[2], _coeffsPos))), ((*gc_array_get(func_rootset.values[2], _n))));
+        _acc+= safe_value_to_float(any_multiply(float_to_value(safe_value_to_float(*gc_array_get(global_rootset2.values[2], _coeffsPos))), ((*gc_array_get(func_rootset.values[2], _n)))));
         _coeffsPos-=1;
       }
       (*gc_array_get(func_rootset.values[1], _i)) = float_to_value(_acc);
@@ -59,7 +59,6 @@ void bluescript_main2() {
   _fir.fptr(func_rootset.values[0]=global_rootset2.values[3], func_rootset.values[1]=global_rootset2.values[4]);
   for (
   int32_t _i = 0;_i < _DATA_LEN; _i++) {
-        printf("rez: %f, answer: %f\n", safe_value_to_float(*gc_array_get(global_rootset2.values[4], _i)), safe_value_to_float(*gc_array_get(global_rootset2.values[1], _i)));
     _assert.fptr(_fabs.fptr(safe_value_to_float(any_subtract(((*gc_array_get(global_rootset2.values[4], _i))), float_to_value(safe_value_to_float(*gc_array_get(global_rootset2.values[1], _i)))))) < 0.0005);
   }
   DELETE_ROOT_SET(func_rootset)
