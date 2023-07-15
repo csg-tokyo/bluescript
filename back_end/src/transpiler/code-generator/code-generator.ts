@@ -1,3 +1,5 @@
+// Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
+
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,

@@ -660,3 +660,50 @@ test('any array', () => {
 
   expect(() => compileAndRun(src)).toThrow(/line 4\n.*line 5\n.*line 13\n.*line 14/)
 })
+
+test('any array element', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const arr: any[] = [ n, 'foo' ]
+    const h: float = 3.7
+    arr[0] = n + 1
+    arr[1] = true
+    arr[1] = h
+    let k: any
+    k = n
+    k = h
+    k = false
+    return arr[0]
+  }
+  print(foo(4))`
+
+  expect(compileAndRun(src)).toBe('5\n')
+})
+
+test('+= for array', () => {
+  const src = `
+  function foo(n: integer): integer {
+    const arr: any[] = [ n, 'foo', 10 ]
+    const iarr: integer[] = [1, 2, 3]
+    const k: any = 7
+    arr[0] += n
+    print(arr[0])       // 20
+    let p = arr[0] -= 1
+    p = 'foo'
+    print(arr[0])       // 19
+    arr[2] += k
+    print(arr[2])       // 17
+    print(iarr[0] + 20) // 21
+    iarr[0] += n
+    iarr[1] -= n
+    print(iarr[0])      // 11
+    print(iarr[1])      // -8
+    iarr[2] *= iarr[0] + iarr[1]
+    print(iarr[2])      //  9
+    iarr[2] -= k
+    return iarr[2]       // 2
+  }
+  print(foo(10))`
+
+  expect(compileAndRun(src)).toBe([20, 19, 17, 21, 11, -8, 9, 2].join('\n') + '\n')
+})
