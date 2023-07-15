@@ -1,3 +1,5 @@
+// Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
+
 export const Integer = 'integer'
 export const Float = 'float'
 export const Boolean = 'boolean'
