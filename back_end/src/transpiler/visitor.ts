@@ -1,3 +1,5 @@
+// Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
+
 import AST, { Node } from "@babel/types"
 import { ErrorLog } from "./utils"
 

@@ -1,3 +1,5 @@
+// Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
+
 import AST, {Node, SourceLocation} from '@babel/types'
 import * as babelParser from "@babel/parser";
 
