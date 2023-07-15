@@ -1,3 +1,5 @@
+// Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
+
 import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
 import * as visitor from '../visitor'
@@ -346,8 +348,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   updateExpression(node: AST.UpdateExpression, names: NameTable<Info>): void {
     // const prefix = node.prefix           true if ++k, but false if k++
     this.assertLvalue(node.argument, names)
-    if (AST.isMemberExpression(node.argument))
-      this.lvalueMember(node.argument, names)   // this.value will be Any
+    if (AST.isMemberExpression(node.argument)) {
+      this.lvalueMember(node.argument, names)
+      this.result = Any
+    }
     else
       this.visit(node.argument, names)
 
@@ -419,24 +423,18 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   assignmentExpression(node: AST.AssignmentExpression, names: NameTable<Info>): void {
-    this.assertLvalue(node.left, names)
-    let elementType: StaticType | undefined
-    if (AST.isMemberExpression(node.left))
-      elementType = this.lvalueMember(node.left, names)
-    else {
-      elementType = undefined
-      this.visit(node.left, names)
+    if (AST.isMemberExpression(node.left)) {
+      this.memberAssignmentExpression(node, node.left, names)
+      return
     }
 
+    this.assertLvalue(node.left, names)
+    this.visit(node.left, names)
     const left_type = this.result
     this.visit(node.right, names)
     const right_type = this.result
-    if (elementType !== undefined)
-      this.assert(isSubtype(right_type, elementType),
-        `Type '${typeToString(right_type)}' is not assignable to element type '${typeToString(elementType)}'`,
-        node)
-
     const op = node.operator
+
     if (op === '=')
       if (isConsistent(right_type, left_type)) {
         this.addCoercion(node.left, left_type)
@@ -461,6 +459,41 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(false, `not supported operator '${op}'`, node)
 
     this.result = left_type
+  }
+
+  memberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, names: NameTable<Info>): void {
+    this.assertLvalue(leftNode, names)
+    this.lvalueMember(leftNode, names)
+    const receiverType = this.result
+    if (!(receiverType instanceof ArrayType)) {
+      this.assert(false, 'not supported member access', node)
+      return
+    }
+
+    const  elementType = receiverType.elementType
+    this.visit(node.right, names)
+    const rightType = this.result
+    const op = node.operator
+
+    if (op === '=')
+      if (isConsistent(rightType, elementType)) {
+        this.addCoercion(node.left, Any)
+        this.addCoercion(node.right, rightType)
+      }
+      else
+        this.assert(isSubtype(rightType, elementType),
+          `Type '${typeToString(rightType)}' is not assignable to element type '${typeToString(elementType)}'`,
+          node)
+    else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
+      this.assert((isNumeric(elementType) || elementType === Any) && (isNumeric(rightType) || rightType === Any),
+        this.invalidOperandsMessage(op, elementType, rightType), node)
+      this.addCoercion(node.left, Any)
+      this.addCoercion(node.right, rightType)
+    }
+    else // '|=', '^=', '&=', '%=', '<<=', '>>=', '||=', '&&=', '>>>=', '**=', op === '??='
+      this.assert(false, `not supported operator '${op}'`, node)
+
+    this.result = Any
   }
 
   logicalExpression(node: AST.LogicalExpression, names: NameTable<Info>): void {
@@ -548,12 +581,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   memberExpression(node: AST.MemberExpression, names: NameTable<Info>): void {
     // an array access is recognized as a member access.
-    this.assert(AST.isExpression(node.object), 'not supported object', node.object)
-    this.assert(node.computed, 'a property access are not supported', node)
-    this.assert(AST.isExpression(node.property), 'a wrong property name', node.property)
-    this.visit(node.property, names)
-    this.assert(this.result === Integer, 'an array index must be an integer', node.property)
-    this.visit(node.object, names)
+    this.checkMemberExpr(node, names)
     if (this.result instanceof ArrayType) {
       this.result = this.result.elementType
       this.addStaticType(node, this.result)
@@ -562,16 +590,23 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(false, 'an element access to a non-array', node.object)
   }
 
+  private checkMemberExpr(node: AST.MemberExpression, names: NameTable<Info>) {
+    this.assert(AST.isExpression(node.object), 'not supported object', node.object)
+    this.assert(node.computed, 'a property access are not supported', node)
+    this.assert(AST.isExpression(node.property), 'a wrong property name', node.property)
+    this.visit(node.property, names)
+    this.assert(this.result === Integer, 'an array index must be an integer', node.property)
+    this.visit(node.object, names)
+  }
+
   // As an L-value, an array element must be always regarded as an any-type value
   // since an array element is stored after conversion to an any-type value.
   // However, the type checker must provent bad assingment to an array element.
   // For example, when an array is integer[], a string must not be assigned to its element.
-  private lvalueMember(node: AST.MemberExpression, names: NameTable<Info>): StaticType {
-    this.memberExpression(node, names)
-    this.addStaticType(node, Any)
-    const elementType = this.result
-    this.result = Any
-    return elementType
+  private lvalueMember(node: AST.MemberExpression, names: NameTable<Info>) {
+    this.checkMemberExpr(node, names)
+    this.assert(this.result instanceof ArrayType, 'an element access to a non-array', node.object)
+    // this.result is the the type of node.object
   }
 
   tsAsExpression(node: AST.TSAsExpression, names: NameTable<Info>): void {
