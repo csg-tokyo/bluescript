@@ -31,6 +31,8 @@ case "$benchmark" in
   "mandelbrot") benchmark_num=8 ;;
   "biquad"    ) benchmark_num=9 ;;
   "fir"       ) benchmark_num=10 ;;
+  "crc"       ) benchmark_num=11 ;;
+  "fft"       ) benchmark_num=12 ;;
 esac
 
 if [ -n "$benchmark_num" ]

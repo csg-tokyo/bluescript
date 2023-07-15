@@ -57,7 +57,17 @@ if __name__ == "__main__":
         b_main = benchmark_main
         warmup = WARMUP
         cycle = CYCLE                
-         
+    elif sys.argv[1] == "11":
+        from crc import benchmark_main, TAG, WARMUP, CYCLE
+        b_main = benchmark_main
+        warmup = WARMUP
+        cycle = CYCLE
+    elif sys.argv[1] == "12":
+        from fft import benchmark_main, TAG, WARMUP, CYCLE
+        b_main = benchmark_main
+        warmup = WARMUP
+        cycle = CYCLE                    
+
             
     else:
         b_main = lambda: print("No benchmark")
