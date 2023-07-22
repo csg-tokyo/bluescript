@@ -707,3 +707,25 @@ test('+= for array', () => {
 
   expect(compileAndRun(src)).toBe([20, 19, 17, 21, 11, -8, 9, 2].join('\n') + '\n')
 })
+
+test('name scope', () => {
+  const src = `
+  function func1() {
+    let result = "sss"
+    let e = 30
+    e += d      // d is a forward reference
+    print(result)
+    return e
+  }
+  
+  const d = 1
+  const e = 6
+  print(e)
+  let result = 4
+  print(result)
+  print(func1())
+  print(result)
+  print(e)`
+
+  expect(compileAndRun(src)).toBe([6, 4, 'sss', 31, 4, 6].join('\n') + '\n')
+})
