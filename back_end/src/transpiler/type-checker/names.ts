@@ -63,6 +63,7 @@ export interface NameTable<Info extends NameInfo> {
   record(key: string, t: StaticType, maker: NameTableMaker<Info>,
          init?: (i: Info) => void): boolean
   lookup(key: string): Info | undefined
+  lookupInThis(key: string): Info | undefined
   returnType(): StaticType | undefined | null   // null if the table is for top-level
   setReturnType(t: StaticType): void
 }
@@ -120,6 +121,10 @@ export abstract class GlobalNameTable<Info extends NameInfo> implements NameTabl
       return found
   }
 
+  lookupInThis(key: string): Info | undefined {
+    return this.map.get(key)
+  }
+
   abstract makeFreeInfo(free: Info): Info
 
   returnType(): StaticType | undefined | null {
@@ -164,6 +169,10 @@ export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
       return this.parent.lookup(key)
     else
       return found
+  }
+
+  lookupInThis(key: string): Info | undefined {
+    return this.elements[key]
   }
 
   returnType(): StaticType | undefined | null {
