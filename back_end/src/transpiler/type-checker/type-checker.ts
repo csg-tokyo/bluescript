@@ -205,7 +205,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const typeAnno = id.typeAnnotation
     let alreadyDeclared = false
     if (!this.firstPass) {
-      varType = names.lookup(varName)?.type
+      varType = names.lookupInThis(varName)?.type
       if (varType !== undefined)         // If a variable is global, lookup().type does not return undefined
         alreadyDeclared = true           // during the 2nd pass.  Otherwise, lookup().type returns undefined.
     }
