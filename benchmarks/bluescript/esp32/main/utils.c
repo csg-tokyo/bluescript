@@ -46,6 +46,12 @@ int32_t fbody_abs(int32_t i) {
 
 struct _abs { int32_t (*fptr)(int32_t); const char* sig; } _abs = { fbody_abs, "" };
 
+float fbody_fabs(float f) {
+    return fabsf(f);
+}
+
+struct _fabs { float (*fptr)(float); const char* sig; } _fabs = { fbody_fabs, "" };
+
 
 void fbody_console_log_float(float f) {
     printf("%f\n", f);

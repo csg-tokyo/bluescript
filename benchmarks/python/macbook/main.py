@@ -66,7 +66,12 @@ if __name__ == "__main__":
         from fft import benchmark_main, TAG, WARMUP, CYCLE
         b_main = benchmark_main
         warmup = WARMUP
-        cycle = CYCLE                    
+        cycle = CYCLE   
+    elif sys.argv[1] == "13":
+        from sha256 import benchmark_main, TAG, WARMUP, CYCLE
+        b_main = benchmark_main
+        warmup = WARMUP
+        cycle = CYCLE                       
 
             
     else:

@@ -13,7 +13,7 @@
 #include <sys/time.h>
 #include <stdint.h>
 
-#define BENCHMARK 7
+#define BENCHMARK 13
 
 #if BENCHMARK == 0
 #include "sieve.c"
@@ -38,6 +38,22 @@
 
 #elif (defined(BENCHMARK) && (BENCHMARK == 7))
 #include "bounce.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 9))
+#include "biquad.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 10))
+#include "fir.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 11))
+#include "crc.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 12))
+#include "fft.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 13))
+#include "sha256.c"
+
 
 #else
 #define WARMUP 100

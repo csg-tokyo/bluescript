@@ -5,7 +5,12 @@
 # from queens import benchmark_main, WARMUP, CYCLE, TAG
 # from towers import benchmark_main, WARMUP, CYCLE, TAG
 # from list_ import benchmark_main, WARMUP, CYCLE, TAG
-from bounce import benchmark_main, WARMUP, CYCLE, TAG
+# from bounce import benchmark_main, WARMUP, CYCLE, TAG
+# from biquad import benchmark_main, WARMUP, CYCLE, TAG
+# from fir import benchmark_main, WARMUP, CYCLE, TAG
+# from crc import benchmark_main, WARMUP, CYCLE, TAG
+# from fft import benchmark_main, WARMUP, CYCLE, TAG
+from sha256 import benchmark_main, WARMUP, CYCLE, TAG
 
 import utime
 

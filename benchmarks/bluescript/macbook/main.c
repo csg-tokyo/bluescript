@@ -39,6 +39,9 @@
 #elif (defined(BENCHMARK) && (BENCHMARK == 10))
 #include "fir.c"
 
+#elif (defined(BENCHMARK) && (BENCHMARK == 12))
+#include "fft.c"
+
 #else
 
 #include "c-runtime.h"
@@ -61,14 +64,20 @@ int main(int argc, char const *argv[])
     gc_initialize();
     
     for (int i = 0; i < warmup; i++) {
-        bluescript_main2();
+        int r = try_and_catch(bluescript_main2);
+        if (r > 0) {
+            assert(false);
+        }
     }
 
     struct timespec start;
     clock_gettime(CLOCK_REALTIME, &start);
 
     for (int i = 0; i < cycle; i++) {
-        bluescript_main2();
+        int r = try_and_catch(bluescript_main2);
+        if (r > 0) {
+            assert(false);
+        }
     }
 
     struct timespec end;

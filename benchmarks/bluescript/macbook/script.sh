@@ -30,7 +30,8 @@ case "$benchmark" in
   "list"       ) benchmark_num=6 ;;
   "bounce"     ) benchmark_num=7 ;;
   "biquad"     ) benchmark_num=9 ;;
-  "fir"     ) benchmark_num=10 ;;
+  "fir"        ) benchmark_num=10 ;;
+  "fft"        ) benchmark_num=12 ;;
 esac
 
 if [ -n "$benchmark_num" ]

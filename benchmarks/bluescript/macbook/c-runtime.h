@@ -38,16 +38,18 @@ struct object_type {
 typedef struct object_type* pointer_t;
 
 typedef struct class_object {
-    int32_t size;          // instance size excluding a header.
+    int32_t size;           // instance size excluding a header.
                             // -1 if the instance is a variable-length array.
                             // Its size is stored in body[0].
     uint32_t is_raw_data;   // true if body does not contain pointers.
+    const char* const name; // printable class name
+    const struct class_object* const superclass;    // super class or NULL
     uintptr_t body[1];
 } class_object;
 
 // A macro for declaring a class_object.
 // n: the length of body (> 0).
-#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; uintptr_t body[n]; } body; } name
+#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; uintptr_t body[n]; } body; } name
 
 inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
@@ -109,6 +111,11 @@ extern int32_t safe_value_to_int(value_t v);
 extern float safe_value_to_float(value_t v);
 extern bool safe_value_to_bool(value_t v);
 extern bool value_to_truefalse(value_t v);
+extern value_t safe_value_to_null(value_t v);
+extern value_t safe_value_to_string(value_t v);
+extern value_t safe_value_to_object(value_t v);
+extern value_t safe_value_to_array(value_t v);
+extern value_t safe_value_to_value(const class_object* const clazz, value_t v);
 
 extern value_t any_add(value_t a, value_t b);
 extern value_t any_subtract(value_t a, value_t b);

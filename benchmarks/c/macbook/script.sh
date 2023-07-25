@@ -33,6 +33,7 @@ case "$benchmark" in
   "fir"       ) benchmark_num=10 ;;
   "crc"       ) benchmark_num=11 ;;
   "fft"       ) benchmark_num=12 ;;
+  "sha256"    ) benchmark_num=13 ;;
 esac
 
 if [ -n "$benchmark_num" ]

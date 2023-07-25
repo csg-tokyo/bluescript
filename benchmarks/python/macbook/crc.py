@@ -10,7 +10,6 @@ ANSWER = 1837082096
 def make_table(poly):
     table = []
     for byte in range(256):
-        print(byte)
         crc = 0
         for _ in range(8):
             if (byte ^ crc) & 1:

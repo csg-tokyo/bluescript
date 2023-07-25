@@ -42,6 +42,9 @@
 #elif (defined(BENCHMARK) && (BENCHMARK == 12))
 #include "fft.c"
 
+#elif (defined(BENCHMARK) && (BENCHMARK == 13))
+#include "sha256.c"
+
 #else
 #define WARMUP 10
 #define CYCLE 10
