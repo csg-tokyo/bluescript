@@ -480,10 +480,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addCoercion(node.left, Any)
         this.addCoercion(node.right, rightType)
       }
-      else
+      else {
         this.assert(isSubtype(rightType, elementType),
           `Type '${typeToString(rightType)}' is not assignable to element type '${typeToString(elementType)}'`,
           node)
+        // so far, an array element holds an any-type value.
+        this.addCoercion(node.left, Any)
+        this.addCoercion(node.right, rightType)
+      }
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
       this.assert((isNumeric(elementType) || elementType === Any) && (isNumeric(rightType) || rightType === Any),
         this.invalidOperandsMessage(op, elementType, rightType), node)
