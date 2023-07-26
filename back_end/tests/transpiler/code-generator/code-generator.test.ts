@@ -750,10 +750,17 @@ test('name scope', () => {
 test('forward reference to a global variable', () => {
   const src = `
 function foo(v: integer) {
-  return arr[v]     // arr is typed as "any"
+  // arr is declared later.  So, on the first pass, arr is typed as any.
+  const arr2 = arr
+  return arr[v] + arr2[v] + bar(arr)
 }
 
-let arr: integer[] = [0, 0, 0, 0, 0, 0];`
+function bar(a: integer[]) {
+  return a[1]
+}
 
-  expect(() => { compileAndRun(src) }).toThrow(/an element access to a non-array in line 3/)
+let arr: integer[] = [3, 70, 0, 0, 0, 0];
+print(foo(0))`
+
+  expect(compileAndRun(src)).toBe('76\n')
 })
