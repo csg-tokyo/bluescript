@@ -615,6 +615,83 @@ test('+= operator', () => {
   expect(compileAndRun(src)).toBe([10, 13, 20].join('\n') + '\n')
 })
 
+test('%=, <<=, and >>= operator', () => {
+  const src = `
+  function foo(obj: any, n: integer) {
+    let k = 10
+    k %= n
+    k <<= 2
+    print(k)
+    let m = -4
+    m >>= 1
+    print(m)
+    let p: any = -4
+    return (p as integer) >> 1
+  }
+  print(foo(7, 3))
+  `
+
+  expect(compileAndRun(src)).toBe([4, -2, -2].join('\n') + '\n')
+})
+
+test('logical operator', () => {
+  const src = `
+  function foo(obj: any, n: integer, m: integer): boolean {
+    const b = obj == null && !obj
+    print(b)
+    const b2 = 1 < m && m < 3
+    print(b2)
+    return obj
+  }
+  print(foo(null, 0, 2))
+  `
+
+  expect(compileAndRun(src)).toBe([1, 1, 0].join('\n') + '\n')
+})
+
+test('conditional operator', () => {
+  const src = `
+  function foo(obj: string, n: integer): string {
+    return n > 0 ? obj : 'baz'
+  }
+  print(foo('bar', 1))
+  print(foo('bar2', 0))
+  `
+
+  expect(compileAndRun(src)).toBe(['bar', 'baz'].join('\n') + '\n')
+})
+
+test.only('function call', () => {
+  const src = `
+  function foo() {
+    return k
+  }
+  let k = 7
+
+  function bar(n: number) {
+    return n
+  }
+
+  function bar2(n: integer, f: float) {
+    return n + f
+  }
+
+  function baz(a: any, b: integer[], c: integer, d: string) {
+    print(a)
+    print(b[0])
+    print(d)
+    return c
+  }
+
+  print(foo())
+  print(bar(3))
+  print(bar2(7, 0.4))
+  print(baz(null, [1, 2], 11, 'baz2'))
+  `
+
+  expect(compileAndRun(src)).toBe([7, 3, '7.400000', 'null', 1, 'baz2', 11].join('\n') + '\n')
+})
+
 test('array access', () => {
   const src = `
   function foo(n: integer): integer {

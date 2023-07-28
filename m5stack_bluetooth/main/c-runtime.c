@@ -137,13 +137,6 @@ float safe_value_to_float(value_t v) {
     return value_to_float(v);
 }
 
-bool safe_value_to_bool(value_t v) {
-    if (v != VALUE_TRUE && v != VALUE_FALSE)
-        runtime_type_error("value_to_bool");
-
-    return value_to_bool(v);
-}
-
 bool value_to_truefalse(value_t v) {
     return v != VALUE_NULL && v != VALUE_UNDEF && v != VALUE_FALSE && v != VALUE_ZERO && v != VALUE_FZERO;
 }
@@ -826,6 +819,7 @@ extern bool is_ptr_value(value_t v);
 
 extern value_t bool_to_value(bool b);
 extern bool value_to_bool(value_t v);
+extern bool safe_value_to_bool(value_t v);
 
 extern value_t get_obj_property(value_t obj, int index);
 extern void set_obj_property(value_t obj, int index, value_t new_value);
