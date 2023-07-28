@@ -708,6 +708,23 @@ test('+= for array', () => {
   expect(compileAndRun(src)).toBe([20, 19, 17, 21, 11, -8, 9, 2].join('\n') + '\n')
 })
 
+test('int array assignment', () => {
+  const src = `
+function func1(data: integer[]) {
+	let arr2: integer[] = [2, 3, 4]
+
+	arr2[0] = data[0]
+	let v: integer = arr2[0] * 2
+  return v
+}
+
+const arr = [1, 2, 3]
+print(func1(arr))
+`
+
+  expect(compileAndRun(src)).toBe('2\n')
+})
+
 test('name scope', () => {
   const src = `
   function func1() {
@@ -728,4 +745,22 @@ test('name scope', () => {
   print(e)`
 
   expect(compileAndRun(src)).toBe([6, 4, 'sss', 31, 4, 6].join('\n') + '\n')
+})
+
+test('forward reference to a global variable', () => {
+  const src = `
+function foo(v: integer) {
+  // arr is declared later.  So, on the first pass, arr is typed as any.
+  const arr2 = arr
+  return arr[v] + arr2[v] + bar(arr)
+}
+
+function bar(a: integer[]) {
+  return a[1]
+}
+
+let arr: integer[] = [3, 70, 0, 0, 0, 0];
+print(foo(0))`
+
+  expect(compileAndRun(src)).toBe('76\n')
 })
