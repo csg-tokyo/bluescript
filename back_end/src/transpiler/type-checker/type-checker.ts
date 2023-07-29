@@ -336,7 +336,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.invalidOperandMessage(op, this.result), node)
       this.result = Integer
     }
-    else  // 'typeof' | 'void' | 'delete' | 'throw'
+    else if (op === 'typeof') {
+      addStaticType(node.argument, this.result)
+      this.result = String
+    }
+    else  // 'void' | 'delete' | 'throw'
       this.assert(false, `not supported operator ${op}`, node)
   }
 

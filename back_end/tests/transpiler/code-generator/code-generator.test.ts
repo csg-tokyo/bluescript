@@ -449,6 +449,19 @@ test('unary operator', () => {
   expect(compileAndRun(src)).toBe('3\n-3\n0\n-4\n3\n-3\n0\n-4\n3.000000\n-3.000000\n0\n')
 })
 
+test('typeof operator', () => {
+  const src = `
+  function foo(x: any) { return x + 1 }
+  print(typeof(3))
+  print(typeof(2 + 3))
+  print(typeof('foo'))
+  print(typeof([1, 2, 3]))
+  print(typeof(null))
+  print(typeof(foo))
+  `
+  expect(compileAndRun(src)).toBe('integer\ninteger\nstring\ninteger[]\nnull\nany -> any\n')
+})
+
 test('++/-- operator', () => {
   const src = `
   function foo(n: integer) {
@@ -661,7 +674,7 @@ test('conditional operator', () => {
   expect(compileAndRun(src)).toBe(['bar', 'baz'].join('\n') + '\n')
 })
 
-test.only('function call', () => {
+test('function call', () => {
   const src = `
   function foo() {
     return k

@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
          ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType } from '../types'
+         StaticType, isPrimitiveType, encodeType, sameType, typeToString } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../type-checker/names'
 import { typecheck } from '../type-checker/type-checker'
@@ -95,7 +95,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   stringLiteral(node: AST.StringLiteral, env: VariableEnv): void {
-    this.result.write(`gc_new_string(${JSON.stringify(node.value)})`)
+    this.makeStringLiteral(node.value)
+  }
+
+  private makeStringLiteral(value: string) {
+    this.result.write(`gc_new_string(${JSON.stringify(value)})`)
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: VariableEnv): void {
@@ -443,6 +447,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
+    if (node.operator === 'typeof') {
+      const t = getStaticType(node.argument)
+      this.makeStringLiteral(t === undefined ? '??' : typeToString(t))
+      return
+    }
+
     const type = this.needsCoercion(node.argument)
     if (type)
       if (node.operator === '-')
