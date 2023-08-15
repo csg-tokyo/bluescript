@@ -382,35 +382,41 @@ value_t safe_value_to_intarray(value_t v) {
     return safe_value_to_value(&intarray_object.clazz, v);
 }
 
-/*
-  An int32_t array.  It cannot contain a pointer.
-  n: the number of elements. n >= 0.
-
-  Initially, the elements of this array hold random values.
-  1st word is the number of elements.
-  2nd, 3rd, ... words hold elements.
-*/
-value_t gc_new_intarray(int32_t n) {
+static pointer_t gc_new_intarray_base(int32_t n) {
     if (n < 0)
         n = 0;
 
     pointer_t obj = allocate_heap(n + 1);
     set_object_header(obj, &intarray_object.clazz);
     obj->body[0] = n;
+    return obj;
+}
+
+/*
+  An int32_t array.  It cannot contain a pointer.
+  n: the number of elements. n >= 0.
+
+  1st word is the number of elements.
+  2nd, 3rd, ... words hold elements.
+*/
+value_t gc_new_intarray(int32_t n, int32_t init_value) {
+    pointer_t obj = gc_new_intarray_base(n);
+    for (int32_t i = 1; i <= n; i++)
+        obj->body[i] = init_value;
+
     return ptr_to_value(obj);
 }
 
 value_t gc_make_intarray(int32_t n, ...) {
     va_list args;
-    value_t array = gc_new_intarray(n);
-    pointer_t arrayp = value_to_ptr(array);
+    pointer_t arrayp = gc_new_intarray_base(n);
     va_start(args, n);
 
-    for (int32_t i = 0; i < n; i++)
-        arrayp->body[i + 1] = va_arg(args, int32_t);
+    for (int32_t i = 1; i <= n; i++)
+        arrayp->body[i] = va_arg(args, int32_t);
 
     va_end(args);
-    return array;
+    return ptr_to_value(arrayp);
 }
 
 int32_t gc_intarray_length(value_t obj) {

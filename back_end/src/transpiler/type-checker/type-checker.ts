@@ -573,12 +573,6 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const className = node.callee
     this.assert(AST.isIdentifier(className) && className.name === 'Array',
                 'unsupported type name for new', node)
-    const args = node.arguments
-    if (this.assert(args.length === 1, 'wrong number of arguments', node)) {
-      this.visit(args[0], names)
-      this.assert(this.result === Integer || this.result === Any, 'wrong type of argument', node)
-      this.addCoercionIfAny(args[0], this.result)
-    }
 
     const typeParams = node.typeParameters?.params?.map(e => {
       this.visit(e, names)
@@ -589,6 +583,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (typeParams)
       if (this.assert(typeParams.length === 1, 'wrong numberr of type parameters', node))
         etype = typeParams[0]
+
+    const args = node.arguments
+    if (this.assert(args.length === 1 || (args.length === 2 && etype === Integer), 'wrong number of arguments', node))
+      for (const a of args) {
+        this.visit(a, names)
+        this.assert(this.result === Integer || this.result === Any, 'wrong type of argument', node)
+        this.addCoercionIfAny(a, this.result)
+      }
 
     const atype = new ArrayType(etype)
     this.addStaticType(node, atype)

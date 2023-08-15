@@ -971,3 +971,15 @@ test('new Array<integer>(n)', () => {
 
   expect(compileAndRun(src)).toBe('99\n')
 })
+
+test('new Array<integer>(n, v)', () => {
+  const src = `
+  function foo(n: integer) {
+    const a1 = new Array<integer>(n, 7)
+    return a1[0] + a1[n - 1]
+  }
+
+  print(foo(3))`
+
+  expect(compileAndRun(src)).toBe('14\n')
+})

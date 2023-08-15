@@ -700,16 +700,28 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       throw this.errorLog.push(`bad new expression`, node)
 
     this.result.write(`${cr.arrayFromSize(atype.elementType)}(`)
-    const arg = node.arguments[0]
-    const argType = this.needsCoercion(arg)
-      if (argType === undefined)
-        this.visit(arg, env)
-      else {
-        this.result.write(cr.typeConversion(argType, Integer, arg))
-        this.visit(arg, env)
-        this.result.write(')')
-      }
+    this.newExpressionArg(node.arguments[0], env)
+
+    if (atype.elementType === Integer) {
+      this.result.write(', ')
+      if (node.arguments.length === 2)
+        this.newExpressionArg(node.arguments[1], env)
+      else
+        this.result.write('0')
+    }
+
     this.result.write(')')
+  }
+
+  newExpressionArg(arg: AST.Node, env: VariableEnv) {
+    const argType = this.needsCoercion(arg)
+    if (argType === undefined)
+      this.visit(arg, env)
+    else {
+      this.result.write(cr.typeConversion(argType, Integer, arg))
+      this.visit(arg, env)
+      this.result.write(')')
+    }
   }
 
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {

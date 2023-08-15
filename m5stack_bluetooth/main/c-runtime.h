@@ -151,7 +151,7 @@ extern value_t gc_new_string(char* str);
 extern bool gc_is_string_literal(value_t obj);
 extern char* gc_string_literal_cstr(value_t obj);
 
-extern value_t gc_new_intarray(int32_t n);
+extern value_t gc_new_intarray(int32_t n, int32_t init_value);
 extern value_t gc_make_intarray(int32_t n, ...);
 extern int32_t gc_intarray_length(value_t obj);
 extern int32_t* gc_intarray_get(value_t obj, int32_t index);
