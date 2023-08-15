@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
 import * as visitor from '../visitor'
 
-import { ArrayType, StaticType, isPrimitiveType } from "../types"
+import { ArrayType, StaticType, isPrimitiveType } from '../types'
 
 import {
   Integer, Float, Boolean, String, Void, Null, Any,
@@ -13,12 +13,13 @@ import {
   isNumeric
 } from '../types'
 
+import { actualElementType } from '../code-generator/c-runtime'
+
 import {
   NameTable, NameTableMaker, BasicGlobalNameTable, NameInfo,
   addNameTable, addStaticType, getStaticType, BasicNameTableMaker,
   addCoercionFlag
 } from './names'
-
 
 // entry point for just running a type checker
 export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable) {
@@ -476,34 +477,36 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       return
     }
 
-    const  elementType = receiverType.elementType
+    const elementType = receiverType.elementType
     this.visit(node.right, names)
     const rightType = this.result
     const op = node.operator
 
+    // this depends on the implementation of array objects
+    const actualType = actualElementType(elementType)
+
     if (op === '=')
       if (isConsistent(rightType, elementType)) {
-        this.addCoercion(node.left, Any)
+        this.addCoercion(node.left, actualType)
         this.addCoercion(node.right, rightType)
       }
       else {
         this.assert(isSubtype(rightType, elementType),
           `Type '${typeToString(rightType)}' is not assignable to element type '${typeToString(elementType)}'`,
           node)
-        // so far, an array element holds an any-type value.
-        this.addCoercion(node.left, Any)
+        this.addCoercion(node.left, actualType)
         this.addCoercion(node.right, rightType)
       }
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
       this.assert((isNumeric(elementType) || elementType === Any) && (isNumeric(rightType) || rightType === Any),
         this.invalidOperandsMessage(op, elementType, rightType), node)
-      this.addCoercion(node.left, Any)
+      this.addCoercion(node.left, actualType)
       this.addCoercion(node.right, rightType)
     }
     else // '|=', '^=', '&=', '%=', '<<=', '>>=', '||=', '&&=', '>>>=', '**=', op === '??='
       this.assert(false, `not supported operator '${op}'`, node)
 
-    this.result = Any
+    this.result = actualType
   }
 
   logicalExpression(node: AST.LogicalExpression, names: NameTable<Info>): void {
@@ -564,6 +567,32 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(this.firstPass, 'the callee is not a function', node.callee)
       this.result = Any
     }
+  }
+
+  newExpression(node: AST.NewExpression, names: NameTable<Info>): void {
+    const className = node.callee
+    this.assert(AST.isIdentifier(className) && className.name === 'Array',
+                'unsupported type name for new', node)
+    const args = node.arguments
+    if (this.assert(args.length === 1, 'wrong number of arguments', node)) {
+      this.visit(args[0], names)
+      this.assert(this.result === Integer || this.result === Any, 'wrong type of argument', node)
+      this.addCoercionIfAny(args[0], this.result)
+    }
+
+    const typeParams = node.typeParameters?.params?.map(e => {
+      this.visit(e, names)
+      return this.result
+    })
+
+    let etype: StaticType = Any
+    if (typeParams)
+      if (this.assert(typeParams.length === 1, 'wrong numberr of type parameters', node))
+        etype = typeParams[0]
+
+    const atype = new ArrayType(etype)
+    this.addStaticType(node, atype)
+    this.result = atype
   }
 
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {

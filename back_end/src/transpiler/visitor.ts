@@ -42,6 +42,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'LogicalExpression', (visitor, node, env) => visitor.logicalExpression(node as AST.LogicalExpression, env) ],
         [ 'ConditionalExpression', (visitor, node, env) => visitor.conditionalExpression(node as AST.ConditionalExpression, env) ],
         [ 'CallExpression', (visitor, node, env) => visitor.callExpression(node as AST.CallExpression, env) ],
+        [ 'NewExpression', (visitor, node, env) => visitor.newExpression(node as AST.NewExpression, env) ],
         [ 'ArrayExpression', (visitor, node, env) => visitor.arrayExpression(node as AST.ArrayExpression, env) ],
         [ 'MemberExpression', (visitor, node, env) => visitor.memberExpression(node as AST.MemberExpression, env) ],
         // TS Type
@@ -101,6 +102,7 @@ export abstract class NodeVisitor<Environment> {
     abstract logicalExpression(node: AST.LogicalExpression, env: Environment): void
     abstract conditionalExpression(node: AST.ConditionalExpression, env: Environment): void
     abstract callExpression(node: AST.CallExpression, env: Environment): void
+    abstract newExpression(node: AST.NewExpression, env: Environment): void
     abstract arrayExpression(node: AST.ArrayExpression, env: Environment): void
     abstract memberExpression(node: AST.MemberExpression, env: Environment): void
     abstract tsAsExpression(node: AST.TSAsExpression, env: Environment): void
@@ -147,6 +149,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     logicalExpression(node: AST.LogicalExpression, env: Environment): void {}
     conditionalExpression(node: AST.ConditionalExpression, env: Environment): void {}
     callExpression(node: AST.CallExpression, env: Environment): void {}
+    newExpression(node: AST.NewExpression, env: Environment): void {}
     arrayExpression(node: AST.ArrayExpression, env: Environment): void {}
     memberExpression(node: AST.MemberExpression, env: Environment): void {}
     tsAsExpression(node: AST.TSAsExpression, env: Environment): void {}

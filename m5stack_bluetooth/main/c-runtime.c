@@ -164,7 +164,7 @@ value_t safe_value_to_object(value_t v) {
 }
 
 value_t safe_value_to_value(const class_object* const clazz, value_t v) {
-    const class_object*  type = gc_get_class_of(v);
+    const class_object* type = gc_get_class_of(v);
     while (type != clazz && type != NULL)
         type = type->superclass;
 
@@ -345,7 +345,7 @@ pointer_t gc_allocate_object(const class_object* clazz) {
 // This C string is not allocated in the heap memory managed by the garbage collector.
 
 static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.is_raw_data = true,
-                                           .clazz.name = "String", .clazz.superclass = NULL };
+                                           .clazz.name = "string", .clazz.superclass = NULL };
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
@@ -372,6 +372,78 @@ char* gc_string_literal_cstr(value_t obj) {
     return (char*)cstr;
 #endif
 }
+
+// An int32_t array
+
+static CLASS_OBJECT(intarray_object, 1) = {
+    .clazz = { .size = -1, .is_raw_data = true, .name = "Array<integer>", .superclass = &object_class.clazz }};
+
+value_t safe_value_to_intarray(value_t v) {
+    return safe_value_to_value(&intarray_object.clazz, v);
+}
+
+/*
+  An int32_t array.  It cannot contain a pointer.
+  n: the number of elements. n >= 0.
+
+  Initially, the elements of this array hold random values.
+  1st word is the number of elements.
+  2nd, 3rd, ... words hold elements.
+*/
+value_t gc_new_intarray(int32_t n) {
+    if (n < 0)
+        n = 0;
+
+    pointer_t obj = allocate_heap(n + 1);
+    set_object_header(obj, &intarray_object.clazz);
+    obj->body[0] = n;
+    return ptr_to_value(obj);
+}
+
+value_t gc_make_intarray(int32_t n, ...) {
+    va_list args;
+    value_t array = gc_new_intarray(n);
+    pointer_t arrayp = value_to_ptr(array);
+    va_start(args, n);
+
+    for (int32_t i = 0; i < n; i++)
+        arrayp->body[i + 1] = va_arg(args, int32_t);
+
+    va_end(args);
+    return array;
+}
+
+int32_t gc_intarray_length(value_t obj) {
+    pointer_t objp = value_to_ptr(obj);
+    return objp->body[0];
+}
+
+int32_t* gc_intarray_get(value_t obj, int32_t index) {
+    pointer_t objp = value_to_ptr(obj);
+    int32_t len = objp->body[0];
+    if (0 <= index && index < len) {
+        return (int32_t*)&objp->body[index + 1];
+    }
+    else {
+        runtime_index_error(index, len, "Array<integer>.get");
+        return 0;
+    }
+}
+
+int32_t gc_intarray_set(value_t obj, int32_t index, int32_t new_value) {
+    pointer_t objp = value_to_ptr(obj);
+    int32_t len = objp->body[0];
+    if (0 <= index && index < len) {
+        objp->body[index + 1] = new_value;
+        return new_value;
+    }
+    else {
+        runtime_index_error(index, len, "Array<integer>.get");
+        return 0;
+    }
+}
+
+// A byte array
 
 static CLASS_OBJECT(bytearray_object, 1) = {
     .clazz = { .size = -1, .is_raw_data = true, .name = "ByteArray", .superclass = &object_class.clazz }};
@@ -445,6 +517,8 @@ value_t* gc_bytearray_set_raw_word(value_t obj, int32_t index, uint32_t new_valu
     return &objp->body[index + 1];
 }
 
+// A fixed-length array
+
 static CLASS_OBJECT(vector_object, 1) = {
     .clazz = { .size = -1, .is_raw_data = false, .name = "Vector", .superclass = &object_class.clazz }};
 
@@ -508,6 +582,8 @@ inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_valu
     objp->body[index + 1] = new_value;
 }
 
+// An any-type array
+
 static CLASS_OBJECT(array_object, 1) = {
     .clazz = { .size = 2, .is_raw_data = false, .name = "Array", .superclass = &object_class.clazz }};
 
@@ -515,9 +591,6 @@ value_t safe_value_to_array(value_t v) {
     return safe_value_to_value(&array_object.clazz, v);
 }
 
-/*
-  An array.
-*/
 value_t gc_new_array(int32_t n) {
     pointer_t obj = gc_allocate_object(&array_object.clazz);
     value_t vec = gc_new_vector(n);

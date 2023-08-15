@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
          ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString } from '../types'
+         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../type-checker/names'
 import { typecheck } from '../type-checker/type-checker'
@@ -684,7 +684,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (arg_type === undefined)
         this.visit(arg, env)
       else {
-        this.result.write(`${cr.typeConversion(arg_type, ftype.paramTypes[i], arg)}`)
+        this.result.write(cr.typeConversion(arg_type, ftype.paramTypes[i], arg))
         this.visit(arg, env)
         this.result.write(')')
       }
@@ -694,12 +694,38 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.write(')')
   }
 
+  newExpression(node: AST.NewExpression, env: VariableEnv): void {
+    const atype = getStaticType(node)
+    if (!(atype instanceof ArrayType))
+      throw this.errorLog.push(`bad new expression`, node)
+
+    this.result.write(`${cr.arrayFromSize(atype.elementType)}(`)
+    const arg = node.arguments[0]
+    const argType = this.needsCoercion(arg)
+      if (argType === undefined)
+        this.visit(arg, env)
+      else {
+        this.result.write(cr.typeConversion(argType, Integer, arg))
+        this.visit(arg, env)
+        this.result.write(')')
+      }
+    this.result.write(')')
+  }
+
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {
-    this.result.write(`${cr.arrayFromElements}(${node.elements.length}`)
+    const atype = getStaticType(node)
+    if (!(atype instanceof ArrayType))
+      throw this.errorLog.push(`bad array expression`, node)
+
+    let elementType: StaticType = Any
+    if (atype.elementType === Integer)
+      elementType = Integer
+
+    this.result.write(`${cr.arrayFromElements(elementType)}(${node.elements.length}`)
     for (const ele of node.elements)
       if (ele !== null) {
         const type = getStaticType(ele)
-        this.result.write(`, ${cr.typeConversion(type, Any, ele)}`)
+        this.result.write(`, ${cr.typeConversion(type, elementType, ele)}`)
         this.visit(ele, env)
         this.result.write(')')
       }
@@ -708,7 +734,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   memberExpression(node: AST.MemberExpression, env: VariableEnv): void {
     const elementType = getStaticType(node)
-    this.result.write(`${cr.typeConversion(Any, elementType, node)}*${cr.arrayElementGetter}(`)
+    this.result.write(cr.arrayElementGetter(elementType, node))
     this.visit(node.object, env)
     this.result.write(', ')
     this.visit(node.property, env)
