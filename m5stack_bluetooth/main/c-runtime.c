@@ -131,10 +131,12 @@ int32_t safe_value_to_int(value_t v) {
 }
 
 float safe_value_to_float(value_t v) {
-    if (!is_float_value(v))
+    if (is_float_value(v))
+        return value_to_float(v);
+    else if (!is_int_value(v))
         runtime_type_error("value_to_float");
 
-    return value_to_float(v);
+    return (float)value_to_int(v);
 }
 
 bool value_to_truefalse(value_t v) {

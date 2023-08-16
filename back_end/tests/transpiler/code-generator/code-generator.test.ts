@@ -332,6 +332,17 @@ test('runtime type checking', () => {
   `
   expect(() => { compileAndRun(src35) }).toThrow(/incompatible argument.*float to integer/)
 
+  const src37 = `function foo(n: integer) {
+    const i: any = n
+    const f: float = i
+    const f2: float = i + 3.5
+    const f3: float = n + 1.2
+    return f + f2 + f3
+  }
+  print(foo(4))
+  `
+  expect(compileAndRun(src37)).toBe('16.699997\n')
+
   const src4 = `function foo(n: integer) { return n + 1 }
   print(foo())
   `
@@ -976,6 +987,19 @@ test('new Array<integer>(n, v)', () => {
   const src = `
   function foo(n: integer) {
     const a1 = new Array<integer>(n, 7)
+    return a1[0] + a1[n - 1]
+  }
+
+  print(foo(3))`
+
+  expect(compileAndRun(src)).toBe('14\n')
+})
+
+test('new Array<integer>(n, v: any)', () => {
+  const src = `
+  function foo(n: integer) {
+    const i: any = 7
+    const a1 = new Array<integer>(n, i)
     return a1[0] + a1[n - 1]
   }
 
