@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
 import * as visitor from '../visitor'
 
-import { ArrayType, StaticType, isPrimitiveType } from "../types"
+import { ArrayType, StaticType, isPrimitiveType } from '../types'
 
 import {
   Integer, Float, Boolean, String, Void, Null, Any,
@@ -13,12 +13,13 @@ import {
   isNumeric
 } from '../types'
 
+import { actualElementType } from '../code-generator/c-runtime'
+
 import {
   NameTable, NameTableMaker, BasicGlobalNameTable, NameInfo,
   addNameTable, addStaticType, getStaticType, BasicNameTableMaker,
   addCoercionFlag
 } from './names'
-
 
 // entry point for just running a type checker
 export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable) {
@@ -336,7 +337,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.invalidOperandMessage(op, this.result), node)
       this.result = Integer
     }
-    else  // 'typeof' | 'void' | 'delete' | 'throw'
+    else if (op === 'typeof') {
+      addStaticType(node.argument, this.result)
+      this.result = String
+    }
+    else  // 'void' | 'delete' | 'throw'
       this.assert(false, `not supported operator ${op}`, node)
   }
 
@@ -436,7 +441,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const op = node.operator
 
     if (op === '=')
-      if (isConsistent(right_type, left_type)) {
+      if (isConsistent(right_type, left_type) || this.isConsistentOnFirstPass(right_type, left_type)) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
@@ -466,34 +471,42 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.lvalueMember(leftNode, names)
     const receiverType = this.result
     if (!(receiverType instanceof ArrayType)) {
-      this.assert(false, 'not supported member access', node)
+      this.assert(this.firstPass, 'not supported member access', node)
+      this.visit(node.right, names)
+      this.result = Any
       return
     }
 
-    const  elementType = receiverType.elementType
+    const elementType = receiverType.elementType
     this.visit(node.right, names)
     const rightType = this.result
     const op = node.operator
 
+    // this depends on the implementation of array objects
+    const actualType = actualElementType(elementType)
+
     if (op === '=')
       if (isConsistent(rightType, elementType)) {
-        this.addCoercion(node.left, Any)
+        this.addCoercion(node.left, actualType)
         this.addCoercion(node.right, rightType)
       }
-      else
+      else {
         this.assert(isSubtype(rightType, elementType),
           `Type '${typeToString(rightType)}' is not assignable to element type '${typeToString(elementType)}'`,
           node)
+        this.addCoercion(node.left, actualType)
+        this.addCoercion(node.right, rightType)
+      }
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
       this.assert((isNumeric(elementType) || elementType === Any) && (isNumeric(rightType) || rightType === Any),
         this.invalidOperandsMessage(op, elementType, rightType), node)
-      this.addCoercion(node.left, Any)
+      this.addCoercion(node.left, actualType)
       this.addCoercion(node.right, rightType)
     }
     else // '|=', '^=', '&=', '%=', '<<=', '>>=', '||=', '&&=', '>>>=', '**=', op === '??='
       this.assert(false, `not supported operator '${op}'`, node)
 
-    this.result = Any
+    this.result = actualType
   }
 
   logicalExpression(node: AST.LogicalExpression, names: NameTable<Info>): void {
@@ -537,7 +550,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         for (let i = 0; i < node.arguments.length; i++) {
           const arg = node.arguments[i]
           this.visit(arg, names)
-          if (isConsistent(this.result, func_type.paramTypes[i]))
+          const atype = this.result
+          const ptype = func_type.paramTypes[i]
+          if (isConsistent(atype, ptype) || this.isConsistentOnFirstPass(atype, ptype))
             this.addCoercion(arg, this.result)
           else
             this.assert(isSubtype(this.result, func_type.paramTypes[i]),
@@ -552,6 +567,34 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(this.firstPass, 'the callee is not a function', node.callee)
       this.result = Any
     }
+  }
+
+  newExpression(node: AST.NewExpression, names: NameTable<Info>): void {
+    const className = node.callee
+    this.assert(AST.isIdentifier(className) && className.name === 'Array',
+                'unsupported type name for new', node)
+
+    const typeParams = node.typeParameters?.params?.map(e => {
+      this.visit(e, names)
+      return this.result
+    })
+
+    let etype: StaticType = Any
+    if (typeParams)
+      if (this.assert(typeParams.length === 1, 'wrong numberr of type parameters', node))
+        etype = typeParams[0]
+
+    const args = node.arguments
+    if (this.assert(args.length === 1 || (args.length === 2 && etype === Integer), 'wrong number of arguments', node))
+      for (const a of args) {
+        this.visit(a, names)
+        this.assert(this.result === Integer || this.result === Any, 'wrong type of argument', node)
+        this.addCoercionIfAny(a, this.result)
+      }
+
+    const atype = new ArrayType(etype)
+    this.addStaticType(node, atype)
+    this.result = atype
   }
 
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {
@@ -587,7 +630,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.addStaticType(node, this.result)
     }
     else
-      this.assert(false, 'an element access to a non-array', node.object)
+      this.assert(this.firstPass, 'an element access to a non-array', node.object)
   }
 
   private checkMemberExpr(node: AST.MemberExpression, names: NameTable<Info>) {
@@ -595,7 +638,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.assert(node.computed, 'a property access are not supported', node)
     this.assert(AST.isExpression(node.property), 'a wrong property name', node.property)
     this.visit(node.property, names)
-    this.assert(this.result === Integer, 'an array index must be an integer', node.property)
+    this.assert(this.firstPass || this.result === Integer, 'an array index must be an integer', node.property)
     this.visit(node.object, names)
   }
 
@@ -605,7 +648,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   // For example, when an array is integer[], a string must not be assigned to its element.
   private lvalueMember(node: AST.MemberExpression, names: NameTable<Info>) {
     this.checkMemberExpr(node, names)
-    this.assert(this.result instanceof ArrayType, 'an element access to a non-array', node.object)
+    this.assert(this.firstPass || this.result instanceof ArrayType, 'an element access to a non-array', node.object)
     // this.result is the the type of node.object
   }
 
@@ -714,6 +757,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: NameTable<Info>): void {
     const name = node.id.name
     this.assert(name === 'integer' || name === 'float', 'type alias is not supported', node)
+  }
+
+  isConsistentOnFirstPass(t1: StaticType, t2: StaticType) {
+    if (this.firstPass)
+      return t1 === Any && t2 instanceof ArrayType
+             || t1 instanceof ArrayType && t2 === Any
+    else
+      return false
   }
 
   addStaticType(expr: AST.Node, type: StaticType) {

@@ -80,8 +80,15 @@ inline bool is_ptr_value(value_t v) { return (v & 3) == 3; }
 #define VALUE_FALSE   0         // 0000 ... 0000 (integer 0)
 #define VALUE_TRUE    4         // 0000 ... 0100 (integer 1)
 
+extern bool value_to_truefalse(value_t v);
+
 inline value_t bool_to_value(bool b) { return b ? VALUE_TRUE : VALUE_FALSE; }
-inline bool value_to_bool(value_t v) { return v != VALUE_FALSE; }
+inline bool value_to_bool(value_t v) { return value_to_truefalse(v); }
+
+inline bool safe_value_to_bool(value_t v) {
+    // any value can be a boolean value.
+    return value_to_bool(v);
+}
 
 inline value_t get_obj_property(value_t obj, int index) {
     return value_to_ptr(obj)->body[index];
@@ -109,8 +116,6 @@ extern int32_t try_and_catch(void (*main_function)());
 
 extern int32_t safe_value_to_int(value_t v);
 extern float safe_value_to_float(value_t v);
-extern bool safe_value_to_bool(value_t v);
-extern bool value_to_truefalse(value_t v);
 extern value_t safe_value_to_null(value_t v);
 extern value_t safe_value_to_string(value_t v);
 extern value_t safe_value_to_object(value_t v);
@@ -145,6 +150,12 @@ extern pointer_t gc_allocate_object(const class_object* clazz);
 extern value_t gc_new_string(char* str);
 extern bool gc_is_string_literal(value_t obj);
 extern char* gc_string_literal_cstr(value_t obj);
+
+extern value_t gc_new_intarray(int32_t n, int32_t init_value);
+extern value_t gc_make_intarray(int32_t n, ...);
+extern int32_t gc_intarray_length(value_t obj);
+extern int32_t* gc_intarray_get(value_t obj, int32_t index);
+extern int32_t gc_intarray_set(value_t obj, int32_t index, int32_t new_value);
 
 extern value_t gc_new_bytearray(int32_t n);
 extern value_t gc_bytearray_size(value_t obj);
