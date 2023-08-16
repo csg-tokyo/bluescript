@@ -223,10 +223,34 @@ export function rootSetVariable(index: number | undefined, rootset?: string) {
 export const minusAnyValue = 'minus_any_value'
 
 // a getter function for arrays
-export const arrayElementGetter = 'gc_array_get'
+export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
+  if (t === Integer)
+    return '(*gc_intarray_get('
+  else
+    return `${typeConversion(Any, t, node)}*gc_array_get(`
+}
 
 // makes an array object from elements
-export const arrayFromElements = 'gc_make_array'
+export function arrayFromElements(t: StaticType) {
+  if (t === Integer)
+    return 'gc_make_intarray'
+  else
+    return 'gc_make_array'
+}
+
+export function arrayFromSize(t: StaticType) {
+  if (t === Integer)
+    return 'gc_new_intarray'
+  else
+    return 'gc_new_array'
+}
+
+export function actualElementType(t: StaticType) {
+  if (t === Integer)
+    return Integer
+  else
+    return Any
+}
 
 export const functionPtr = 'fptr'
 
