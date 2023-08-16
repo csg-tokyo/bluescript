@@ -4,12 +4,13 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define WARMUP 1
+#define WARMUP 0
 #define CYCLE 3
 #define TAG "bounce"
 
 
 #define RESULT 1331
+#define BALL_COUNT 100
 
 
 // random
@@ -62,9 +63,10 @@ bool ball_bounce(ball_t *ball) {
 
 int bounce() {
     random_seed = 74755;
-    int ball_count = 100;
+    int ball_count = BALL_COUNT;
     int bounces = 0;
-    ball_t balls[ball_count];
+    // ball_t balls[ball_count];
+    ball_t *balls = malloc(sizeof(ball_t) * ball_count);
     for (int i = 0; i < ball_count; i++) {
         ball_t ball = {
             random_next() % 500,
@@ -81,6 +83,7 @@ int bounce() {
             }
         }
     }
+    free(balls);
     return bounces;
 }
 

@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define WARMUP 10
-#define CYCLE 50
+#define WARMUP 0
+#define CYCLE 3
 #define TAG "queens"
 
 bool free_rows[8] = {true};

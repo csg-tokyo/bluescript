@@ -3,7 +3,7 @@
 #include "utils.c"
 
 #define WARMUP 0
-#define CYCLE 10
+#define CYCLE 3
 #define TAG "permute"
 
 int32_t _RESULT;

@@ -1,5 +1,5 @@
 TAG = "fir"
-WARMUP = 1
+WARMUP = 10
 CYCLE = 3
 
 DATA = [

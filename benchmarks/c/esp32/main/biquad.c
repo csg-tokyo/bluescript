@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include "sample_data.c"
 
-#define WARMUP 1
+#define WARMUP 0
 #define CYCLE 3
 #define TAG "biquad"
 

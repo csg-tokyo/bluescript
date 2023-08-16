@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <sys/time.h>
 
 #include "sdkconfig.h"
 #include "executor.h"
@@ -84,6 +85,14 @@ void exec_code_task(void *arg) {
 
     while (true) {
         xSemaphoreTake(executor_semphr, portMAX_DELAY);
+        struct timeval start;
+        gettimeofday(&start, NULL);
+
         try_and_catch(entry_point);
+
+        struct timeval end;
+        gettimeofday(&end, NULL);
+        int64_t time_diff = (int64_t)end.tv_sec * 1000000L + (int64_t)end.tv_usec - ((int64_t)start.tv_sec * 1000000L + (int64_t)start.tv_usec);
+        printf("time: %f ms\n", (double)time_diff / 1000);
     }
 }

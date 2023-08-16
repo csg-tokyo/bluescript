@@ -6,9 +6,9 @@
 #define SIZE 5000
 #define RESULT 669
 
-#define WARMUP 50
-#define CYCLE 50
-#define TAG "storage"
+#define WARMUP 0
+#define CYCLE 3
+#define TAG "sieve"
 
 
 int seive(bool flags[SIZE], int size) {

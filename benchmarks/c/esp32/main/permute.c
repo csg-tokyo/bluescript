@@ -3,8 +3,8 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define WARMUP 1
-#define CYCLE 5
+#define WARMUP 0
+#define CYCLE 3
 #define TAG "permute"
 
 #define RESULT 8660

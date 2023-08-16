@@ -39,7 +39,7 @@ static void fbody_fft(value_t _data) {
           int32_t _m = _ia + _n2;
           (*gc_array_get(func_rootset.values[2], _re)) = safe_value_to_int(*gc_array_get(func_rootset.values[0], 2 * _m));
           (*gc_array_get(func_rootset.values[2], _im)) = safe_value_to_int(*gc_array_get(func_rootset.values[0], 2 * _m + 1));
-          (*gc_array_get(func_rootset.values[3], _re)) = safe_value_to_int(*gc_array_get(func_rootset.values[0], 2 * _ia)) * 2;
+          (*gc_array_get(func_rootset.values[3], _re)) = safe_value_to_int(*gc_array_get(func_rootset.values[0], 2 * _ia));
           (*gc_array_get(func_rootset.values[3], _im)) = safe_value_to_int(*gc_array_get(func_rootset.values[0], 2 * _ia + 1));
           func_rootset.values[4] = gc_make_array(2, int_to_value(0), int_to_value(0));
           int32_t _result = safe_value_to_int(*gc_array_get(func_rootset.values[3], _re)) * _MULT_SHIFT;

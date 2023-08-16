@@ -1,6 +1,6 @@
 # from sieve import benchmark_main, WARMUP, CYCLE, TAG
-# from nbody import benchmark_main, WARMUP, CYCLE, TAG
-#from permute import benchmark_main, WARMUP, CYCLE, TAG
+from nbody import benchmark_main, WARMUP, CYCLE, TAG
+# from permute import benchmark_main, WARMUP, CYCLE, TAG
 # from storage import benchmark_main, WARMUP, CYCLE, TAG
 # from queens import benchmark_main, WARMUP, CYCLE, TAG
 # from towers import benchmark_main, WARMUP, CYCLE, TAG
@@ -10,7 +10,7 @@
 # from fir import benchmark_main, WARMUP, CYCLE, TAG
 # from crc import benchmark_main, WARMUP, CYCLE, TAG
 # from fft import benchmark_main, WARMUP, CYCLE, TAG
-from sha256 import benchmark_main, WARMUP, CYCLE, TAG
+# from sha256 import benchmark_main, WARMUP, CYCLE, TAG
 
 import utime
 

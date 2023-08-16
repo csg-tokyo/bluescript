@@ -1,5 +1,5 @@
-WARMUP = 1
-CYCLE = 4
+WARMUP = 0
+CYCLE = 3
 TAG = "permute"
 
 RESULT = 8660

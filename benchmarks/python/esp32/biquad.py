@@ -1,6 +1,6 @@
 
 TAG = "biquad"
-WARMUP = 1
+WARMUP = 0
 CYCLE = 3
 
 DATA = [

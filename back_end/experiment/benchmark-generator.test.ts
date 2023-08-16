@@ -6,7 +6,7 @@ import {nbody_main} from "./playground";
 
 const M_DIR_PATH = "../benchmarks/bluescript/macbook/";
 const BENCHMARK_PATH = "../benchmarks/bluescript/";
-const BENCHMARK_NAME = "fft";
+const BENCHMARK_NAME = "permute";
 
 const prolog = `// predefined native functions
 function newArray(n: integer, init: any): any[] { return []; }

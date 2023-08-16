@@ -7,7 +7,7 @@
 
 
 #define WARMUP 0
-#define CYCLE  2
+#define CYCLE  3
 #define TAG "nbody"
 
 #define ITERATIONS 250000

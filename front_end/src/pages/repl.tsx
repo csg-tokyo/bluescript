@@ -23,6 +23,7 @@ export default function Repl() {
   let logString = "";
 
   const exitCode = async () => {
+    console.log("execute pushed", performance.now())
     setCompileError("");
     try {
       const {exe} = await network.replCompile(code);
@@ -60,7 +61,7 @@ export default function Repl() {
     // @ts-ignore
     logString += Buffer.from(event.target.value.buffer).toString();
     // @ts-ignore
-    console.log(Buffer.from(event.target.value.buffer));
+    console.log("receive log", performance.now());
     setLog(logString);
   }
 

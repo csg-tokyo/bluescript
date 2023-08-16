@@ -13,7 +13,7 @@
 #include <sys/time.h>
 #include <stdint.h>
 
-#define BENCHMARK 10
+#define BENCHMARK 1
 
 #if BENCHMARK == 0
 #include "sieve.c"

@@ -2,7 +2,7 @@
 #include "c-runtime.h"
 #include "utils.c"
 
-#define WARMUP 1
+#define WARMUP 0
 #define CYCLE 3
 #define TAG "sieve"
 
