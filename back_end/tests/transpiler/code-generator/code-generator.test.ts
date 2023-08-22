@@ -519,6 +519,23 @@ test('equality operators', () => {
   expect(compileAndRun(src)).toBe([1, 1, 0, 0].join('\n') + '\n')
 })
 
+test('boolean equality', () => {
+  const src = `
+  function foo(m: integer, n: integer) {
+    print(m < n === true)
+    print(m < n === false)
+    print(m < n !== true)
+    print(m < n !== false)
+    if ((m === n) === true)
+      print(m < n)
+    if (m !== n)
+      print(m >= n)
+  }
+  foo(5, 7)
+`
+  expect(compileAndRun(src)).toBe([1, 0, 0, 1, 0].join('\n') + '\n')
+})
+
 test('basic binary operators', () => {
   const src = `
   function foo(m: integer, n: float) {
@@ -555,7 +572,7 @@ test('integer binary operators', () => {
   print_i32(-5 >>> 2)
   print_i32(-5 >> 2)
 `
-  expect(compileAndRun(src, true)).toBe([511, 509, 2, 1, 2044, 127, 127, 1069563848, -4177976, 1073741822, -2].join('\n') + '\n')
+  expect(compileAndRun(src)).toBe([511, 509, 2, 1, 2044, 127, 127, 1069563848, -4177976, 1073741822, -2].join('\n') + '\n')
 })
 
 test('int % float is not valid', () => {
@@ -1006,4 +1023,14 @@ test('new Array<integer>(n, v: any)', () => {
   print(foo(3))`
 
   expect(compileAndRun(src)).toBe('14\n')
+})
+
+test('print() is not used', () => {
+  const src = `
+  function foo(n: integer) {
+    return n + 1
+  }
+  foo(3)`
+
+  expect(compileAndRun(src)).toBe('')
 })

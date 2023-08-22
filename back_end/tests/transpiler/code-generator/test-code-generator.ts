@@ -41,8 +41,8 @@ const prologCode2b = `struct _print _print = { fbody_print, "(i)v" };
 struct _print_i32 _print_i32 = { fbody_print_i32, "" };
 `
 
-const prologCode2c = `struct _print { void (*fptr)(value_t); const char* sig; } _print = { fbody_print, "" };
-struct _print_i32 { void (*fptr)(int32_t); const char* sig; } _print_i32 = { fbody_print_i32, "" };
+const prologCode2c = `struct _print { void (*fptr)(value_t); const char* sig; } _print = { fbody_print, "(a)v" };
+struct _print_i32 { void (*fptr)(int32_t); const char* sig; } _print_i32 = { fbody_print_i32, "(i)v" };
 `
 
 function getEpilog(initName: string) {
@@ -67,8 +67,10 @@ int main() {
 `
 }
 
-// print() must be called at least once in the given source code
-export function compileAndRun(src: string, usePrintI32 = false, destFile = './temp-files/bscript.c') {
+// This function is obsolete.
+// all the code is saved in a single file bscript.c.
+// print() must be called at least once in the given source code.
+export function compileAndRunWithSingleFile(src: string, usePrintI32 = false, destFile = './temp-files/bscript.c') {
     const result1 = transpile(1, prolog)
     let globalNames = result1.names
     let result2
@@ -87,6 +89,22 @@ export function compileAndRun(src: string, usePrintI32 = false, destFile = './te
     return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
+// This generates two files bscript1.c and bscript2.c.
+export function compileAndRun(src: string, destFile = './temp-files/bscript') {
+  const result1 = transpile(1, prolog)
+  const firstFile = destFile + '1.c'
+  fs.writeFileSync(firstFile, prologCcode + prologCcode2 + prologCode2c)
+  let globalNames = result1.names
+
+  const result2 = runTranspiler(2, src, globalNames)
+  const secondFile = destFile + '2.c'
+  fs.writeFileSync(secondFile, prologCcode + result2.code + getEpilog(result2.main))
+  // throw an Error when compilation fails.
+
+  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
+  return execSync(`./temp-files/bscript`).toString()   // returns the printed text
+}
+
 export function multiCompileAndRun(src: string, src2: string, destFile = './temp-files/bscript') {
   const result1 = transpile(1, prolog)
   const firstFile = destFile + '1.c'
@@ -101,7 +119,7 @@ export function multiCompileAndRun(src: string, src2: string, destFile = './temp
   const result3 = runTranspiler(3, src2, globalNames)
   const thirdFile = destFile + '3.c'
   const protoMain2 = `extern void ${result2.main}();\n`
-  fs.writeFileSync(thirdFile, prologCcode + protoMain2 + result3.code + getEpilog2(result2.main, result3.main));
+  fs.writeFileSync(thirdFile, prologCcode + protoMain2 + result3.code + getEpilog2(result2.main, result3.main))
   // throw an Error when compilation fails.
 
   execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
