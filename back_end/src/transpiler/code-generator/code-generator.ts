@@ -75,12 +75,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     })
 
     this.signatures += `void ${this.initializerName}();\n${cr.declareRootSet(this.globalRootSetName, size)}\n`
+    const numOfVars = env2.getNumOfVars()
     oldResult.write(`\nvoid ${this.initializerName}() {`)
              .right().nl()
              .write(cr.initRootSet(this.globalRootSetName, size))
-             .nl().write(cr.makeRootSet(env2.getNumOfVars()))
+             .nl().write(cr.makeRootSet(numOfVars))
              .write(this.result.getCode())
-             .nl().write(cr.deleteRootSet)
+             .nl().write(cr.deleteRootSet(numOfVars))
              .left().write('\n}\n')
 
     this.result = oldResult
@@ -245,13 +246,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           this.result.write(`{ ${typeAndVar} = (`)
 
         this.visit(node.argument, env)
-        this.result.write(`); ${cr.deleteRootSet}; return ${cr.returnValueVariable}; }`)
+        this.result.write(`); ${cr.deleteRootSet(env.getNumOfVars())}; return ${cr.returnValueVariable}; }`)
       }
       else
         throw this.errorLog.push('returns unknown type', node)
     }
     else
-      this.result.write(`{ ${cr.deleteRootSet}; return; }`)
+      this.result.write(`{ ${cr.deleteRootSet(env.getNumOfVars())}; return; }`)
 
     this.endWithReturn = true
   }
@@ -398,11 +399,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.nl()
     this.visit(node.body, fenv)
 
-    declarations.nl().write(cr.makeRootSet(fenv.getNumOfVars()))
+    const numOfVars = fenv.getNumOfVars()
+    declarations.nl().write(cr.makeRootSet(numOfVars))
     declarations.write(this.result.getCode())   // = .write(bodyResult.getCode())
     if (!this.endWithReturn)
       if (funcType.returnType === Void)
-        declarations.nl().write(cr.deleteRootSet)
+        declarations.nl().write(cr.deleteRootSet(numOfVars))
       else
         this.errorLog.push('a non-void function must return a value', node)
 

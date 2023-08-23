@@ -201,7 +201,10 @@ export function updateOpForAny(prefix: boolean, op: string) {
 export const globalRootSetName = 'global_rootset'
 
 export function makeRootSet(n: number) {
-  return `ROOT_SET(func_rootset, ${n})`
+  if (n > 0)
+    return `ROOT_SET(func_rootset, ${n})`
+  else
+    return ''
 }
 
 export function declareRootSet(name: string, n: number) {
@@ -212,7 +215,12 @@ export function initRootSet(name: string, n: number) {
   return `ROOT_SET_INIT(${name}, ${n})`
 }
 
-export const deleteRootSet = 'DELETE_ROOT_SET(func_rootset)'
+export function deleteRootSet(n: number) {
+  if (n > 0)
+    return 'DELETE_ROOT_SET(func_rootset)'
+  else
+    return ''
+}
 
 export function rootSetVariable(index: number | undefined, rootset?: string) {
   const name = rootset ? rootset : 'func_rootset'

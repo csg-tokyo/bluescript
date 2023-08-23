@@ -7,6 +7,7 @@ import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/
 const prolog = `// predefined native functions
 function print(m: any) {}
 function print_i32(m: integer) {}
+function performance_now(): integer { return 0 }
 `
 
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
@@ -15,6 +16,7 @@ const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
 `
 const prologCcode2 = `
 #include <stdio.h>
+#include <time.h>
 
 static void fbody_print(value_t m) {
   if (is_int_value(m))
@@ -32,17 +34,29 @@ static void fbody_print(value_t m) {
 static void fbody_print_i32(int32_t i) {
   printf("%d\\n", i);
 }
+
+/* msec */
+static int32_t fbody_performance_now() {
+  static struct timespec ts0 = { 0, -1 };
+  struct timespec ts;
+  if (ts0.tv_nsec < 0)
+    clock_gettime(CLOCK_REALTIME, &ts0);
+
+  clock_gettime(CLOCK_REALTIME, &ts);
+  return (int32_t)((ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000);
+}
 `
 
 const prologCode2a = `struct _print _print = { fbody_print, "(a)v" };
 `
 
-const prologCode2b = `struct _print _print = { fbody_print, "(i)v" };
-struct _print_i32 _print_i32 = { fbody_print_i32, "" };
+const prologCode2b = `struct _print _print = { fbody_print, "(a)v" };
+struct _print_i32 _print_i32 = { fbody_print_i32, "(i)v" };
 `
 
 const prologCode2c = `struct _print { void (*fptr)(value_t); const char* sig; } _print = { fbody_print, "(a)v" };
 struct _print_i32 { void (*fptr)(int32_t); const char* sig; } _print_i32 = { fbody_print_i32, "(i)v" };
+struct _performance_now { int32_t (*fptr)(); const char* sig; } _performance_now = { fbody_performance_now, "()i" };
 `
 
 function getEpilog(initName: string) {
@@ -68,7 +82,7 @@ int main() {
 }
 
 // This function is obsolete.
-// all the code is saved in a single file bscript.c.
+// all the code is saved in a single file bscript.c.  only print() and print_i32() are available.
 // print() must be called at least once in the given source code.
 export function compileAndRunWithSingleFile(src: string, usePrintI32 = false, destFile = './temp-files/bscript.c') {
     const result1 = transpile(1, prolog)

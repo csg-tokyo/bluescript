@@ -120,6 +120,13 @@ export class VariableEnv {
     return this.table.returnType()
   }
 
+  getNumOfVars(): number {
+    if (this.parent)
+      return this.parent.getNumOfVars()
+    else
+      throw new Error('cannot getNumOfVars')
+  }
+
   allocate(): number {
     if (this.parent !== null)
       return this.parent.allocate()
@@ -156,7 +163,7 @@ export class FunctionEnv extends VariableEnv {
     this.nextVar = 0
   }
 
-  getNumOfVars() { return this.numOfVars }
+  override getNumOfVars() { return this.numOfVars }
 
   override allocate() {
     const next = this.nextVar++

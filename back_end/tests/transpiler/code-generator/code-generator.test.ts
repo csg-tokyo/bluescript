@@ -1,5 +1,5 @@
 import { tsExternalModuleReference } from '@babel/types'
-import { compileAndRun, multiCompileAndRun } from './test-code-generator'
+import { compileAndRun, compileAndRunWithSingleFile, multiCompileAndRun } from './test-code-generator'
 
 test('simple code', () => {
   const src = 'print(1 + 1)'
@@ -1025,7 +1025,7 @@ test('new Array<integer>(n, v: any)', () => {
   expect(compileAndRun(src)).toBe('14\n')
 })
 
-test('print() is not used', () => {
+test('built-in functions are not used', () => {
   const src = `
   function foo(n: integer) {
     return n + 1
@@ -1033,4 +1033,19 @@ test('print() is not used', () => {
   foo(3)`
 
   expect(compileAndRun(src)).toBe('')
+})
+
+test('performance_now()', () => {
+  const src = `
+  function fib(i: integer): integer {
+    if (i < 2)
+      return 1
+    else
+      return fib(i - 1) + fib(i - 2)
+  }
+  const t0 = performance_now()
+  fib(40)
+  print(performance_now() - t0)`
+
+  expect(compileAndRun(src)).toMatch(/[0-9]+\n/)
 })
