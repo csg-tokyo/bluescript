@@ -1,4 +1,4 @@
-#include "../../m5stack_bluetooth/main/c-runtime.h"
+#include "../../../m5stack_bluetooth/components/c-runtime/c-runtime.h"
 #include "../../m5stack_bluetooth/main/utils.h"
 int32_t _x;
 extern struct _console_log_number {

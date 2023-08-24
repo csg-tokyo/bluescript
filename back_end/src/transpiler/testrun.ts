@@ -24,8 +24,8 @@ function print(m: any) {}
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
 
 #include <stdio.h>
-#include "../m5stack_bluetooth/main/c-runtime.h"
-src/transpiler/code-generator/c-runtime.h"
+#include "../m5stack_bluetooth/components/c-runtime/c-runtime.h"
+
 
 static void _print(value_t m) {
   if (is_int_value(m))

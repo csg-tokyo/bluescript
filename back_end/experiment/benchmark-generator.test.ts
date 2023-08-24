@@ -18,7 +18,7 @@ function fabs(f: float): float { return 0.0 }
 function console_log_float(f: float) {}
 `
 const prologCcode = `
-#include "../../../m5stack_bluetooth/main/c-runtime.h"
+#include "../../../m5stack_bluetooth/components/c-runtime/c-runtime.h"
 #include "benchmark-utils.c"
 
 `

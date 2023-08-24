@@ -37,7 +37,7 @@ esac
 if [ -n "$benchmark_num" ]
 then
     echo $benchmark
-    gcc -DBIT64 -DBENCHMARK=${benchmark_num} -O2 main.c c-runtime.c
+    gcc -DBIT64 -DBENCHMARK=${benchmark_num} -O2 main.c ../../../m5stack_bluetooth/components/c-runtime/c-runtime.c
     ./a.out $warmup $cycle
 else
     echo "Unknown benchmark."
