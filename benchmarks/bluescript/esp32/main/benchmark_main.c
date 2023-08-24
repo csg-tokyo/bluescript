@@ -12,11 +12,13 @@
 #include "freertos/task.h"
 #include <sys/time.h>
 #include <stdint.h>
+#include "c-runtime.h"
 
-#define BENCHMARK 1
+#define BENCHMARK 2
 
 #if BENCHMARK == 0
 #include "sieve.c"
+
 #elif BENCHMARK == 1
 #include "nbody.c"
 

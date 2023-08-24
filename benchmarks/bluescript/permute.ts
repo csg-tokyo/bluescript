@@ -1,4 +1,4 @@
-import { integer, assert, newArray } from "./utils";
+import { integer, assert } from "./utils";
 
 const RESULT = 8660;
 
@@ -26,6 +26,6 @@ function verify_result(result: integer) {
 }
 
 let count = 0;
-let arr: integer[] = [0, 0, 0, 0, 0, 0];
+let arr = new Array<integer>(6, 0);
 permute(arr, 6);
 assert(verify_result(count));

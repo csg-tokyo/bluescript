@@ -13,9 +13,6 @@ extern struct _verify_result {
   int32_t (*fptr)(int32_t);
   const char* sig; } _verify_result;
 int32_t _count;
-extern struct _assert {
-  void (*fptr)(int32_t);
-  const char* sig; } _assert;
 void bluescript_main2();
 ROOT_SET_DECL(global_rootset2, 1)
 
@@ -23,9 +20,9 @@ static void fbody_swap(value_t _v, int32_t _i, int32_t _j) {
   ROOT_SET(func_rootset, 1)
   func_rootset.values[0] = _v;
   {
-    int32_t _tmp = safe_value_to_int(*gc_array_get(func_rootset.values[0], _i));
-    (*gc_array_get(func_rootset.values[0], _i)) = safe_value_to_int(*gc_array_get(func_rootset.values[0], _j));
-    (*gc_array_get(func_rootset.values[0], _j)) = _tmp;
+    int32_t _tmp = (*gc_intarray_get(func_rootset.values[0], _i));
+    (*gc_intarray_get(func_rootset.values[0], _i)) = (*gc_intarray_get(func_rootset.values[0], _j));
+    (*gc_intarray_get(func_rootset.values[0], _j)) = _tmp;
   }
   DELETE_ROOT_SET(func_rootset)
 }
@@ -64,7 +61,7 @@ void bluescript_main2() {
   ROOT_SET(func_rootset, 1)
   _RESULT = 8660;
   _count = 0;
-  global_rootset2.values[0] = gc_make_array(6, int_to_value(0), int_to_value(0), int_to_value(0), int_to_value(0), int_to_value(0), int_to_value(0));
+  global_rootset2.values[0] = gc_new_intarray(6, 0);
   _permute.fptr(func_rootset.values[0]=global_rootset2.values[0], 6);
   _assert.fptr(_verify_result.fptr(_count));
   DELETE_ROOT_SET(func_rootset)

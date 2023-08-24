@@ -6,7 +6,7 @@ import {nbody_main} from "./playground";
 
 const M_DIR_PATH = "../benchmarks/bluescript/macbook/";
 const BENCHMARK_PATH = "../benchmarks/bluescript/";
-const BENCHMARK_NAME = "permute";
+const BENCHMARK_NAME = "sieve";
 
 const prolog = `// predefined native functions
 function newArray(n: integer, init: any): any[] { return []; }
@@ -18,8 +18,8 @@ function fabs(f: float): float { return 0.0 }
 function console_log_float(f: float) {}
 `
 const prologCcode = `
-#include "c-runtime.h"
-#include "utils.c"
+#include "../../../m5stack_bluetooth/main/c-runtime.h"
+#include "benchmark-utils.c"
 
 `
 
