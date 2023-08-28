@@ -10,7 +10,7 @@ function print_i32(m: integer) {}
 `
 
 const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
-#include "../../m5stack_bluetooth/main/c-runtime.h"
+#include "../../m5stack_bluetooth/components/c-runtime/c-runtime.h"
 
 `
 const prologCcode2 = `
@@ -85,7 +85,7 @@ export function compileAndRunWithSingleFile(src: string, usePrintI32 = false, de
     globalNames = result2.names
     fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main))
     // throw an Error when compilation fails.
-    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
+    execSync(`cc -DBIT64 -O2 ${destFile} ../m5stack_bluetooth/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
     return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
@@ -122,7 +122,7 @@ export function multiCompileAndRun(src: string, src2: string, destFile = './temp
   fs.writeFileSync(thirdFile, prologCcode + protoMain2 + result3.code + getEpilog2(result2.main, result3.main))
   // throw an Error when compilation fails.
 
-  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
+  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../m5stack_bluetooth/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
   return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 

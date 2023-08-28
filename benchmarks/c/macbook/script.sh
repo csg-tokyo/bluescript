@@ -4,15 +4,12 @@ set -e
 
 unset -v benchmark
 
-warmup=100
-times=100
-
-while getopts b:w:t: OPT
+while getopts b:w:c: OPT
 do
   case $OPT in
      b) benchmark=$OPTARG ;;
      w) warmup=$OPTARG;;
-     t) times=$OPTARG;;
+     c) cycle=$OPTARG;;
      *) echo "usage: sh script.sh -b benchmark_name";;
   esac
 done
@@ -22,11 +19,27 @@ if [ -z "$benchmark" ]; then
         exit 1
 fi
 
-if [ "$benchmark" == "sieve" ]
+case "$benchmark" in
+  "sieve"     ) benchmark_num=0 ;;
+  "nbody"     ) benchmark_num=1 ;;
+  "permute"   ) benchmark_num=2 ;;
+  "storage"   ) benchmark_num=3 ;;
+  "queens"    ) benchmark_num=4 ;;
+  "towers"    ) benchmark_num=5 ;;
+  "list"      ) benchmark_num=6 ;;
+  "bounce"    ) benchmark_num=7 ;;
+  "mandelbrot") benchmark_num=8 ;;
+  "biquad"    ) benchmark_num=9 ;;
+  "fir"       ) benchmark_num=10 ;;
+  "crc"       ) benchmark_num=11 ;;
+  "fft"       ) benchmark_num=12 ;;
+  "sha256"    ) benchmark_num=13 ;;
+esac
+
+if [ -n "$benchmark_num" ]
 then
-    echo $benchmark
-    gcc -DBENCHMARK=0 -O2 main.c
-    ./a.out $warmup $times
+    gcc -DBENCHMARK=${benchmark_num} -O2 main.c
+    ./a.out $warmup $cycle
 else
     echo "Unknown benchmark."
 fi

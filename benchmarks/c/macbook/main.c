@@ -2,13 +2,53 @@
 #include <time.h>
 #include <stdlib.h>
 
-#define WARMUP 100
-#define TIMES 100
 
 #if (defined(BENCHMARK) && (BENCHMARK == 0)) 
 #include "sieve.c"
 
+#elif (defined(BENCHMARK) && (BENCHMARK == 1))
+#include "nbody.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 2))
+#include "permute.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 3))
+#include "storage.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 4))
+#include "queens.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 5))
+#include "towers.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 6))
+#include "list.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 7))
+#include "bounce.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 8))
+#include "mandelbrot.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 9))
+#include "biquad.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 10))
+#include "fir.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 11))
+#include "crc.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 12))
+#include "fft.c"
+
+#elif (defined(BENCHMARK) && (BENCHMARK == 13))
+#include "sha256.c"
+
 #else
+#define WARMUP 10
+#define CYCLE 10
+#define TAG "no benchmark"
 void benchmark_main(void)
 {
     printf("No benchimark.\n");
@@ -18,10 +58,10 @@ void benchmark_main(void)
 int main(int argc, char const *argv[])
 {
     int warmup = WARMUP;
-    int times = TIMES;
+    int cycle = CYCLE;
     if (argc == 3) {
         warmup = atoi(argv[1]);
-        times = atoi(argv[2]);
+        cycle = atoi(argv[2]);
     }
     
     for (int i = 0; i < warmup; i++) {
@@ -31,7 +71,7 @@ int main(int argc, char const *argv[])
     struct timespec start;
     clock_gettime(CLOCK_REALTIME, &start);
 
-    for (int i = 0; i < times; i++) {
+    for (int i = 0; i < cycle; i++) {
         benchmark_main();
     }
 
@@ -39,6 +79,7 @@ int main(int argc, char const *argv[])
     clock_gettime(CLOCK_REALTIME, &end);
 
     double diff = difftime(end.tv_sec, start.tv_sec) * 1000 + (double)(end.tv_nsec - start.tv_nsec) / (1000000); // millisecond
+    puts(TAG);
     printf("warmup: %d cycle\n", warmup);
-    printf("%d times average: %f ms\n", times, diff / times);
+    printf("%d cycle average: %f ms\n", cycle, diff / cycle);
 }

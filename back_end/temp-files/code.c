@@ -1,22 +1,20 @@
-#include "../../m5stack_bluetooth/main/c-runtime.h"
+#include "../../../m5stack_bluetooth/components/c-runtime/c-runtime.h"
 #include "../../m5stack_bluetooth/main/utils.h"
-extern struct _func1 {
-  int32_t (*fptr)(int32_t);
-  const char* sig; } _func1;
-void bluescript_main4();
-ROOT_SET_DECL(global_rootset4, 0)
+int32_t _x;
+extern struct _console_log_number {
+  void (*fptr)(int32_t);
+  const char* sig; } _console_log_number;
+void bluescript_main1();
+ROOT_SET_DECL(global_rootset1, 0)
 
-static int32_t fbody_func1(int32_t _n) {
+void bluescript_main1() {
+  ROOT_SET_INIT(global_rootset1, 0)
   ROOT_SET(func_rootset, 0)
-  {
-    { int32_t ret_value_ = (_n + 4); DELETE_ROOT_SET(func_rootset); return ret_value_; }
-  }
-}
-
-void bluescript_main4() {
-  ROOT_SET_INIT(global_rootset4, 0)
-  ROOT_SET(func_rootset, 0)
-  _func1.fptr = fbody_func1;
-  
+  _x = 0;
+  _x+=1;
+  _x-=1;
+  _x+=1;
+  _x-=1;
+  _console_log_number.fptr(_x);
   DELETE_ROOT_SET(func_rootset)
 }

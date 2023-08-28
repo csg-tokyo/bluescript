@@ -31,7 +31,6 @@ export default class Bluetooth {
 
       char03 = await char03?.startNotifications();
       char03.addEventListener("characteristicvaluechanged",notificationHandler);
-      console.log(char03.properties.notify);
       console.log("notification started.");
     }
   }

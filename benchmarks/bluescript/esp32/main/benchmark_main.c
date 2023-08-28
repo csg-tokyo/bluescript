@@ -12,15 +12,46 @@
 #include "freertos/task.h"
 #include <sys/time.h>
 #include <stdint.h>
+#include "c-runtime.h"
 
-#define BENCHMARK 0
+#define BENCHMARK 2
 
 #if BENCHMARK == 0
 #include "sieve.c"
 
+#elif BENCHMARK == 1
+#include "nbody.c"
+
+#elif BENCHMARK == 2
+#include "permute.c"
+
+#elif BENCHMARK == 3
+#include "storage.c"
+
+#elif BENCHMARK == 4
+#include "queens.c"
+
+#elif BENCHMARK == 5
+#include "towers.c"
+
+#elif BENCHMARK == 6
+#include "list.c"
+
+#elif BENCHMARK == 7
+#include "bounce.c"
+
+#elif BENCHMARK == 9
+#include "biquad.c"
+
+#elif BENCHMARK == 10
+#include "fir.c"
+
+
+
 #else
-#define WARMUP 100
-#define TIMES 100
+#define WARMUP 0
+#define CYCLE 1
+#define TAG "no benchmark"
 void bluescript_main2(void)
 {
     printf("No benchimark.\n");
@@ -40,7 +71,7 @@ void app_main(void)
     struct timeval start;
     gettimeofday(&start, NULL);
 
-    for (int i = 0; i < TIMES; i++) {
+    for (int i = 0; i < CYCLE; i++) {
         bluescript_main2();
     }
 
@@ -48,8 +79,9 @@ void app_main(void)
     gettimeofday(&end, NULL);
 
     int64_t time_diff = (int64_t)end.tv_sec * 1000000L + (int64_t)end.tv_usec - ((int64_t)start.tv_sec * 1000000L + (int64_t)start.tv_usec);
+    puts(TAG);
     printf("warmup: %d cycle\n", WARMUP);
-    printf("%d times average: %f ms\n", TIMES, (double)time_diff / 1000 / TIMES);
+    printf("%d cycle average: %f ms\n", CYCLE, (double)time_diff / 1000 / CYCLE);
 
     while (true) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);

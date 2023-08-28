@@ -1,3 +1,9 @@
+
+WARMUP = 0
+CYCLE = 3
+TAG = "sieve"
+
+
 SIZE = 5000
 RESULT = 669
 

@@ -1,20 +1,13 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include <esp_task_wdt.h>
 #include <driver/gpio.h>
 #include "esp_log.h"
-#include "led_strip.h"
-#include <driver/gpio.h>
-#include <driver/ledc.h>
 #include "utils.h"
 #include "c-runtime.h"
 #include "bs-log.h"
 
-static const char *TAG = "blink";
-#define BLINK_GPIO GPIO_NUM_15
-#define LED_RMT_CHANNEL 0
-
+static const char *TAG = "UTILS";
 
 static int get_num_length(int n) {
     if (n == 0) { return 1; }
