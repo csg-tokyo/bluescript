@@ -930,6 +930,22 @@ print(func1(arr))
   expect(compileAndRun(src)).toBe('3\n')
 })
 
+test('native code', () => {
+  const src = `
+code\`#include <math.h>\`
+
+function sqrt(x: float): float {
+  let r: float
+  code\`_r = sqrt(_x)\`
+  return r
+}
+
+print(sqrt(9.0))
+`
+
+  expect(compileAndRun(src)).toBe('3.000000\n')
+})
+
 test('name scope', () => {
   const src = `
   function func1() {

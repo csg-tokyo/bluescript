@@ -45,6 +45,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'NewExpression', (visitor, node, env) => visitor.newExpression(node as AST.NewExpression, env) ],
         [ 'ArrayExpression', (visitor, node, env) => visitor.arrayExpression(node as AST.ArrayExpression, env) ],
         [ 'MemberExpression', (visitor, node, env) => visitor.memberExpression(node as AST.MemberExpression, env) ],
+        [ `TaggedTemplateExpression`,  (visitor, node, env) => visitor.taggedTemplateExpression(node as AST.TaggedTemplateExpression, env) ],
         // TS Type
         [ 'TSAsExpression',  (visitor, node, env) => visitor.tsAsExpression(node as AST.TSAsExpression, env)],
         [ 'TSTypeAnnotation', (visitor, node, env) => visitor.tsTypeAnnotation(node as AST.TSTypeAnnotation, env) ],
@@ -105,6 +106,7 @@ export abstract class NodeVisitor<Environment> {
     abstract newExpression(node: AST.NewExpression, env: Environment): void
     abstract arrayExpression(node: AST.ArrayExpression, env: Environment): void
     abstract memberExpression(node: AST.MemberExpression, env: Environment): void
+    abstract taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: Environment): void
     abstract tsAsExpression(node: AST.TSAsExpression, env: Environment): void
     abstract tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void
     abstract tsTypeReference(node: AST.TSTypeReference, env: Environment): void
@@ -152,6 +154,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     newExpression(node: AST.NewExpression, env: Environment): void {}
     arrayExpression(node: AST.ArrayExpression, env: Environment): void {}
     memberExpression(node: AST.MemberExpression, env: Environment): void {}
+    taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: Environment): void {}
     tsAsExpression(node: AST.TSAsExpression, env: Environment): void {}
     tsTypeAnnotation(node: AST.TSTypeAnnotation, env: Environment): void {}
     tsTypeReference(node: AST.TSTypeReference, env: Environment): void {}

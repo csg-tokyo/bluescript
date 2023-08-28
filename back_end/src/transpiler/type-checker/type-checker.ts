@@ -652,6 +652,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     // this.result is the the type of node.object
   }
 
+  taggedTemplateExpression(node: AST.TaggedTemplateExpression, names: NameTable<Info>): void {
+    this.assert(AST.isIdentifier(node.tag) && node.tag.name === 'code',
+                'a tagged template is not supported', node)
+    this.assert(node.quasi.expressions.length === 0 && node.quasi.quasis.length === 1,
+                'string interpolation is not supported', node)
+    this.result = Void
+  }
+
   tsAsExpression(node: AST.TSAsExpression, names: NameTable<Info>): void {
     this.visit(node.expression, names)
     const exprType = this.result

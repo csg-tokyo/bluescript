@@ -755,6 +755,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.write('))')
   }
 
+  taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {
+    // embedded native C code
+    const src = node.quasi.quasis[0].value.raw
+    if (env instanceof GlobalEnv)
+      this.signatures += `${src}\n`
+    else
+      this.result.write(src)
+  }
+
   tsAsExpression(node: AST.TSAsExpression, env: VariableEnv): void {
     const exprType = getStaticType(node.expression)
     const asType = getStaticType(node)
