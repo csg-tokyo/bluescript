@@ -115,7 +115,7 @@ export function compileAndRun(src: string, destFile = './temp-files/bscript') {
   fs.writeFileSync(secondFile, prologCcode + result2.code + getEpilog(result2.main))
   // throw an Error when compilation fails.
 
-  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ../m5stack_bluetooth/main/c-runtime.c -o ./temp-files/bscript`)
+  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ../m5stack_bluetooth/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
   return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
