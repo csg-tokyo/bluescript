@@ -390,7 +390,7 @@ static pointer_t gc_new_intarray_base(int32_t n) {
 
     pointer_t obj = allocate_heap(n + 1);
     set_object_header(obj, &intarray_object.clazz);
-    obj->body[0] = n;
+    obj->body[0] = int_to_value(n);
     return obj;
 }
 
@@ -423,30 +423,17 @@ value_t gc_make_intarray(int32_t n, ...) {
 
 int32_t gc_intarray_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
-    return objp->body[0];
+    return value_to_int(objp->body[0]);
 }
 
 int32_t* gc_intarray_get(value_t obj, int32_t index) {
     pointer_t objp = value_to_ptr(obj);
-    int32_t len = objp->body[0];
+    int32_t len = value_to_int(objp->body[0]);
     if (0 <= index && index < len) {
         return (int32_t*)&objp->body[index + 1];
     }
     else {
-        runtime_index_error(index, len, "Array<integer>.get");
-        return 0;
-    }
-}
-
-int32_t gc_intarray_set(value_t obj, int32_t index, int32_t new_value) {
-    pointer_t objp = value_to_ptr(obj);
-    int32_t len = objp->body[0];
-    if (0 <= index && index < len) {
-        objp->body[index + 1] = new_value;
-        return new_value;
-    }
-    else {
-        runtime_index_error(index, len, "Array<integer>.get");
+        runtime_index_error(index, len, "Array<integer>.get/set");
         return 0;
     }
 }
@@ -462,67 +449,39 @@ static CLASS_OBJECT(bytearray_object, 1) = {
   the actual size will be a multiple of 4.
 
   Initially, the elements of this array hold random values.
-  1st word is the number of elements.
-  2nd, 3rd, ... words hold elements.
+  1st word is the size of this array.
+  2nd word is the number of elements.
+  3rd, 4th, ... words hold elements.
 */
 value_t gc_new_bytearray(int32_t n) {
     if (n < 0)
         n = 0;
-    else
-        n = (n + 3) / 4;
 
-    pointer_t obj = allocate_heap(n + 1);
+    int32_t m =(n + 3) / 4 + 1;
+    pointer_t obj = allocate_heap(m + 1);
     set_object_header(obj, &bytearray_object.clazz);
-    obj->body[0] = int_to_value(n);
+    obj->body[0] = int_to_value(m);
+    obj->body[1] = n;
     return ptr_to_value(obj);
 }
 
 // the size of the array in bytes.
-value_t gc_bytearray_size(value_t obj) {
+int32_t gc_bytearray_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
-    return int_to_value(value_to_int(objp->body[0]) * 4);
+    return objp->body[1];
 }
 
 // Obtains an unsigned 8bit value of the byte element at index.
 // When index is 2, the 2nd element of an 8bit array is returned.
-value_t gc_bytearray_get(value_t obj, value_t index) {
+uint8_t* gc_bytearray_get(value_t obj, int32_t idx) {
     pointer_t objp = value_to_ptr(obj);
-    int32_t len = value_to_int(objp->body[0]) * 4;
-    int32_t idx = value_to_int(index);
-    if (0 <= idx && idx < len) {
-        int32_t v = ((uint8_t*)objp->body)[idx + 4];
-        return int_to_value(v);
-    }
+    int32_t len = objp->body[1];
+    if (0 <= idx && idx < len)
+        return (uint8_t*)objp->body + idx + 8;
     else {
-        runtime_index_error(idx, len, "bytearray.get");
-        return VALUE_UNDEF;
+        runtime_index_error(idx, len, "ByteArray.get/set");
+        return 0;
     }
-}
-
-// Stores an unsigned 8bit value specified by new_value into the
-// array element at index.
-value_t gc_bytearray_set(value_t obj, value_t index, value_t new_value) {
-    pointer_t objp = value_to_ptr(obj);
-    int32_t len = value_to_int(objp->body[0]) * 4;
-    int32_t idx = value_to_int(index);
-    if (0 <= idx && idx < len) {
-        ((uint8_t*)objp->body)[idx + 4] = (uint8_t)value_to_int(new_value);
-        return new_value;
-    }
-    else {
-        runtime_index_error(idx, len, "bytearray.get");
-        return VALUE_UNDEF;
-    }
-}
-
-// Stores a given raw unsigned 32bit value into an array.
-// Note that index is a raw 32bit integer value and it specifies the position
-// by assuming that each array element is 32bit long.
-// This function returns a pointer to the array element where the value is stored.
-value_t* gc_bytearray_set_raw_word(value_t obj, int32_t index, uint32_t new_value) {
-    pointer_t objp = value_to_ptr(obj);
-    objp->body[index + 1] = new_value;
-    return &objp->body[index + 1];
 }
 
 // A fixed-length array
@@ -549,17 +508,16 @@ value_t gc_new_vector(int32_t n) {
     return ptr_to_value(obj);
 }
 
-value_t gc_vector_size(value_t obj) {
+int32_t gc_vector_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
-    return objp->body[0];
+    return value_to_int(objp->body[0]);
 }
 
-value_t gc_vector_get(value_t obj, value_t index) {
+value_t* gc_vector_get(value_t obj, int32_t idx) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = value_to_int(objp->body[0]);
-    int32_t idx = value_to_int(index);
     if (0 <= idx && idx < len)
-        return objp->body[idx + 1];
+        return &objp->body[idx + 1];
     else {
         runtime_index_error(idx, len, "vector.get");
         return VALUE_UNDEF;
@@ -569,20 +527,6 @@ value_t gc_vector_get(value_t obj, value_t index) {
 inline static value_t* fast_vector_get(value_t obj, int32_t index) {
     pointer_t objp = value_to_ptr(obj);
     return &objp->body[index + 1];
-}
-
-value_t gc_vector_set(value_t obj, value_t index, value_t new_value) {
-    pointer_t objp = value_to_ptr(obj);
-    int32_t len = value_to_int(objp->body[0]);
-    int32_t idx = value_to_int(index);
-    if (0 <= idx && idx < len) {
-        objp->body[idx + 1] = new_value;
-        return new_value;
-    }
-    else {
-        runtime_index_error(index, len, "vector.set");
-        return VALUE_UNDEF;
-    }
 }
 
 inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_value) {
@@ -621,9 +565,9 @@ value_t gc_make_array(int32_t n, ...) {
     return array;
 }
 
-value_t gc_array_length(value_t obj) {
+int32_t gc_array_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
-    return objp->body[1];
+    return value_to_int(objp->body[1]);
 }
 
 value_t* gc_array_get(value_t obj, int32_t idx) {
@@ -632,22 +576,8 @@ value_t* gc_array_get(value_t obj, int32_t idx) {
     if (0 <= idx && idx < len)
         return fast_vector_get(objp->body[0], idx);
     else {
-        runtime_index_error(idx, len, "array.get");
-        return VALUE_UNDEF;
-    }
-}
-
-value_t gc_array_set(value_t obj, value_t index, value_t new_value) {
-    pointer_t objp = value_to_ptr(obj);
-    int32_t len = value_to_int(objp->body[1]);
-    int32_t idx = value_to_int(index);
-    if (0 <= idx && idx < len) {
-        fast_vector_set(objp->body[0], idx, new_value);
-        return new_value;
-    }
-    else {
-        runtime_index_error(idx, len, "array.set");
-        return VALUE_UNDEF;
+        runtime_index_error(idx, len, "Array.get/set");
+        return 0;
     }
 }
 

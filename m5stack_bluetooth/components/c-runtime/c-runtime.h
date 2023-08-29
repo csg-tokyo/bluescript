@@ -40,7 +40,7 @@ typedef struct object_type* pointer_t;
 typedef struct class_object {
     int32_t size;           // instance size excluding a header.
                             // -1 if the instance is a variable-length array.
-                            // Its size is stored in body[0].
+                            // Its size is stored in body[0] as value_t.
     uint32_t is_raw_data;   // true if body does not contain pointers.
     const char* const name; // printable class name
     const struct class_object* const superclass;    // super class or NULL
@@ -155,24 +155,19 @@ extern value_t gc_new_intarray(int32_t n, int32_t init_value);
 extern value_t gc_make_intarray(int32_t n, ...);
 extern int32_t gc_intarray_length(value_t obj);
 extern int32_t* gc_intarray_get(value_t obj, int32_t index);
-extern int32_t gc_intarray_set(value_t obj, int32_t index, int32_t new_value);
 
 extern value_t gc_new_bytearray(int32_t n);
-extern value_t gc_bytearray_size(value_t obj);
-extern value_t gc_bytearray_get(value_t obj, value_t index);
-extern value_t gc_bytearray_set(value_t obj, value_t index, value_t new_value);
-extern value_t* gc_bytearray_set_raw_word(value_t obj, int32_t index, uint32_t new_value);
+extern int32_t gc_bytearray_length(value_t obj);
+extern uint8_t* gc_bytearray_get(value_t obj, int32_t index);
 
 extern value_t gc_new_vector(int32_t n);
-extern value_t gc_vector_size(value_t obj); 
-extern value_t gc_vector_get(value_t obj, value_t index);
-extern value_t gc_vector_set(value_t obj, value_t index, value_t new_value);
+extern int32_t gc_vector_length(value_t obj); 
+extern value_t* gc_vector_get(value_t obj, int32_t index);
 
 extern value_t gc_new_array(int32_t n);
 extern value_t gc_make_array(int32_t n, ...);
-extern value_t gc_array_length(value_t obj);
+extern int32_t gc_array_length(value_t obj);
 extern value_t* gc_array_get(value_t obj, int32_t index);
-extern value_t gc_array_set(value_t obj, value_t index, value_t new_value);
 
 extern void gc_init_rootset(struct gc_root_set* set, uint32_t length);
 extern void gc_run();

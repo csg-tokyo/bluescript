@@ -1,9 +1,9 @@
 // Test code for c-runtime.c
 // To compile,
-// cc -DBIT64 ../../src/transpiler/code-generator/c-runtime.c c-runtime-test2.c
+// cc -DBIT64 c-runtime-test2.c
 
 #include <stdio.h>
-#include "../../src/transpiler/code-generator/c-runtime.h"
+#include "../../../m5stack_bluetooth/components/c-runtime/c-runtime.c"
 
 static int nerrors = 0;
 
@@ -146,8 +146,8 @@ void test_safe_to_bool() {
 
 void test_safe_value_to() {
     Assert_true(try_and_catch(test_safe_to_int));
-    Assert_true(try_and_catch(test_safe_to_float));
-    Assert_true(try_and_catch(test_safe_to_bool));
+    Assert_true(!try_and_catch(test_safe_to_float));
+    Assert_true(!try_and_catch(test_safe_to_bool));
 
     Assert_true(value_to_truefalse(int_to_value(1)));
 
@@ -168,7 +168,7 @@ void test_array2() {
 
 void test_array() {
     value_t arr = gc_make_array(3, int_to_value(1), int_to_value(2), int_to_value(3));
-    Assert_equals(gc_array_length(arr), int_to_value(3));
+    Assert_equals(gc_array_length(arr), 3);
     *gc_array_get(arr, 2) = int_to_value(4);
     Assert_equals(*gc_array_get(arr, 2), int_to_value(4));
     test_array_var = arr;

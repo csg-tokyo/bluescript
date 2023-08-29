@@ -1,9 +1,9 @@
 // Test code
 // To cmpile,
-// cc -DBIT64 -I../../src/transpiler/code-generator/ c-runtime-test.c
+// cc -DBIT64 c-runtime-test.c
 
 #include <string.h>
-#include "c-runtime.c"
+#include "../../../m5stack_bluetooth/components/c-runtime/c-runtime.c"
 
 #define Assert_true(v)     assert_true(v, __LINE__)
 
@@ -145,6 +145,11 @@ void test_string() {
     Assert_true(is_ptr_value(v));
 }
 
+static value_t gc_bytearray_set(value_t obj, value_t index, value_t new_value) {
+    *gc_bytearray_get(obj, value_to_int(index)) = value_to_int(new_value);
+    return new_value;
+}
+
 void test_bytearray() {
     value_t arr = gc_new_bytearray(3);
     value_t arr2 = gc_new_bytearray(7);
@@ -155,11 +160,15 @@ void test_bytearray() {
     for (int i = 0; i < 3; i++)
         gc_bytearray_set(arr, i, int_to_value(i));
     for (int i = 0; i < 7; i++) {
-        value_t e = gc_bytearray_get(arr2, int_to_value(i));
-        Assert_equals(value_to_int(e), 257 - i > 255 ? 1 - i : 257 - i);
+        int32_t e = *gc_bytearray_get(arr2, i);
+        Assert_equals(e, 257 - i > 255 ? 1 - i : 257 - i);
     }
-    Assert_equals(value_to_int(gc_bytearray_size(arr)), 4);
-    Assert_equals(value_to_int(gc_bytearray_size(arr2)), 8);
+    Assert_equals(gc_bytearray_length(arr), 3);
+    Assert_equals(gc_bytearray_length(arr2), 7);
+}
+
+static value_t gc_vector_set(value_t obj, value_t index, value_t new_value) {
+    return *gc_vector_get(obj, value_to_int(index)) = new_value;
 }
 
 void test_vector() {
@@ -170,11 +179,16 @@ void test_vector() {
     for (int i = 0; i < 4; i++)
         gc_vector_set(arr, i, int_to_value(i));
     for (int i = 0; i < 4; i++) {
-        value_t e = gc_vector_get(arr2, int_to_value(i));
+        value_t e = *gc_vector_get(arr2, int_to_value(i));
         Assert_equals(value_to_int(e), i);
     }
     Assert_equals(value_to_int(gc_array_length(arr)), 4);
     Assert_equals(value_to_int(gc_array_length(arr2)), 4);
+}
+
+static value_t gc_array_set(value_t obj, value_t index, value_t new_value) {
+    *gc_array_get(obj, value_to_int(index)) = new_value;
+    return new_value;
 }
 
 void test_array() {
@@ -188,8 +202,8 @@ void test_array() {
         value_t e = *gc_array_get(arr2, i);
         Assert_equals(value_to_int(e), i);
     }
-    Assert_equals(value_to_int(gc_array_length(arr)), 4);
-    Assert_equals(value_to_int(gc_array_length(arr2)), 4);
+    Assert_equals(gc_array_length(arr), 4);
+    Assert_equals(gc_array_length(arr2), 4);
 }
 
 void test_allocate_heap() {
@@ -347,6 +361,15 @@ void test_gc_liveness() {
     DELETE_ROOT_SET(root_set);
 }
 
+// Stores a given raw unsigned 32bit value into an array.
+// Note that index is a raw 32bit integer value and it specifies the position
+// by assuming that each array element is 32bit long.
+// This function returns a pointer to the array element where the value is stored.
+static void gc_bytearray_set_raw_word(value_t obj, int32_t index, uint32_t new_value) {
+    pointer_t objp = value_to_ptr(obj);
+    objp->body[index + 1] = new_value;
+}
+
 void test_gc_liveness2() {
     gc_initialize();
     value_t heap_size = heap_memory[2];
@@ -414,11 +437,7 @@ void test_gc_sweep() {
     gc_run();
 }
 
-int main() {
-#ifdef BIT64
-    test_pointer_table();
-#endif
-    gc_initialize();
+void test_main() {
     test_converters();
     test_string();
     test_bytearray();
@@ -432,5 +451,12 @@ int main() {
     test_gc_liveness2();
     test_gc_sweep();
     puts("done");
-    return 0;
+}
+
+int main() {
+#ifdef BIT64
+    test_pointer_table();
+#endif
+  gc_initialize();
+  return try_and_catch(test_main);
 }

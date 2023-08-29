@@ -66,11 +66,11 @@ struct my_rel_table_entry my_rel_table[100] = {
         {gc_new_vector},
         {gc_vector_size},
         {gc_vector_get},
-        {gc_vector_set},
+        // {gc_vector_set},
         {gc_make_array},
         {gc_array_length},
         {gc_array_get},
-        {gc_array_set},
+        // {gc_array_set},
         {gc_init_rootset},
         {gc_run},
         // {gc_root_set_head}
