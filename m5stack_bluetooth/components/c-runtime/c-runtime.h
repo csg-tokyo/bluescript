@@ -39,8 +39,8 @@ typedef struct object_type* pointer_t;
 
 typedef struct class_object {
     int32_t size;           // instance size excluding a header.
-                            // -1 if the instance is a variable-length array.
-                            // Its size is stored in body[0] as value_t.
+                            // -1 if the instance is an array.
+                            // Its size is stored in body[0] as int32_t.
     uint32_t is_raw_data;   // true if body does not contain pointers.
     const char* const name; // printable class name
     const struct class_object* const superclass;    // super class or NULL

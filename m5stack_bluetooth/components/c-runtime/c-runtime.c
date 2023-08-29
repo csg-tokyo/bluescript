@@ -279,12 +279,19 @@ void gc_initialize() {
 #endif
 }
 
-static inline int object_size(pointer_t obj, class_object* clazz) {
+// The start index is stored at start_index.
+// It is 1 when the object is an array since obj->body[0] does not hold
+// the first element.
+static inline int object_size(pointer_t obj, class_object* clazz, uint32_t* start_index) {
     int32_t size = clazz->size;
-    if (size >= 0)
+    if (size >= 0) {
+        *start_index = 0;
         return size;
-    else
-        return value_to_int(obj->body[0]) + 1;
+    }
+    else {
+        *start_index = 1;
+        return obj->body[0] + 1;
+    }
 }
 
 static bool class_has_no_pointer(class_object* obj) {
@@ -390,7 +397,7 @@ static pointer_t gc_new_intarray_base(int32_t n) {
 
     pointer_t obj = allocate_heap(n + 1);
     set_object_header(obj, &intarray_object.clazz);
-    obj->body[0] = int_to_value(n);
+    obj->body[0] = n;
     return obj;
 }
 
@@ -423,12 +430,12 @@ value_t gc_make_intarray(int32_t n, ...) {
 
 int32_t gc_intarray_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
-    return value_to_int(objp->body[0]);
+    return objp->body[0];
 }
 
 int32_t* gc_intarray_get(value_t obj, int32_t index) {
     pointer_t objp = value_to_ptr(obj);
-    int32_t len = value_to_int(objp->body[0]);
+    int32_t len = objp->body[0];
     if (0 <= index && index < len) {
         return (int32_t*)&objp->body[index + 1];
     }
@@ -460,7 +467,7 @@ value_t gc_new_bytearray(int32_t n) {
     int32_t m =(n + 3) / 4 + 1;
     pointer_t obj = allocate_heap(m + 1);
     set_object_header(obj, &bytearray_object.clazz);
-    obj->body[0] = int_to_value(m);
+    obj->body[0] = m;
     obj->body[1] = n;
     return ptr_to_value(obj);
 }
@@ -501,7 +508,7 @@ value_t gc_new_vector(int32_t n) {
 
     pointer_t obj = allocate_heap(n + 1);
     set_object_header(obj, &vector_object.clazz);
-    obj->body[0] = int_to_value(n);
+    obj->body[0] = n;
     for (int i = 0; i < n; i++)
         obj->body[i + 1] = VALUE_UNDEF;
 
@@ -510,16 +517,16 @@ value_t gc_new_vector(int32_t n) {
 
 int32_t gc_vector_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
-    return value_to_int(objp->body[0]);
+    return objp->body[0];
 }
 
 value_t* gc_vector_get(value_t obj, int32_t idx) {
     pointer_t objp = value_to_ptr(obj);
-    int32_t len = value_to_int(objp->body[0]);
+    int32_t len = objp->body[0];
     if (0 <= idx && idx < len)
         return &objp->body[idx + 1];
     else {
-        runtime_index_error(idx, len, "vector.get");
+        runtime_index_error(idx, len, "Vector.get/set");
         return VALUE_UNDEF;
     }
 }
@@ -653,8 +660,9 @@ static bool mark_an_object(uint32_t mark, uint32_t stack_top) {
         pointer_t obj = gc_stack[--stack_top];
         class_object* clazz = get_objects_class(obj);
         if (!class_has_no_pointer(clazz)) {
-            uint32_t size = object_size(obj, clazz);
-            for (uint32_t j = 0; j < size; j++) {
+            uint32_t j;
+            uint32_t size = object_size(obj, clazz, &j);
+            for (; j < size; j++) {
                 value_t next = obj->body[j];
                 if (is_ptr_value(next) && next != VALUE_NULL) {
                     pointer_t nextp = value_to_ptr(next);
@@ -685,9 +693,10 @@ static bool scan_and_mark_objects(uint32_t mark) {
         while (start < end) {
             pointer_t obj = (pointer_t)&heap_memory[start];
             class_object* clazz = get_objects_class(obj);
-            uint32_t size = object_size(obj, clazz);
+            uint32_t j;
+            uint32_t size = object_size(obj, clazz, &j);
             if (GET_MARK_BIT(obj) == mark && !class_has_no_pointer(clazz)) {
-                for (uint32_t j = 0; j < size; j++) {
+                for (; j < size; j++) {
                     value_t next = obj->body[j];
                     if (is_ptr_value(next) && next != VALUE_NULL) {
                         pointer_t nextp = value_to_ptr(next);
@@ -762,7 +771,8 @@ static void sweep_objects(uint32_t mark) {
         while (start < end) {
             pointer_t obj = (pointer_t)&heap_memory[start];
             class_object* clazz = get_objects_class(obj);
-            uint32_t size = real_objsize(object_size(obj, clazz));
+            uint32_t start_index;
+            uint32_t size = real_objsize(object_size(obj, clazz, &start_index));
             if (GET_MARK_BIT(obj) == mark)
                 previous_word_is_free = false;
             else
