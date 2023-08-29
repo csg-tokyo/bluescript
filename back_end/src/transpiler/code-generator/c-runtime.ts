@@ -234,6 +234,8 @@ export const minusAnyValue = 'minus_any_value'
 export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
   if (t === Integer)
     return '(*gc_intarray_get('
+  else if (t === Float)
+    return '(*gc_floatarray_get('
   else
     return `${typeConversion(Any, t, node)}*gc_array_get(`
 }
@@ -242,6 +244,8 @@ export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
 export function arrayFromElements(t: StaticType) {
   if (t === Integer)
     return 'gc_make_intarray'
+  else if (t === Float)
+    return 'gc_make_floatarray'
   else
     return 'gc_make_array'
 }
@@ -249,6 +253,8 @@ export function arrayFromElements(t: StaticType) {
 export function arrayFromSize(t: StaticType) {
   if (t === Integer)
     return 'gc_new_intarray'
+  else if (t === Float)
+    return 'gc_new_floatarray'
   else
     return 'gc_new_array'
 }
@@ -256,6 +262,8 @@ export function arrayFromSize(t: StaticType) {
 export function actualElementType(t: StaticType) {
   if (t === Integer)
     return Integer
+  else if (t === Float)
+    return Float
   else
     return Any
 }

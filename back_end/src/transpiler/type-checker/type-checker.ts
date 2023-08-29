@@ -585,16 +585,22 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         etype = typeParams[0]
 
     const args = node.arguments
-    if (this.assert(args.length === 1 || (args.length === 2 && etype === Integer), 'wrong number of arguments', node))
-      for (const a of args) {
-        this.visit(a, names)
-        this.assert(this.result === Integer || this.result === Any, 'wrong type of argument', node)
-        this.addCoercionIfAny(a, this.result)
-      }
+    if (this.assert(args.length === 1 || (args.length === 2 && (etype === Integer || etype === Float)),
+                    'wrong number of arguments', node)) {
+      this.newExpressionArg(args[0], Integer, names)
+      if (args.length === 2)
+        this.newExpressionArg(args[1], etype, names)
+    }
 
     const atype = new ArrayType(etype)
     this.addStaticType(node, atype)
     this.result = atype
+  }
+
+  private newExpressionArg(arg: AST.Node, type: StaticType, names: NameTable<Info>) {
+    this.visit(arg, names)
+    this.assert(this.result === type || this.result === Any, 'wrong type of argument', arg)
+    this.addCoercionIfAny(arg, this.result)
   }
 
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {
@@ -638,7 +644,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.assert(node.computed, 'a property access are not supported', node)
     this.assert(AST.isExpression(node.property), 'a wrong property name', node.property)
     this.visit(node.property, names)
-    this.assert(this.firstPass || this.result === Integer, 'an array index must be an integer', node.property)
+    this.assert(this.firstPass || this.result === Integer || this.result === Any,
+                'an array index must be an integer', node.property)
+    this.addCoercionIfAny(node.property, this.result)
     this.visit(node.object, names)
   }
 

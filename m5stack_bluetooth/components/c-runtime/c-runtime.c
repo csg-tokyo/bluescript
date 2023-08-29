@@ -436,11 +436,71 @@ int32_t gc_intarray_length(value_t obj) {
 int32_t* gc_intarray_get(value_t obj, int32_t index) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[0];
-    if (0 <= index && index < len) {
+    if (0 <= index && index < len)
         return (int32_t*)&objp->body[index + 1];
-    }
     else {
         runtime_index_error(index, len, "Array<integer>.get/set");
+        return 0;
+    }
+}
+
+// A float array
+
+static CLASS_OBJECT(floatarray_object, 1) = {
+    .clazz = { .size = -1, .is_raw_data = true, .name = "Array<float>", .superclass = &object_class.clazz }};
+
+value_t safe_value_to_floatarray(value_t v) {
+    return safe_value_to_value(&floatarray_object.clazz, v);
+}
+
+static pointer_t gc_new_floatarray_base(int32_t n) {
+    pointer_t obj = gc_new_intarray_base(n);
+    set_object_header(obj, &floatarray_object.clazz);
+    return obj;
+}
+
+/*
+  A float array.  It cannot contain a pointer.
+  n: the number of elements. n >= 0.
+
+  1st word is the number of elements.
+  2nd, 3rd, ... words hold elements.
+*/
+value_t gc_new_floatarray(int32_t n, float init_value) {
+    pointer_t obj = gc_new_floatarray_base(n);
+    for (int32_t i = 1; i <= n; i++)
+        *(float*)&obj->body[i] = init_value;
+
+    return ptr_to_value(obj);
+}
+
+value_t gc_make_floatarray(int32_t n, ...) {
+    va_list args;
+    pointer_t arrayp = gc_new_floatarray_base(n);
+    va_start(args, n);
+
+    for (int32_t i = 1; i <= n; i++) {
+        // because float is promotable to double.
+        float v = (float)va_arg(args, double);
+        *(float*)&arrayp->body[i] = v;
+    }
+
+    va_end(args);
+    return ptr_to_value(arrayp);
+}
+
+int32_t gc_floatarray_length(value_t obj) {
+    pointer_t objp = value_to_ptr(obj);
+    return objp->body[0];
+}
+
+float* gc_floatarray_get(value_t obj, int32_t index) {
+    pointer_t objp = value_to_ptr(obj);
+    int32_t len = objp->body[0];
+    if (0 <= index && index < len)
+        return (float*)&objp->body[index + 1];
+    else {
+        runtime_index_error(index, len, "Array<float>.get/set");
         return 0;
     }
 }

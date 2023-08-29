@@ -918,6 +918,8 @@ test('float array assignment', () => {
 function func1(data: float[]) {
 	let arr2: float[] = [2.0, 3.0, 4.0]
 
+  const f = data[1]
+  print(f)
 	arr2[0] = data[0]
 	let v: integer = (arr2[0] * 2) as integer
   return v
@@ -927,7 +929,7 @@ const arr = [1.5, 2.5, 3.5]
 print(func1(arr))
 `
 
-  expect(compileAndRun(src)).toBe('3\n')
+  expect(compileAndRun(src)).toBe('2.500000\n3\n')
 })
 
 test('native code', () => {
@@ -1039,6 +1041,62 @@ test('new Array<integer>(n, v: any)', () => {
   print(foo(3))`
 
   expect(compileAndRun(src)).toBe('14\n')
+})
+
+test('new Array<float>(n)', () => {
+  const src = `
+  function foo(n: integer, m: any) {
+    const a1 = new Array<float>(n)
+    a1[n - 1] = 22.3
+    const a2 = new Array<float>(m)
+    a2[m - 1] = 77.4
+    return a1[n - 1] + a2[m - 1]
+  }
+
+  print(foo(3, 4))`
+
+  expect(compileAndRun(src)).toBe('99.699982\n')
+})
+
+test('new Array<float>(n, v)', () => {
+  const src = `
+  function foo(n: integer) {
+    const a1 = new Array<float>(n, 7.2)
+    return a1[0] + a1[n - 1]
+  }
+
+  print(foo(3))`
+
+  expect(compileAndRun(src)).toBe('14.399998\n')
+})
+
+test('new Array<float>(n, v: any)', () => {
+  const src = `
+  function foo(n: integer) {
+    const i: any = 7.2
+    const a1 = new Array<float>(n, i)
+    const m: any = n
+    const a2 = new Array<float>(m, i)
+    return a1[0] + a2[n - 1]
+  }
+
+  print(foo(3))`
+
+  expect(compileAndRun(src)).toBe('14.399998\n')
+})
+
+test('new Array<string>(n)', () => {
+  const src = `
+  function foo(n: integer) {
+    const a1 = new Array<string>(n)
+    print(typeof a1)
+    a1[0] = 'foo'
+    return a1[0]
+  }
+
+  print(foo(3))`
+
+  expect(compileAndRun(src)).toBe('string[]\nfoo\n')
 })
 
 test('built-in functions are not used', () => {

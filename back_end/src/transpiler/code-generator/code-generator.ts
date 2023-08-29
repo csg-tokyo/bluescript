@@ -702,12 +702,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       throw this.errorLog.push(`bad new expression`, node)
 
     this.result.write(`${cr.arrayFromSize(atype.elementType)}(`)
-    this.newExpressionArg(node.arguments[0], env)
+    this.newExpressionArg(node.arguments[0], Integer, env)
 
-    if (atype.elementType === Integer) {
+    if (atype.elementType === Integer || atype.elementType === Float) {
       this.result.write(', ')
       if (node.arguments.length === 2)
-        this.newExpressionArg(node.arguments[1], env)
+        this.newExpressionArg(node.arguments[1], atype.elementType, env)
       else
         this.result.write('0')
     }
@@ -715,12 +715,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.write(')')
   }
 
-  newExpressionArg(arg: AST.Node, env: VariableEnv) {
+  newExpressionArg(arg: AST.Node, t: StaticType, env: VariableEnv) {
     const argType = this.needsCoercion(arg)
     if (argType === undefined)
       this.visit(arg, env)
     else {
-      this.result.write(cr.typeConversion(argType, Integer, arg))
+      this.result.write(cr.typeConversion(argType, t, arg))
       this.visit(arg, env)
       this.result.write(')')
     }
@@ -734,6 +734,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     let elementType: StaticType = Any
     if (atype.elementType === Integer)
       elementType = Integer
+    else if (atype.elementType === Float)
+      elementType = Float
 
     this.result.write(`${cr.arrayFromElements(elementType)}(${node.elements.length}`)
     for (const ele of node.elements)
@@ -750,9 +752,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const elementType = getStaticType(node)
     this.result.write(cr.arrayElementGetter(elementType, node))
     this.visit(node.object, env)
-    this.result.write(', ')
+    const indexType = getStaticType(node.property)
+    this.result.write(`, ${cr.typeConversion(indexType, Integer, node.property)}`)
     this.visit(node.property, env)
-    this.result.write('))')
+    this.result.write(')))')
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {

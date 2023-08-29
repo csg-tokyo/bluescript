@@ -156,6 +156,11 @@ extern value_t gc_make_intarray(int32_t n, ...);
 extern int32_t gc_intarray_length(value_t obj);
 extern int32_t* gc_intarray_get(value_t obj, int32_t index);
 
+extern value_t gc_new_floatarray(int32_t n, float init_value);
+extern value_t gc_make_floatarray(int32_t n, ...);
+extern int32_t gc_floatarray_length(value_t obj);
+extern float* gc_floatarray_get(value_t obj, int32_t index);
+
 extern value_t gc_new_bytearray(int32_t n);
 extern int32_t gc_bytearray_length(value_t obj);
 extern uint8_t* gc_bytearray_get(value_t obj, int32_t index);
