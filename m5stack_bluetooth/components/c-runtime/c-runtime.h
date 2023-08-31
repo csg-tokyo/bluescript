@@ -25,6 +25,12 @@
 
 typedef uint32_t value_t;
 
+// function value
+struct func_value {
+    void* fptr;
+    value_t self;   // for closure
+};
+
 struct object_type {
     /*
       class_ptr:  30 bits (pointer to a class_object)

@@ -115,11 +115,23 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   identifier(node: AST.Identifier, env: VariableEnv): void {
     const info = env.table.lookup(node.name)
     if (info !== undefined) {
-      if (info.isFunction)
-        this.result.write(`${info.transpile(node.name)}.${cr.functionPtr}`)
-      else
         this.result.write(info.transpile(node.name))
+        return
     }
+
+    throw this.errorLog.push('fatal:  unknown identifier', node)
+  }
+
+  private identifierAsCallable(node: AST.Node, env: VariableEnv): void {
+    if (AST.isIdentifier(node)) {
+      const info = env.table.lookup(node.name)
+      if (info !== undefined) {
+        this.result.write(`((${cr.funcTypeToCType(info.type)})${info.transpile(node.name)}.${cr.functionPtr})`)
+        return
+      }
+    }
+
+    throw this.errorLog.push('fatal: unknown function name', node)
   }
 
   whileStatement(node: AST.WhileStatement, env: VariableEnv): void {
@@ -369,11 +381,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   /* For this function:
        function foo(n: integer) { return n + 1 }
      This method generates the following C code:
-       extern struct _foo {
-         int32_t (*fptr)(int32_t);
-         const char* sig; } _foo;
+       extern struct func_value _foo;
        static int32_t fbody_foo(value_t self, int32_t _n) { ... function body ... }
-       struct _foo _foo = { fbody_foo, "..." };
+       struct func_value _foo = { fbody_foo, VALUE_NULL };
 
      A function-type value is a pointer to _foo of type struct _foo.
   */
@@ -415,7 +425,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       prevResult.nl().write(`${fname}.${cr.functionPtr} = fbody${fname};`).nl()
     else {
       this.signatures += this.makeFunctionStruct(fname, funcType)
-      declarations.write(`struct ${fname} ${fname} = { fbody${fname}, "${encodeType(funcType)}" };`).nl()
+      declarations.write(`${cr.funcTypeInC} ${fname} = { fbody${fname}, VALUE_NULL };`).nl()
     }
 
     this.result = prevResult
@@ -423,7 +433,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration,
                             fenv: FunctionEnv, bodyResult: CodeWriter) {
-    let sig = '(value_t self'
+    let sig = `(${cr.anyTypeInC} self`
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       sig += ', '
 
@@ -442,9 +452,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   private makeFunctionStruct(name: string, type: StaticType) {
-    return `extern struct ${name} {
-  ${cr.typeToCType(type, cr.functionPtr)};
-  const char* sig; } ${name};\n`
+    return `extern ${cr.funcTypeInC} ${name};\n`
   }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
@@ -667,7 +675,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   callExpression(node: AST.CallExpression, env: VariableEnv): void {
     const ftype = getStaticType(node.callee) as FunctionType
-    this.visit(node.callee, env);
+    this.identifierAsCallable(node.callee, env)
+
     this.result.write(`(0`)
     let numOfObjectArgs = 0
     for (let i = 0; i < node.arguments.length; i++) {

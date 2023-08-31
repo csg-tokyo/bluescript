@@ -6,13 +6,15 @@ import { Integer, Float, Boolean, String, Void, Null, Any,
     ObjectType, objectType, FunctionType,
     StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, } from '../types'
 
+export const anyTypeInC = 'value_t'
+export const funcTypeInC = 'struct func_value'
 
 export const mainFunctionName = 'bluescript_main'
 export const returnValueVariable = 'ret_value_'
 
 export const uint32type = 'uint32_t'
 
-export function typeToCType(type: StaticType, name: string = ''): string {
+export function funcTypeToCType(type: StaticType, name: string = ''): string {
   if (type instanceof FunctionType) {
     let typename = typeToCType(type.returnType)
     typename += ' (*'
@@ -27,15 +29,22 @@ export function typeToCType(type: StaticType, name: string = ''): string {
 
     return typename + ')'
   }
-  else if (name === '')
+  else
+    return typeToCType(type, name)
+}
+
+export function typeToCType(type: StaticType, name: string = ''): string {
+  if (name === '')
     return typeToCType2(type)
   else
     return `${typeToCType2(type)} ${name}`
 }
 
 function typeToCType2(type: StaticType): string {
-  if (type instanceof ObjectType)
-    return 'value_t';
+  if (type instanceof FunctionType)
+    return funcTypeInC
+  else if (type instanceof ObjectType)
+    return anyTypeInC
   else
     switch (type) {
     case Integer:
@@ -49,7 +58,7 @@ function typeToCType2(type: StaticType): string {
     case String:
     case Null:
     case Any:
-      return 'value_t'
+      return anyTypeInC
     default:
       throw new Error(`${type} has not been supported yet.`)
   }
