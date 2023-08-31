@@ -1,5 +1,5 @@
-import { tsExternalModuleReference } from '@babel/types'
 import { compileAndRun, compileAndRunWithSingleFile, multiCompileAndRun } from './test-code-generator'
+import { describe, expect, test } from '@jest/globals'
 
 test('simple code', () => {
   const src = 'print(1 + 1)'
@@ -932,62 +932,6 @@ print(func1(arr))
   expect(compileAndRun(src)).toBe('2.500000\n3\n')
 })
 
-test('native code', () => {
-  const src = `
-code\`#include <math.h>\`
-
-function sqrt(x: float): float {
-  let r: float
-  code\`_r = sqrt(_x)\`
-  return r
-}
-
-print(sqrt(9.0))
-`
-
-  expect(compileAndRun(src)).toBe('3.000000\n')
-})
-
-test('name scope', () => {
-  const src = `
-  function func1() {
-    let result = "sss"
-    let e = 30
-    e += d      // d is a forward reference
-    print(result)
-    return e
-  }
-  
-  const d = 1
-  const e = 6
-  print(e)
-  let result = 4
-  print(result)
-  print(func1())
-  print(result)
-  print(e)`
-
-  expect(compileAndRun(src)).toBe([6, 4, 'sss', 31, 4, 6].join('\n') + '\n')
-})
-
-test('forward reference to a global variable', () => {
-  const src = `
-function foo(v: integer) {
-  // arr is declared later.  So, on the first pass, arr is typed as any.
-  const arr2 = arr
-  return arr[v] + arr2[v] + bar(arr)
-}
-
-function bar(a: integer[]) {
-  return a[1]
-}
-
-let arr: integer[] = [3, 70, 0, 0, 0, 0];
-print(foo(0))`
-
-  expect(compileAndRun(src)).toBe('76\n')
-})
-
 test('new Array(n)', () => {
   const src = `
   function foo(n: integer, m: any) {
@@ -1122,4 +1066,60 @@ test('performance_now()', () => {
   print(performance_now() - t0)`
 
   expect(compileAndRun(src)).toMatch(/[0-9]+\n/)
+})
+
+test('native code', () => {
+  const src = `
+code\`#include <math.h>\`
+
+function sqrt(x: float): float {
+  let r: float
+  code\`_r = sqrt(_x)\`
+  return r
+}
+
+print(sqrt(9.0))
+`
+
+  expect(compileAndRun(src)).toBe('3.000000\n')
+})
+
+test('name scope', () => {
+  const src = `
+  function func1() {
+    let result = "sss"
+    let e = 30
+    e += d      // d is a forward reference
+    print(result)
+    return e
+  }
+  
+  const d = 1
+  const e = 6
+  print(e)
+  let result = 4
+  print(result)
+  print(func1())
+  print(result)
+  print(e)`
+
+  expect(compileAndRun(src)).toBe([6, 4, 'sss', 31, 4, 6].join('\n') + '\n')
+})
+
+test('forward reference to a global variable', () => {
+  const src = `
+function foo(v: integer) {
+  // arr is declared later.  So, on the first pass, arr is typed as any.
+  const arr2 = arr
+  return arr[v] + arr2[v] + bar(arr)
+}
+
+function bar(a: integer[]) {
+  return a[1]
+}
+
+let arr: integer[] = [3, 70, 0, 0, 0, 0];
+print(foo(0))`
+
+  expect(compileAndRun(src)).toBe('76\n')
 })
