@@ -119,7 +119,7 @@ test('update an array element', () => {
   const a = table?.lookup('a')?.type
   expect((a as types.ArrayType).elementType).toBe(types.Integer)
   const b = table?.lookup('b')?.type
-  expect(b).toBe(types.Any)
+  expect(b).toBe(types.Integer)
 })
 
 test('property access', () => {
