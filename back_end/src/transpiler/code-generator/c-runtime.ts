@@ -19,14 +19,9 @@ export function typeToCType(type: StaticType, name: string = ''): string {
     if (typename !== '')
       typename += name
 
-    typename += ')('
-    let first = true
+    typename += ')(value_t'
     for (const param of type.paramTypes) {
-      if (first)
-        first = false
-      else
-        typename += ', '
-
+      typename += ', '
       typename += typeToCType(param)
     }
 

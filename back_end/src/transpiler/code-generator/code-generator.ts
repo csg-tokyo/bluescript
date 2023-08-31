@@ -372,7 +372,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
        extern struct _foo {
          int32_t (*fptr)(int32_t);
          const char* sig; } _foo;
-       static int32_t fbody_foo(int32_t _n) { ... function body ... }
+       static int32_t fbody_foo(value_t self, int32_t _n) { ... function body ... }
        struct _foo _foo = { fbody_foo, "..." };
 
      A function-type value is a pointer to _foo of type struct _foo.
@@ -423,10 +423,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration,
                             fenv: FunctionEnv, bodyResult: CodeWriter) {
-    let sig = '('
+    let sig = '(value_t self'
     for (let i = 0; i < funcType.paramTypes.length; i++) {
-      if (i > 0)
-        sig += ', '
+      sig += ', '
 
       const paramName = (node.params[i] as AST.Identifier).name
       const paramType = funcType.paramTypes[i]
@@ -669,13 +668,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   callExpression(node: AST.CallExpression, env: VariableEnv): void {
     const ftype = getStaticType(node.callee) as FunctionType
     this.visit(node.callee, env);
-    this.result.write(`(`)
+    this.result.write(`(0`)
     let numOfObjectArgs = 0
     for (let i = 0; i < node.arguments.length; i++) {
       const arg = node.arguments[i]
-      if (i > 0)
-        this.result.write(', ')
-
+      this.result.write(', ')
       if (!isPrimitiveType(ftype.paramTypes[i])) {
         ++numOfObjectArgs
         const index = env.allocate()

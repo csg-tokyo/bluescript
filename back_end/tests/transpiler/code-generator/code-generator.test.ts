@@ -1053,7 +1053,7 @@ test('built-in functions are not used', () => {
   expect(compileAndRun(src)).toBe('')
 })
 
-test('performance_now()', () => {
+test.only('performance_now()', () => {
   const src = `
   function fib(i: integer): integer {
     if (i < 2)

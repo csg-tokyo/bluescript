@@ -18,7 +18,7 @@ const prologCcode2 = `
 #include <stdio.h>
 #include <time.h>
 
-static void fbody_print(value_t m) {
+static void fbody_print(value_t self, value_t m) {
   if (is_int_value(m))
     printf("%d\\n", value_to_int(m));
   else if (is_float_value(m))
@@ -31,12 +31,12 @@ static void fbody_print(value_t m) {
     puts("??");
 }
 
-static void fbody_print_i32(int32_t i) {
+static void fbody_print_i32(value_t self, int32_t i) {
   printf("%d\\n", i);
 }
 
 /* msec */
-static int32_t fbody_performance_now() {
+static int32_t fbody_performance_now(value_t self) {
   static struct timespec ts0 = { 0, -1 };
   struct timespec ts;
   if (ts0.tv_nsec < 0)
@@ -54,9 +54,9 @@ const prologCode2b = `struct _print _print = { fbody_print, "(a)v" };
 struct _print_i32 _print_i32 = { fbody_print_i32, "(i)v" };
 `
 
-const prologCode2c = `struct _print { void (*fptr)(value_t); const char* sig; } _print = { fbody_print, "(a)v" };
-struct _print_i32 { void (*fptr)(int32_t); const char* sig; } _print_i32 = { fbody_print_i32, "(i)v" };
-struct _performance_now { int32_t (*fptr)(); const char* sig; } _performance_now = { fbody_performance_now, "()i" };
+const prologCode2c = `struct _print { void (*fptr)(value_t, value_t); const char* sig; } _print = { fbody_print, "(a)v" };
+struct _print_i32 { void (*fptr)(value_t, int32_t); const char* sig; } _print_i32 = { fbody_print_i32, "(i)v" };
+struct _performance_now { int32_t (*fptr)(value_t); const char* sig; } _performance_now = { fbody_performance_now, "()i" };
 `
 
 function getEpilog(initName: string) {
