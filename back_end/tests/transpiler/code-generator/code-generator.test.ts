@@ -503,7 +503,7 @@ test('++ operator for const', () => {
   }
   foo(5)
 `
-  expect(() => compileAndRun(src)).toThrow(/assignment to constant.*line 4\n.*line 5/)
+  expect(() => compileAndRun(src)).toThrow(/assignment to constant.*line 4.*\n.*line 5/)
 })
 
 test('equality operators', () => {
@@ -795,7 +795,7 @@ test('any-type array', () => {
   }
   print(foo(4))`
 
-  expect(() => compileAndRun(src)).toThrow(/line 4\n.*line 5\n.*line 13\n.*line 14/)
+  expect(() => compileAndRun(src)).toThrow(/line 4.*\n.*line 5.*\n.*line 13.*\n.*line 14/)
 })
 
 test('any-type array 2', () => {
@@ -817,7 +817,7 @@ test('any-type array 2', () => {
   }
   print(foo('test'))`
 
-  expect(() => compileAndRun(src)).toThrow(/line 4\n.*line 5\n.*line 13\n.*line 14/)
+  expect(() => compileAndRun(src)).toThrow(/line 4.*\n.*line 5.*\n.*line 13.*\n.*line 14/)
 })
 
 test('any-type array element', () => {
@@ -1029,10 +1029,68 @@ test('new Array<float>(n, v: any)', () => {
   expect(compileAndRun(src)).toBe('14.399998\n')
 })
 
+test('boolean array', () => {
+  const src = `
+  function foo() {
+    const a1 = [true, false, true]
+    print(a1[0])
+    print(a1[1])
+    return a1[2]
+  }
+
+  print(foo())`
+
+  expect(compileAndRun(src)).toBe('1\n0\n1\n')
+})
+
+test('new Array<boolean>(n)', () => {
+  const src = `
+  function foo(n: integer, m: any) {
+    const a1 = new Array<boolean>(n)
+    a1[n - 1] = true
+    const a2 = new Array<boolean>(m)
+    a2[m - 1] = true
+    print(a1[0])
+    print(a1[n - 1])
+    return a1[n - 1] && a2[m - 1]
+  }
+
+  print(foo(3, 4))`
+
+  expect(compileAndRun(src)).toBe('0\n1\n1\n')
+})
+
+test('new Array<boolean>(n, v)', () => {
+  const src = `
+  function foo(n: integer) {
+    const a1 = new Array<boolean>(n, true)
+    return a1[0] && a1[n - 1]
+  }
+
+  print(foo(3))`
+
+  expect(compileAndRun(src)).toBe('1\n')
+})
+
+test('new Array<boolean>(n, v: any)', () => {
+  const src = `
+  function foo(n: integer) {
+    const i: any = true
+    const a1 = new Array<boolean>(n, i)
+    const m: any = n
+    const a2 = new Array<boolean>(m, i)
+    return a1[0] && a2[n - 1]
+  }
+
+  print(foo(3))`
+
+  expect(compileAndRun(src)).toBe('1\n')
+})
+
 test('new Array<string>(n)', () => {
   const src = `
   function foo(n: integer) {
-    const a1 = new Array<string>(n)
+    const a1 = new Array<string>(n, '')
     print(typeof a1)
     a1[0] = 'foo'
     return a1[0]
@@ -1041,6 +1099,33 @@ test('new Array<string>(n)', () => {
   print(foo(3))`
 
   expect(compileAndRun(src)).toBe('string[]\nfoo\n')
+})
+
+test('new Array<string>(n, null)', () => {
+  const src = `
+  function foo(n: integer) {
+    const a1 = new Array<string>(n, null)
+    print(typeof a1)
+    a1[0] = 'foo'
+    return a1[0]
+  }
+
+  print(foo(3))`
+
+  expect(() => compileAndRun(src)).toThrow(/wrong type.*line 3/)
+})
+
+test('2d float array', () => {
+  const src = `
+  let farray1 = [0.1, 0.2, 0.3];
+  let farray2 = [1.1, 1.2, 1.3];
+  let farray12 = [farray1, farray2];
+  let f = farray12[0][1];
+  print(f)
+  const arr = new Array<float[]>(4, [0.2])
+  print(arr[3][0])
+`
+  expect(compileAndRun(src)).toBe('0.200000\n0.200000\n')
 })
 
 test('built-in functions are not used', () => {

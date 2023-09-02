@@ -134,16 +134,18 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
         if (to === String)
           return 'safe_value_to_string('
         else if (to instanceof ObjectType) {
-          const info = to.runtimeTypeInfo()
           if (to === objectType)
             return 'safe_value_to_object('
-          else {
-            if (to instanceof ArrayType) {
-              if (info === noRuntimeTypeInfo)
-                return 'safe_value_to_array('
-            }
+          else if (to instanceof ArrayType) {
+            if (to.elementType === Integer)
+              return 'safe_value_to_intarray('
+            else if (to.elementType === Float)
+              return 'safe_value_to_floatarray('
+            else if (to.elementType === Boolean)
+              return 'safe_value_to_bytearray('
           }
 
+          const info = to.runtimeTypeInfo()
           return `safe_value_to_value(${info}, `
         }
       }
@@ -234,14 +236,16 @@ export function rootSetVariable(index: number | undefined, rootset?: string) {
 // compute a nagative value of an any-type value
 export const minusAnyValue = 'minus_any_value'
 
-// a getter function for arrays
+// a getter/setter function for arrays
 export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
   if (t === Integer)
     return '(*gc_intarray_get('
   else if (t === Float)
     return '(*gc_floatarray_get('
+  else if (t === Boolean)
+    return '(*gc_bytearray_get('
   else
-    return `${typeConversion(Any, t, node)}*gc_array_get(`
+    return `(*gc_array_get(`
 }
 
 // makes an array object from elements
@@ -250,6 +254,8 @@ export function arrayFromElements(t: StaticType) {
     return 'gc_make_intarray'
   else if (t === Float)
     return 'gc_make_floatarray'
+  else if (t === Boolean)
+    return 'gc_make_bytearray'
   else
     return 'gc_make_array'
 }
@@ -259,6 +265,8 @@ export function arrayFromSize(t: StaticType) {
     return 'gc_new_intarray'
   else if (t === Float)
     return 'gc_new_floatarray'
+  else if (t === Boolean)
+    return 'gc_new_bytearray'
   else
     return 'gc_new_array'
 }
@@ -268,6 +276,8 @@ export function actualElementType(t: StaticType) {
     return Integer
   else if (t === Float)
     return Float
+  else if (t === Boolean)
+    return Boolean
   else
     return Any
 }

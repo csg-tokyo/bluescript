@@ -585,7 +585,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         etype = typeParams[0]
 
     const args = node.arguments
-    if (this.assert(args.length === 1 || (args.length === 2 && (etype === Integer || etype === Float)),
+    if (this.assert(args.length === 2 || (args.length === 1 && (etype === Integer || etype === Float
+                                                                || etype === Boolean || etype === Any)),
                     'wrong number of arguments', node)) {
       this.newExpressionArg(args[0], Integer, names)
       if (args.length === 2)
@@ -599,7 +600,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   private newExpressionArg(arg: AST.Node, type: StaticType, names: NameTable<Info>) {
     this.visit(arg, names)
-    this.assert(this.result === type || this.result === Any, 'wrong type of argument', arg)
+    this.assert(isSubtype(this.result, type) || this.result === Any, 'wrong type of argument', arg)
     this.addCoercionIfAny(arg, this.result)
   }
 

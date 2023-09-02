@@ -710,13 +710,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.write(`${cr.arrayFromSize(atype.elementType)}(`)
     this.newExpressionArg(node.arguments[0], Integer, env)
 
-    if (atype.elementType === Integer || atype.elementType === Float) {
-      this.result.write(', ')
-      if (node.arguments.length === 2)
-        this.newExpressionArg(node.arguments[1], atype.elementType, env)
+    this.result.write(', ')
+    if (node.arguments.length === 1)
+      if (atype.elementType === Any)
+        this.result.write('VALUE_UNDEF')
       else
-        this.result.write('0')
-    }
+        this.result.write('0')    // only Integer, Float, or Boolean
+    else if (node.arguments.length === 2)
+        this.newExpressionArg(node.arguments[1], atype.elementType, env)
 
     this.result.write(')')
   }
@@ -742,6 +743,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       elementType = Integer
     else if (atype.elementType === Float)
       elementType = Float
+    else if (atype.elementType === Boolean)
+      elementType = Boolean
 
     this.result.write(`${cr.arrayFromElements(elementType)}(${node.elements.length}`)
     for (const ele of node.elements)

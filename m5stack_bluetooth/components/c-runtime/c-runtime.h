@@ -125,7 +125,6 @@ extern float safe_value_to_float(value_t v);
 extern value_t safe_value_to_null(value_t v);
 extern value_t safe_value_to_string(value_t v);
 extern value_t safe_value_to_object(value_t v);
-extern value_t safe_value_to_array(value_t v);
 extern value_t safe_value_to_value(const class_object* const clazz, value_t v);
 
 extern value_t any_add(value_t a, value_t b);
@@ -157,25 +156,31 @@ extern value_t gc_new_string(char* str);
 extern bool gc_is_string_literal(value_t obj);
 extern char* gc_string_literal_cstr(value_t obj);
 
+extern value_t safe_value_to_intarray(value_t v);
 extern value_t gc_new_intarray(int32_t n, int32_t init_value);
 extern value_t gc_make_intarray(int32_t n, ...);
 extern int32_t gc_intarray_length(value_t obj);
 extern int32_t* gc_intarray_get(value_t obj, int32_t index);
 
+extern value_t safe_value_to_floatarray(value_t v);
 extern value_t gc_new_floatarray(int32_t n, float init_value);
 extern value_t gc_make_floatarray(int32_t n, ...);
 extern int32_t gc_floatarray_length(value_t obj);
 extern float* gc_floatarray_get(value_t obj, int32_t index);
 
-extern value_t gc_new_bytearray(int32_t n);
+extern value_t safe_value_to_bytearray(value_t v);
+extern value_t gc_new_bytearray(int32_t n, int32_t init_value);
+extern value_t gc_make_bytearray(int32_t n, ...);
 extern int32_t gc_bytearray_length(value_t obj);
 extern uint8_t* gc_bytearray_get(value_t obj, int32_t index);
 
-extern value_t gc_new_vector(int32_t n);
+extern value_t safe_value_to_vector(value_t v);
+extern value_t gc_new_vector(int32_t n, value_t init_value);
 extern int32_t gc_vector_length(value_t obj); 
 extern value_t* gc_vector_get(value_t obj, int32_t index);
 
-extern value_t gc_new_array(int32_t n);
+extern value_t safe_value_to_array(value_t v);
+extern value_t gc_new_array(int32_t n, value_t init_value);
 extern value_t gc_make_array(int32_t n, ...);
 extern int32_t gc_array_length(value_t obj);
 extern value_t* gc_array_get(value_t obj, int32_t index);

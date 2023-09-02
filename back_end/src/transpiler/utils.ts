@@ -35,7 +35,8 @@ export class ErrorLog {
     let text = ''
     for (const m of this.messages) {
       const line = m.location?.start.line
-      text += `${m.message} in line ${line ? line : '??'}\n`
+      const column = m.location?.start.column
+      text += `${m.message} in line ${line ? line : '??'} ${column ? `(column ${column})` : ''}\n`
     }
     return text
   }

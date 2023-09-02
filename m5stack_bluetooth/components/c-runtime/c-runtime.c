@@ -510,6 +510,10 @@ float* gc_floatarray_get(value_t obj, int32_t index) {
 static CLASS_OBJECT(bytearray_object, 1) = {
     .clazz = { .size = -1, .is_raw_data = true, .name = "ByteArray", .superclass = &object_class.clazz }};
 
+value_t safe_value_to_bytearray(value_t v) {
+    return safe_value_to_value(&bytearray_object.clazz, v);
+}
+
 /*
   A byte (or unsigned 8 bit) array.  It cannot contain a pointer.
   n: the size of the array in bytes.
@@ -520,7 +524,7 @@ static CLASS_OBJECT(bytearray_object, 1) = {
   2nd word is the number of elements.
   3rd, 4th, ... words hold elements.
 */
-value_t gc_new_bytearray(int32_t n) {
+static pointer_t gc_new_bytearray_base(int32_t n) {
     if (n < 0)
         n = 0;
 
@@ -529,7 +533,32 @@ value_t gc_new_bytearray(int32_t n) {
     set_object_header(obj, &bytearray_object.clazz);
     obj->body[0] = m;
     obj->body[1] = n;
+    return obj;
+}
+
+value_t gc_new_bytearray(int32_t n, int32_t init_value) {
+    pointer_t obj = gc_new_bytearray_base(n);
+    uint32_t v = init_value & 0xff;
+    uint8_t* elements = (uint8_t*)&obj->body[2];
+    for (int i = 0; i < n; i++)
+        elements[i] = v;
+
     return ptr_to_value(obj);
+}
+
+value_t gc_make_bytearray(int32_t n, ...) {
+    va_list args;
+    pointer_t arrayp = gc_new_bytearray_base(n);
+    va_start(args, n);
+
+    uint8_t* elements = (uint8_t*)&arrayp->body[2];
+    for (int32_t i = 0; i < n; i++) {
+        int32_t v = va_arg(args, int32_t);
+        elements[i] = (uint8_t)v;
+    }
+
+    va_end(args);
+    return ptr_to_value(arrayp);
 }
 
 // the size of the array in bytes.
@@ -544,7 +573,7 @@ uint8_t* gc_bytearray_get(value_t obj, int32_t idx) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[1];
     if (0 <= idx && idx < len)
-        return (uint8_t*)objp->body + idx + 8;
+        return (uint8_t*)&objp->body[2] + idx;
     else {
         runtime_index_error(idx, len, "ByteArray.get/set");
         return 0;
@@ -556,13 +585,17 @@ uint8_t* gc_bytearray_get(value_t obj, int32_t idx) {
 static CLASS_OBJECT(vector_object, 1) = {
     .clazz = { .size = -1, .is_raw_data = false, .name = "Vector", .superclass = &object_class.clazz }};
 
+value_t safe_value_to_vector(value_t v) {
+    return safe_value_to_value(&vector_object.clazz, v);
+}
+
 /*
   A fixed-length array.
   n: the number of vector elements.
      1st word is the number of elements.
      2nd, 3rd, ... words hold elements.
 */
-value_t gc_new_vector(int32_t n) {
+value_t gc_new_vector(int32_t n, value_t init_value) {
     if (n < 0)
         n = 0;
 
@@ -570,7 +603,7 @@ value_t gc_new_vector(int32_t n) {
     set_object_header(obj, &vector_object.clazz);
     obj->body[0] = n;
     for (int i = 0; i < n; i++)
-        obj->body[i + 1] = VALUE_UNDEF;
+        obj->body[i + 1] = init_value;
 
     return ptr_to_value(obj);
 }
@@ -610,9 +643,9 @@ value_t safe_value_to_array(value_t v) {
     return safe_value_to_value(&array_object.clazz, v);
 }
 
-value_t gc_new_array(int32_t n) {
+value_t gc_new_array(int32_t n, value_t init_value) {
     pointer_t obj = gc_allocate_object(&array_object.clazz);
-    value_t vec = gc_new_vector(n);
+    value_t vec = gc_new_vector(n, init_value);
     obj->body[0] = vec;
     // the length must be less than or equal to the length of the vector.
     obj->body[1] = int_to_value(n);
@@ -621,7 +654,7 @@ value_t gc_new_array(int32_t n) {
 
 value_t gc_make_array(int32_t n, ...) {
     va_list args;
-    value_t array = gc_new_array(n);
+    value_t array = gc_new_array(n, VALUE_UNDEF);
     pointer_t arrayp = value_to_ptr(array);
     va_start(args, n);
 
