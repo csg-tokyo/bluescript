@@ -596,6 +596,8 @@ value_t safe_value_to_vector(value_t v) {
      2nd, 3rd, ... words hold elements.
 */
 value_t gc_new_vector(int32_t n, value_t init_value) {
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = init_value;
     if (n < 0)
         n = 0;
 
@@ -605,6 +607,7 @@ value_t gc_new_vector(int32_t n, value_t init_value) {
     for (int i = 0; i < n; i++)
         obj->body[i + 1] = init_value;
 
+    DELETE_ROOT_SET(rootset)
     return ptr_to_value(obj);
 }
 
@@ -644,11 +647,15 @@ value_t safe_value_to_array(value_t v) {
 }
 
 value_t gc_new_array(int32_t n, value_t init_value) {
+    ROOT_SET(rootset, 2)
+    rootset.values[0] = init_value;
     pointer_t obj = gc_allocate_object(&array_object.clazz);
+    rootset.values[1] = ptr_to_value(obj);
     value_t vec = gc_new_vector(n, init_value);
     obj->body[0] = vec;
     // the length must be less than or equal to the length of the vector.
     obj->body[1] = int_to_value(n);
+    DELETE_ROOT_SET(rootset)
     return ptr_to_value(obj);
 }
 
