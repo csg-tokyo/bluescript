@@ -717,7 +717,7 @@ static pointer_t no_more_memory() {
 
   The size of an allocated chunk is an even number.
 */
-static pointer_t allocate_heap(uint16_t word_size) {
+static pointer_t allocate_heap_base(uint16_t word_size) {
     word_size = real_objsize(word_size);
     value_t prev = 0;
     value_t current = heap_memory[0];
@@ -740,8 +740,21 @@ static pointer_t allocate_heap(uint16_t word_size) {
         prev = current;
         current = next;
     }
+    return NULL;
+}
 
-    return no_more_memory();
+static pointer_t allocate_heap(uint16_t word_size) {
+    pointer_t ptr = allocate_heap_base(word_size);
+    if (ptr == NULL)
+        return ptr;
+    else {
+        gc_run();
+        ptr = allocate_heap_base(word_size);
+        if (ptr == NULL)
+            return ptr;
+        else
+            return no_more_memory();
+    }
 }
 
 struct gc_root_set* gc_root_set_head = NULL;
