@@ -16,6 +16,7 @@ function globalVariableName(varName: string, index?: number) {
 }
 
 export class VariableInfo extends NameInfo {
+  // set in VariableEnv.allocateRootSet()
   index?: number = undefined
 
   constructor(t: StaticType) {

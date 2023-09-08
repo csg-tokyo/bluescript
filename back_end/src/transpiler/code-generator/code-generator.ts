@@ -682,24 +682,35 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     for (let i = 0; i < node.arguments.length; i++) {
       const arg = node.arguments[i]
       this.result.write(', ')
-      if (!isPrimitiveType(ftype.paramTypes[i])) {
-        ++numOfObjectArgs
-        const index = env.allocate()
-        this.result.write(cr.rootSetVariable(index)).write('=')
-      }
-
-      const arg_type = this.needsCoercion(arg)
-      if (arg_type === undefined)
-        this.visit(arg, env)
-      else {
-        this.result.write(cr.typeConversion(arg_type, ftype.paramTypes[i], arg))
-        this.visit(arg, env)
-        this.result.write(')')
-      }
+      numOfObjectArgs += this.callExpressionArg(arg, ftype.paramTypes[i], env)
     }
 
     env.deallocate(numOfObjectArgs)
     this.result.write(')')
+  }
+
+  private callExpressionArg(arg: AST.Node, type: StaticType, env: VariableEnv) {
+    const n = this.addToRootSet(arg, type, env)
+    const arg_type = this.needsCoercion(arg)
+    if (arg_type === undefined)
+      this.visit(arg, env)
+    else {
+      this.result.write(cr.typeConversion(arg_type, type, arg))
+      this.visit(arg, env)
+      this.result.write(')')
+    }
+
+    return n
+  }
+
+  private addToRootSet(arg: AST.Node, type: StaticType, env: VariableEnv) {
+    if (isPrimitiveType(type) || AST.isIdentifier(arg))
+      return 0
+    else {
+      const index = env.allocate()
+      this.result.write(cr.rootSetVariable(index)).write('=')
+      return 1
+    }
   }
 
   newExpression(node: AST.NewExpression, env: VariableEnv): void {
@@ -708,7 +719,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       throw this.errorLog.push(`bad new expression`, node)
 
     this.result.write(`${cr.arrayFromSize(atype.elementType)}(`)
-    this.newExpressionArg(node.arguments[0], Integer, env)
+    let numOfObjectArgs = this.callExpressionArg(node.arguments[0], Integer, env)
 
     this.result.write(', ')
     if (node.arguments.length === 1)
@@ -717,20 +728,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else
         this.result.write('0')    // only Integer, Float, or Boolean
     else if (node.arguments.length === 2)
-        this.newExpressionArg(node.arguments[1], atype.elementType, env)
+        numOfObjectArgs += this.callExpressionArg(node.arguments[1], atype.elementType, env)
 
+    env.deallocate(numOfObjectArgs)
     this.result.write(')')
-  }
-
-  newExpressionArg(arg: AST.Node, t: StaticType, env: VariableEnv) {
-    const argType = this.needsCoercion(arg)
-    if (argType === undefined)
-      this.visit(arg, env)
-    else {
-      this.result.write(cr.typeConversion(argType, t, arg))
-      this.visit(arg, env)
-      this.result.write(')')
-    }
   }
 
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {
@@ -747,13 +748,18 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       elementType = Boolean
 
     this.result.write(`${cr.arrayFromElements(elementType)}(${node.elements.length}`)
+    let numOfObjectArgs = 0
     for (const ele of node.elements)
       if (ele !== null) {
+        this.result.write(', ')
+        numOfObjectArgs += this.addToRootSet(ele, elementType, env)
         const type = getStaticType(ele)
-        this.result.write(`, ${cr.typeConversion(type, elementType, ele)}`)
+        this.result.write(cr.typeConversion(type, elementType, ele))
         this.visit(ele, env)
         this.result.write(')')
       }
+
+    env.deallocate(numOfObjectArgs)
     this.result.write(')')
   }
 
@@ -761,10 +767,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const elementType = getStaticType(node)
     this.result.write(cr.arrayElementGetter(elementType, node))
     this.visit(node.object, env)
-    const indexType = getStaticType(node.property)
-    this.result.write(`, ${cr.typeConversion(indexType, Integer, node.property)}`)
-    this.visit(node.property, env)
-    this.result.write(')))')
+    this.result.write(', ')
+    const n = this.callExpressionArg(node.property, Integer, env)
+    this.result.write('))')
+    env.deallocate(n)   // n will be zero.
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {

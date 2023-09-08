@@ -549,15 +549,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       else
         for (let i = 0; i < node.arguments.length; i++) {
           const arg = node.arguments[i]
-          this.visit(arg, names)
-          const atype = this.result
           const ptype = func_type.paramTypes[i]
-          if (isConsistent(atype, ptype) || this.isConsistentOnFirstPass(atype, ptype))
-            this.addCoercion(arg, this.result)
-          else
-            this.assert(isSubtype(this.result, func_type.paramTypes[i]),
-              `passing an incompatible argument (${typeToString(this.result)} to ${typeToString(func_type.paramTypes[i])})`,
-              node)
+          this.callExpressionArg(arg, ptype, names)
         }
 
       this.addStaticType(node.callee, func_type)
@@ -567,6 +560,17 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(this.firstPass, 'the callee is not a function', node.callee)
       this.result = Any
     }
+  }
+
+  private callExpressionArg(arg: AST.Node, paramType: StaticType, names: NameTable<Info>) {
+    this.visit(arg, names)
+    const argType = this.result
+    if (isConsistent(argType, paramType) || this.isConsistentOnFirstPass(argType, paramType))
+      this.addCoercion(arg, argType)
+    else
+      this.assert(isSubtype(argType, paramType),
+        `passing an incompatible argument (${typeToString(argType)} to ${typeToString(paramType)})`,
+        arg)
   }
 
   newExpression(node: AST.NewExpression, names: NameTable<Info>): void {
@@ -588,20 +592,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (this.assert(args.length === 2 || (args.length === 1 && (etype === Integer || etype === Float
                                                                 || etype === Boolean || etype === Any)),
                     'wrong number of arguments', node)) {
-      this.newExpressionArg(args[0], Integer, names)
+      this.callExpressionArg(args[0], Integer, names)
       if (args.length === 2)
-        this.newExpressionArg(args[1], etype, names)
+        this.callExpressionArg(args[1], etype, names)
     }
 
     const atype = new ArrayType(etype)
     this.addStaticType(node, atype)
     this.result = atype
-  }
-
-  private newExpressionArg(arg: AST.Node, type: StaticType, names: NameTable<Info>) {
-    this.visit(arg, names)
-    this.assert(isSubtype(this.result, type) || this.result === Any, 'wrong type of argument', arg)
-    this.addCoercionIfAny(arg, this.result)
   }
 
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {

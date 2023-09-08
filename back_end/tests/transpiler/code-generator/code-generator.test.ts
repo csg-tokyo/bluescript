@@ -1112,7 +1112,7 @@ test('new Array<string>(n, null)', () => {
 
   print(foo(3))`
 
-  expect(() => compileAndRun(src)).toThrow(/wrong type.*line 3/)
+  expect(() => compileAndRun(src)).toThrow(/incompatible argument.*line 3/)
 })
 
 test('2d float array', () => {
@@ -1126,6 +1126,20 @@ test('2d float array', () => {
   print(arr[3][0])
 `
   expect(compileAndRun(src)).toBe('0.200000\n0.200000\n')
+})
+
+test('save arguments into rootset', () => {
+  const src = `
+  function foo(n: integer) {
+    const arr1 = new Array(n, 'foo')
+    const str = 'baz'
+    const arr2 = [ 3, arr1, true, 'bar', str ]
+    print(arr1[n - 1])
+    print(arr2[3])
+  }
+  foo(3)
+  `
+  expect(compileAndRun(src)).toBe('foo\nbar\n')
 })
 
 test('built-in functions are not used', () => {
