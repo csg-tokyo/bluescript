@@ -638,7 +638,7 @@ test('wrong assignment from any', () => {
   foo([1, 2])
   `
 
-  expect(() => compileAndRun(src)).toThrow(/incompatible argument.*line 7/)
+  expect(() => compileAndRun(src)).toThrow(/runtime type error: value_to_string/)
 })
 
 test('+= operator', () => {
@@ -780,8 +780,8 @@ test('any-type array', () => {
   const src = `
   function foo(n: integer): integer {
     const arr = [ n ]
-    const s: any[] = (arr as any)             // int[] as any (error)
-    const s2: any = arr                       // any = integer[] (error)
+    // const s: any[] = (arr as any)             // int[] as any (error)
+    const s2: any = arr                       // any = integer[]
     const t1: integer[] = arr
     const t2: integer[] = (arr as integer[])
     const arr2: any[] = [ 1, "foo" ]
@@ -789,35 +789,50 @@ test('any-type array', () => {
     const u2: any = arr2 as any               // any[] as any
     const u3: any[] = u2
     const u4: any[] = u2 as any[]             // any as any[]
-    const u5: integer[] = u2                  // (error)
-    const u6: integer[] = u2 as integer[]     // any as integer[] (error)
-    return s[0]
+    // const u5: integer[] = u2                  // (error)
+    // const u6: integer[] = u2 as integer[]     // any as integer[] (error)
+    return arr[0]
   }
   print(foo(4))`
 
-  expect(() => compileAndRun(src)).toThrow(/line 4.*\n.*line 5.*\n.*line 13.*\n.*line 14/)
+  expect(compileAndRun(src)).toBe('4\n')
+
+  const src2 = `
+  function foo(n: integer): integer {
+    const arr = [ n ]
+    const s: any[] = (arr as any)             // int[] as any (error)
+    return n
+  }
+  print(foo(4))
+  `
+  expect(() => compileAndRun(src2)).toThrow(/runtime type error/)
 })
 
 test('any-type array 2', () => {
   const src = `
   function foo(n: string): string {
     const arr = [ n ]
-    const s: any[] = (arr as any)             // string[] as any (error)
-    const s2: any = arr                       // any = string[] (error)
+    const s2: any = arr                       // any = string[]
     const t1: string[] = arr
     const t2: string[] = (arr as string[])
     const arr2: any[] = [ 1, "foo" ]
     const u: any = arr2
     const u2: any = arr2 as any               // any[] as any
-    const u3: any[] = u2
-    const u4: any[] = u2 as any[]             // any as any[]
-    const u5: string[] = u2                  // (error)
-    const u6: string[] = u2 as string[]     // any as string[] (error)
-    return s[0]
+    return arr[0]
   }
   print(foo('test'))`
 
-  expect(() => compileAndRun(src)).toThrow(/line 4.*\n.*line 5.*\n.*line 13.*\n.*line 14/)
+  expect(compileAndRun(src)).toBe('test\n')
+
+  const src2 = `
+  function foo(n: string): string {
+    const arr = [ n ]
+    const s: any[] = (arr as any)    // string[] as any (error)
+    return arr[0]
+  }
+  print(foo('test'))`
+
+  expect(() => compileAndRun(src2)).toThrow(/runtime type error: Array\<any\>/)
 })
 
 test('any-type array element', () => {
@@ -1126,6 +1141,27 @@ test('2d float array', () => {
   print(arr[3][0])
 `
   expect(compileAndRun(src)).toBe('0.200000\n0.200000\n')
+})
+
+test('convert an any-type value to an array', () => {
+  const src = `
+  function foo(n: integer) {
+    const arr1a: any = new Array<integer>(n)
+    const arr2a: any = new Array<float>(n)
+    const arr3a: any = new Array<boolean>(n)
+    const arr4a: any = new Array<string>(n, 'foo')
+    const arr5a: any = new Array(n)
+    const arr1: integer[] = arr1a
+    const arr2: float[] = arr2a
+    const arr3: boolean[] = arr3a
+    typeof arr4a
+    const arr5: any[] = arr5a
+    const arr4: string[] = arr4a
+    print(arr1[0])
+  }
+  foo(3)
+  `
+  expect(() => compileAndRun(src)).toThrow(/cannot convert any to string\[\]/)
 })
 
 test('save arguments into rootset', () => {

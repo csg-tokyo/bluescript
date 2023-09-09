@@ -718,7 +718,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (!(atype instanceof ArrayType))
       throw this.errorLog.push(`bad new expression`, node)
 
-    this.result.write(`${cr.arrayFromSize(atype.elementType)}(`)
+    this.result.write(cr.arrayFromSize(atype.elementType))
     let numOfObjectArgs = this.callExpressionArg(node.arguments[0], Integer, env)
 
     this.result.write(', ')
@@ -739,22 +739,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (!(atype instanceof ArrayType))
       throw this.errorLog.push(`bad array expression`, node)
 
-    let elementType: StaticType = Any
-    if (atype.elementType === Integer)
-      elementType = Integer
-    else if (atype.elementType === Float)
-      elementType = Float
-    else if (atype.elementType === Boolean)
-      elementType = Boolean
-
-    this.result.write(`${cr.arrayFromElements(elementType)}(${node.elements.length}`)
+    this.result.write(cr.arrayFromElements(atype.elementType) + node.elements.length)
     let numOfObjectArgs = 0
     for (const ele of node.elements)
       if (ele !== null) {
         this.result.write(', ')
-        numOfObjectArgs += this.addToRootSet(ele, elementType, env)
+        numOfObjectArgs += this.addToRootSet(ele, atype.elementType, env)
         const type = getStaticType(ele)
-        this.result.write(cr.typeConversion(type, elementType, ele))
+        this.result.write(cr.typeConversion(type, atype.elementType, ele))
         this.visit(ele, env)
         this.result.write(')')
       }

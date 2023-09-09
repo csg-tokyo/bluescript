@@ -180,8 +180,9 @@ extern int32_t gc_vector_length(value_t obj);
 extern value_t* gc_vector_get(value_t obj, int32_t index);
 
 extern value_t safe_value_to_array(value_t v);
-extern value_t gc_new_array(int32_t n, value_t init_value);
-extern value_t gc_make_array(int32_t n, ...);
+extern value_t safe_value_to_anyarray(value_t v);
+extern value_t gc_new_array(int32_t is_any, int32_t n, value_t init_value);
+extern value_t gc_make_array(int32_t is_any, int32_t n, ...);
 extern int32_t gc_array_length(value_t obj);
 extern value_t* gc_array_get(value_t obj, int32_t index);
 

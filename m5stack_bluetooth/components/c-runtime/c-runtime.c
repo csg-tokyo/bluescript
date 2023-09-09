@@ -642,14 +642,21 @@ inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_valu
 static CLASS_OBJECT(array_object, 1) = {
     .clazz = { .size = 2, .is_raw_data = false, .name = "Array", .superclass = &object_class.clazz }};
 
+static CLASS_OBJECT(anyarray_object, 1) = {
+    .clazz = { .size = 2, .is_raw_data = false, .name = "Array<any>", .superclass = &object_class.clazz }};
+
 value_t safe_value_to_array(value_t v) {
     return safe_value_to_value(&array_object.clazz, v);
 }
 
-value_t gc_new_array(int32_t n, value_t init_value) {
+value_t safe_value_to_anyarray(value_t v) {
+    return safe_value_to_value(&anyarray_object.clazz, v);
+}
+
+value_t gc_new_array(int32_t is_any, int32_t n, value_t init_value) {
     ROOT_SET(rootset, 2)
     rootset.values[0] = init_value;
-    pointer_t obj = gc_allocate_object(&array_object.clazz);
+    pointer_t obj = gc_allocate_object(is_any ? &anyarray_object.clazz : &array_object.clazz);
     rootset.values[1] = ptr_to_value(obj);
     value_t vec = gc_new_vector(n, init_value);
     obj->body[0] = vec;
@@ -659,9 +666,9 @@ value_t gc_new_array(int32_t n, value_t init_value) {
     return ptr_to_value(obj);
 }
 
-value_t gc_make_array(int32_t n, ...) {
+value_t gc_make_array(int32_t is_any, int32_t n, ...) {
     va_list args;
-    value_t array = gc_new_array(n, VALUE_UNDEF);
+    value_t array = gc_new_array(is_any, n, VALUE_UNDEF);
     pointer_t arrayp = value_to_ptr(array);
     va_start(args, n);
 
@@ -745,12 +752,12 @@ static pointer_t allocate_heap_base(uint16_t word_size) {
 
 static pointer_t allocate_heap(uint16_t word_size) {
     pointer_t ptr = allocate_heap_base(word_size);
-    if (ptr == NULL)
+    if (ptr != NULL)
         return ptr;
     else {
         gc_run();
         ptr = allocate_heap_base(word_size);
-        if (ptr == NULL)
+        if (ptr != NULL)
             return ptr;
         else
             return no_more_memory();

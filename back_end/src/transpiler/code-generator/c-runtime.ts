@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
     ObjectType, objectType, FunctionType,
-    StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, } from '../types'
+    StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, sameType, } from '../types'
 
 export const anyTypeInC = 'value_t'
 export const funcTypeInC = 'struct func_value'
@@ -78,7 +78,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
   if (from === undefined || to === undefined)
     return '('
 
-  if (from === to)
+  if (sameType(from, to))
     if (from === Integer)
       return '(int32_t)('
     else if (from === Float)
@@ -143,9 +143,18 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
               return 'safe_value_to_floatarray('
             else if (to.elementType === Boolean)
               return 'safe_value_to_bytearray('
+            else if (to.elementType === Any)
+              return 'safe_value_to_anyarray('
+            else
+              break
+              // cannot determine wether a given array
+              //is an array of String or Any
           }
 
           const info = to.runtimeTypeInfo()
+          if (info === noRuntimeTypeInfo)
+            break
+
           return `safe_value_to_value(${info}, `
         }
       }
@@ -251,24 +260,28 @@ export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
 // makes an array object from elements
 export function arrayFromElements(t: StaticType) {
   if (t === Integer)
-    return 'gc_make_intarray'
+    return 'gc_make_intarray('
   else if (t === Float)
-    return 'gc_make_floatarray'
+    return 'gc_make_floatarray('
   else if (t === Boolean)
-    return 'gc_make_bytearray'
+    return 'gc_make_bytearray('
+  else if (t === Any)
+    return 'gc_make_array(1, '
   else
-    return 'gc_make_array'
+    return 'gc_make_array(0, '
 }
 
 export function arrayFromSize(t: StaticType) {
   if (t === Integer)
-    return 'gc_new_intarray'
+    return 'gc_new_intarray('
   else if (t === Float)
-    return 'gc_new_floatarray'
+    return 'gc_new_floatarray('
   else if (t === Boolean)
-    return 'gc_new_bytearray'
+    return 'gc_new_bytearray('
+  else if (t === Any)
+    return 'gc_new_array(1, '
   else
-    return 'gc_new_array'
+    return 'gc_new_array(0, '
 }
 
 export function actualElementType(t: StaticType) {
