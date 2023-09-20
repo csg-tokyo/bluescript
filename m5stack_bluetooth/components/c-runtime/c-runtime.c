@@ -279,23 +279,21 @@ void gc_initialize() {
 #endif
 }
 
-// The start index is stored at start_index.
-// It is 1 when the object is an array since obj->body[0] does not hold
-// the first element.
-static inline int object_size(pointer_t obj, class_object* clazz, uint32_t* start_index) {
+static inline int object_size(pointer_t obj, class_object* clazz) {
     int32_t size = clazz->size;
-    if (size >= 0) {
-        *start_index = 0;
+    if (size >= 0)
         return size;
-    }
-    else {
-        *start_index = 1;
+    else
         return obj->body[0] + 1;
-    }
 }
 
-static bool class_has_no_pointer(class_object* obj) {
-    return obj->is_raw_data;
+// start_idnex is SIZE_NO_POINTER when the object does not hold a pointer.
+#define SIZE_NO_POINTER     -1
+
+#define HAS_POINTER(s)      (s >= 0)
+
+static int32_t class_has_pointers(class_object* obj) {
+    return obj->start_index;
 }
 
 // current default value (reprenting not marked) of mark bits.
@@ -333,7 +331,7 @@ class_object* gc_get_class_of(value_t value) {
 }
 
 static CLASS_OBJECT(object_class, 1) = {
-    .clazz = { .size = 0, .is_raw_data = false, .name = "Object", .superclass = NULL }};
+    .clazz = { .size = 0, .start_index = 0, .name = "Object", .superclass = NULL }};
 
 static pointer_t allocate_heap(uint16_t word_size);
 
@@ -353,7 +351,7 @@ pointer_t gc_allocate_object(const class_object* clazz) {
 // string_literal is a class for objects that contain a pointer to a C string.
 // This C string is not allocated in the heap memory managed by the garbage collector.
 
-static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.is_raw_data = true,
+static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.start_index = SIZE_NO_POINTER,
                                            .clazz.name = "string", .clazz.superclass = NULL };
 
 // str: a char array in the C language.
@@ -385,7 +383,7 @@ char* gc_string_literal_cstr(value_t obj) {
 // An int32_t array
 
 static CLASS_OBJECT(intarray_object, 1) = {
-    .clazz = { .size = -1, .is_raw_data = true, .name = "Array<integer>", .superclass = &object_class.clazz }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<integer>", .superclass = &object_class.clazz }};
 
 value_t safe_value_to_intarray(value_t v) {
     return safe_value_to_value(&intarray_object.clazz, v);
@@ -447,7 +445,7 @@ int32_t* gc_intarray_get(value_t obj, int32_t index) {
 // A float array
 
 static CLASS_OBJECT(floatarray_object, 1) = {
-    .clazz = { .size = -1, .is_raw_data = true, .name = "Array<float>", .superclass = &object_class.clazz }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<float>", .superclass = &object_class.clazz }};
 
 value_t safe_value_to_floatarray(value_t v) {
     return safe_value_to_value(&floatarray_object.clazz, v);
@@ -508,7 +506,7 @@ float* gc_floatarray_get(value_t obj, int32_t index) {
 // A byte array
 
 static CLASS_OBJECT(bytearray_object, 1) = {
-    .clazz = { .size = -1, .is_raw_data = true, .name = "ByteArray", .superclass = &object_class.clazz }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "ByteArray", .superclass = &object_class.clazz }};
 
 value_t safe_value_to_bytearray(value_t v) {
     return safe_value_to_value(&bytearray_object.clazz, v);
@@ -583,7 +581,7 @@ uint8_t* gc_bytearray_get(value_t obj, int32_t idx) {
 // A fixed-length array
 
 static CLASS_OBJECT(vector_object, 1) = {
-    .clazz = { .size = -1, .is_raw_data = false, .name = "Vector", .superclass = &object_class.clazz }};
+    .clazz = { .size = -1, .start_index = 1, .name = "Vector", .superclass = &object_class.clazz }};
 
 value_t safe_value_to_vector(value_t v) {
     return safe_value_to_value(&vector_object.clazz, v);
@@ -640,10 +638,10 @@ inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_valu
 // An any-type array
 
 static CLASS_OBJECT(array_object, 1) = {
-    .clazz = { .size = 2, .is_raw_data = false, .name = "Array", .superclass = &object_class.clazz }};
+    .clazz = { .size = 2, .start_index = 0, .name = "Array", .superclass = &object_class.clazz }};
 
 static CLASS_OBJECT(anyarray_object, 1) = {
-    .clazz = { .size = 2, .is_raw_data = false, .name = "Array<any>", .superclass = &object_class.clazz }};
+    .clazz = { .size = 2, .start_index = 0, .name = "Array<any>", .superclass = &object_class.clazz }};
 
 value_t safe_value_to_array(value_t v) {
     return safe_value_to_value(&array_object.clazz, v);
@@ -779,9 +777,9 @@ static bool mark_an_object(uint32_t mark, uint32_t stack_top) {
     while (stack_top > 0) {
         pointer_t obj = gc_stack[--stack_top];
         class_object* clazz = get_objects_class(obj);
-        if (!class_has_no_pointer(clazz)) {
-            uint32_t j;
-            uint32_t size = object_size(obj, clazz, &j);
+        int32_t j = class_has_pointers(clazz);
+        if (HAS_POINTER(j)) {
+            uint32_t size = object_size(obj, clazz);
             for (; j < size; j++) {
                 value_t next = obj->body[j];
                 if (is_ptr_value(next) && next != VALUE_NULL) {
@@ -813,9 +811,9 @@ static bool scan_and_mark_objects(uint32_t mark) {
         while (start < end) {
             pointer_t obj = (pointer_t)&heap_memory[start];
             class_object* clazz = get_objects_class(obj);
-            uint32_t j;
-            uint32_t size = object_size(obj, clazz, &j);
-            if (GET_MARK_BIT(obj) == mark && !class_has_no_pointer(clazz)) {
+            int32_t j = class_has_pointers(clazz);
+            uint32_t size = object_size(obj, clazz);
+            if (GET_MARK_BIT(obj) == mark && HAS_POINTER(j)) {
                 for (; j < size; j++) {
                     value_t next = obj->body[j];
                     if (is_ptr_value(next) && next != VALUE_NULL) {
@@ -891,8 +889,7 @@ static void sweep_objects(uint32_t mark) {
         while (start < end) {
             pointer_t obj = (pointer_t)&heap_memory[start];
             class_object* clazz = get_objects_class(obj);
-            uint32_t start_index;
-            uint32_t size = real_objsize(object_size(obj, clazz, &start_index));
+            uint32_t size = real_objsize(object_size(obj, clazz));
             if (GET_MARK_BIT(obj) == mark)
                 previous_word_is_free = false;
             else

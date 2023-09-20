@@ -97,7 +97,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
         return '('
       else if (from === Any)
         return 'safe_value_to_int('
-      else 
+      else
         break
     case Float:
       if (from === Integer || from === Boolean)

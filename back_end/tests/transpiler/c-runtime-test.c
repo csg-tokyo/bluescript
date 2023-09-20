@@ -94,6 +94,16 @@ bool is_live_object(value_t obj) {
     return true;
 }
 
+static value_t gc_new_array2(int32_t n) {
+    return gc_new_array(1, n, VALUE_UNDEF);
+}
+
+static value_t gc_new_vector2(int32_t n) {
+    return gc_new_vector(n, VALUE_UNDEF);
+}
+
+// Test functions
+
 void test_converters() {
     value_t v = int_to_value(8);
     Assert_equals(v, 32);
@@ -151,8 +161,8 @@ static value_t gc_bytearray_set(value_t obj, value_t index, value_t new_value) {
 }
 
 void test_bytearray() {
-    value_t arr = gc_new_bytearray(3);
-    value_t arr2 = gc_new_bytearray(7);
+    value_t arr = gc_new_bytearray(3, 0);
+    value_t arr2 = gc_new_bytearray(7, 0);
     for (int i = 0; i < 7; i++) {
         value_t v = int_to_value(257 - i);
         Assert_equals(gc_bytearray_set(arr2, int_to_value(i), v), v);
@@ -172,8 +182,8 @@ static value_t gc_vector_set(value_t obj, value_t index, value_t new_value) {
 }
 
 void test_vector() {
-    value_t arr = gc_new_vector(4);
-    value_t arr2 = gc_new_vector(4);
+    value_t arr = gc_new_vector2(4);
+    value_t arr2 = gc_new_vector2(4);
     for (int i = 0; i < 4; i++)
         Assert_equals(gc_vector_set(arr2, int_to_value(i), int_to_value(i)), int_to_value(i));
     for (int i = 0; i < 4; i++)
@@ -192,8 +202,8 @@ static value_t gc_array_set(value_t obj, value_t index, value_t new_value) {
 }
 
 void test_array() {
-    value_t arr = gc_new_array(4);
-    value_t arr2 = gc_new_array(4);
+    value_t arr = gc_new_array2(4);
+    value_t arr2 = gc_new_array2(4);
     for (int i = 0; i < 4; i++)
         Assert_equals(gc_array_set(arr2, int_to_value(i), int_to_value(i)), int_to_value(i));
     for (int i = 0; i < 4; i++)
@@ -212,7 +222,7 @@ void test_allocate_heap() {
     value_t index = 2;
     value_t vec_size = heap_size / 1024;
     for (int i = 0; i < 1024; i++) {
-        value_t arr = gc_new_vector(vec_size - 2);
+        value_t arr = gc_new_vector2(vec_size - 2);
         Assert_pequals(value_to_ptr(arr), &heap_memory[index]);
         index += vec_size;
     }
@@ -231,7 +241,7 @@ void test_root_set() {
     root_set.values[0] = gc_new_string("hello");
     value_t obj;
     for (int i = 0; i < 3; i++)
-        obj = gc_new_vector(4);
+        obj = gc_new_vector2(4);
 
     gc_run();
     Assert_equals(heap_memory[0], 4);
@@ -251,7 +261,7 @@ void test_root_set2() {
     root_set.values[0] = gc_new_string("hello");
     root_set.values[1] = gc_new_string("hello2");
     for (int i = 0; i < 3; i++)
-        gc_new_vector(3);
+        gc_new_vector2(3);
 
     root_set.values[0] = VALUE_NULL;
     gc_run();
@@ -266,13 +276,13 @@ void test_root_set2() {
 
 void test_nested_root_set2() {
     ROOT_SET(root_set, 3);
-    root_set.values[0] = gc_new_vector(1);
+    root_set.values[0] = gc_new_vector2(1);
     DELETE_ROOT_SET(root_set);
 }
 
 void test_nested_root_set3() {
     ROOT_SET(root_set, 3);
-    root_set.values[0] = gc_new_vector(1);
+    root_set.values[0] = gc_new_vector2(1);
     gc_run();
     DELETE_ROOT_SET(root_set);
 }
@@ -285,7 +295,7 @@ void test_nested_root_set() {
     root_set.values[0] = gc_new_string("hello");
     root_set.values[1] = gc_new_string("hello2");
     for (int i = 0; i < 3; i++)
-        gc_new_vector(3);
+        gc_new_vector2(3);
 
     test_nested_root_set2();
     root_set.values[0] = VALUE_NULL;
@@ -314,13 +324,19 @@ void test_gc_long_chain() {
     gc_initialize();
     value_t heap_size = heap_memory[2];
     ROOT_SET(root_set, 3);
-    value_t obj = gc_new_array(2);
+    value_t obj = gc_new_array2(2);
+    root_set.values[0] = obj;
     for (int i = 0; i < STACK_SIZE * 3; ++i) {
-        value_t obj2 = gc_new_array(2);
-        value_t obj3 = gc_new_array(1);
+        value_t obj2 = gc_new_array2(2);
+        root_set.values[1] = obj2;
+        value_t obj3 = gc_new_array2(1);
+        root_set.values[2] = obj3;
         gc_array_set(obj2, int_to_value(1), obj);
         gc_array_set(obj2, int_to_value(0), obj3);
         obj = obj2;
+        root_set.values[0] = obj;
+        root_set.values[1] = VALUE_NULL;
+        root_set.values[2] = VALUE_NULL;
     }
     root_set.values[0] = obj;
     gc_run();
@@ -343,13 +359,13 @@ void test_gc_liveness() {
     ROOT_SET(root_set, 3);
 
     value_t obj, obj2, obj3;
-    root_set.values[0] = obj = gc_new_array(4);
-    gc_new_array(1);
-    gc_array_set(obj, int_to_value(0), obj2 = gc_new_bytearray(8));
+    root_set.values[0] = obj = gc_new_array2(4);
+    gc_new_array2(1);
+    gc_array_set(obj, int_to_value(0), obj2 = gc_new_bytearray(8, 0));
     gc_bytearray_set(obj2, int_to_value(0), obj);
-    gc_new_array(1);
-    gc_new_array(1);
-    gc_array_set(obj, int_to_value(1), obj3 = gc_new_array(2));
+    gc_new_array2(1);
+    gc_new_array2(1);
+    gc_array_set(obj, int_to_value(1), obj3 = gc_new_array2(2));
     gc_array_set(obj3, int_to_value(0), obj);
     root_set.values[1] = gc_new_string("test");
 
@@ -376,13 +392,13 @@ void test_gc_liveness2() {
     ROOT_SET(root_set, 3);
 
     value_t obj, obj2, obj3, obj4;
-    root_set.values[0] = obj = gc_new_vector(4);
-    obj4 = gc_new_vector(1);
-    gc_vector_set(obj, int_to_value(0), obj2 = gc_new_bytearray(8));
+    root_set.values[0] = obj = gc_new_vector2(4);
+    obj4 = gc_new_vector2(1);
+    gc_vector_set(obj, int_to_value(0), obj2 = gc_new_bytearray(8, 0));
     gc_bytearray_set_raw_word(obj2, 0, obj4);
-    gc_new_vector(1);
-    gc_new_vector(1);
-    gc_vector_set(obj, int_to_value(1), obj3 = gc_new_vector(2));
+    gc_new_vector2(1);
+    gc_new_vector2(1);
+    gc_vector_set(obj, int_to_value(1), obj3 = gc_new_vector2(2));
     gc_vector_set(obj3, int_to_value(0), obj);
     root_set.values[1] = gc_new_string("test");
 
@@ -408,10 +424,10 @@ void test_gc_sweep() {
     root_set.values[1] = gc_new_string("test3");
     root_set.values[2] = gc_new_string("test4");
     gc_new_string("test5");
-    gc_new_vector(2);
-    gc_new_vector(3);
-    root_set.values[3] = obj = gc_new_vector(4);
-    obj2 = gc_new_vector(3);
+    gc_new_vector2(2);
+    gc_new_vector2(3);
+    root_set.values[3] = obj = gc_new_vector2(4);
+    obj2 = gc_new_vector2(3);
     gc_vector_set(obj, 0, obj2);
 
     gc_run();

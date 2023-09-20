@@ -167,7 +167,7 @@ void test_array2() {
 }
 
 void test_array() {
-    value_t arr = gc_make_array(3, int_to_value(1), int_to_value(2), int_to_value(3));
+    value_t arr = gc_make_array(1, 3, int_to_value(1), int_to_value(2), int_to_value(3));
     Assert_equals(gc_array_length(arr), 3);
     *gc_array_get(arr, 2) = int_to_value(4);
     Assert_equals(*gc_array_get(arr, 2), int_to_value(4));
@@ -178,15 +178,17 @@ void test_array() {
 void test_string_literal() {
     value_t str = gc_new_string("foo");
     value_t i = int_to_value(3);
-    value_t a = gc_make_array(2, VALUE_FALSE, VALUE_NULL);
+    value_t a = gc_make_array(1, 2, VALUE_FALSE, VALUE_NULL);
     Assert_true(gc_is_string_literal(str));
     Assert_true(!gc_is_string_literal(i));
     Assert_true(!gc_is_string_literal(a));
 }
 
 int main() {
-    gc_initialize();
-
+#ifdef BIT64
+    initialize_pointer_table();
+#endif
+  gc_initialize();
     test_any_add();
     test_any_less();
     test_minus_any_value();
@@ -194,11 +196,11 @@ int main() {
     test_array();
     test_string_literal();
     if (nerrors > 0) {
-        puts("Test failed");
-        return 1;
+        printf("Test failed %d\n", nerrors);
+        return 0;
     }
     else {
         puts("Test succeeded");
-        return 0;
+        return 1;
     }
 }
