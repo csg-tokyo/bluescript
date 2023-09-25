@@ -41,7 +41,7 @@
 #define MASK64H     0xffffffff00000000
 
 #define PTR_TABLE_SIZE     1000
-static void* pointer_table[PTR_TABLE_SIZE];
+static const void* pointer_table[PTR_TABLE_SIZE];
 static int pointer_table_num = 0;
 
 static void initialize_pointer_table() {
@@ -50,7 +50,7 @@ static void initialize_pointer_table() {
 }
 
 // pointers to literals only. not to heap values.
-static void* record_64bit_pointer(void* ptr) {
+static void* record_64bit_pointer(const void* ptr) {
     int index0 = ((uint64_t)ptr >> 3) % PTR_TABLE_SIZE;
     int index = index0;
     do {
@@ -67,9 +67,17 @@ static void* record_64bit_pointer(void* ptr) {
     exit(1);
 }
 
-static void* ptr32_to_ptr64(void* ptr32) {
+static inline void* raw_value_to_ptr(value_t v) {
+    uintptr_t ptr32 = (uintptr_t)v;
     return *(void**)((uint64_t)pointer_table & MASK64H | (uint64_t)ptr32 & MASK32);
 }
+
+static inline value_t raw_ptr_to_value(const void* v) { return (value_t)((uintptr_t)v & 0xffffffff); }
+
+#else
+
+static inline void* raw_value_to_ptr(value_t v) { return (void*)v; }
+static inline value_t raw_ptr_to_value(const void* v) { return (value_t)v; }
 
 #endif /* BIT64 */
 
@@ -310,13 +318,7 @@ static void set_object_header(pointer_t obj, const class_object* clazz) {
 
 // Gets a pointer to the given object's class.
 static class_object* get_objects_class(pointer_t obj) {
-#ifdef BIT64
-    class_object* clazz = (class_object*)(uint64_t)(obj->header & ~3);
-    return ptr32_to_ptr64(clazz);
-#else
-    class_object* clazz = (class_object*)(obj->header & ~3);
-    return clazz;
-#endif
+    return (class_object*)raw_value_to_ptr(obj->header & ~3);
 }
 
 // Gets the class of the given value if it is an object.
@@ -348,6 +350,37 @@ pointer_t gc_allocate_object(const class_object* clazz) {
     return obj;
 }
 
+
+static CLASS_OBJECT(function_object, 0) = {
+     .clazz = { .size = 3, .start_index = 2, .name = "Function", .superclass = &object_class.clazz }};
+
+// this_object may be VALUE_UNDEF.
+value_t gc_new_function(void* fptr, const char* signature, value_t this_object) {
+#ifdef BIT64
+    fptr = record_64bit_pointer(fptr);
+    signature = record_64bit_pointer(signature);
+#endif
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = this_object;
+    pointer_t obj = gc_allocate_object(&function_object.clazz);
+    obj->body[0] = raw_ptr_to_value(fptr);
+    obj->body[1] = raw_ptr_to_value(signature);
+    obj->body[2] = this_object;
+    DELETE_ROOT_SET(rootset)
+    return ptr_to_value(obj);
+}
+
+// true if this is a function object.
+bool gc_is_function_object(value_t obj, const char* signature) {
+    return gc_get_class_of(obj) == &function_object.clazz
+           && !strcmp((const char*)raw_value_to_ptr(value_to_ptr(obj)->body[1]), signature);
+}
+
+const void* gc_function_object_ptr(value_t obj, int index) {
+    pointer_t func = value_to_ptr(obj);
+    return (void*)raw_value_to_ptr(func->body[index]);
+}
+
 // string_literal is a class for objects that contain a pointer to a C string.
 // This C string is not allocated in the heap memory managed by the garbage collector.
 
@@ -360,7 +393,7 @@ value_t gc_new_string(char* str) {
     str = (char*)record_64bit_pointer(str);
 #endif
     pointer_t obj = gc_allocate_object(&string_literal.clazz);
-    obj->body[0] = ptr_to_value((pointer_t)str);
+    obj->body[0] = raw_ptr_to_value(str);
     return ptr_to_value(obj);
 }
 
@@ -370,14 +403,9 @@ bool gc_is_string_literal(value_t obj) {
 }
 
 // returns a pointer to a char array in the C language.
-char* gc_string_literal_cstr(value_t obj) {
+const char* gc_string_literal_cstr(value_t obj) {
     pointer_t str = value_to_ptr(obj);
-    pointer_t cstr = value_to_ptr(str->body[0]);
-#ifdef BIT64
-    return (char*)ptr32_to_ptr64(cstr);
-#else
-    return (char*)cstr;
-#endif
+    return (const char*)raw_value_to_ptr(str->body[0]);
 }
 
 // An int32_t array

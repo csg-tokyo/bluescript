@@ -100,7 +100,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   private makeStringLiteral(value: string) {
-    this.result.write(`gc_new_string(${JSON.stringify(value)})`)
+    this.result.write(`${cr.arrayMaker}(${JSON.stringify(value)})`)
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: VariableEnv): void {
@@ -115,20 +115,30 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   identifier(node: AST.Identifier, env: VariableEnv): void {
     const info = env.table.lookup(node.name)
     if (info !== undefined) {
-        this.result.write(info.transpile(node.name))
+        if (info.isFunction) {
+          const vname = info.transpile(node.name)
+          this.result.write(`${cr.functionMaker}(${vname}.${cr.functionPtr}, ${vname}.${cr.functionSignature}, VALUE_UNDEF)`)
+        }
+        else
+          this.result.write(info.transpile(node.name))
         return
     }
 
     throw this.errorLog.push('fatal:  unknown identifier', node)
   }
 
-  private identifierAsCallable(node: AST.Node, env: VariableEnv): void {
-    if (AST.isIdentifier(node)) {
-      const info = env.table.lookup(node.name)
-      if (info !== undefined) {
-        this.result.write(`((${cr.funcTypeToCType(info.type)})${info.transpile(node.name)}.${cr.functionPtr})`)
-        return
-      }
+  private identifierAsCallable(node: AST.Identifier, env: VariableEnv): void {
+    const info = env.table.lookup(node.name)
+    if (info !== undefined) {
+        const ftype = cr.funcTypeToCType(info.type)
+        if (info.isFunction)
+          this.result.write(`((${ftype})${info.transpile(node.name)}.${cr.functionPtr})(0`)
+        else {
+          const fname = info.transpile(node.name)
+          this.result.write(`((${ftype})${cr.functionGet}(${fname}, 0))(${cr.getObjectProperty}(${fname}, 2)`)
+        }
+
+      return
     }
 
     throw this.errorLog.push('fatal: unknown function name', node)
@@ -425,7 +435,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       prevResult.nl().write(`${fname}.${cr.functionPtr} = fbody${fname};`).nl()
     else {
       this.signatures += this.makeFunctionStruct(fname, funcType)
-      declarations.write(`${cr.funcTypeInC} ${fname} = { fbody${fname}, VALUE_NULL };`).nl()
+      declarations.write(`${cr.funcStructInC} ${fname} = { fbody${fname}, "${encodeType(funcType)}" };`).nl()
     }
 
     this.result = prevResult
@@ -452,7 +462,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   private makeFunctionStruct(name: string, type: StaticType) {
-    return `extern ${cr.funcTypeInC} ${name};\n`
+    return `extern ${cr.funcStructInC} ${name};\n`
   }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
@@ -675,10 +685,22 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   callExpression(node: AST.CallExpression, env: VariableEnv): void {
     const ftype = getStaticType(node.callee) as FunctionType
-    this.identifierAsCallable(node.callee, env)
-
-    this.result.write(`(0`)
     let numOfObjectArgs = 0
+    let calleeIsIdentifier
+    if (AST.isIdentifier(node.callee)) {
+      calleeIsIdentifier = true
+      this.identifierAsCallable(node.callee, env)
+    }
+    else {
+      calleeIsIdentifier = false
+      numOfObjectArgs += 1
+      const index = env.allocate()
+      const func = cr.rootSetVariable(index)
+      this.result.write(`(${func} = `) 
+      this.visit(node.callee, env)
+      this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${cr.getObjectProperty}(${func}, 2)`)
+    }
+
     for (let i = 0; i < node.arguments.length; i++) {
       const arg = node.arguments[i]
       this.result.write(', ')
@@ -686,7 +708,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
 
     env.deallocate(numOfObjectArgs)
-    this.result.write(')')
+    this.result.write(calleeIsIdentifier ? ')' : '))')
   }
 
   private callExpressionArg(arg: AST.Node, type: StaticType, env: VariableEnv) {

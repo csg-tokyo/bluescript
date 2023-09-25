@@ -434,9 +434,18 @@ test('a function is a value', () => {
     const g: (n: integer) => integer = foo
     return f(n) + g(11)
   }
+
+  function foo2() {
+    return foo
+  }
+
+  function baz(n: integer) {
+    return foo2()(n)
+  }
 print(bar(101))
+print(baz(13))
 `
-  expect(multiCompileAndRun(src1, src2)).toBe('112\n')
+  expect(multiCompileAndRun(src1, src2)).toBe('112\n13\n')
 })
 
 test('unary operator', () => {

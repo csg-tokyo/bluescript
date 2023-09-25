@@ -7,7 +7,8 @@ import { Integer, Float, Boolean, String, Void, Null, Any,
     StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, sameType, } from '../types'
 
 export const anyTypeInC = 'value_t'
-export const funcTypeInC = 'struct func_value'
+export const funcTypeInC = 'value_t'
+export const funcStructInC = 'struct func_body'
 
 export const mainFunctionName = 'bluescript_main'
 export const returnValueVariable = 'ret_value_'
@@ -213,6 +214,11 @@ export function updateOpForAny(prefix: boolean, op: string) {
       return 'any_post_decrement'
 }
 
+// compute a nagative value of an any-type value
+export const minusAnyValue = 'minus_any_value'
+
+// Root set
+
 export const globalRootSetName = 'global_rootset'
 
 export function makeRootSet(n: number) {
@@ -242,8 +248,9 @@ export function rootSetVariable(index: number | undefined, rootset?: string) {
   return `${name}.values[${index}]`
 }
 
-// compute a nagative value of an any-type value
-export const minusAnyValue = 'minus_any_value'
+// a getter for objects.
+
+export const getObjectProperty = 'get_obj_property'
 
 // a getter/setter function for arrays
 export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
@@ -295,6 +302,10 @@ export function actualElementType(t: StaticType) {
     return Any
 }
 
-export const functionPtr = 'fptr'
-
 export const runtimeTypeArray = 'array_object'
+export const arrayMaker = 'gc_new_string'
+
+export const functionMaker = 'gc_new_function'
+export const functionPtr = 'fptr'
+export const functionSignature = 'signature'
+export const functionGet = 'gc_function_object_ptr'

@@ -811,8 +811,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   assertLvalue(node: AST.Node, table: NameTable<Info>) {
     if (AST.isIdentifier(node)) {
       const info = table.lookup(node.name)
-      if (info !== undefined)
+      if (info !== undefined) {
         this.assert(!info.isConst, 'assignment to constant variable', node)
+        this.assert(!info.isFunction, 'assignment to top-level function', node)
+      }
     }
     else if (AST.isMemberExpression(node)) {
     }

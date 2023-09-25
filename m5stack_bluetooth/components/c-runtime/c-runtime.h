@@ -25,10 +25,9 @@
 
 typedef uint32_t value_t;
 
-// function value
-struct func_value {
+struct func_body {
     void* fptr;
-    value_t self;   // for closure
+    const char* signature;
 };
 
 struct object_type {
@@ -153,9 +152,14 @@ extern value_t minus_any_value(value_t v);
 extern void gc_initialize();
 extern class_object* gc_get_class_of(value_t value);
 extern pointer_t gc_allocate_object(const class_object* clazz);
+
+extern value_t gc_new_function(void* fptr, const char* signature, value_t this_object);
+extern bool gc_is_function_object(value_t obj, const char* signature);
+extern const void* gc_function_object_ptr(value_t obj, int index);
+
 extern value_t gc_new_string(char* str);
 extern bool gc_is_string_literal(value_t obj);
-extern char* gc_string_literal_cstr(value_t obj);
+extern const char* gc_string_literal_cstr(value_t obj);
 
 extern value_t safe_value_to_intarray(value_t v);
 extern value_t gc_new_intarray(int32_t n, int32_t init_value);

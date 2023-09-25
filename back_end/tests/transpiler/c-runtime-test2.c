@@ -176,12 +176,28 @@ void test_array() {
 }
 
 void test_string_literal() {
+    ROOT_SET(root_set, 2)
     value_t str = gc_new_string("foo");
+    root_set.values[0] = str;
     value_t i = int_to_value(3);
     value_t a = gc_make_array(1, 2, VALUE_FALSE, VALUE_NULL);
+    root_set.values[1] = a;
     Assert_true(gc_is_string_literal(str));
     Assert_true(!gc_is_string_literal(i));
     Assert_true(!gc_is_string_literal(a));
+    DELETE_ROOT_SET(root_set)
+}
+
+static int32_t test_function_object00(int32_t v) {
+    return v + 1;
+}
+
+void test_function_object() {
+    value_t func = gc_new_function(test_function_object00, "(i)i", int_to_value(3));
+    Assert_true(gc_is_function_object(func, "(i)i"));
+    Assert_true(!gc_is_function_object(func, "(i)b"));
+    Assert_true(!gc_is_function_object(int_to_value(3), "(i)b"));
+    Assert_equals(((int32_t (*)(int32_t))gc_function_object_ptr(func, 0))(7), 8);
 }
 
 int main() {
@@ -195,6 +211,7 @@ int main() {
     test_safe_value_to();
     test_array();
     test_string_literal();
+    test_function_object();
     if (nerrors > 0) {
         printf("Test failed %d\n", nerrors);
         return 0;
