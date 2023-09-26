@@ -123,6 +123,7 @@ extern int32_t try_and_catch(void (*main_function)());
 extern int32_t safe_value_to_int(value_t v);
 extern float safe_value_to_float(value_t v);
 extern value_t safe_value_to_null(value_t v);
+extern value_t safe_value_to_func(const char* signature, value_t func);
 extern value_t safe_value_to_string(value_t v);
 extern value_t safe_value_to_object(value_t v);
 extern value_t safe_value_to_value(const class_object* const clazz, value_t v);

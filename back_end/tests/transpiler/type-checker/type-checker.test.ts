@@ -149,17 +149,18 @@ function foo(a: number) { return a + 1}`
 
 test('type conversion from a function to any', () => {
   const src = `function foo(a: number) { return a }
-const f:any = foo`
-  expect(() => tested.transpile(src)).toThrow()
+  const f:any = foo    // runtime error
+`
+  expect(() => tested.transpile(src)).not.toThrow()
 })
 
 test('type conversion to a function from any', () => {
   const src = `function foo(a: number) { return a }
 let f = foo
 const g: any = null
-f = g
+f = g    // runtime error
 `
-  expect(() => tested.transpile(src)).toThrow(/line 4/)
+  expect(() => tested.transpile(src)).not.toThrow()
 })
 
 test('top-level return', () => {

@@ -12,8 +12,8 @@ export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | '
   ObjectType | FunctionType
 
 export function isPrimitiveType(type: StaticType) {
-  // unless String, Null, Any, or object type
-  return type === Integer || type === Float || type === Boolean || type === Void || type instanceof FunctionType
+  // unless String, Null, FunctionType, Any, or object type
+  return type === Integer || type === Float || type === Boolean || type === Void
 }
 
 export function isNumeric(t: StaticType) {
@@ -61,7 +61,7 @@ export class FunctionType extends CompositeType {
   }
 
   name() {
-    return `${this.paramTypes.map(typeToString)} -> ${typeToString(this.returnType)}`
+    return `${this.paramTypes.map(typeToString)} => ${typeToString(this.returnType)}`
   }
 
   isSubtypeOf(t: StaticType): boolean {
@@ -181,9 +181,9 @@ export function sameType(t1: StaticType, t2: StaticType) {
 // after explicit conversion.  That conversion may throw a runtime type error.
 export function isConsistent(t1: StaticType, t2: StaticType) {
   if (t1 === Any)
-    return t1 !== t2 && t2 !== Void && !(t2 instanceof FunctionType)
+    return t1 !== t2 && t2 !== Void
   else if (t2 === Any)
-    return t1 !== Void && !(t1 instanceof FunctionType)
+    return t1 !== Void
   else
     return false
 }

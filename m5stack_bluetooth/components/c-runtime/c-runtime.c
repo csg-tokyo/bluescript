@@ -158,6 +158,13 @@ value_t safe_value_to_null(value_t v) {
     return v;
 }
 
+value_t safe_value_to_func(const char* signature, value_t func) {
+    if (!gc_is_function_object(func, signature))
+        runtime_type_error("value_to_function");
+
+    return func;
+}
+
 value_t safe_value_to_string(value_t v) {
     if (!gc_is_string_literal(v))
         runtime_type_error("value_to_string");
@@ -349,7 +356,6 @@ pointer_t gc_allocate_object(const class_object* clazz) {
 
     return obj;
 }
-
 
 static CLASS_OBJECT(function_object, 0) = {
      .clazz = { .size = 3, .start_index = 2, .name = "Function", .superclass = &object_class.clazz }};

@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
     ObjectType, objectType, FunctionType,
-    StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, sameType, } from '../types'
+    StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, sameType, encodeType, } from '../types'
 
 export const anyTypeInC = 'value_t'
 export const funcTypeInC = 'value_t'
@@ -86,6 +86,12 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
       return '(float)('
     else
       return '('
+
+  if (from instanceof FunctionType && to === Any)
+    return '('
+
+  if (from === Any && to instanceof FunctionType)
+    return `safe_value_to_func("${encodeType(to)}", `
 
   if (from instanceof FunctionType || from === Void || to instanceof FunctionType || to === Void)
     throw typeConversionError(from, to, node)

@@ -448,6 +448,51 @@ print(baz(13))
   expect(multiCompileAndRun(src1, src2)).toBe('112\n13\n')
 })
 
+test('conversion between any-types and function types', () => {
+  const src = `
+  function foo(n: integer) {
+    return n
+  }
+
+  function bar(n: integer) {
+    const f: any = foo
+    const g: (x: integer) => integer = f
+    return g(n)
+  }
+
+  print(foo(3))`
+
+  expect(compileAndRun(src)).toBe('3\n')
+})
+
+test('wrong conversion from any-types to function types', () => {
+  const src = `
+  function foo(n: integer) {
+    return n
+  }
+
+  function bar(n: integer) {
+    const f: any = foo
+    const g: (x: integer, y: integer) => integer = f  // runtime error
+    return g(n, n)
+  }
+
+  print(bar(3))`
+
+  expect(() => { compileAndRun(src) }).toThrow(/value_to_function/)
+
+  const src2 = `
+  function bar(n: integer) {
+    const f: any = "foo"
+    const g: (x: integer, y: integer) => integer = f  // runtime error
+    return g(n, n)
+  }
+
+  print(bar(3))`
+
+  expect(() => { compileAndRun(src2) }).toThrow(/value_to_function/)
+})
+
 test('unary operator', () => {
   const src = `
   function foo(n: integer) {
@@ -480,7 +525,7 @@ test('typeof operator', () => {
   print(typeof(null))
   print(typeof(foo))
   `
-  expect(compileAndRun(src)).toBe('integer\ninteger\nstring\ninteger[]\nnull\nany -> any\n')
+  expect(compileAndRun(src)).toBe('integer\ninteger\nstring\ninteger[]\nnull\nany => any\n')
 })
 
 test('++/-- operator', () => {

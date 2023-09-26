@@ -193,7 +193,9 @@ export class GlobalEnv extends FunctionEnv {
     let num = 0
     this.table.forEach((info, key) => {
       if (info instanceof GlobalVariableInfo) {
-        if (isPrimitiveType(info.type))     // note: FunctionType is a primitive type
+        if (isPrimitiveType(info.type))
+          info.setVariableName(globalVariableName(key))
+        else if (info.type instanceof FunctionType && info.isFunction)
           info.setVariableName(globalVariableName(key))
         else
           info.setVariableName(globalVariableName(this.rootset, num++), this.rootset)
