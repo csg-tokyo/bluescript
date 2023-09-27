@@ -19,8 +19,10 @@
 
 #ifdef BIT64
 #define ALGIN __attribute__ ((aligned(8)))
+#define CR_SECTION 
 #else
 #define ALGIN __attribute__ ((aligned(4)))
+#define CR_SECTION __attribute__((section(".text.cruntime")))
 #endif
 
 typedef uint32_t value_t;
@@ -86,7 +88,7 @@ inline bool is_ptr_value(value_t v) { return (v & 3) == 3; }
 #define VALUE_FALSE   0         // 0000 ... 0000 (integer 0)
 #define VALUE_TRUE    4         // 0000 ... 0100 (integer 1)
 
-extern bool __attribute__((section(".text.cruntime"))) value_to_truefalse(value_t v);
+extern bool CR_SECTION value_to_truefalse(value_t v);
 
 inline value_t bool_to_value(bool b) { return b ? VALUE_TRUE : VALUE_FALSE; }
 inline bool value_to_bool(value_t v) { return value_to_truefalse(v); }
@@ -118,83 +120,83 @@ gc_init_rootset((struct gc_root_set*)&name, n);
 
 #define DELETE_ROOT_SET(name)     { gc_root_set_head = name.next; }
 
-extern int32_t __attribute__((section(".text.cruntime"))) try_and_catch(void (*main_function)());
+extern int32_t CR_SECTION try_and_catch(void (*main_function)());
 
-extern int32_t __attribute__((section(".text.cruntime"))) safe_value_to_int(value_t v);
-extern float __attribute__((section(".text.cruntime"))) safe_value_to_float(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_null(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_func(const char* signature, value_t func);
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_string(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_object(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_value(const class_object* const clazz, value_t v);
+extern int32_t CR_SECTION safe_value_to_int(value_t v);
+extern float CR_SECTION safe_value_to_float(value_t v);
+extern value_t CR_SECTION safe_value_to_null(value_t v);
+extern value_t CR_SECTION safe_value_to_func(const char* signature, value_t func);
+extern value_t CR_SECTION safe_value_to_string(value_t v);
+extern value_t CR_SECTION safe_value_to_object(value_t v);
+extern value_t CR_SECTION safe_value_to_value(const class_object* const clazz, value_t v);
 
-extern value_t __attribute__((section(".text.cruntime"))) any_add(value_t a, value_t b);
-extern value_t __attribute__((section(".text.cruntime"))) any_subtract(value_t a, value_t b);
-extern value_t __attribute__((section(".text.cruntime"))) any_multiply(value_t a, value_t b);
-extern value_t __attribute__((section(".text.cruntime"))) any_divide(value_t a, value_t b);
+extern value_t CR_SECTION any_add(value_t a, value_t b);
+extern value_t CR_SECTION any_subtract(value_t a, value_t b);
+extern value_t CR_SECTION any_multiply(value_t a, value_t b);
+extern value_t CR_SECTION any_divide(value_t a, value_t b);
 
-extern bool __attribute__((section(".text.cruntime"))) any_less(value_t a, value_t b);
-extern bool __attribute__((section(".text.cruntime"))) any_less_eq(value_t a, value_t b);
-extern bool __attribute__((section(".text.cruntime"))) any_greater(value_t a, value_t b);
-extern bool __attribute__((section(".text.cruntime"))) any_greater_eq(value_t a, value_t b);
+extern bool CR_SECTION any_less(value_t a, value_t b);
+extern bool CR_SECTION any_less_eq(value_t a, value_t b);
+extern bool CR_SECTION any_greater(value_t a, value_t b);
+extern bool CR_SECTION any_greater_eq(value_t a, value_t b);
 
-extern value_t __attribute__((section(".text.cruntime"))) any_add_assign(value_t* a, value_t b);
-extern value_t __attribute__((section(".text.cruntime"))) any_subtract_assign(value_t* a, value_t b);
-extern value_t __attribute__((section(".text.cruntime"))) any_multiply_assign(value_t* a, value_t b);
-extern value_t __attribute__((section(".text.cruntime"))) any_divide_assign(value_t* a, value_t b);
+extern value_t CR_SECTION any_add_assign(value_t* a, value_t b);
+extern value_t CR_SECTION any_subtract_assign(value_t* a, value_t b);
+extern value_t CR_SECTION any_multiply_assign(value_t* a, value_t b);
+extern value_t CR_SECTION any_divide_assign(value_t* a, value_t b);
 
-extern value_t __attribute__((section(".text.cruntime"))) any_increment(value_t* expr);
-extern value_t __attribute__((section(".text.cruntime"))) any_decrement(value_t* expr);
-extern value_t __attribute__((section(".text.cruntime"))) any_post_increment(value_t* expr);
-extern value_t __attribute__((section(".text.cruntime"))) any_post_decrement(value_t* expr);
+extern value_t CR_SECTION any_increment(value_t* expr);
+extern value_t CR_SECTION any_decrement(value_t* expr);
+extern value_t CR_SECTION any_post_increment(value_t* expr);
+extern value_t CR_SECTION any_post_decrement(value_t* expr);
 
-extern value_t __attribute__((section(".text.cruntime"))) minus_any_value(value_t v);
+extern value_t CR_SECTION minus_any_value(value_t v);
 
-extern void __attribute__((section(".text.cruntime"))) gc_initialize();
-extern class_object* __attribute__((section(".text.cruntime"))) gc_get_class_of(value_t value);
-extern pointer_t __attribute__((section(".text.cruntime"))) gc_allocate_object(const class_object* clazz);
+extern void CR_SECTION gc_initialize();
+extern class_object* CR_SECTION gc_get_class_of(value_t value);
+extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
 
-extern value_t __attribute__((section(".text.cruntime"))) gc_new_function(void* fptr, const char* signature, value_t this_object);
-extern bool __attribute__((section(".text.cruntime"))) gc_is_function_object(value_t obj, const char* signature);
-extern const void* __attribute__((section(".text.cruntime"))) gc_function_object_ptr(value_t obj, int index);
+extern value_t CR_SECTION gc_new_function(void* fptr, const char* signature, value_t this_object);
+extern bool CR_SECTION gc_is_function_object(value_t obj, const char* signature);
+extern const void* CR_SECTION gc_function_object_ptr(value_t obj, int index);
 
-extern value_t  __attribute__((section(".text.cruntime"))) gc_new_string(char* str);
-extern bool __attribute__((section(".text.cruntime"))) gc_is_string_literal(value_t obj);
-extern const char* __attribute__((section(".text.cruntime"))) gc_string_literal_cstr(value_t obj);
+extern value_t  CR_SECTION gc_new_string(char* str);
+extern bool CR_SECTION gc_is_string_literal(value_t obj);
+extern const char* CR_SECTION gc_string_literal_cstr(value_t obj);
 
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_intarray(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) gc_new_intarray(int32_t n, int32_t init_value);
-extern value_t __attribute__((section(".text.cruntime"))) gc_make_intarray(int32_t n, ...);
-extern int32_t __attribute__((section(".text.cruntime"))) gc_intarray_length(value_t obj);
-extern int32_t* __attribute__((section(".text.cruntime"))) gc_intarray_get(value_t obj, int32_t index);
+extern value_t CR_SECTION safe_value_to_intarray(value_t v);
+extern value_t CR_SECTION gc_new_intarray(int32_t n, int32_t init_value);
+extern value_t CR_SECTION gc_make_intarray(int32_t n, ...);
+extern int32_t CR_SECTION gc_intarray_length(value_t obj);
+extern int32_t* CR_SECTION gc_intarray_get(value_t obj, int32_t index);
 
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_floatarray(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) gc_new_floatarray(int32_t n, float init_value);
-extern value_t __attribute__((section(".text.cruntime"))) gc_make_floatarray(int32_t n, ...);
-extern int32_t __attribute__((section(".text.cruntime"))) gc_floatarray_length(value_t obj);
-extern float* __attribute__((section(".text.cruntime"))) gc_floatarray_get(value_t obj, int32_t index);
+extern value_t CR_SECTION safe_value_to_floatarray(value_t v);
+extern value_t CR_SECTION gc_new_floatarray(int32_t n, float init_value);
+extern value_t CR_SECTION gc_make_floatarray(int32_t n, ...);
+extern int32_t CR_SECTION gc_floatarray_length(value_t obj);
+extern float* CR_SECTION gc_floatarray_get(value_t obj, int32_t index);
 
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_bytearray(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) gc_new_bytearray(int32_t n, int32_t init_value);
-extern value_t __attribute__((section(".text.cruntime"))) gc_make_bytearray(int32_t n, ...);
-extern int32_t __attribute__((section(".text.cruntime"))) gc_bytearray_length(value_t obj);
-extern uint8_t* __attribute__((section(".text.cruntime"))) gc_bytearray_get(value_t obj, int32_t index);
+extern value_t CR_SECTION safe_value_to_bytearray(value_t v);
+extern value_t CR_SECTION gc_new_bytearray(int32_t n, int32_t init_value);
+extern value_t CR_SECTION gc_make_bytearray(int32_t n, ...);
+extern int32_t CR_SECTION gc_bytearray_length(value_t obj);
+extern uint8_t* CR_SECTION gc_bytearray_get(value_t obj, int32_t index);
 
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_vector(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) gc_new_vector(int32_t n, value_t init_value);
-extern int32_t __attribute__((section(".text.cruntime"))) gc_vector_length(value_t obj); 
-extern value_t* __attribute__((section(".text.cruntime"))) gc_vector_get(value_t obj, int32_t index);
+extern value_t CR_SECTION safe_value_to_vector(value_t v);
+extern value_t CR_SECTION gc_new_vector(int32_t n, value_t init_value);
+extern int32_t CR_SECTION gc_vector_length(value_t obj); 
+extern value_t* CR_SECTION gc_vector_get(value_t obj, int32_t index);
 
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_array(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) safe_value_to_anyarray(value_t v);
-extern value_t __attribute__((section(".text.cruntime"))) gc_new_array(int32_t is_any, int32_t n, value_t init_value);
-extern value_t __attribute__((section(".text.cruntime"))) gc_make_array(int32_t is_any, int32_t n, ...);
-extern int32_t __attribute__((section(".text.cruntime"))) gc_array_length(value_t obj);
-extern value_t* __attribute__((section(".text.cruntime"))) gc_array_get(value_t obj, int32_t index);
+extern value_t CR_SECTION safe_value_to_array(value_t v);
+extern value_t CR_SECTION safe_value_to_anyarray(value_t v);
+extern value_t CR_SECTION gc_new_array(int32_t is_any, int32_t n, value_t init_value);
+extern value_t CR_SECTION gc_make_array(int32_t is_any, int32_t n, ...);
+extern int32_t CR_SECTION gc_array_length(value_t obj);
+extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);
 
-extern void __attribute__((section(".text.cruntime"))) gc_init_rootset(struct gc_root_set* set, uint32_t length);
-extern void __attribute__((section(".text.cruntime"))) gc_run();
+extern void CR_SECTION gc_init_rootset(struct gc_root_set* set, uint32_t length);
+extern void CR_SECTION gc_run();
 
-extern struct gc_root_set* __attribute__((section(".text.cruntime"))) gc_root_set_head;
+extern struct gc_root_set* CR_SECTION gc_root_set_head;
 
 #endif
