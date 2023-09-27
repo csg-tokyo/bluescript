@@ -568,7 +568,6 @@ void init_bluetooth(void)
     if (local_mtu_ret){
         ESP_LOGE(GATTS_TABLE_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
-    printf("address: %p\n", my_rel_table[0].address);
 }
 
 void register_event_handler(int index, void (* handler)(uint8_t*, int)) {

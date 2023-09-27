@@ -66,18 +66,8 @@ Consider the function name you want to add to be `NEW_NATIVE_FUNCTION`
 Consider the function name you want to add to be `NEW_RUNTIME_FUNCTION`
 1. ./m5stack_bluetooth/main/c-runtime.c
 2. ./m5stack_bluetooth/main/c-runtime.h
-3. ./m5stack_bluetooth/main/utils.c
-   ```C
-   // Resister function to my_rel_table_entry.
-    // struct my_rel_table_entry my_rel_table[100] = {
-        {&_NEW_RUNTIME_FUNCTION},
-    // ...
-    // }
-   ```
-4. ./back_end/data/c-runtime-symbols.json
-   ```typescript
-   // [
-    "NEW_RUNTIME_FUNCTION",
-   // ... 
-   //]
-   ```
+```c
+// You should add attribute as follows so that the function won't deleted by the linker.
+// (The linker delete the unused functions.)
+extern void __attribute__((section(".text.cruntime"))) gc_initialize();
+```
