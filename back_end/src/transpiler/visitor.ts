@@ -35,6 +35,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'VariableDeclarator', (visitor, node, env) => visitor.variableDeclarator(node as AST.VariableDeclarator, env) ],
         [ 'FunctionDeclaration', (visitor, node, env) => visitor.functionDeclaration(node as AST.FunctionDeclaration, env) ],
         // Expression
+        [ 'ArrowFunctionExpression', (visitor, node, env) => visitor.arrowFunctionExpression(node as AST.ArrowFunctionExpression, env) ],
         [ 'UnaryExpression', (visitor, node, env) => visitor.unaryExpression(node as AST.UnaryExpression, env) ],
         [ 'UpdateExpression', (visitor, node, env) => visitor.updateExpression(node as AST.UpdateExpression, env) ],
         [ 'BinaryExpression', (visitor, node, env) => visitor.binaryExpression(node as AST.BinaryExpression, env) ],
@@ -96,6 +97,7 @@ export abstract class NodeVisitor<Environment> {
     abstract variableDeclaration(node: AST.VariableDeclaration, env: Environment): void
     abstract variableDeclarator(node: AST.VariableDeclarator, env: Environment): void
     abstract functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void
+    abstract arrowFunctionExpression(node: AST.ArrowFunctionExpression, env: Environment): void
     abstract unaryExpression(node: AST.UnaryExpression, env: Environment): void
     abstract updateExpression(node: AST.UpdateExpression, env: Environment): void
     abstract binaryExpression(node: AST.BinaryExpression, env: Environment): void
@@ -144,6 +146,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     variableDeclaration(node: AST.VariableDeclaration, env: Environment): void {}
     variableDeclarator(node: AST.VariableDeclarator, env: Environment): void {}
     functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void {}
+    arrowFunctionExpression(node: AST.ArrowFunctionExpression, env: Environment): void {}
     unaryExpression(node: AST.UnaryExpression, env: Environment): void {}
     updateExpression(node: AST.UpdateExpression, env: Environment): void {}
     binaryExpression(node: AST.BinaryExpression, env: Environment): void {}
