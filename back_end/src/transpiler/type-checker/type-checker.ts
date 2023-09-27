@@ -318,6 +318,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     return paramTypes
   }
 
+  arrowFunctionExpression(node: AST.ArrowFunctionExpression, names: NameTable<Info>): void {}
+
   unaryExpression(node: AST.UnaryExpression, names: NameTable<Info>): void {
     this.assert(node.prefix, 'only prefixed unary operator is supported', node)
     this.visit(node.argument, names)

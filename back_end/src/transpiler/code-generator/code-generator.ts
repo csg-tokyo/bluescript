@@ -465,6 +465,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return `extern ${cr.funcStructInC} ${name};\n`
   }
 
+  arrowFunctionExpression(node: AST.ArrowFunctionExpression, env: VariableEnv): void {}
+
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
     if (node.operator === 'typeof') {
       const t = getStaticType(node.argument)
@@ -696,7 +698,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       numOfObjectArgs += 1
       const index = env.allocate()
       const func = cr.rootSetVariable(index)
-      this.result.write(`(${func} = `) 
+      this.result.write(`(${func} = `)
       this.visit(node.callee, env)
       this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${cr.getObjectProperty}(${func}, 2)`)
     }
