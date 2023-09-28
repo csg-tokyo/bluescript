@@ -6,17 +6,19 @@
 #include "bluetooth.h"
 #include "executor.h"
 #include "c-runtime.h"
-#include "utils.h"
-#include "bs-log.h"
+#include "bluescript-log.h"
+#include "hardwarelib.h"
 
 
 void app_main(void)
 {
     init_bluetooth();
-    register_event_handler(0, executor_set_repl);
-    register_event_handler(1, executor_set_onetime);
-    register_event_handler(2, executor_crear);
-
+    init_hardwarelib();
+    register_event_handlers(executor_set_repl, executor_set_onetime, executor_clear);
     xTaskCreatePinnedToCore(exec_code_task, "exec_code_task", 4096, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(send_log_task, "send_log_task", 4096, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(bluescript_log_task, "send_log_task", 4096, NULL, 1, NULL, 0);
+
+    while (true){
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
 }

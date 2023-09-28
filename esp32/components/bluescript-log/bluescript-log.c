@@ -1,17 +1,11 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-#include "sdkconfig.h"
-#include "executor.h"
-#include "c-runtime.h"
-#include "bs-log.h"
+#include "bluescript-log.h"
 #include "bluetooth.h"
 
-#define TAG "LOGGER"
+#define TAG "BLUETOOTH_LOG"
 
 #define LOG_QUEUE_LENGTH 20
 #define LOG_QUEUE_ITEM_LENGTH 20
@@ -25,7 +19,7 @@ typedef struct {
 } log_fragment;
 
 
-void push_log(char *log) {
+void bluescript_log_push(char *log) {
     int length = strlen(log);
     char log_with_nl[length + 1];
     sprintf(log_with_nl, "%s\n", log);
@@ -42,7 +36,7 @@ void push_log(char *log) {
 }
 
 
-void send_log_task(void *arg) {
+void bluescript_log_task(void *arg) {
     log_fragment buff;
     log_queue = xQueueCreate(LOG_QUEUE_LENGTH, sizeof(log_fragment));
     

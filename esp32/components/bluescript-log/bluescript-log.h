@@ -4,8 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-void push_log(char *log);
+void bluescript_log_task(void *arg);
 
-void send_log_task(void *arg);
+void bluescript_log_push(char *log);
 
 #endif /* __BLUESCRIPT_LOG__ */
+

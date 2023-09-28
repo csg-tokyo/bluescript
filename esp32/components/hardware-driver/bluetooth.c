@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -15,9 +11,7 @@
 #include "esp_bt_main.h"
 #include "esp_gatt_common_api.h"
 
-#include "executor.h"
-#include "utils.h"
-#include "c-runtime.h"
+#include "bluetooth.h"
 
 
 #define GATTS_TABLE_TAG "BLUETOOTH"
@@ -570,12 +564,10 @@ void init_bluetooth(void)
     }
 }
 
-void register_event_handler(int index, void (* handler)(uint8_t*, int)) {
-    if (index > (WRITE_EVENT_NUM - 1)) {
-       ESP_LOGE(GATTS_TABLE_TAG, "The index is larger than maximum value.");
-       return;
-    }
-    write_event_handler_table[index] = handler;
+void register_event_handlers(void (* handler1)(uint8_t*, int), void (* handler2)(uint8_t*, int), void (* handler3)(uint8_t*, int)) {
+    write_event_handler_table[0] = handler1;
+    write_event_handler_table[1] = handler2;
+    write_event_handler_table[2] = handler3;
 }
 
 void send_notification(uint8_t *str, int length) {

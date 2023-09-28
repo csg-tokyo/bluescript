@@ -197,6 +197,6 @@ extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);
 extern void CR_SECTION gc_init_rootset(struct gc_root_set* set, uint32_t length);
 extern void CR_SECTION gc_run();
 
-extern struct gc_root_set* CR_SECTION gc_root_set_head;
+extern struct gc_root_set* gc_root_set_head;
 
 #endif

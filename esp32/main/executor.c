@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -74,7 +71,7 @@ void executor_set_onetime(uint8_t *value, int value_len) {
 }
 
 
-void executor_crear(uint8_t *value, int value_len) {
+void executor_clear(uint8_t *value, int value_len) {
     ESP_LOGI(TAG, "CLEAR");
     init();
 }
@@ -88,7 +85,7 @@ void exec_code_task(void *arg) {
         struct timeval start;
         gettimeofday(&start, NULL);
 
-        try_and_catch(entry_point);
+        try_and_catch((void *)entry_point);
 
         struct timeval end;
         gettimeofday(&end, NULL);

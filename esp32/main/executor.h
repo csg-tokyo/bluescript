@@ -7,7 +7,7 @@
 
 void executor_set_repl(uint8_t *value, int value_len);
 void executor_set_onetime(uint8_t *value, int value_len);
-void executor_crear(uint8_t *value, int value_len);
+void executor_clear(uint8_t *value, int value_len);
 
 
 void exec_code_task(void *arg);
