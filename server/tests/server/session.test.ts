@@ -15,15 +15,15 @@ describe('Test session', () => {
     }
     `
     const exe = session.execute(tsString);
-    expect(exe.length).toBe(222);
+    expect(exe.length).toBe(144);
   });
 
   test("Code2: use native functions", () => {
     const tsString = `
-    console_log_number(3);
+    console_log_integer(3);
     `
     const exe = session.execute(tsString);
-    expect(exe.length).toBe(142);
+    expect(exe.length).toBe(104);
   });
 
   test("Code3: use defined functions and variables", () => {
@@ -31,11 +31,11 @@ describe('Test session', () => {
     while (i < 10) {
       i += 1;
     }
-    console_log_number(i);
-    console_log_number(func1(3));
+    console_log_integer(i);
+    console_log_integer(func1(3));
     `
     const exe = session.execute(tsString);
-    expect(exe.length).toBe(214);
+    expect(exe.length).toBe(194);
   });
 
   test("Code4: redefine predefined function", () => {
@@ -45,6 +45,6 @@ describe('Test session', () => {
     }
     `
     const exe = session.execute(tsString);
-    expect(exe.length).toBe(198);
+    expect(exe.length).toBe(120);
   });
 });

@@ -7,6 +7,10 @@ import Elf32 from "./elf-parser/elf32";
 import Linker from "./linker";
 
 
+const runtimeSection = ".flash.text";
+const hardwarelibSection = ".hardwarelib";
+
+
 export default function link(elfBuffer: Buffer, entryPointName: string, at: AddressTableInterface) {
   const elf32 = new Elf32(elfBuffer);
   const addressTable = new AddressTable(elf32, at);
@@ -20,15 +24,12 @@ export default function link(elfBuffer: Buffer, entryPointName: string, at: Addr
   });
   dataValues.push(Buffer.alloc(addressTable.dataSection.commonSize));
   const entryPoint = addressTable.getSymbolAddress(entryPointName);
-  console.log(textValue)
-  console.log(literalValue);
-  console.log(dataValues)
 
   const exePart = new ExePart(textValue, literalValue, Buffer.concat(dataValues), entryPoint);
   return {exe: exePart.toString(), addressTable};
 }
 
-export function addressTableOrigin(nativeSymbolNames: string[]): AddressTableOrigin {
+export function addressTableOrigin(): AddressTableOrigin {
   const mcuBuffer = fs.readFileSync(FILE_PATH.MCU_ELF);
-  return new AddressTableOrigin(new Elf32(mcuBuffer), nativeSymbolNames);
+  return new AddressTableOrigin(new Elf32(mcuBuffer), [runtimeSection, hardwarelibSection]);
 }

@@ -12,7 +12,6 @@
 
  
 void bluescript_init() {
-    printf("foooo");
     init_bluetooth();
     register_event_handlers(executor_set_repl, executor_set_onetime, executor_clear);
 

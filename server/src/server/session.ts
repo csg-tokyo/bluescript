@@ -6,6 +6,12 @@ import {transpile} from "../transpiler/code-generator/code-generator";
 import link, {addressTableOrigin} from "../linker";
 import {execSync} from "child_process";
 
+const cProlog = `
+#include <stdint.h>
+#include "../../esp32/components/c-runtime/c-runtime.h"
+
+`
+
 export default class Session {
   currentCodeId: number;
   nameTable: GlobalVariableNameTable;
@@ -13,13 +19,10 @@ export default class Session {
 
   constructor() {
     this.currentCodeId = 0;
-    const prolog = fs.readFileSync(FILE_PATH.NATIVE_FUNCTION_SKELETONS).toString();
+    const prolog = fs.readFileSync(FILE_PATH.HARDWARE_LIB).toString();
     const result = transpile(this.currentCodeId, prolog);
     this.nameTable = result.names;
-
-    const runtimeSymbols = JSON.parse(fs.readFileSync(FILE_PATH.C_RUNTIME_SYMBOLS).toString());
-    const predefinedSymbolNames = runtimeSymbols.concat(Object.keys(this.nameTable.names()).map(name => "_" + name));
-    this.addressTable = addressTableOrigin(predefinedSymbolNames);
+    this.addressTable = addressTableOrigin();
   }
 
   public execute(tsString: string): string {
@@ -27,9 +30,8 @@ export default class Session {
 
     // Transpile
     const tResult = transpile(this.currentCodeId, tsString, this.nameTable);
-    const templateCode = fs.readFileSync(FILE_PATH.C_FILE_TEMPLATE);
     const entryPoint = tResult.main;
-    const cString = templateCode + tResult.code;
+    const cString = cProlog + tResult.code;
 
     // Compile
     fs.writeFileSync(FILE_PATH.C_FILE, cString);

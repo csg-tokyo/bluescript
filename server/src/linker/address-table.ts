@@ -52,11 +52,11 @@ export class AddressTableOrigin implements AddressTableInterface {
   public literalSection: Section;
   public dataSection: DataSection;
 
-  constructor(mcuElf32: Elf32, nativeSymbolNames: string[]) {
+  constructor(mcuElf32: Elf32, symbolExistSectionNames: string[]) {
     this.textSection = extractMCUVSection(mcuElf32, V_TEXT_SECTION_NAME);
     this.literalSection = extractMCUVSection(mcuElf32, V_LITERAL_SECTION_NAME);
     this.dataSection = extractMCUVDataSection(mcuElf32, V_DATA_SECTION_NAME);
-    this.symbols = extractMCUSymbols(mcuElf32, nativeSymbolNames);
+    this.symbols = extractMCUSymbols(mcuElf32, symbolExistSectionNames);
   }
 
   public getSymbolAddress(symbolName: string): number {
@@ -189,7 +189,7 @@ function extractMCUVDataSection(mcuElf32: Elf32, vSectionName: string): DataSect
   throw Error(`Could not fine virtual section address. The virtual section name is ${vSectionName}`);
 }
 
-function extractMCUSymbols(mcuElf32: Elf32, names: string[]) {
+function extractMCUSymbols0(mcuElf32: Elf32, names: string[]) {
   const results = new Map<string, Symbol>();
   const nameSet = new Set(names);
   for (const symbol of mcuElf32.symbols) {
@@ -199,4 +199,24 @@ function extractMCUSymbols(mcuElf32: Elf32, names: string[]) {
     }
   }
   return results;
+}
+
+function extractMCUSymbols(mcuElf32: Elf32, sectionNames: string[]) {
+  const result = new Map<string, Symbol>();
+  const sectionIdxSet = new Set<number>();
+
+  // Get section indexes.
+  mcuElf32.shdrs.forEach((shdr, index) => {
+    const sectionName = mcuElf32.getSectionName(shdr);
+    if (sectionNames.includes(sectionName))
+      sectionIdxSet.add(index);
+  });
+  // Search symbols in specified sections.
+  mcuElf32.symbols.forEach((symbol) => {
+    if (sectionIdxSet.has(symbol.stShndx)) {
+      const name = mcuElf32.getSymbolName(symbol);
+      result.set(name, {name, address: symbol.stValue});
+    }
+  });
+  return result;
 }

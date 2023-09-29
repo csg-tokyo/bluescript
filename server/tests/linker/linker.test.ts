@@ -15,8 +15,8 @@ const TEST_OBJ_FILE = "./temp-files/linker-test.o";
 const mockMCUCode = `
 #include "stdint.h"
 
-void _blink_led() {};
-void _console_log(char *str) {};
+void __attribute__((section(".hardwarelib"), used)) _blink_led() {};
+void __attribute__((section(".hardwarelib"), used)) _console_log(char *str) {};
 
 uint8_t virtual_text[1000];
 uint8_t virtual_literal[500];
@@ -25,9 +25,6 @@ uint8_t virtual_data[1000];
 int main() { return 2; }
 `
 
-const nativeSymbolNames = ["_blink_led", "_console_log"];
-
-
 describe('test linker', () => {
   let addressTable: AddressTableOrigin;
 
@@ -35,7 +32,7 @@ describe('test linker', () => {
     fs.writeFileSync(MOCK_MCU_C_FILE, mockMCUCode);
     execSync(`export PATH=$PATH:${FILE_PATH.GCC}; xtensa-esp32-elf-gcc -O2 ${MOCK_MCU_C_FILE} -o ${MOCK_MCU_OBJ_FILE} -w`);
     FILE_PATH.MCU_ELF = MOCK_MCU_OBJ_FILE;
-    addressTable = addressTableOrigin(nativeSymbolNames);
+    addressTable = addressTableOrigin();
   });
 
   test("test single main function", () => {
@@ -137,7 +134,7 @@ describe('test linker', () => {
     <.text>    
     # bluescript_main
     00: 364100
-    03: a5bbfe
+    03: e5bcfe
     06: 0c42
     08: 1df0
   `
@@ -174,9 +171,9 @@ describe('test linker', () => {
     00: 364100
     03: a1f900
     06: 22a004
-    09: a5bbfe
+    09: e5bcfe
     0c: a1f800
-    0f: 65bbfe
+    0f: a5bcfe
     12: 1df0
     
     <.literal>
@@ -221,7 +218,7 @@ describe('test linker', () => {
     03: 81f900
     06: 0c42
     08: a808
-    0a: a5bbfe
+    0a: e5bcfe
     0d: 1df0
     
     <.literal>
