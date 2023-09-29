@@ -38,7 +38,7 @@
 3. Open a new tab in browser and access to `localhost:3000/repl`
 
 ## Adding library functions
-Add new function to `./esp32/components/lib/`
+Add new function to `./esp32/components/lib/`.
 You can use `./lib/` and `./server/tools/generate-c.ts`.
 
 
