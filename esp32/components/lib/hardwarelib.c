@@ -2,8 +2,9 @@
 
 char* HL_ATTR dummy_str = "";
 
+// This function should be called so that .hardwarelib won't be deleted by linker.
 void init_hardwarelib() {
-    printf("%p\n", &dummy_str);
+    printf("%s", dummy_str);
     return;
 }
 

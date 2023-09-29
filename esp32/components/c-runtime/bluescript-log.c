@@ -2,7 +2,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-#include "bluescript-log.h"
 #include "bluetooth.h"
 
 #define TAG "BLUETOOTH_LOG"

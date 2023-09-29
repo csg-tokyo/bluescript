@@ -9,11 +9,10 @@
 #include "bluescript-log.h"
 #include "c-runtime.h"
 
-#define HL_ATTR __attribute__((section(".hardwarelib")))
+#define HL_ATTR __attribute__((section(".hardwarelib"), used))
 
-extern struct func_body HL_ATTR _console_log_integer;
-
-// This function should be called so that .hardwarelib won't be deleted by linker.
 void init_hardwarelib();
+
+// extern struct func_body HL_ATTR _console_log_integer;
 
 #endif // __HARDWARELIB_H__
