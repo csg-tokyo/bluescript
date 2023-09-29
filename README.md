@@ -37,29 +37,10 @@
    ```
 3. Open a new tab in browser and access to `localhost:3000/repl`
 
-## Adding native functions
-2 files should be update.
-Consider the function name you want to add to be `NEW_NATIVE_FUNCTION`
-1. ./esp32/main/utils.c
-   ```C
-    // Define function
-    void fbody_NEW_NATIVE_FUNCTION(int32_t n) {
-        ...
-    }
-    struct _NEW_NATIVE_FUNCTION { void (*fptr)(value_t); const char* sig; } _NEW_NATIVE_FUNCTION = { fbody_NEW_NATIVE_FUNCTION, "" };
+## Adding library functions
+Add new function to `./esp32/components/lib/`
+You can use `./lib/` and `./server/tools/generate-c.ts`.
 
-    // Resister function to my_rel_table_entry.
-    // struct my_rel_table_entry my_rel_table[100] = {
-        {&_NEW_NATIVE_FUNCTION},
-    // ...
-    // }
-
-   ```
-
-2. ./server/data/native-function-skeltons.ts
-   ```TypeScript
-   function NEW_NATIVE_FUNCTION(n:integer) {}
-   ```
 
 ## Adding runtime functions
 4 files should be update.
