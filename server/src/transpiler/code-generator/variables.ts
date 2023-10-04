@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { Null, FunctionType, StaticType, isPrimitiveType } from '../types'
 import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
-         getNameTable } from '../type-checker/names'
+         getNameTable } from '../names'
 import { rootSetVariable } from './c-runtime'
 
 

@@ -1,7 +1,7 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import { Node } from '@babel/types'
-import type { StaticType } from '../types'
+import type { StaticType } from './types'
 
 // Elements of NameTable<T>
 

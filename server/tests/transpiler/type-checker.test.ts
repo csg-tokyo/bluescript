@@ -1,8 +1,8 @@
 import * as AST from "@babel/types"
 import { expect, test } from '@jest/globals'
 import * as tested from './test-typechecker'
-import * as types from '../../../src/transpiler/types'
-import * as names from '../../../src/transpiler/type-checker/names'
+import * as types from '../../src/transpiler/types'
+import * as names from '../../src/transpiler/names'
 
 test('syntax error', () => {
   const src = `function foo(x: float) : number {

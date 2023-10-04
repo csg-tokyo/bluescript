@@ -1,19 +1,19 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { ErrorLog } from '../utils'
-import * as visitor from '../visitor'
+import { ErrorLog } from './utils'
+import * as visitor from './visitor'
 
-import { ArrayType, StaticType, isPrimitiveType } from '../types'
+import { ArrayType, StaticType, isPrimitiveType } from './types'
 
 import {
   Integer, Float, Boolean, String, Void, Null, Any,
   ObjectType, FunctionType, objectType,
   typeToString, isSubtype, isConsistent, commonSuperType,
   isNumeric
-} from '../types'
+} from './types'
 
-import { actualElementType } from '../code-generator/c-runtime'
+import { actualElementType } from './code-generator/c-runtime'
 
 import {
   NameTable, NameTableMaker, BasicGlobalNameTable, NameInfo,

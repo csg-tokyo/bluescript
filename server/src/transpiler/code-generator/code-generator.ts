@@ -6,8 +6,8 @@ import { Integer, Float, Boolean, String, Void, Null, Any,
          ObjectType, FunctionType,
          StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType } from '../types'
 import * as visitor from '../visitor'
-import { getCoercionFlag, getStaticType } from '../type-checker/names'
-import { typecheck } from '../type-checker/type-checker'
+import { getCoercionFlag, getStaticType } from '../names'
+import { typecheck } from '../type-checker'
 import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
