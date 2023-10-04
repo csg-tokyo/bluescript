@@ -173,7 +173,7 @@ test('assign to a function name', () => {
   function bar(x: integer) { return x + 1 }
   function baz() { foo = bar }
   `
-  expect(() => tested.transpile(src)).toThrow(/assignment to constant.*line 3/)
+  expect(() => tested.transpile(src)).toThrow(/assignment to top-level.*line 3/)
 })
 
 test('function type', () => {
