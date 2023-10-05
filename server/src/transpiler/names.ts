@@ -1,7 +1,7 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import { Node } from '@babel/types'
-import type { StaticType } from '../types'
+import type { StaticType } from './types'
 
 // Elements of NameTable<T>
 
@@ -66,6 +66,7 @@ export interface NameTable<Info extends NameInfo> {
   lookupInThis(key: string): Info | undefined
   returnType(): StaticType | undefined | null   // null if the table is for top-level
   setReturnType(t: StaticType): void
+  isGlobal(): boolean       // true if the table is for top-level
 }
 
 export abstract class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
@@ -134,6 +135,8 @@ export abstract class GlobalNameTable<Info extends NameInfo> implements NameTabl
   setReturnType(t: StaticType): void {
     throw Error('cannot set a return type')
   }
+
+  isGlobal() { return true }
 }
 
 export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
@@ -182,10 +185,12 @@ export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
   setReturnType(t: StaticType): void {
     this.parent.setReturnType(t)
   }
+
+  isGlobal() { return false }
 }
 
 export abstract class FunctionNameTable<Info extends NameInfo> extends BlockNameTable<Info> {
-  thisReturnType: StaticType | undefined
+  private thisReturnType: StaticType | undefined
 
   constructor(parent: NameTable<Info>) {
     super(parent)
@@ -199,7 +204,9 @@ export abstract class FunctionNameTable<Info extends NameInfo> extends BlockName
       if (freeVariable === undefined)
         return undefined
       else {
-        freeVariable.setup(_ => _.captured = true)
+        if (!this.parent.isGlobal())
+          freeVariable.setup(_ => _.captured = true)
+
         const info = this.makeFreeInfo(freeVariable)
         this.elements[key] = info
         return info
@@ -212,11 +219,11 @@ export abstract class FunctionNameTable<Info extends NameInfo> extends BlockName
   abstract makeFreeInfo(free: Info): Info     // make a free variable name
   abstract isFreeInfo(free: Info): boolean    // true if it is a free variable name
 
-  returnType(): StaticType | undefined | null {
+  returnType(): StaticType | undefined {
     return this.thisReturnType
   }
 
-  setReturnType(t: StaticType): void {
+  setReturnType(t: StaticType | undefined): void {
     this.thisReturnType = t
   }
 }

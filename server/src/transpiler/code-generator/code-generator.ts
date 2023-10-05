@@ -6,8 +6,8 @@ import { Integer, Float, Boolean, String, Void, Null, Any,
          ObjectType, FunctionType,
          StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType } from '../types'
 import * as visitor from '../visitor'
-import { getCoercionFlag, getStaticType } from '../type-checker/names'
-import { typecheck } from '../type-checker/type-checker'
+import { getCoercionFlag, getStaticType } from '../names'
+import { typecheck } from '../type-checker'
 import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
@@ -21,7 +21,7 @@ export function transpile(codeId: number, src: string, gvnt?: GlobalVariableName
   typecheck(ast, maker, nameTable)
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
   const mainFuncName = `${cr.mainFunctionName}${codeId}`
-  const generator = new CodeGenerator(mainFuncName, `${cr.globalRootSetName}${codeId}`)
+  const generator = new CodeGenerator(mainFuncName, codeId)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   if (generator.errorLog.hasError())
     throw generator.errorLog
@@ -38,11 +38,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private endWithReturn = false
   private initializerName                   // the name of an initializer function
   private globalRootSetName                 // the rootset name for global variables
+  private uniqueId = 0
+  private uniqueIdCounter = 0
 
-  constructor(initializerName: string, globalRootsetName: string) {
+  constructor(initializerName: string, codeId: number) {
     super()
     this.initializerName = initializerName
-    this.globalRootSetName = globalRootsetName
+    this.globalRootSetName = `${cr.globalRootSetName}${codeId}`
+    this.uniqueId = codeId
   }
 
   getCode(header: string) {
@@ -117,7 +120,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (info !== undefined) {
         if (info.isFunction) {
           const vname = info.transpile(node.name)
-          this.result.write(`${cr.functionMaker}(${vname}.${cr.functionPtr}, ${vname}.${cr.functionSignature}, VALUE_UNDEF)`)
+          this.result.write(this.makeFunctionObject(vname))
         }
         else
           this.result.write(info.transpile(node.name))
@@ -127,12 +130,21 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     throw this.errorLog.push('fatal:  unknown identifier', node)
   }
 
+  private makeUniqueName() { return `fn_${this.uniqueId}_${this.uniqueIdCounter++}`}
+
+  private makeFunctionObject(name: string) {
+    return `${cr.functionMaker}(${name}.${cr.functionPtr}, ${name}.${cr.functionSignature}, VALUE_UNDEF)`
+  }
+
   private identifierAsCallable(node: AST.Identifier, env: VariableEnv): void {
     const info = env.table.lookup(node.name)
     if (info !== undefined) {
         const ftype = cr.funcTypeToCType(info.type)
         if (info.isFunction)
-          this.result.write(`((${ftype})${info.transpile(node.name)}.${cr.functionPtr})(0`)
+          if (info.isConst)
+            this.result.write(`${cr.functionBodyName(info.transpile(node.name))}(0`)
+          else
+            this.result.write(`((${ftype})${info.transpile(node.name)}.${cr.functionPtr})(0`)
         else {
           const fname = info.transpile(node.name)
           this.result.write(`((${ftype})${cr.functionGet}(${fname}, 0))(${cr.getObjectProperty}(${fname}, 2)`)
@@ -256,18 +268,22 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   returnStatement(node: AST.ReturnStatement, env: VariableEnv): void {
+    this.returnStatementArg(node, node.argument, env)
+  }
+
+  private returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined, env: VariableEnv): void {
     this.result.nl()
-    if (node.argument) {
+    if (argument) {
       const retType = env.returnType()
       if (retType !== null && retType !== undefined) {
         const typeAndVar = cr.typeToCType(retType, cr.returnValueVariable)
-        const type = this.needsCoercion(node.argument)
+        const type = this.needsCoercion(argument)
         if (type)
           this.result.write(`{ ${typeAndVar} = ${cr.typeConversion(type, retType, node)}`)
         else
           this.result.write(`{ ${typeAndVar} = (`)
 
-        this.visit(node.argument, env)
+        this.visit(argument, env)
         this.result.write(`); ${cr.deleteRootSet(env.getNumOfVars())}; return ${cr.returnValueVariable}; }`)
       }
       else
@@ -296,6 +312,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   variableDeclaration(node: AST.VariableDeclaration, env: VariableEnv): void {
+    if (this.isConstFunctionDeclaration(node, env))
+      return
+
     let sig: string | undefined = undefined
     if (env instanceof GlobalEnv)
       sig = ''
@@ -388,18 +407,35 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     throw this.errorLog.push('cannot directly visit AST.VariableDeclarator', node)
   }
 
+  private isConstFunctionDeclaration(node: AST.VariableDeclaration, env: VariableEnv): boolean {
+    if (node.kind === 'const' && node.declarations.length === 1 && env.table.isGlobal()) {
+      const decl = node.declarations[0]
+      if (decl.init && AST.isArrowFunctionExpression(decl.init)) {
+        const func = decl.init
+        const funcName = (decl.id as AST.Identifier).name
+        this.functionBodyDeclaration(func, funcName, env)
+        return true
+      }
+    }
+
+    return false
+  }
+
+  functionDeclaration(node: AST.FunctionDeclaration, env: VariableEnv): void {
+    const funcName = (node.id as AST.Identifier).name
+    this.functionBodyDeclaration(node, funcName, env)
+  }
+
   /* For this function:
        function foo(n: integer) { return n + 1 }
      This method generates the following C code:
        extern struct func_value _foo;
        static int32_t fbody_foo(value_t self, int32_t _n) { ... function body ... }
-       struct func_value _foo = { fbody_foo, VALUE_NULL };
-
-     A function-type value is a pointer to _foo of type struct _foo.
+       struct func_body _foo = { fbody_foo, "(i)i" };
   */
-  functionDeclaration(node: AST.FunctionDeclaration, env: VariableEnv): void {
+  functionBodyDeclaration(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
+                          funcName: string, env: VariableEnv): void {
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
-    const funcName = (node.id as AST.Identifier).name
     const funcType = getStaticType(node) as FunctionType;
     const prevResult = this.result
     this.result = this.declarations
@@ -410,14 +446,18 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const funcInfo = env.table.lookup(funcName)
     let sig = this.makeParameterList(funcType, node, fenv, bodyResult)
     const transpiledFuncName = funcInfo ? funcInfo.transpiledName(funcName) : funcName
-    let funcHeader = cr.typeToCType(funcType.returnType, 'fbody' + transpiledFuncName)
+    const bodyName = cr.functionBodyName(transpiledFuncName)
+    let funcHeader = cr.typeToCType(funcType.returnType, bodyName)
     this.result.nl().write(`static ${funcHeader}${sig} {`)
     this.result.right()
     const declarations = this.result  // this.result == this.declarations
     this.result = bodyResult
 
     this.result.nl()
-    this.visit(node.body, fenv)
+    if (AST.isExpression(node.body))
+      this.returnStatementArg(node, node.body, fenv)
+    else
+      this.visit(node.body, fenv)
 
     const numOfVars = fenv.getNumOfVars()
     declarations.nl().write(cr.makeRootSet(numOfVars))
@@ -432,16 +472,16 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const fname = transpiledFuncName
     if (fenv.isFreeVariable(funcInfo))
-      prevResult.nl().write(`${fname}.${cr.functionPtr} = fbody${fname};`).nl()
+      prevResult.nl().write(`${fname}.${cr.functionPtr} = ${bodyName};`).nl()
     else {
       this.signatures += this.makeFunctionStruct(fname, funcType)
-      declarations.write(`${cr.funcStructInC} ${fname} = { fbody${fname}, "${encodeType(funcType)}" };`).nl()
+      declarations.write(`${cr.funcStructInC} ${fname} = { ${bodyName}, "${encodeType(funcType)}" };`).nl()
     }
 
     this.result = prevResult
   }
 
-  private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration,
+  private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
                             fenv: FunctionEnv, bodyResult: CodeWriter) {
     let sig = `(${cr.anyTypeInC} self`
     for (let i = 0; i < funcType.paramTypes.length; i++) {
@@ -465,7 +505,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return `extern ${cr.funcStructInC} ${name};\n`
   }
 
-  arrowFunctionExpression(node: AST.ArrowFunctionExpression, env: VariableEnv): void {}
+  arrowFunctionExpression(node: AST.ArrowFunctionExpression, env: VariableEnv): void {
+    const name = this.makeUniqueName()
+    this.functionBodyDeclaration(node, name, env)
+    this.result.write(this.makeFunctionObject(name))
+  }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
     if (node.operator === 'typeof') {
@@ -637,7 +681,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.result.write('(')
   }
 
-  private accumulateExpression(left: AST.LVal, leftType: StaticType | undefined, op: string,
+  private accumulateExpression(left: AST.Node, leftType: StaticType | undefined, op: string,
                                right: AST.Expression, rightType: StaticType | undefined,
                                env: VariableEnv): void {
     if (leftType === Any) {

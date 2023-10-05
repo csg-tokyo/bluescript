@@ -1,24 +1,24 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { ErrorLog } from '../utils'
-import * as visitor from '../visitor'
+import { ErrorLog } from './utils'
+import * as visitor from './visitor'
 
-import { ArrayType, StaticType, isPrimitiveType } from '../types'
+import { ArrayType, StaticType, isPrimitiveType } from './types'
 
 import {
   Integer, Float, Boolean, String, Void, Null, Any,
   ObjectType, FunctionType, objectType,
   typeToString, isSubtype, isConsistent, commonSuperType,
   isNumeric
-} from '../types'
+} from './types'
 
-import { actualElementType } from '../code-generator/c-runtime'
+import { actualElementType } from './code-generator/c-runtime'
 
 import {
   NameTable, NameTableMaker, BasicGlobalNameTable, NameInfo,
   addNameTable, addStaticType, getStaticType, BasicNameTableMaker,
-  addCoercionFlag
+  addCoercionFlag, getNameTable
 } from './names'
 
 // entry point for just running a type checker
@@ -155,14 +155,19 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   returnStatement(node: AST.ReturnStatement, names: NameTable<Info>): void {
+    this.returnStatementArg(node, node.argument, names)
+  }
+
+  private returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined,
+                             names: NameTable<Info>): void {
     const rtype = names.returnType()
     this.assert(rtype !== null, 'return must be in a function body', node)
-    if (node.argument) {
-      this.visit(node.argument, names)
+    if (argument) {
+      this.visit(argument, names)
       if (rtype == undefined)
         names.setReturnType(this.result)
       else if (isConsistent(this.result, rtype))
-        this.addCoercion(node.argument, this.result)
+        this.addCoercion(argument, this.result)
       else
         this.assert(isSubtype(this.result, rtype),
           `Type '${typeToString(this.result)}' does not match type '${typeToString(rtype)}'`, node)
@@ -185,6 +190,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   variableDeclaration(node: AST.VariableDeclaration, names: NameTable<Info>): void {
+    if (this.isConstFunctionDeclaration(node, names))
+      return
+
     const kind = node.kind
     this.assert(kind === 'const' || kind === 'let', 'only const and let are available', node)
     for (const decl of node.declarations)
@@ -238,65 +246,92 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
   }
 
+  private isConstFunctionDeclaration(node: AST.VariableDeclaration, names: NameTable<Info>): boolean {
+    if (node.kind === 'const' && node.declarations.length === 1 && names.isGlobal()) {
+      const decl = node.declarations[0]
+      if (decl.init && AST.isArrowFunctionExpression(decl.init)) {
+        const func = decl.init
+        if (this.firstPass) {
+          const declId = decl.id as AST.Identifier
+          this.functionDeclarationPass1(func, declId, names)
+          const info = names.lookup(declId.name)
+          if (info)
+            info.isConst = true
+        }
+        else
+          this.functionDeclarationPass2(func, names)
+
+        return true
+      }
+    }
+
+    return false
+  }
+
   functionDeclaration(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
+    this.assert(names.isGlobal(), 'a nested function is not available', node)
     if (this.firstPass)
-      this.functionDeclarationPass1(node, names)
+      this.functionDeclarationPass1(node, node.id, names)
     else
       this.functionDeclarationPass2(node, names)
   }
 
-  functionDeclarationPass1(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
+  functionDeclarationPass1(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
+                           nodeId: AST.Identifier | null | undefined, names: NameTable<Info>): void {
     this.assert(!node.generator, 'generator functions are not supported', node)
     this.assert(!node.async, 'async functions are not supported', node)
     const funcEnv = this.maker.function(names)
     const paramTypes = this.functionParameters(node, funcEnv)
-    funcEnv.thisReturnType = undefined
+    funcEnv.setReturnType(undefined)
     const typeAnno = node.returnType
     if (typeAnno != null) {
       this.assertSyntax(AST.isTSTypeAnnotation(typeAnno), typeAnno)
       this.visit(typeAnno, names)
-      funcEnv.thisReturnType = this.result
+      funcEnv.setReturnType(this.result)
     }
 
     let info: Info | undefined = undefined
     // reports an error when a function is declared more than once
     // within the same global environment.
-    if (node.id != null) {
-      info = names.lookup(node.id.name)
-      this.assert(info === undefined || funcEnv.isFreeInfo(info),
-            `function '${node.id.name}' has been already declared`, node)
+    if (nodeId != null) {
+      info = names.lookup(nodeId.name)
+      this.assert(info === undefined || (funcEnv.isFreeInfo(info) && !info.isConst),
+            `function '${nodeId.name}' has been already declared`, node)
     }
 
-    this.visit(node.body, funcEnv)
-    let rtype: StaticType
-    if (funcEnv.thisReturnType === undefined)
-      rtype = Void
+    let rtype: StaticType | undefined
+    if (AST.isBlockStatement(node.body))
+      this.visit(node.body, funcEnv)
     else
-      rtype = funcEnv.thisReturnType
+      this.returnStatementArg(node, node.body, funcEnv)
+
+    rtype = funcEnv.returnType()
+    if (rtype === undefined)
+      rtype = Void
 
     const ftype = new FunctionType(rtype, paramTypes)
     addStaticType(node, ftype)
-    if (node.id != null)
+    if (nodeId != null)
       if (info === undefined)   // if new declaration
-        names.record(node.id.name, ftype, this.maker, _ => { _.isFunction = true; _.isConst = true })
+        names.record(nodeId.name, ftype, this.maker, _ => { _.isFunction = true })
       else
         this.assert(isSubtype(ftype, info.type),
-            `function '${node.id.name}' is declared again with a different type`, node)
+            `function '${nodeId.name}' is declared again with a different type`, node)
   }
 
-  functionDeclarationPass2(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
+  functionDeclarationPass2(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression, names: NameTable<Info>): void {
     const funcEnv = this.maker.function(names)
     this.functionParameters(node, funcEnv)
     const ftype = getStaticType(node)
     if (ftype === undefined || !(ftype instanceof FunctionType))
-      throw new Error(`fatal: a function type is not recorded in pass 1: ${node.id}`)
+      throw new Error(`fatal: a function type is not recorded in pass 1: ${AST.isFunctionDeclaration(node) ? node.id : '(arrow function)'}`)
 
-    funcEnv.thisReturnType = ftype.returnType
+    funcEnv.setReturnType(ftype.returnType)
     this.visit(node.body, funcEnv)
     addNameTable(node, funcEnv)
   }
 
-  functionParameters(node: AST.FunctionDeclaration, names: NameTable<Info>): StaticType[] {
+  functionParameters(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression, names: NameTable<Info>): StaticType[] {
     const paramTypes: StaticType[] = []
     for (const param of node.params) {
       this.assert(AST.isIdentifier(param), 'bad parameter name', node)
@@ -318,7 +353,24 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     return paramTypes
   }
 
-  arrowFunctionExpression(node: AST.ArrowFunctionExpression, names: NameTable<Info>): void {}
+  arrowFunctionExpression(node: AST.ArrowFunctionExpression, names: NameTable<Info>): void {
+    if (this.firstPass)
+      this.functionDeclarationPass1(node, null, names)
+    else {
+      this.functionDeclarationPass2(node, names)
+      const funcEnv = getNameTable(node)
+      funcEnv?.forEach((info, key) => {
+        if (info.captured)
+          this.assert(false, `${key} is not accessible within an arrow function`, node)
+      })
+    }
+
+    const ftype = getStaticType(node)
+    if (ftype === undefined || !(ftype instanceof FunctionType))
+      throw new Error('fatal: an arrow function type is not recorded')
+    else
+      this.result = ftype
+  }
 
   unaryExpression(node: AST.UnaryExpression, names: NameTable<Info>): void {
     this.assert(node.prefix, 'only prefixed unary operator is supported', node)
