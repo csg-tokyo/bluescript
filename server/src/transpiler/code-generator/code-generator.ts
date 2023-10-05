@@ -16,7 +16,6 @@ import * as cr from './c-runtime'
 export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
                           startLine: number = 1, header: string = '') {
   const ast = runBabelParser(src, startLine);
-  console.log(JSON.stringify(ast));
   const maker = new VariableNameTableMaker()
   const nameTable = new GlobalVariableNameTable(gvnt)
   typecheck(ast, maker, nameTable)
@@ -876,4 +875,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   tsFunctionType(node: AST.TSFunctionType, env: VariableEnv): void {}
 
   tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: VariableEnv): void {}
+
+  exportNamedDeclaration(node: AST.ExportNamedDeclaration, env: VariableEnv) {
+    if (node.declaration != undefined)
+      this.visit(node.declaration, env);
+  }
 }

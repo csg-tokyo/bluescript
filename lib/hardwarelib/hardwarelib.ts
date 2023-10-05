@@ -1,4 +1,4 @@
-import { integer, code } from "../utils";
+import { integer, code, float } from "../utils";
 
 export function console_log_integer(n: integer) {
     code`
@@ -72,9 +72,13 @@ export function initPWM(channelId: integer, timerId: integer, pinId: integer) {
     `
 }
 
-export function setPWMDuty(channelId: integer, duty: integer) {
+export function setPWMDuty(channelId: integer, duty: float) {
     code`
-    int32_t duty = ((2 ** 13) - 1) * _duty;
+    if (_duty < 0 || _duty > 1) {
+        printf("duty should be 0 < duty < 1\n");
+        return;
+    }
+    uint32_t duty = ((0b01 << 13) - 1) * _duty;
     ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, _channelId, duty));
     ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, _channelId));
     `
@@ -89,6 +93,6 @@ export function stopPWM(channelId: integer) {
 export function deinitPWM(channelId: integer) {
     code`
     ESP_ERROR_CHECK(ledc_stop(LEDC_MODE, _channelId, 0));
-    ESP_ERROR_CHECK(esp_rom_gpio_connect_out_signal(channels[_channelId].pin_id, LEDC_LS_SIG_OUT0_IDX + _channelId, false, true));
+    esp_rom_gpio_connect_out_signal(channels[_channelId].pin_id, LEDC_LS_SIG_OUT0_IDX + _channelId, false, true);
     `
 }

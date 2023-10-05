@@ -7,6 +7,11 @@ const targetCPath = "";
 
 const bobPath = "../bob/bob.ts";
 const targetCBobPath = "../esp32/main/user-program.c"
+const bobHeader = `
+#include <stdint.h>
+#include "c-runtime.h"
+#include "hardwarelib.h"
+`
 
 test("generate library c code", () => {
   const bsSrc = fs.readFileSync(libPath).toString();
@@ -17,6 +22,7 @@ test("generate library c code", () => {
 test("generate bob c code", () => {
   const libSrc = fs.readFileSync(libPath).toString();
   const bobSrc = fs.readFileSync(bobPath).toString();
-  const cSrc = generateC(bobSrc, libSrc);
+  const cSrc = generateC(bobSrc, libSrc, bobHeader);
+  fs.writeFileSync(targetCBobPath, cSrc);
   console.log(cSrc);
 })

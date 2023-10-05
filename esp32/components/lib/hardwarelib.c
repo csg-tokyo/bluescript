@@ -29,6 +29,12 @@ void fbody_console_log_integer(value_t self, int32_t _n) {
 struct func_body HL_ATTR _console_log_integer = { fbody_console_log_integer, "(i)v" };
 
 
+// UTILS
+static void fbody_waitMs(value_t self, int32_t _ms) {
+    vTaskDelay(_ms / portTICK_PERIOD_MS);
+}
+struct func_body HL_ATTR _waitMs = { fbody_waitMs, "(i)v" };
+
 // PWM
 
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
@@ -69,21 +75,20 @@ static void fbody_initPWM(value_t self, int32_t _channelId, int32_t _timerId, in
     ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
 
     channels[_channelId].pin_id = _pinId;
-    channels[_channelId].timer_id = _timerId;    
+    channels[_channelId].timer_id = _timerId;
 }
 struct func_body HL_ATTR _initPWM = { fbody_initPWM, "(iii)v" };
 
-static void fbody_setPWMDuty(value_t self, int32_t _channelId, int32_t _duty) {
+static void fbody_setPWMDuty(value_t self, int32_t _channelId, float _duty) {
     if (_duty < 0 || _duty > 1) {
-        printf("duty should be 0 < duty < 1.");
+        printf("duty should be 0 < duty < 1\n");
         return;
     }
-    int32_t duty = ((0b01 << 13) - 1) * _duty;
-    printf("duty: %d\n", duty);
+    uint32_t duty = ((0b01 << 13) - 1) * _duty;
     ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, _channelId, duty));
     ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, _channelId));
 }
-struct func_body HL_ATTR _setPWMDuty = { fbody_setPWMDuty, "(ii)v" };
+struct func_body HL_ATTR _setPWMDuty = { fbody_setPWMDuty, "(if)v" };
 
 static void fbody_stopPWM(value_t self, int32_t _channelId) {
     ESP_ERROR_CHECK(ledc_stop(LEDC_MODE, _channelId, 0));

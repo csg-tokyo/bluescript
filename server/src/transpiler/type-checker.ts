@@ -828,6 +828,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.assert(name === 'integer' || name === 'float', 'type alias is not supported', node)
   }
 
+  exportNamedDeclaration(node: AST.ExportNamedDeclaration, env: NameTable<Info>): void {
+    if (node.declaration != undefined)
+      this.visit(node.declaration, env);
+  }
+
   isConsistentOnFirstPass(t1: StaticType, t2: StaticType) {
     if (this.firstPass)
       return t1 === Any && t2 instanceof ArrayType
