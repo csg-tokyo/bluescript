@@ -9,3 +9,21 @@ function console_log_integer(n: integer) {
     printf("%d\n", _n);
     `
 }
+
+// PWM
+
+function initPWM(pinId: integer, timerId: integer) {
+
+}
+
+function setFreq(pinId: integer, freq: integer) {
+
+}
+
+function setDuty(pinId: integer, freq: integer) {
+
+}
+
+function deinitPWM(pinId: integer) {
+
+}
