@@ -2,17 +2,26 @@
 #define __HARDWARELIB_H__
 
 #include <stdio.h>
-#include <stdarg.h>
-#include <setjmp.h>
 #include <string.h>
-#include "hardwarelib.h"
+
+#include "driver/ledc.h"
+#include "esp_err.h"
+#include "soc/gpio_sig_map.h"
+#include "soc/ledc_periph.h"
+
 #include "bluescript-log.h"
 #include "c-runtime.h"
 
-#define HL_ATTR __attribute__((section(".hardwarelib"), used))
+#define HL_ATTR __attribute__((section(".hardwarelib")))
 
 void init_hardwarelib();
 
-// extern struct func_body HL_ATTR _console_log_integer;
+extern struct func_body HL_ATTR _console_log_integer;
+
+// PWM
+extern struct func_body HL_ATTR _initPWM;
+extern struct func_body HL_ATTR _setPWMDuty;
+extern struct func_body HL_ATTR _stopPWM;
+extern struct func_body HL_ATTR _deinitPWM;
 
 #endif // __HARDWARELIB_H__

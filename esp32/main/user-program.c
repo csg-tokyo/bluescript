@@ -6,17 +6,16 @@
 #include "bluescript-init.h"
 #include "hardwarelib.h"
 
-void user_task() {
+
+void setup() {
 
 }
 
 
-void app_main(void)
-{
-    bluescript_init();
-    init_hardwarelib();
+void loop() {
+    
+}
 
-    while (true){
-        vTaskDelay(1000/portTICK_PERIOD_MS);
-    }
+void bluescript_main0() {
+
 }
