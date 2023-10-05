@@ -1,8 +1,8 @@
 import * as AST from "@babel/types"
 import { expect, test } from '@jest/globals'
 import * as tested from './test-typechecker'
-import * as types from '../../../src/transpiler/types'
-import * as names from '../../../src/transpiler/type-checker/names'
+import * as types from '../../src/transpiler/types'
+import * as names from '../../src/transpiler/names'
 
 test('syntax error', () => {
   const src = `function foo(x: float) : number {
@@ -173,7 +173,7 @@ test('assign to a function name', () => {
   function bar(x: integer) { return x + 1 }
   function baz() { foo = bar }
   `
-  expect(() => tested.transpile(src)).toThrow(/assignment to constant.*line 3/)
+  expect(() => tested.transpile(src)).toThrow(/assignment to top-level.*line 3/)
 })
 
 test('function type', () => {

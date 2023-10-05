@@ -72,7 +72,7 @@ void test_pointer_table() {
     }
 
     for (int i = 0; i < PTR_TABLE_SIZE; i++) {
-        Assert_pequals(ptr32_to_ptr64((void*)(uint64_t)table[i].ptr32), table[i].ptr);
+        Assert_pequals(raw_value_to_ptr((value_t)(uint64_t)table[i].ptr32), table[i].ptr);
         free(table[i].ptr);
     }
 }

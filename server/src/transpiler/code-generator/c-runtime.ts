@@ -315,3 +315,7 @@ export const functionMaker = 'gc_new_function'
 export const functionPtr = 'fptr'
 export const functionSignature = 'signature'
 export const functionGet = 'gc_function_object_ptr'
+
+export function functionBodyName(name: string) {
+  return `fbody${name}`
+}

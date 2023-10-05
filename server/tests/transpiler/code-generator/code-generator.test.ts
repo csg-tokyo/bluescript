@@ -1,5 +1,10 @@
+import { execSync } from 'child_process'
 import { compileAndRun, compileAndRunWithSingleFile, multiCompileAndRun } from './test-code-generator'
-import { describe, expect, test } from '@jest/globals'
+import { describe, expect, test, beforeAll } from '@jest/globals'
+
+beforeAll(() => {
+  execSync('mkdir -p ./temp-files')
+})
 
 test('simple code', () => {
   const src = 'print(1 + 1)'
@@ -448,6 +453,26 @@ print(baz(13))
   expect(multiCompileAndRun(src1, src2)).toBe('112\n13\n')
 })
 
+test('a nested function', () => {
+  const src = `function foo(n: any) {
+    function bar(n: integer) { return n }
+    return bar(n)
+  }
+  print(foo(3))
+  `
+  expect(() => compileAndRun(src)).toThrow(/nested function.*line 2/)
+})
+
+test('function redefinition', () => {
+  const src = `function foo(n: any) {
+    return n + 1
+  }
+  foo = (n: any) => n
+  print(foo(3))
+  `
+  expect(() => compileAndRun(src)).toThrow(/assignment to top-level function.*line 4/)
+})
+
 test('conversion between any-types and function types', () => {
   const src = `
   function foo(n: integer) {
@@ -491,6 +516,62 @@ test('wrong conversion from any-types to function types', () => {
   print(bar(3))`
 
   expect(() => { compileAndRun(src2) }).toThrow(/value_to_function/)
+})
+
+test('arrow function', () => {
+  const src = `
+  const foo = (n: integer) => { return n }
+  let bar = (n: integer) => { return n * 10 }
+  let bar2 = (n: any) => { return n }
+  let bar3 = (a: any, b: integer):any => { return a + b }
+  let baz = n => bar3(bar2(n), 1)
+
+  function func(n: integer) {
+    return foo(n) + bar(n) + baz(n)
+  }
+
+  print(func(3))`
+
+  expect(compileAndRun(src)).toBe('37\n')
+})
+
+test('redefinition of a const function', () => {
+  const src1 = 'const foo = (a: number): number => a + 1'
+
+  const src2 = `foo = (n: integer): integer => n
+
+print(foo(100))
+`
+  expect(() => { multiCompileAndRun(src1, src2) }).toThrow(/assignment to constant variable.*line 1/)
+})
+
+test('calling a const function', () => {
+  const src = `
+  function fib(i: integer): integer {
+    if (i < 2)
+      return 1
+    else
+      return fib(i - 1) + fib(i - 2)
+  }
+
+  const fib_fast = (i: integer): integer => {
+    if (i < 2)
+      return 1
+    else
+      return fib_fast(i - 1) + fib_fast(i - 2)
+  }
+
+  const t0 = performance_now()
+  fib(40)
+  const t1 = performance_now()
+  fib_fast(40)
+  const t2 = performance_now()
+  print(t1 - t0)
+  print(t2 - t1)
+  print('result')
+  print(t1 - t0 > t2 - t1)`
+
+  expect(compileAndRun(src)).toMatch(/result\n1/)
 })
 
 test('unary operator', () => {
