@@ -11,9 +11,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-
 #include "bluescript-log.h"
 #include "c-runtime.h"
+#include "led_strip.h"
 
 #define HL_ATTR __attribute__((section(".hardwarelib")))
 
@@ -27,5 +27,11 @@ extern struct func_body HL_ATTR _initPWM;
 extern struct func_body HL_ATTR _setPWMDuty;
 extern struct func_body HL_ATTR _stopPWM;
 extern struct func_body HL_ATTR _deinitPWM;
+
+// LED
+extern struct func_body HL_ATTR _configLED;
+extern struct func_body HL_ATTR _setLEDPixel;
+extern struct func_body HL_ATTR _refreshLED;
+extern struct func_body HL_ATTR _clearLED;
 
 #endif // __HARDWARELIB_H__

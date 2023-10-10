@@ -36,7 +36,6 @@ static void fbody_waitMs(value_t self, int32_t _ms) {
 struct func_body HL_ATTR _waitMs = { fbody_waitMs, "(i)v" };
 
 // PWM
-
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
 #define LEDC_DUTY_RES           LEDC_TIMER_13_BIT
 #define LEDC_FREQUENCY          (5000)
@@ -100,3 +99,28 @@ static void fbody_deinitPWM(value_t self, int32_t _channelId) {
     esp_rom_gpio_connect_out_signal(channels[_channelId].pin_id, LEDC_LS_SIG_OUT0_IDX + _channelId, false, true);
 }
 struct func_body HL_ATTR _deinitPWM = { fbody_deinitPWM, "(i)v" };
+
+
+// LED
+static led_strip_t *pStrip_a;
+
+static void fbody_configLED(value_t self, int32_t _channelId, int32_t _pinId, int32_t _numLED) {
+    pStrip_a = led_strip_init(_channelId, _pinId, _numLED);
+    pStrip_a->clear(pStrip_a, 50);
+}
+struct func_body HL_ATTR _configLED = { fbody_configLED, "(iii)v" };
+
+static void fbody_setLEDPixel(value_t self, int32_t _index, int32_t _red, int32_t _green, int32_t _blue) {
+    pStrip_a->set_pixel(pStrip_a, _index, _red, _green, _blue);
+}
+struct func_body HL_ATTR _setLEDPixel = { fbody_setLEDPixel, "(iiii)v" };
+
+static void fbody_refreshLED(value_t self) {
+    pStrip_a->refresh(pStrip_a, 50);
+}
+struct func_body HL_ATTR _refreshLED = { fbody_refreshLED, "()v" };
+
+static void fbody_clearLED(value_t self) {
+    pStrip_a->clear(pStrip_a, 50);
+}
+struct func_body HL_ATTR _clearLED = { fbody_clearLED, "()v" };

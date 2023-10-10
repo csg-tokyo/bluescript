@@ -96,3 +96,35 @@ export function deinitPWM(channelId: integer) {
     esp_rom_gpio_connect_out_signal(channels[_channelId].pin_id, LEDC_LS_SIG_OUT0_IDX + _channelId, false, true);
     `
 }
+
+// LED
+code`
+#include "led_strip.h"
+
+static led_strip_t *pStrip_a;
+`
+
+export function configLED(channelId: integer, pinId: integer, numLED: integer) {
+    code`
+    pStrip_a = led_strip_init(_channelId, _pinId, _numLED);
+    pStrip_a->clear(pStrip_a, 50);
+    `
+}
+
+export function setLEDPixel(index: integer, red: integer, green: integer, blue: integer) {
+    code`
+    pStrip_a->set_pixel(pStrip_a, _index, _red, _green, _blue);
+    `
+}
+
+export function refreshLED() {
+    code`
+    pStrip_a->refresh(pStrip_a, 50);
+    `
+}
+
+export function clearLED() {
+    code`
+    pStrip_a->clear(pStrip_a, 50);
+    `
+}

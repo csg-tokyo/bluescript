@@ -5,7 +5,7 @@ import {generateC} from "./generate-c";
 const libPath = "../lib/hardwarelib/hardwarelib.ts";
 const targetCPath = "";
 
-const bobPath = "../bob/bob.ts";
+const bobPath = "../user-program/user-program.ts";
 const targetCBobPath = "../esp32/main/user-program.c"
 const bobHeader = `
 #include <stdint.h>
@@ -19,7 +19,7 @@ test("generate library c code", () => {
   console.log(cSrc);
 })
 
-test("generate bob c code", () => {
+test("generate user-program c code", () => {
   const libSrc = fs.readFileSync(libPath).toString();
   const bobSrc = fs.readFileSync(bobPath).toString();
   const cSrc = generateC(bobSrc, libSrc, bobHeader);
