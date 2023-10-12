@@ -128,3 +128,40 @@ export function clearLED() {
     pStrip_a->clear(pStrip_a, 50);
     `
 }
+
+// Timer
+code`
+#include "esp_timer.h"
+
+esp_timer_handle_t oneshot_timer;
+
+static cb_caller(void *cb) {
+    ROOT_SET(func_rootset, 1)
+    func_rootset.values[0] = _cb;
+    ((void (*)(value_t))gc_function_object_ptr(func_rootset.values[0], 0))(get_obj_property(func_rootset.values[0], 2));
+    DELETE_ROOT_SET(func_rootset)
+}
+`
+
+export function createOneShotTimer(cb: () => void) {
+    code`
+    const esp_timer_create_args_t oneshot_timer_args = {
+        .callback = &cb_caller,
+        .arg = (void*) gc_new_function(_clearLED.fptr, _clearLED.signature, VALUE_UNDEF),
+        .name = "one-shot"
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&oneshot_timer_args, &oneshot_timer));
+    `
+}
+
+export function startOneShotTimer(timeUs: integer) {
+    code`
+    esp_timer_start_once(oneshot_timer, _timerUs);
+    `
+}
+
+export function deleteOneShotTimer() {
+    code`
+    ESP_ERROR_CHECK(esp_timer_delete(oneshot_timer));
+    `
+}

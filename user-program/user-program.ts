@@ -1,25 +1,18 @@
 import {integer} from "../lib/utils"
-import {waitMs, configLED, setLEDPixel, refreshLED, clearLED} from "../lib/hardwarelib/hardwarelib" 
+import {waitMs, configLED, setLEDPixel, refreshLED, clearLED, createOneShotTimer, startOneShotTimer, console_log_integer} from "../lib/hardwarelib/hardwarelib" 
 
-const ledPinId = 15;
-const numLED = 10;
-const ledChannel = 0;
+let target:integer = 0;
 
+function timerCb() {
+    target = 3;
+}
 
 function setup() {
-    configLED(ledChannel, ledPinId, numLED);
-    clearLED();
+    createOneShotTimer(timerCb);
+    startOneShotTimer(3000000)
 }
 
 function loop() {
-    // // LED ON
-    // for (let i = 0; i < numLED; i++) {
-    //     setLEDPixel(i, 255, 0, 0);
-    // }
-    // refreshLED();
-    // waitMs(1000);
-
-    // // LED OFF
-    // clearLED();
-    waitMs(1000);
+    console_log_integer(target);
+    waitMs(500);
 }

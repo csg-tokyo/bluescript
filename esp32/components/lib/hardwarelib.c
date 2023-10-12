@@ -124,3 +124,38 @@ static void fbody_clearLED(value_t self) {
     pStrip_a->clear(pStrip_a, 50);
 }
 struct func_body HL_ATTR _clearLED = { fbody_clearLED, "()v" };
+
+
+// Timer
+esp_timer_handle_t oneshot_timer;
+
+static void cb_caller(void *cb) {
+    ROOT_SET(func_rootset, 1)
+    func_rootset.values[0] = cb;
+    printf("%d\n", (get_obj_property(func_rootset.values[0], 2)));
+    ((void (*)(value_t))gc_function_object_ptr(func_rootset.values[0], 0))(get_obj_property(func_rootset.values[0], 2));
+    DELETE_ROOT_SET(func_rootset)
+}
+
+static void fbody_createOneShotTimer(value_t self, value_t _cb) {
+    ROOT_SET(func_rootset, 1)
+    func_rootset.values[0] = _cb;
+    const esp_timer_create_args_t oneshot_timer_args = {
+        .callback = &cb_caller,
+        .arg = (void*) _cb,
+        .name = "one-shot"
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&oneshot_timer_args, &oneshot_timer));
+    DELETE_ROOT_SET(func_rootset)
+}
+struct func_body HL_ATTR _createOneShotTimer = { fbody_createOneShotTimer, "(()v)v" };
+
+static void fbody_startOneShotTimer(value_t self, int32_t _timerUs) {
+    esp_timer_start_once(oneshot_timer, _timerUs);
+}
+struct func_body HL_ATTR _startOneShotTimer = { fbody_startOneShotTimer, "(i)v" };
+
+static void fbody_deleteOneShotTimer(value_t self) {
+    ESP_ERROR_CHECK(esp_timer_delete(oneshot_timer));
+}
+struct func_body HL_ATTR _deleteOneShotTimer = { fbody_deleteOneShotTimer, "()v" };
