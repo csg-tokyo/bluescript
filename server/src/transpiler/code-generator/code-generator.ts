@@ -658,6 +658,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else
         func = '('
 
+      if (AST.isMemberExpression(left)) {
+        let hasAnyType = !(getStaticType(left) == Integer || getStaticType(left) == Float || getStaticType(left) == Boolean)
+        if (hasAnyType) {
+          this.anyMemberAssignmentExpression(node, left, func, env)
+          return
+        }
+      }
+
       this.visit(left, env)
       if (func === '(') {
         this.result.write(' = ')
@@ -681,6 +689,23 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.result.write('(')
   }
 
+  private anyMemberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, func: string, env: VariableEnv) {
+    this.result.write(cr.arrayElementSetter())
+    this.visit(leftNode.object, env)
+    this.result.write(', ')
+    const n = this.callExpressionArg(leftNode.property, Integer, env)
+    this.result.write(', ')
+    if (func === '(')
+      this.visit(node.right, env)
+    else {
+      this.result.write(func)
+      this.visit(node.right, env)
+      this.result.write(')')
+    }
+    this.result.write(')')
+    env.deallocate(n)
+  }
+
   private accumulateExpression(left: AST.Node, leftType: StaticType | undefined, op: string,
                                right: AST.Expression, rightType: StaticType | undefined,
                                env: VariableEnv): void {
@@ -700,7 +725,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
     else {
       this.visit(left, env)
-      this.result.write(op)
+      this.result.write(` ${op} `)
       this.visit(right, env)
     }
   }
