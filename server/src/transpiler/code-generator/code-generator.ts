@@ -709,6 +709,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private accumulateExpression(left: AST.Node, leftType: StaticType | undefined, op: string,
                                right: AST.Expression, rightType: StaticType | undefined,
                                env: VariableEnv): void {
+    // when string_array += string is supported, `gc_array_set` must be used for string accumulation.
     if (leftType === Any) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(&(`)
       this.visit(left, env)

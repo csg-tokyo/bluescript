@@ -705,7 +705,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   // As an L-value, an array element must be always regarded as an any-type value
   // since an array element is stored after conversion to an any-type value.
-  // However, the type checker must prove bad assignment to an array element.
+  // However, the type checker must prevent bad assignment to an array element.
   // For example, when an array is integer[], a string must not be assigned to its element.
   private lvalueMember(node: AST.MemberExpression, names: NameTable<Info>) {
     this.checkMemberExpr(node, names)
