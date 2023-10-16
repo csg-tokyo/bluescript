@@ -8,6 +8,6 @@ export function generateC(bs: string, prolog?: string): string {
     names = result0.names;
     return transpile(2, bs, names).code;
   }
-  return transpile(2, bs, undefined, 1, "foo").code;
+  return transpile(2, bs, undefined, 1).code;
 }
 
