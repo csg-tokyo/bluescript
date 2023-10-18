@@ -35,7 +35,7 @@ struct func_body {
 struct object_type {
     /*
       class_ptr:  30 bits (pointer to a class_object)
-      unused: 1 bit
+      is gray: 1 bit
       gc mark: 1 bit
     */
     uint32_t header;
