@@ -284,6 +284,14 @@ value_t minus_any_value(value_t v) {
 
 // heap objects
 
+static bool is_during_gc = false;
+static bool is_during_isr = false;
+
+void isr_start() { is_during_isr = true; }
+void isr_end() { is_during_isr = false; }
+
+static void write_barrier(pointer_t obj, value_t value);
+
 void gc_initialize() {
     heap_memory[0] = 2;  // points to the first word of linked free blocks.
     heap_memory[1] = 2;  // the size of the reserved space (first two words).
@@ -731,6 +739,7 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = value_to_int(objp->body[1]);
     if (0 <= index && index < len) {
+        write_barrier(objp, new_value);
         fast_vector_set(objp->body[0], index, new_value);
         return new_value;
     } else {
@@ -835,6 +844,27 @@ static pointer_t gc_stack[STACK_SIZE];
 static uint32_t gc_stack_top = 0;
 static bool gc_stack_overflowed = false;
 
+static void make_an_object_gray(pointer_t obj, uint32_t mark) {
+    WRITE_MARK_BIT(obj, mark);
+    SET_GRAY_BIT(obj);
+    if (gc_stack_top < STACK_SIZE) 
+        gc_stack[gc_stack_top++] = obj;
+    else 
+        gc_stack_overflowed = true;
+}
+
+static void write_barrier(pointer_t obj, value_t value) {
+    if (is_during_isr && is_during_gc) {
+        if (is_ptr_value(value)) {
+            uint32_t mark = current_no_mark ? 0 : 1;
+            pointer_t ptr = value_to_ptr(value);
+            if (IS_BLACK(obj, mark) && IS_WHITE(ptr, mark)) {
+                make_an_object_gray(ptr, mark);
+            }
+        }
+    }
+}
+
 static void trace_from_an_object(uint32_t mark) {
     while (gc_stack_top > 0) {
         pointer_t obj = gc_stack[--gc_stack_top];
@@ -848,12 +878,7 @@ static void trace_from_an_object(uint32_t mark) {
                 if (is_ptr_value(next) && next != VALUE_NULL) {
                     pointer_t nextp = value_to_ptr(next);
                     if (GET_MARK_BIT(nextp) != mark) {    // not visisted yet
-                        WRITE_MARK_BIT(nextp, mark);
-                        SET_GRAY_BIT(nextp);
-                        if (gc_stack_top < STACK_SIZE) 
-                            gc_stack[gc_stack_top++] = nextp;
-                        else 
-                            gc_stack_overflowed = true;
+                        make_an_object_gray(nextp, mark);
                     }
                 }
             }
