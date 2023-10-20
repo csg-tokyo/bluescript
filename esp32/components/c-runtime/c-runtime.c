@@ -821,7 +821,7 @@ struct gc_root_set* gc_root_set_head = NULL;
 // BLACK: The object which is verified to be alive, and it's children are also traced.
 #define IS_WHITE(ptr, mark)            (((ptr)->header & 1) != mark) 
 #define IS_GRAY(ptr)                   (((ptr)->header & 0b10) == 0b10) 
-#define IS_BLACK(ptr, mark)            (((ptr)->header & 0b11) == (0b10 + mark)) 
+#define IS_BLACK(ptr, mark)            (((ptr)->header & 1) == mark) 
 
 // Handle gray bit.
 // 0: The object is not gray.
