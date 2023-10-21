@@ -901,4 +901,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   tsFunctionType(node: AST.TSFunctionType, env: VariableEnv): void {}
 
   tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: VariableEnv): void {}
+
+  exportNamedDeclaration(node: AST.ExportNamedDeclaration, env: VariableEnv) {
+    if (node.declaration != undefined)
+      this.visit(node.declaration, env);
+  }
 }

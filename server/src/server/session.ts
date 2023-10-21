@@ -19,9 +19,11 @@ export default class Session {
 
   constructor() {
     this.currentCodeId = 0;
-    const prolog = fs.readFileSync(FILE_PATH.HARDWARE_LIB).toString();
-    const result = transpile(this.currentCodeId, prolog);
-    this.nameTable = result.names;
+    const libSrc = fs.readFileSync(FILE_PATH.HARDWARE_LIB).toString();
+    const libResult = transpile(this.currentCodeId, libSrc);
+    const src0 = fs.readFileSync(FILE_PATH.USER_PROGRAM).toString();
+    const src0Result = transpile(this.currentCodeId, src0, libResult.names);
+    this.nameTable = src0Result.names;
     this.addressTable = addressTableOrigin();
   }
 
