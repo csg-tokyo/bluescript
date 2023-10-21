@@ -726,7 +726,19 @@ value_t* gc_array_get(value_t obj, int32_t idx) {
     if (0 <= idx && idx < len)
         return fast_vector_get(objp->body[0], idx);
     else {
-        runtime_index_error(idx, len, "Array.get/set");
+        runtime_index_error(idx, len, "Array.get");
+        return 0;
+    }
+}
+
+value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
+    pointer_t objp = value_to_ptr(obj);
+    int32_t len = value_to_int(objp->body[1]);
+    if (0 <= index && index < len) {
+        fast_vector_set(objp->body[0], index, new_value);
+        return new_value;
+    } else {
+        runtime_index_error(index, len, "Array.set");
         return 0;
     }
 }

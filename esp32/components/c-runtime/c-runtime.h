@@ -193,6 +193,7 @@ extern value_t CR_SECTION gc_new_array(int32_t is_any, int32_t n, value_t init_v
 extern value_t CR_SECTION gc_make_array(int32_t is_any, int32_t n, ...);
 extern int32_t CR_SECTION gc_array_length(value_t obj);
 extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);
+extern value_t CR_SECTION gc_array_set(value_t obj, int32_t index, value_t new_value);
 
 extern void CR_SECTION gc_init_rootset(struct gc_root_set* set, uint32_t length);
 extern void CR_SECTION gc_run();
