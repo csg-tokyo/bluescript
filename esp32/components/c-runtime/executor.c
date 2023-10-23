@@ -12,9 +12,9 @@
 SemaphoreHandle_t executor_semphr;
 
 
-uint8_t IRAM_ATTR virtual_text[32000];
-uint8_t IRAM_ATTR virtual_literal[10000];
-uint8_t DRAM_ATTR virtual_data[60000];
+uint8_t IRAM_ATTR virtual_text[28000];
+uint8_t IRAM_ATTR virtual_literal[6000];
+uint8_t DRAM_ATTR virtual_data[30000];
 
 
 uint32_t entry_point;
