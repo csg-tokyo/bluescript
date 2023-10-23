@@ -131,6 +131,16 @@ static void runtime_index_error(int32_t idx, int32_t len, char* name) {
     longjmp(long_jump_buffer, -1);
 }
 
+static value_t runtime_memory_allocation_error(const char* msg) {
+    const char fmt[] = "** runtime memory allocation error: %s\n";
+    if (strlen(msg) + sizeof(fmt) / sizeof(fmt[0]) >= sizeof(error_message) / sizeof(error_message[0]))
+        msg = "??";
+
+    sprintf(error_message, fmt, msg);
+    longjmp(long_jump_buffer, -1);
+    return 0;
+}
+
 int32_t safe_value_to_int(value_t v) {
     if (!is_int_value(v))
         runtime_type_error("value_to_int");
@@ -804,6 +814,10 @@ static pointer_t allocate_heap_base(uint16_t word_size) {
 }
 
 static pointer_t allocate_heap(uint16_t word_size) {
+    if (is_during_isr) {
+        runtime_memory_allocation_error("you cannot create objects in ISR.");
+    }
+
     pointer_t ptr = allocate_heap_base(word_size);
     if (ptr != NULL)
         return ptr;
