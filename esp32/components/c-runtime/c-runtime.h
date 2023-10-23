@@ -71,12 +71,12 @@ inline float value_to_float(value_t v) {
 inline value_t float_to_value(float v) { return (*(uint32_t*)&v & 0xfffffffc) | 1; }
 inline bool is_float_value(value_t v) { return (v & 3) == 1; }
 
-// #ifdef BIT64
-// extern pointer_t gc_heap_pointer(pointer_t ptr);
-// inline pointer_t value_to_ptr(value_t v) { return gc_heap_pointer((pointer_t)((uint64_t)v & 0xfffffffc)); }
-// #else
+#ifdef BIT64
+extern pointer_t gc_heap_pointer(pointer_t ptr);
+inline pointer_t value_to_ptr(value_t v) { return gc_heap_pointer((pointer_t)((uint64_t)v & 0xfffffffc)); }
+#else
 inline pointer_t value_to_ptr(value_t v) { return (pointer_t)(v & 0xfffffffc); }
-// #endif
+#endif
 
 inline value_t ptr_to_value(pointer_t v) { return (value_t)(((uintptr_t)v & 0xfffffffc) | 3); }
 inline bool is_ptr_value(value_t v) { return (v & 3) == 3; }
