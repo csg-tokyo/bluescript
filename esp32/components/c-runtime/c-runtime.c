@@ -89,10 +89,6 @@ static value_t heap_memory[HEAP_SIZE];
 pointer_t gc_heap_pointer(pointer_t ptr) {
     return (pointer_t)((uint64_t)heap_memory & MASK64H | (uint64_t)ptr & MASK32);
 }
-#else
-pointer_t gc_heap_pointer(pointer_t ptr) {
-    return 0;
-}
 #endif
 
 // runtime error handling
