@@ -810,20 +810,37 @@ static pointer_t allocate_heap(uint16_t word_size) {
 
 struct gc_root_set* gc_root_set_head = NULL;
 
-#define GET_MARK_BIT(ptr)      (((ptr)->header & 1))
+#define GET_MARK_BIT(ptr)      ((ptr)->header & 1)
 #define CLEAR_MARK_BIT(ptr)    ((ptr)->header &= ~1)
 #define SET_MARK_BIT(ptr)      ((ptr)->header |= 1)
 #define WRITE_MARK_BIT(ptr,mark)  (mark ? SET_MARK_BIT(ptr) : CLEAR_MARK_BIT(ptr))
 
+// Three colors are used to get object status during the marking phase.
+// WHITE: The object which is not verified to be alive.
+// GRAY: The object which is verified to be alive, but it's children aren't traced.
+// BLACK: The object which is verified to be alive, and it's children are also traced.
+#define IS_WHITE(ptr, mark)            (((ptr)->header & 1) != mark) 
+#define IS_GRAY(ptr)                   (((ptr)->header & 0b10) == 0b10) 
+#define IS_BLACK(ptr, mark)            (((ptr)->header & 1) == mark) 
+
+// Handle gray bit.
+// 0: The object is not gray.
+// 1: The object is gray.
+#define CLEAR_GRAY_BIT(ptr)                ((ptr)->header &= ~0b10)
+#define SET_GRAY_BIT(ptr)                  ((ptr)->header |= 0b10)
+
+
 #define STACK_SIZE      (HEAP_SIZE / 65)
 static pointer_t gc_stack[STACK_SIZE];
+static uint32_t gc_stack_top = 0;
+static bool gc_stack_overflowed = false;
 
-static bool mark_an_object(uint32_t mark, uint32_t stack_top) {
-    bool stack_overflowed = false;
-    while (stack_top > 0) {
-        pointer_t obj = gc_stack[--stack_top];
+static void trace_from_an_object(uint32_t mark) {
+    while (gc_stack_top > 0) {
+        pointer_t obj = gc_stack[--gc_stack_top];
         class_object* clazz = get_objects_class(obj);
         int32_t j = class_has_pointers(clazz);
+        CLEAR_GRAY_BIT(obj);
         if (HAS_POINTER(j)) {
             uint32_t size = object_size(obj, clazz);
             for (; j < size; j++) {
@@ -832,24 +849,20 @@ static bool mark_an_object(uint32_t mark, uint32_t stack_top) {
                     pointer_t nextp = value_to_ptr(next);
                     if (GET_MARK_BIT(nextp) != mark) {    // not visisted yet
                         WRITE_MARK_BIT(nextp, mark);
-                        if (stack_top < STACK_SIZE)
-                            gc_stack[stack_top++] = nextp;
-                        else {
-                            stack_overflowed = true;
-                            break;
-                        }
+                        SET_GRAY_BIT(nextp);
+                        if (gc_stack_top < STACK_SIZE) 
+                            gc_stack[gc_stack_top++] = nextp;
+                        else 
+                            gc_stack_overflowed = true;
                     }
                 }
             }
         }
     }
-
-    return stack_overflowed;
 }
 
 // run this when a depth-first search fails due to stack overflow.
-static bool scan_and_mark_objects(uint32_t mark) {
-    bool found_untraced = false;
+static void scan_and_mark_objects(uint32_t mark) {
     uint32_t start = 2;
     uint32_t end = heap_memory[0];
     while (start < HEAP_SIZE) {
@@ -859,22 +872,11 @@ static bool scan_and_mark_objects(uint32_t mark) {
             class_object* clazz = get_objects_class(obj);
             int32_t j = class_has_pointers(clazz);
             uint32_t size = object_size(obj, clazz);
-            if (GET_MARK_BIT(obj) == mark && HAS_POINTER(j)) {
-                for (; j < size; j++) {
-                    value_t next = obj->body[j];
-                    if (is_ptr_value(next) && next != VALUE_NULL) {
-                        pointer_t nextp = value_to_ptr(next);
-                        if (GET_MARK_BIT(nextp) != mark) {    // not visisted yet
-                            WRITE_MARK_BIT(nextp, mark);
-                            found_untraced = true;
-                            gc_stack[0] = nextp;
-                            uint32_t stack_top = 1;
-                            mark_an_object(mark, stack_top);
-                        }
-                    }
-                }
+            if (IS_GRAY(obj)) {
+                gc_stack[0] = obj;
+                gc_stack_top = 1;
+                trace_from_an_object(mark);
             }
-
             start += real_objsize(size);
         }
 
@@ -887,12 +889,10 @@ static bool scan_and_mark_objects(uint32_t mark) {
         else
             break;
     }
-
-    return found_untraced;
 }
 
 static void mark_objects(struct gc_root_set* root_set, uint32_t mark) {
-    bool stack_overflowed = false;
+    gc_stack_overflowed = false;
     while (root_set != NULL) {
         for (int i = 0; i < root_set->length; i++) {
             value_t v = root_set->values[i];
@@ -900,9 +900,10 @@ static void mark_objects(struct gc_root_set* root_set, uint32_t mark) {
                 pointer_t rootp = value_to_ptr(v);
                 if (GET_MARK_BIT(rootp) != mark) {    // not visisted yet
                     WRITE_MARK_BIT(rootp, mark);
+                    SET_GRAY_BIT(rootp);
                     gc_stack[0] = rootp;
-                    uint32_t stack_top = 1;
-                    stack_overflowed |= mark_an_object(mark, stack_top);
+                    gc_stack_top = 1;
+                    trace_from_an_object(mark);
                 }
             }
         }
@@ -910,9 +911,10 @@ static void mark_objects(struct gc_root_set* root_set, uint32_t mark) {
         root_set = root_set->next;
     }
 
-    if (stack_overflowed)
-        while (scan_and_mark_objects(mark))
-            ;
+    while (gc_stack_overflowed) {
+        gc_stack_overflowed = false;
+        scan_and_mark_objects(mark);
+    }
 }
 
 static void sweep_objects(uint32_t mark) {
