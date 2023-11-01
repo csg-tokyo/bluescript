@@ -295,12 +295,16 @@ value_t minus_any_value(value_t v) {
 // heap objects
 
 static bool is_during_gc = false;
-static bool is_during_isr = false;
+// Interrupt handler should count up this value at the beginning, and count down at the end.
+// This count-up/count-down system is used, because the interrupt handler can be nested.
+// If this value 0, it means no interrupt handler working.
+static int nested_interrupt_handler = 0;
 
-void isr_start() { is_during_isr = true; }
-void isr_end() { is_during_isr = false; }
 
 static void write_barrier(pointer_t obj, value_t value);
+
+void interrupt_handler_start() { nested_interrupt_handler++ ; }
+void interrupt_handler_end() { nested_interrupt_handler--; }
 
 void gc_initialize() {
     heap_memory[0] = 2;  // points to the first word of linked free blocks.
@@ -814,8 +818,8 @@ static pointer_t allocate_heap_base(uint16_t word_size) {
 }
 
 static pointer_t allocate_heap(uint16_t word_size) {
-    if (is_during_isr) {
-        runtime_memory_allocation_error("you cannot create objects in ISR.");
+    if (nested_interrupt_handler > 0) {
+        runtime_memory_allocation_error("you cannot create objects in interrupt handler.");
     }
 
     pointer_t ptr = allocate_heap_base(word_size);
@@ -858,7 +862,7 @@ static pointer_t gc_stack[STACK_SIZE];
 static uint32_t gc_stack_top = 0;
 static bool gc_stack_overflowed = false;
 
-static void make_an_object_gray(pointer_t obj, uint32_t mark) {
+static void shade_object(pointer_t obj, uint32_t mark) {
     WRITE_MARK_BIT(obj, mark);
     SET_GRAY_BIT(obj);
     if (gc_stack_top < STACK_SIZE) 
@@ -868,12 +872,12 @@ static void make_an_object_gray(pointer_t obj, uint32_t mark) {
 }
 
 static void write_barrier(pointer_t obj, value_t value) {
-    if (is_during_isr && is_during_gc) {
+    if (nested_interrupt_handler > 0 && is_during_gc) {
         if (is_ptr_value(value)) {
             uint32_t mark = current_no_mark ? 0 : 1;
             pointer_t ptr = value_to_ptr(value);
             if (IS_BLACK(obj, mark) && IS_WHITE(ptr, mark)) {
-                make_an_object_gray(ptr, mark);
+                shade_object(ptr, mark);
             }
         }
     }
@@ -892,7 +896,7 @@ static void trace_from_an_object(uint32_t mark) {
                 if (is_ptr_value(next) && next != VALUE_NULL) {
                     pointer_t nextp = value_to_ptr(next);
                     if (GET_MARK_BIT(nextp) != mark) {    // not visisted yet
-                        make_an_object_gray(nextp, mark);
+                        shade_object(nextp, mark);
                     }
                 }
             }
@@ -1014,10 +1018,12 @@ static void sweep_objects(uint32_t mark) {
 }
 
 void gc_run() {
+    is_during_gc = true;
     uint32_t mark = current_no_mark ? 0 : 1;
     mark_objects(gc_root_set_head, mark);
     sweep_objects(mark);
     current_no_mark = mark;
+    is_during_gc = false;
 }
 
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
