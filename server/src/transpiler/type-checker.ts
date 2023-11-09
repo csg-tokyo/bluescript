@@ -192,7 +192,6 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   classDeclaration(node: AST.ClassDeclaration, names: NameTable<Info>): void {
     this.assert(names.isGlobal(), 'a class must be declared at top level', node)
-    this.assert(node.id != null, 'no class name specified', node)
     this.assert(!node.implements, '"implements" is not supported', node)
     this.assert(!node.abstract, 'abstract class is not supported', node)
     const superClassName = node.superClass
@@ -207,6 +206,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
       else
         this.assertSyntax(false, superClassName)
+    }
+
+    if (!node.id) {
+      this.assert(false, 'no class name specified', node)
+      return
     }
 
     const className = node.id.name

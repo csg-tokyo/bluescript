@@ -1333,7 +1333,7 @@ test('convert an any-type value to an array', () => {
   expect(() => compileAndRun(src)).toThrow(/cannot convert any to string\[\]/)
 })
 
-test.only('class declaration', () => {
+test('class declaration', () => {
   const src = `
   class Position {
     x: integer
