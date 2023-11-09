@@ -12,9 +12,9 @@
 SemaphoreHandle_t executor_semphr;
 
 
-uint8_t __attribute__((section(".iram0.data"))) virtual_text[1000] = {0x36, 0x41, 0x00, 0x0c, 0x22, 0x1d, 0xf0, 0x00};
-uint8_t __attribute__((section(".iram0.data"))) virtual_literal[500];
-uint8_t virtual_data[2000];
+uint8_t IRAM_ATTR virtual_text[28000];
+uint8_t IRAM_ATTR virtual_literal[6000];
+uint8_t DRAM_ATTR virtual_data[30000];
 
 
 uint32_t entry_point;
@@ -25,6 +25,9 @@ int data_used_memory = 0;
 
 
 void init(void) {
+    printf("virtual_text: %p\n", virtual_text);
+    printf("virtual_literal: %p\n", virtual_literal);
+    printf("virtual_data: %p\n", virtual_data);
     gc_initialize();
     memset(virtual_text, 0, sizeof(virtual_text));
     memset(virtual_literal, 0, sizeof(virtual_literal));
@@ -78,6 +81,7 @@ void executor_clear(uint8_t *value, int value_len) {
 
 
 void exec_code_task(void *arg) {
+    init();
     executor_semphr = xSemaphoreCreateBinary();
 
     while (true) {

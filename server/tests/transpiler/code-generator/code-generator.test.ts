@@ -1298,6 +1298,20 @@ test('2d float array', () => {
   expect(compileAndRun(src)).toBe('0.200000\n0.200000\n')
 })
 
+test('2d string array', () => {
+  const src = `
+  let sarray1 = ['a', 'b', 'c'];
+  let sarray2 = ['x', 'y', 'z'];
+  let sarray12 = [sarray1, sarray2];
+  print(sarray12[0][1]);
+  sarray12[0][1] = 'd';
+  print(sarray12[0][1]);
+  const arr = new Array<string[]>(4, ['a']);
+  print(arr[3][0]);
+`
+  expect(compileAndRun(src)).toBe('b\nd\na\n')
+})
+
 test('convert an any-type value to an array', () => {
   const src = `
   function foo(n: integer) {

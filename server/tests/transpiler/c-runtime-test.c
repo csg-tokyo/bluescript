@@ -196,18 +196,13 @@ void test_vector() {
     Assert_equals(value_to_int(gc_array_length(arr2)), 4);
 }
 
-static value_t gc_array_set(value_t obj, value_t index, value_t new_value) {
-    *gc_array_get(obj, value_to_int(index)) = new_value;
-    return new_value;
-}
-
 void test_array() {
     value_t arr = gc_new_array2(4);
     value_t arr2 = gc_new_array2(4);
     for (int i = 0; i < 4; i++)
-        Assert_equals(gc_array_set(arr2, int_to_value(i), int_to_value(i)), int_to_value(i));
+        Assert_equals(gc_array_set(arr2, i, int_to_value(i)), int_to_value(i));
     for (int i = 0; i < 4; i++)
-        gc_array_set(arr, int_to_value(i), int_to_value(i));
+        gc_array_set(arr, i, int_to_value(i));
     for (int i = 0; i < 4; i++) {
         value_t e = *gc_array_get(arr2, i);
         Assert_equals(value_to_int(e), i);
@@ -331,8 +326,8 @@ void test_gc_long_chain() {
         root_set.values[1] = obj2;
         value_t obj3 = gc_new_array2(1);
         root_set.values[2] = obj3;
-        gc_array_set(obj2, int_to_value(1), obj);
-        gc_array_set(obj2, int_to_value(0), obj3);
+        gc_array_set(obj2, 1, obj);
+        gc_array_set(obj2, 0, obj3);
         obj = obj2;
         root_set.values[0] = obj;
         root_set.values[1] = VALUE_NULL;
@@ -361,12 +356,12 @@ void test_gc_liveness() {
     value_t obj, obj2, obj3;
     root_set.values[0] = obj = gc_new_array2(4);
     gc_new_array2(1);
-    gc_array_set(obj, int_to_value(0), obj2 = gc_new_bytearray(8, 0));
+    gc_array_set(obj, 0, obj2 = gc_new_bytearray(8, 0));
     gc_bytearray_set(obj2, int_to_value(0), obj);
     gc_new_array2(1);
     gc_new_array2(1);
-    gc_array_set(obj, int_to_value(1), obj3 = gc_new_array2(2));
-    gc_array_set(obj3, int_to_value(0), obj);
+    gc_array_set(obj, 1, obj3 = gc_new_array2(2));
+    gc_array_set(obj3, 0, obj);
     root_set.values[1] = gc_new_string("test");
 
     gc_run();

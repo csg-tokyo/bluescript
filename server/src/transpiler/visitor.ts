@@ -67,6 +67,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'TSNullKeyword', (visitor, node, env) => visitor.tsNullKeyword(node as AST.TSNullKeyword, env) ],
         [ 'TSUndefinedKeyword', (visitor, node, env) => visitor.tsUndefinedKeyword(node as AST.TSUndefinedKeyword, env) ],
         [ 'TSTypeAliasDeclaration', (visitor, node, env) => visitor.tsTypeAliasDeclaration(node as AST.TSTypeAliasDeclaration, env) ],
+        [ 'ExportNamedDeclaration', (visitor, node, env) => visitor.exportNamedDeclaration(node as AST.ExportNamedDeclaration, env) ],
     ])
 
     visit(node: Node, env: Environment): void {
@@ -133,6 +134,7 @@ export abstract class NodeVisitor<Environment> {
     abstract tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void
     abstract tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void
     abstract tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: Environment): void
+    abstract exportNamedDeclaration(node: AST.ExportNamedDeclaration, env: Environment): void
 }
 
 export class NullVisitor<Environment> extends NodeVisitor<Environment> {
@@ -187,6 +189,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     tsNullKeyword(node: AST.TSNullKeyword, env: Environment): void {}
     tsUndefinedKeyword(node: AST.TSUndefinedKeyword, env: Environment): void {}
     tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: Environment): void {}
+    exportNamedDeclaration(node: AST.ExportNamedDeclaration, env: Environment): void {}
 }
 
 export function file<E>(node: AST.File, env: E, v: NodeVisitor<E>): void {

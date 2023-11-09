@@ -155,7 +155,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
             else
               break
               // cannot determine wether a given array
-              //is an array of String or Any
+              // is an array of String or Any
           }
 
           const info = to.runtimeTypeInfo()
@@ -268,6 +268,10 @@ export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
     return '(*gc_bytearray_get('
   else
     return `(*gc_array_get(`
+}
+
+export function arrayElementSetter() {
+  return `gc_array_set(`
 }
 
 // makes an array object from elements
