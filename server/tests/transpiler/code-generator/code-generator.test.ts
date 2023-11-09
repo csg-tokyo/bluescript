@@ -763,6 +763,26 @@ test('any to null', () => {
   expect(compileAndRun(src)).toBe('null\n')
 })
 
+test('null to any or string', () => {
+  const src = `
+  function foo(obj: any) {
+    obj = null
+    return obj
+  }
+  print(foo(3))
+  `
+
+  const src2 = `
+  function foo(obj: string) {
+    obj = null  // type error
+    return obj
+  }
+  `
+
+  expect(compileAndRun(src)).toBe('null\n')
+  expect(() => compileAndRun(src2)).toThrow(/not assignable.*line 3/)
+})
+
 test('wrong assignment from any', () => {
   const src = `
   function foo(obj: any) {
@@ -1297,6 +1317,17 @@ test('convert an any-type value to an array', () => {
   foo(3)
   `
   expect(() => compileAndRun(src)).toThrow(/cannot convert any to string\[\]/)
+})
+
+test.only('class declaration', () => {
+  const src = `
+  class Position {
+    x: integer
+    y: integer
+    xmove(dx: integer) {}
+  }
+  `
+  expect(compileAndRun(src)).toBe('')
 })
 
 test('save arguments into rootset', () => {

@@ -311,6 +311,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.write('continue;')
   }
 
+  classDeclaration(node: AST.ClassDeclaration, env: VariableEnv): void {}
+  classBody(node: AST.ClassBody, env: VariableEnv): void {}
+  classProperty(node: AST.ClassProperty, env: VariableEnv): void {}
+  classMethod(node: AST.ClassMethod, env: VariableEnv): void {}
+
   variableDeclaration(node: AST.VariableDeclaration, env: VariableEnv): void {
     if (this.isConstFunctionDeclaration(node, env))
       return
@@ -800,6 +805,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     env.deallocate(numOfObjectArgs)
     this.result.write(')')
+  }
+
+  thisExpression(node: AST.ThisExpression, env: VariableEnv): void {
+    this.result.write('0')
   }
 
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {

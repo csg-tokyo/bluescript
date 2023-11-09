@@ -1,6 +1,6 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
-import AST, { Node } from "@babel/types"
+import AST, { Node, thisExpression } from "@babel/types"
 import { ErrorLog } from "./utils"
 
 // For the specifications of Node objects,
@@ -31,6 +31,10 @@ export abstract class NodeVisitor<Environment> {
         [ 'BreakStatement', (visitor, node, env) => visitor.breakStatement(node as AST.BreakStatement, env) ],
         [ 'ContinueStatement', (visitor, node, env) => visitor.continueStatement(node as AST.ContinueStatement, env) ],
         // Declaration
+        [ 'ClassDeclaration', (visitor, node, env) => visitor.classDeclaration(node as AST.ClassDeclaration, env) ],
+        [ 'ClassBody', (visitor, node, env) => visitor.classBody(node as AST.ClassBody, env) ],
+        [ 'ClassProperty', (visitor, node, env) => visitor.classProperty(node as AST.ClassProperty, env) ],
+        [ 'ClassMethod', (visitor, node, env) => visitor.classMethod(node as AST.ClassMethod, env) ],
         [ 'VariableDeclaration', (visitor, node, env) => visitor.variableDeclaration(node as AST.VariableDeclaration, env) ],
         [ 'VariableDeclarator', (visitor, node, env) => visitor.variableDeclarator(node as AST.VariableDeclarator, env) ],
         [ 'FunctionDeclaration', (visitor, node, env) => visitor.functionDeclaration(node as AST.FunctionDeclaration, env) ],
@@ -44,6 +48,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'ConditionalExpression', (visitor, node, env) => visitor.conditionalExpression(node as AST.ConditionalExpression, env) ],
         [ 'CallExpression', (visitor, node, env) => visitor.callExpression(node as AST.CallExpression, env) ],
         [ 'NewExpression', (visitor, node, env) => visitor.newExpression(node as AST.NewExpression, env) ],
+        [ 'ThisExpression', (visitor, node, env) => visitor.thisExpression(node as AST.ThisExpression, env) ],
         [ 'ArrayExpression', (visitor, node, env) => visitor.arrayExpression(node as AST.ArrayExpression, env) ],
         [ 'MemberExpression', (visitor, node, env) => visitor.memberExpression(node as AST.MemberExpression, env) ],
         [ `TaggedTemplateExpression`,  (visitor, node, env) => visitor.taggedTemplateExpression(node as AST.TaggedTemplateExpression, env) ],
@@ -94,6 +99,10 @@ export abstract class NodeVisitor<Environment> {
     abstract emptyStatement(node: AST.EmptyStatement, env: Environment): void
     abstract breakStatement(node: AST.BreakStatement, env: Environment): void
     abstract continueStatement(node: AST.ContinueStatement, env: Environment): void
+    abstract classDeclaration(node: AST.ClassDeclaration, env: Environment): void
+    abstract classBody(node: AST.ClassBody, env: Environment): void
+    abstract classProperty(node: AST.ClassProperty, env: Environment): void
+    abstract classMethod(node: AST.ClassMethod, env: Environment): void
     abstract variableDeclaration(node: AST.VariableDeclaration, env: Environment): void
     abstract variableDeclarator(node: AST.VariableDeclarator, env: Environment): void
     abstract functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void
@@ -106,6 +115,7 @@ export abstract class NodeVisitor<Environment> {
     abstract conditionalExpression(node: AST.ConditionalExpression, env: Environment): void
     abstract callExpression(node: AST.CallExpression, env: Environment): void
     abstract newExpression(node: AST.NewExpression, env: Environment): void
+    abstract thisExpression(node: AST.ThisExpression, env: Environment): void
     abstract arrayExpression(node: AST.ArrayExpression, env: Environment): void
     abstract memberExpression(node: AST.MemberExpression, env: Environment): void
     abstract taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: Environment): void
@@ -143,6 +153,10 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     emptyStatement(node: AST.EmptyStatement, env: Environment): void {}
     breakStatement(node: AST.BreakStatement, env: Environment): void {}
     continueStatement(node: AST.ContinueStatement, env: Environment): void {}
+    classDeclaration(node: AST.ClassDeclaration, env: Environment): void {}
+    classBody(node: AST.ClassBody, env: Environment): void {}
+    classProperty(node: AST.ClassProperty, env: Environment): void {}
+    classMethod(node: AST.ClassMethod, env: Environment): void {}
     variableDeclaration(node: AST.VariableDeclaration, env: Environment): void {}
     variableDeclarator(node: AST.VariableDeclarator, env: Environment): void {}
     functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void {}
@@ -155,6 +169,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     conditionalExpression(node: AST.ConditionalExpression, env: Environment): void {}
     callExpression(node: AST.CallExpression, env: Environment): void {}
     newExpression(node: AST.NewExpression, env: Environment): void {}
+    thisExpression(node: AST.ThisExpression, env: Environment): void {}
     arrayExpression(node: AST.ArrayExpression, env: Environment): void {}
     memberExpression(node: AST.MemberExpression, env: Environment): void {}
     taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: Environment): void {}

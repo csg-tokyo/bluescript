@@ -20,6 +20,7 @@ import {
   addNameTable, addStaticType, getStaticType, BasicNameTableMaker,
   addCoercionFlag, getNameTable
 } from './names'
+import { InstanceType } from './classes'
 
 // entry point for just running a type checker
 export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable) {
@@ -189,6 +190,98 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.assert(!node.label, 'labeled continue is not supported', node)
   }
 
+  classDeclaration(node: AST.ClassDeclaration, names: NameTable<Info>): void {
+    this.assert(names.isGlobal(), 'a class must be declared at top level', node)
+    this.assert(node.id != null, 'no class name specified', node)
+    this.assert(!node.implements, '"implements" is not supported', node)
+    this.assert(!node.abstract, 'abstract class is not supported', node)
+    const superClassName = node.superClass
+    let superClass: ObjectType = objectType
+    if (superClassName) {
+      if (AST.isIdentifier(superClassName)) {
+        const info = names.lookup(superClassName.name)
+        if (info && info.isTypeName && info.type instanceof ObjectType)
+          superClass = info.type
+        else
+          this.assert(false, 'invalid super class', node)
+      }
+      else
+        this.assertSyntax(false, superClassName)
+    }
+
+    const className = node.id.name
+    const clazz = new InstanceType(className, superClass)
+    this.result = clazz
+
+    if (this.firstPass) {
+      const success = names.record(node.id.name, clazz, this.maker, _ => _.isTypeName = true)
+      this.assert(success, `'${className}' class has already been declared`, node)
+    }
+
+    this.visit(node.body, names)
+
+    this.result = clazz
+    if (!this.firstPass)
+      names.classTable().addClass(className, clazz)
+  }
+
+  classBody(node: AST.ClassBody, names: NameTable<Info>): void {
+    // this.result is a class type.
+    const clazz = this.result
+    const classBlock = this.maker.block(names)
+    classBlock.record('this', clazz, this.maker)
+    for (const b of node.body) {
+      this.result = clazz
+      this.visit(b, classBlock)
+    }
+  }
+
+  classProperty(node: AST.ClassProperty, names: NameTable<Info>): void {
+    if (this.firstPass)
+      return
+
+    const clazz = this.result as InstanceType
+    this.assert(!node.static, 'static property is not supported', node)
+    this.assert(!node.abstract, 'abstract property is not supported', node)
+    this.assert(!node.accessibility, 'cannot specify accessibility', node)
+    let name = '??'
+    if (AST.isIdentifier(node.key))
+      name = node.key.name
+    else
+      this.assert(false, 'bad property name', node.key)
+
+    this.assert(!node.value, 'initial value is not supported', node)
+    if (node.typeAnnotation)
+      this.visit(node.typeAnnotation, names)
+    else
+      this.result = Any
+
+    const success = clazz.addProperty(name, this.result)
+    this.assert(success, `duplicate property name: ${name}`, node)
+  }
+
+  classMethod(node: AST.ClassMethod, names: NameTable<Info>): void {
+    const clazz = this.result as InstanceType
+    this.assert(!node.static, 'static method is not supported', node)
+    this.assert(!node.abstract, 'abstract method is not supported', node)
+    this.assert(node.kind === 'constructor' || node.kind === 'method', 'getter/setter is not supported', node)
+    if (this.firstPass)
+      if (AST.isIdentifier(node.key)) {
+        this.functionDeclarationPass1(node, null, names)
+        const ftype = getStaticType(node)
+        if (ftype === undefined || !(ftype instanceof FunctionType))
+          throw new Error('fatal: a method type is not recorded')
+        else {
+          const success = clazz.addProperty(node.key.name, ftype)
+          this.assert(success, `duplicate method name: ${node.key.name}`, node)
+        }
+      }
+      else
+        this.assert(false, 'bad method name', node.key)
+    else
+      this.functionDeclarationPass2(node, names)
+  }
+
   variableDeclaration(node: AST.VariableDeclaration, names: NameTable<Info>): void {
     if (this.isConstFunctionDeclaration(node, names))
       return
@@ -215,9 +308,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     let alreadyDeclared = false
     if (!this.firstPass) {
       varType = names.lookupInThis(varName)?.type
-      if (varType !== undefined)         // If a variable is global, lookup().type does not return undefined
-        alreadyDeclared = true           // during the 2nd pass.  Otherwise, lookup().type returns undefined.
-    }
+      if (varType !== undefined)         // If a variable is global, lookup(varName).type does not return undefined
+        alreadyDeclared = true           // during the 2nd pass.  Otherwise, lookup(varName).type returns undefined
+    }                                    // since a new NameTable for a block statement is created for the 2nd pass.
+                                         // So a local variable is recorded in a NameTable during every phase
+                                         // while a global variable is recorded in the first phase only.
 
     if (varType === undefined && typeAnno != null) {
       this.assertSyntax(AST.isTSTypeAnnotation(typeAnno), typeAnno)
@@ -274,9 +369,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.functionDeclarationPass1(node, node.id, names)
     else
       this.functionDeclarationPass2(node, names)
+
+    // a function is recorded in a NameTable in the first phase only.
   }
 
-  functionDeclarationPass1(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
+  functionDeclarationPass1(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
                            nodeId: AST.Identifier | null | undefined, names: NameTable<Info>): void {
     this.assert(!node.generator, 'generator functions are not supported', node)
     this.assert(!node.async, 'async functions are not supported', node)
@@ -319,7 +416,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             `function '${nodeId.name}' is declared again with a different type`, node)
   }
 
-  functionDeclarationPass2(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression, names: NameTable<Info>): void {
+  functionDeclarationPass2(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+                           names: NameTable<Info>): void {
     const funcEnv = this.maker.function(names)
     this.functionParameters(node, funcEnv)
     const ftype = getStaticType(node)
@@ -331,7 +429,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     addNameTable(node, funcEnv)
   }
 
-  functionParameters(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression, names: NameTable<Info>): StaticType[] {
+  functionParameters(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+                     names: NameTable<Info>): StaticType[] {
     const paramTypes: StaticType[] = []
     for (const param of node.params) {
       this.assert(AST.isIdentifier(param), 'bad parameter name', node)
@@ -654,6 +753,18 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const atype = new ArrayType(etype)
     this.addStaticType(node, atype)
     this.result = atype
+  }
+
+  thisExpression(node: AST.ThisExpression, names: NameTable<Info>): void {
+    const nameInfo = names.lookup('this')
+    if (nameInfo !== undefined) {
+      const info = nameInfo as NameInfo
+      this.result = info.type
+    }
+    else {
+      this.assert(this.firstPass, `'this' is not available here`, node)
+      this.result = Any
+    }
   }
 
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {

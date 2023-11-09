@@ -2,6 +2,7 @@
 
 import { Node } from '@babel/types'
 import type { StaticType } from './types'
+import { ClassTable } from './classes'
 
 // Elements of NameTable<T>
 
@@ -67,6 +68,7 @@ export interface NameTable<Info extends NameInfo> {
   returnType(): StaticType | undefined | null   // null if the table is for top-level
   setReturnType(t: StaticType): void
   isGlobal(): boolean       // true if the table is for top-level
+  classTable(): ClassTable
 }
 
 export abstract class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
@@ -137,6 +139,8 @@ export abstract class GlobalNameTable<Info extends NameInfo> implements NameTabl
   }
 
   isGlobal() { return true }
+
+  abstract classTable(): ClassTable
 }
 
 export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
@@ -187,6 +191,8 @@ export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
   }
 
   isGlobal() { return false }
+
+  classTable() { return this.parent.classTable() }
 }
 
 export abstract class FunctionNameTable<Info extends NameInfo> extends BlockNameTable<Info> {
@@ -269,7 +275,24 @@ class BasicFunctionNameTable extends FunctionNameTable<NameInfo> {
 }
 
 export class BasicGlobalNameTable extends GlobalNameTable<NameInfo> {
+  private classTableObject?: ClassTable
+
+  constructor(parent?: NameTable<NameInfo>) {
+    super(parent)
+    if (parent)
+      this.classTableObject = undefined
+    else
+      this.classTableObject = new ClassTable()
+  }
+
   override makeFreeInfo(free: NameInfo) {
     return new FreeNameInfo(free)
+  }
+
+  override classTable(): ClassTable {
+    if (this.classTableObject)
+      return this.classTableObject
+    else
+      return this.classTable()
   }
 }

@@ -5,6 +5,7 @@ import { Null, FunctionType, StaticType, isPrimitiveType } from '../types'
 import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../names'
+import { ClassTable } from '../classes'
 import { rootSetVariable } from './c-runtime'
 
 
@@ -89,8 +90,27 @@ class FunctionVarNameTable extends FunctionNameTable<VariableInfo> {
 }
 
 export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
+  private classTableObject?: ClassTable
+
+  constructor(parent?: NameTable<VariableInfo>) {
+    super(parent)
+    if (parent)
+      this.classTableObject = undefined
+    else
+      this.classTableObject = new ClassTable()
+  }
+
   override makeFreeInfo(free: VariableInfo) {
     return new FreeVariableInfo(free)
+  }
+
+  override classTable(): ClassTable {
+    if (this.classTableObject)
+      return this.classTableObject
+    else if (this.parent)
+      return this.parent.classTable()
+    else
+      throw new Error('fatal: not class table found')
   }
 }
 
