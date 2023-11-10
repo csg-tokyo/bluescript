@@ -294,12 +294,11 @@ value_t minus_any_value(value_t v) {
 
 // heap objects
 
-static bool is_during_gc = false;
-// Interrupt handler should count up this value at the beginning, and count down at the end.
-// This count-up/count-down system is used, because the interrupt handler can be nested.
-// If this value 0, it means no interrupt handler working.
+static bool gc_is_running = false;
+// An interrupt handler must count up this value at the beginning, and count down at the end.
+// Note that an interrupt handler may be nested.
+// When this value is 0, no interrupt handler is working.
 static int nested_interrupt_handler = 0;
-
 
 static void write_barrier(pointer_t obj, value_t value);
 
@@ -862,7 +861,7 @@ static pointer_t gc_stack[STACK_SIZE];
 static uint32_t gc_stack_top = 0;
 static bool gc_stack_overflowed = false;
 
-static void shade_object(pointer_t obj, uint32_t mark) {
+static void push_object_to_stack(pointer_t obj, uint32_t mark) {
     WRITE_MARK_BIT(obj, mark);
     SET_GRAY_BIT(obj);
     if (gc_stack_top < STACK_SIZE) 
@@ -872,12 +871,12 @@ static void shade_object(pointer_t obj, uint32_t mark) {
 }
 
 static void write_barrier(pointer_t obj, value_t value) {
-    if (nested_interrupt_handler > 0 && is_during_gc) {
+    if (nested_interrupt_handler > 0 && gc_is_running) {
         if (is_ptr_value(value)) {
             uint32_t mark = current_no_mark ? 0 : 1;
             pointer_t ptr = value_to_ptr(value);
             if (IS_BLACK(obj, mark) && IS_WHITE(ptr, mark)) {
-                shade_object(ptr, mark);
+                push_object_to_stack(ptr, mark);
             }
         }
     }
@@ -896,7 +895,7 @@ static void trace_from_an_object(uint32_t mark) {
                 if (is_ptr_value(next) && next != VALUE_NULL) {
                     pointer_t nextp = value_to_ptr(next);
                     if (GET_MARK_BIT(nextp) != mark) {    // not visisted yet
-                        shade_object(nextp, mark);
+                        push_object_to_stack(nextp, mark);
                     }
                 }
             }
@@ -1018,12 +1017,12 @@ static void sweep_objects(uint32_t mark) {
 }
 
 void gc_run() {
-    is_during_gc = true;
+    gc_is_running = true;
     uint32_t mark = current_no_mark ? 0 : 1;
     mark_objects(gc_root_set_head, mark);
     sweep_objects(mark);
     current_no_mark = mark;
-    is_during_gc = false;
+    gc_is_running = false;
 }
 
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
