@@ -131,6 +131,16 @@ static void runtime_index_error(int32_t idx, int32_t len, char* name) {
     longjmp(long_jump_buffer, -1);
 }
 
+static value_t runtime_memory_allocation_error(const char* msg) {
+    const char fmt[] = "** runtime memory allocation error: %s\n";
+    if (strlen(msg) + sizeof(fmt) / sizeof(fmt[0]) >= sizeof(error_message) / sizeof(error_message[0]))
+        msg = "??";
+
+    sprintf(error_message, fmt, msg);
+    longjmp(long_jump_buffer, -1);
+    return 0;
+}
+
 int32_t safe_value_to_int(value_t v) {
     if (!is_int_value(v))
         runtime_type_error("value_to_int");
@@ -283,6 +293,17 @@ value_t minus_any_value(value_t v) {
 }
 
 // heap objects
+
+static bool gc_is_running = false;
+// An interrupt handler must count up this value at the beginning, and count down at the end.
+// Note that an interrupt handler may be nested.
+// When this value is 0, no interrupt handler is working.
+static int nested_interrupt_handler = 0;
+
+static void write_barrier(pointer_t obj, value_t value);
+
+void interrupt_handler_start() { nested_interrupt_handler++ ; }
+void interrupt_handler_end() { nested_interrupt_handler--; }
 
 void gc_initialize() {
     heap_memory[0] = 2;  // points to the first word of linked free blocks.
@@ -731,6 +752,7 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = value_to_int(objp->body[1]);
     if (0 <= index && index < len) {
+        write_barrier(objp, new_value);
         fast_vector_set(objp->body[0], index, new_value);
         return new_value;
     } else {
@@ -795,6 +817,10 @@ static pointer_t allocate_heap_base(uint16_t word_size) {
 }
 
 static pointer_t allocate_heap(uint16_t word_size) {
+    if (nested_interrupt_handler > 0) {
+        runtime_memory_allocation_error("you cannot create objects in interrupt handler.");
+    }
+
     pointer_t ptr = allocate_heap_base(word_size);
     if (ptr != NULL)
         return ptr;
@@ -835,6 +861,27 @@ static pointer_t gc_stack[STACK_SIZE];
 static uint32_t gc_stack_top = 0;
 static bool gc_stack_overflowed = false;
 
+static void push_object_to_stack(pointer_t obj, uint32_t mark) {
+    WRITE_MARK_BIT(obj, mark);
+    SET_GRAY_BIT(obj);
+    if (gc_stack_top < STACK_SIZE) 
+        gc_stack[gc_stack_top++] = obj;
+    else 
+        gc_stack_overflowed = true;
+}
+
+static void write_barrier(pointer_t obj, value_t value) {
+    if (nested_interrupt_handler > 0 && gc_is_running) {
+        if (is_ptr_value(value)) {
+            uint32_t mark = current_no_mark ? 0 : 1;
+            pointer_t ptr = value_to_ptr(value);
+            if (IS_BLACK(obj, mark) && IS_WHITE(ptr, mark)) {
+                push_object_to_stack(ptr, mark);
+            }
+        }
+    }
+}
+
 static void trace_from_an_object(uint32_t mark) {
     while (gc_stack_top > 0) {
         pointer_t obj = gc_stack[--gc_stack_top];
@@ -848,12 +895,7 @@ static void trace_from_an_object(uint32_t mark) {
                 if (is_ptr_value(next) && next != VALUE_NULL) {
                     pointer_t nextp = value_to_ptr(next);
                     if (GET_MARK_BIT(nextp) != mark) {    // not visisted yet
-                        WRITE_MARK_BIT(nextp, mark);
-                        SET_GRAY_BIT(nextp);
-                        if (gc_stack_top < STACK_SIZE) 
-                            gc_stack[gc_stack_top++] = nextp;
-                        else 
-                            gc_stack_overflowed = true;
+                        push_object_to_stack(nextp, mark);
                     }
                 }
             }
@@ -975,10 +1017,12 @@ static void sweep_objects(uint32_t mark) {
 }
 
 void gc_run() {
+    gc_is_running = true;
     uint32_t mark = current_no_mark ? 0 : 1;
     mark_objects(gc_root_set_head, mark);
     sweep_objects(mark);
     current_no_mark = mark;
+    gc_is_running = false;
 }
 
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {

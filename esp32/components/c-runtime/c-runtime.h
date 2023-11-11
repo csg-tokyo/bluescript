@@ -152,6 +152,10 @@ extern value_t CR_SECTION any_post_decrement(value_t* expr);
 
 extern value_t CR_SECTION minus_any_value(value_t v);
 
+// The following functions should be called at start or end of interrupt handler.
+extern void CR_SECTION interrupt_handler_start();
+extern void CR_SECTION interrupt_handler_end();
+
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
