@@ -11,7 +11,7 @@ export class NameInfo {
   isTypeName: boolean
   isConst: boolean     // const or let
   isFunction: boolean  // top-level function
-  captured: boolean    // captured by a lambda function
+  captured: boolean    // captured by a lambda function or from its enclosing function.
 
   constructor(t: StaticType) {
     this.type = t
@@ -41,9 +41,11 @@ export class FreeNameInfo extends NameInfo {
 
   constructor(name: NameInfo) {
     super(name.type)
+    this.copyFrom(name)
+    while (name instanceof FreeNameInfo)
+      name = name.nameInfo
+
     this.nameInfo = name
-    this.isConst = name.isConst
-    this.isFunction = name.isFunction
   }
 }
 
