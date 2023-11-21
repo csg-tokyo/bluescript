@@ -191,12 +191,28 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   classDeclaration(node: AST.ClassDeclaration, names: NameTable<Info>): void {
+    const className = node.id.name
+    if (!this.firstPass) {
+      // 2nd phase
+      const info = names.lookup(className)
+      if (info && info.type instanceof InstanceType) {
+        const clazz = info.type
+        this.result = clazz
+        this.visit(node.body, names)
+        names.classTable().addClass(className, clazz)
+        this.result = clazz
+        return
+      }
+      else
+        throw new Error('fatal: a class was not recorded in the first phase.')
+    }
+
     this.assert(names.isGlobal(), 'a class must be declared at top level', node)
     this.assert(!node.implements, '"implements" is not supported', node)
     this.assert(!node.abstract, 'abstract class is not supported', node)
     const superClassName = node.superClass
     let superClass: ObjectType = objectType
-    if (superClassName) {
+    if (superClassName)
       if (AST.isIdentifier(superClassName)) {
         const info = names.lookup(superClassName.name)
         if (info && info.isTypeName && info.type instanceof ObjectType)
@@ -206,27 +222,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
       else
         this.assertSyntax(false, superClassName)
-    }
 
-    if (!node.id) {
-      this.assert(false, 'no class name specified', node)
-      return
-    }
-
-    const className = node.id.name
     const clazz = new InstanceType(className, superClass)
+    const success = names.record(className, clazz, this.maker, _ => _.isTypeName = true)
+    this.assert(success, `'${className}' class has already been declared`, node)
+
     this.result = clazz
-
-    if (this.firstPass) {
-      const success = names.record(node.id.name, clazz, this.maker, _ => _.isTypeName = true)
-      this.assert(success, `'${className}' class has already been declared`, node)
-    }
-
     this.visit(node.body, names)
-
     this.result = clazz
-    if (!this.firstPass)
-      names.classTable().addClass(className, clazz)
   }
 
   classBody(node: AST.ClassBody, names: NameTable<Info>): void {
@@ -241,7 +244,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   classProperty(node: AST.ClassProperty, names: NameTable<Info>): void {
-    if (this.firstPass)
+    if (!this.firstPass)
       return
 
     const clazz = this.result as InstanceType
@@ -510,12 +513,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   updateExpression(node: AST.UpdateExpression, names: NameTable<Info>): void {
     // const prefix = node.prefix           true if ++k, but false if k++
     this.assertLvalue(node.argument, names)
-    if (AST.isMemberExpression(node.argument)) {
-      this.lvalueMember(node.argument, names)
-      this.result = Any
-    }
-    else
-      this.visit(node.argument, names)
+    this.visit(node.argument, names)
 
     const op = node.operator    // ++ or --
     this.assert(isNumeric(this.result) || this.result === Any,
@@ -625,16 +623,18 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   memberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, names: NameTable<Info>): void {
     this.assertLvalue(leftNode, names)
-    this.lvalueMember(leftNode, names)
-    const receiverType = this.result
-    if (!(receiverType instanceof ArrayType)) {
-      this.assert(this.firstPass, 'not supported member access', node)
-      this.visit(node.right, names)
-      this.result = Any
-      return
+    const checked = this.checkMemberExpr(leftNode, names)
+    if (leftNode.computed) {
+      if (!checked) {
+        this.visit(node.right, names)
+        this.result = Any
+        return
+      }
     }
+    else
+      this.assert(false, 'not supported member access', node)
 
-    const elementType = receiverType.elementType
+    const elementType = this.result
     this.visit(node.right, names)
     const rightType = this.result
     const op = node.operator
@@ -732,9 +732,24 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   newExpression(node: AST.NewExpression, names: NameTable<Info>): void {
     const className = node.callee
-    this.assert(AST.isIdentifier(className) && className.name === 'Array',
-                'unsupported type name for new', node)
+    if (AST.isIdentifier(className)) {
+      if (className.name === 'Array') {
+        this.newArrayExpression(node, names)
+        return
+      }
+      else {
+        const info = names.lookup(className.name)
+        if (info?.isTypeName && info.type instanceof InstanceType) {
+          this.newObjectExpression(node, info.type, names)
+          return
+        }
+      }
+    }
 
+    this.assert(false, 'bad type name for new', node)
+  }
+
+  private newArrayExpression(node: AST.NewExpression, names: NameTable<Info>): void {
     const typeParams = node.typeParameters?.params?.map(e => {
       this.visit(e, names)
       return this.result
@@ -757,6 +772,15 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const atype = new ArrayType(etype)
     this.addStaticType(node, atype)
     this.result = atype
+  }
+
+  private newObjectExpression(node: AST.NewExpression, type: InstanceType, names: NameTable<Info>): void {
+    const args = node.arguments
+    for (let i = 0; i < args.length; i++)
+      this.callExpressionArg(args[i], Any, names)
+
+    this.addStaticType(node, type)
+    this.result = type
   }
 
   thisExpression(node: AST.ThisExpression, names: NameTable<Info>): void {
@@ -799,33 +823,51 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   memberExpression(node: AST.MemberExpression, names: NameTable<Info>): void {
     // an array access is recognized as a member access.
     this.checkMemberExpr(node, names)
-    if (this.result instanceof ArrayType) {
-      this.result = this.result.elementType
-      this.addStaticType(node, this.result)
-    }
-    else
-      this.assert(this.firstPass, 'an element access to a non-array', node.object)
   }
 
+  // This returns false when the given expression is array access but the array type
+  // is unknown.  Otherwise, it returns true.
   private checkMemberExpr(node: AST.MemberExpression, names: NameTable<Info>) {
     this.assert(AST.isExpression(node.object), 'not supported object', node.object)
-    this.assert(node.computed, 'a property access are not supported', node)
-    this.assert(AST.isExpression(node.property), 'a wrong property name', node.property)
-    this.visit(node.property, names)
-    this.assert(this.firstPass || this.result === Integer || this.result === Any,
+    if (node.computed) {
+      // an array access like a[b]
+      this.assert(AST.isExpression(node.property), 'a wrong index expression', node.property)
+      this.visit(node.property, names)
+      this.assert(this.firstPass || this.result === Integer || this.result === Any,
                 'an array index must be an integer', node.property)
-    this.addCoercionIfAny(node.property, this.result)
-    this.visit(node.object, names)
-  }
+      this.addCoercionIfAny(node.property, this.result)
+      this.visit(node.object, names)
+      if (this.result instanceof ArrayType) {
+        this.result = this.result.elementType
+        this.addStaticType(node, this.result)
+      }
+      else {
+        this.assert(this.firstPass, 'an element access to a non-array', node.object)
+        return false    // an array access but the object is unknown.
+      }
+    }
+    else {
+      // a property access like a.b
+      if (AST.isIdentifier(node.property)) {
+        const propertyName = node.property.name
+        this.visit(node.object, names)
+        const type = this.result
+        this.addStaticType(node.object, type)
+        if (type instanceof InstanceType) {
+          const typeAndIndex  = type.findProperty(propertyName)
+          if (typeAndIndex) {
+            this.result = typeAndIndex[0]
+            return true
+          }
+        }
 
-  // As an L-value, an array element must be always regarded as an any-type value
-  // since an array element is stored after conversion to an any-type value.
-  // However, the type checker must prevent bad assignment to an array element.
-  // For example, when an array is integer[], a string must not be assigned to its element.
-  private lvalueMember(node: AST.MemberExpression, names: NameTable<Info>) {
-    this.checkMemberExpr(node, names)
-    this.assert(this.firstPass || this.result instanceof ArrayType, 'an element access to a non-array', node.object)
-    // this.result is the type of node.object
+        this.assert(false, `unknown property name: ${propertyName}`, node.property)
+      }
+      else
+        this.assert(AST.isIdentifier(node.property), 'a wrong property name', node.property)
+    }
+
+    return true
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, names: NameTable<Info>): void {
