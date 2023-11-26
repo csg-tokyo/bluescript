@@ -574,6 +574,17 @@ test('calling a const function', () => {
   expect(compileAndRun(src)).toMatch(/result\n1/)
 })
 
+test('an arrow function cannot capture a local variable', () => {
+  const src = `
+  function foo(n) {
+    const k = n + 1
+    return (i: number) => { return k }
+  }
+  `
+
+  expect(() => { compileAndRun(src) }).toThrow(/not accessible.*arrow.*line 4/)
+})
+
 test('unary operator', () => {
   const src = `
   function foo(n: integer) {
@@ -639,6 +650,20 @@ test('++ operator for const', () => {
   foo(5)
 `
   expect(() => compileAndRun(src)).toThrow(/assignment to constant.*line 4.*\n.*line 5/)
+})
+
+test('++ operator for arrays', () => {
+  const src = `
+  function foo(n: integer[], m: any[]) {
+    print(++n[0])
+    print(n[0]--)
+    print(n[0])
+    print(m[0]++)
+    print(m[0])
+  }
+  foo([3, 2], [7, 'foo'])
+`
+  expect(compileAndRun(src)).toBe('4\n4\n3\n7\n8\n')
 })
 
 test('equality operators', () => {
@@ -1341,7 +1366,32 @@ test('class declaration', () => {
     xmove(dx: integer) {}
   }
   `
+  const src2 = `
+  class BrokenPos {
+    x: integer
+    x: string
+  }
+  `
+
   expect(compileAndRun(src)).toBe('')
+  expect(() => { compileAndRun(src2)}).toThrow(/duplicate property name.*line 4/)
+})
+
+test('make an instance', () => {
+  const src = `
+  class Pos {
+    x: integer
+    y: integer
+  }
+
+  const obj = new Pos()
+  print(obj.x + obj.y)
+  obj.x = 3
+  obj.y = 10
+  print(obj.x + obj.y)
+  `
+
+  expect(compileAndRun(src)).toBe('0\n13\n')
 })
 
 test('save arguments into rootset', () => {

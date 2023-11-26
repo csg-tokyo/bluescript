@@ -5,6 +5,7 @@ import { ErrorLog } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
     ObjectType, objectType, FunctionType,
     StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, sameType, encodeType, } from '../types'
+import { InstanceType } from '../classes'
 
 export const anyTypeInC = 'value_t'
 export const funcTypeInC = 'value_t'
@@ -257,6 +258,7 @@ export function rootSetVariable(index: number | undefined, rootset?: string) {
 // a getter for objects.
 
 export const getObjectProperty = 'get_obj_property'
+export const setObjectProperty = 'set_obj_property'
 
 // a getter/setter function for arrays
 export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
@@ -322,4 +324,43 @@ export const functionGet = 'gc_function_object_ptr'
 
 export function functionBodyName(name: string) {
   return `fbody${name}`
+}
+
+export function classNameInC(name: string) {
+  return `class_${name}`
+}
+
+export function externClassDef(clazz: ObjectType) {
+  if (clazz) {
+    if (clazz === objectType)
+      return 'extern CLASS_OBJECT(object_class, 1);'
+    else
+      return `extern CLASS_OBJECT(${classNameInC(clazz.name())}, 1);`
+  }
+  else
+    return ''
+}
+
+export function classDeclaration(clazz: InstanceType) {
+  const name = clazz.name()
+  const superClass = clazz.superType()
+  let superAddr: string
+  if (!superClass)
+    superAddr = '0'   // NULL
+  else {
+    if (superClass === objectType)
+      superAddr = '&object_class.clazz'
+    else
+      superAddr = `&${classNameInC(superClass.name())}.clazz`
+  }
+
+  const size = clazz.objectSize()
+
+  return `CLASS_OBJECT(${classNameInC(name)}, 0) = {
+    .clazz = { .size = ${size}, .start_index = 0, .name = "${name}", .superclass = ${superAddr} }};`
+}
+
+export function makeInstance(clazz: InstanceType) {
+  const name = clazz.name()
+  return `gc_new_object(&${classNameInC(name)}.clazz)`
 }

@@ -624,15 +624,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   memberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, names: NameTable<Info>): void {
     this.assertLvalue(leftNode, names)
     const checked = this.checkMemberExpr(leftNode, names)
-    if (leftNode.computed) {
-      if (!checked) {
-        this.visit(node.right, names)
-        this.result = Any
-        return
-      }
+    if (!checked && leftNode.computed) {
+      this.visit(node.right, names)
+      this.result = Any
+      return
     }
-    else
-      this.assert(false, 'not supported member access', node)
 
     const elementType = this.result
     this.visit(node.right, names)
@@ -640,7 +636,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const op = node.operator
 
     // this depends on the implementation of array objects
-    const actualType = actualElementType(elementType)
+    const actualType = leftNode.computed ? actualElementType(elementType) : Any
 
     if (op === '=')
       if (isConsistent(rightType, elementType)) {

@@ -20,6 +20,8 @@ export class InstanceType extends ObjectType {
 
   superType(): ObjectType | null { return this.superClass }
 
+  objectSize() { return this.numOfProperties }
+
   forEach(f: (n: string, t: StaticType, i: number) => void) {
     for (const name in this.properties) {
       const value = this.properties[name]

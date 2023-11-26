@@ -4,13 +4,14 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
          ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType } from '../types'
+         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
 import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
+import { InstanceType } from '../classes'
 
 // codeId: an integer more than zero.  It is used for generating a unique name.
 export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
@@ -64,9 +65,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     for (const child of node.body)
       this.visit(child, env2);
 
+    this.signatures += cr.externClassDef(objectType)
+    this.signatures += '\n'
     const externalRoots: { [key: string]: boolean } = {}
     env2.forEachExternalVariable((name, type) => {
-      if (type === Null) {
+      if (name === undefined) {
+        if (type instanceof ObjectType)
+          this.signatures += cr.externClassDef(type)
+        else
+          throw this.errorLog.push('fatal: bad external type', node)
+      }
+      else if (type === undefined) {
         if (externalRoots[name])
           externalRoots[name] = true
           this.signatures += `extern ${cr.declareRootSet(name, 1)}\n`
@@ -311,7 +320,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.write('continue;')
   }
 
-  classDeclaration(node: AST.ClassDeclaration, env: VariableEnv): void {}
+  classDeclaration(node: AST.ClassDeclaration, env: VariableEnv): void {
+    const info = env.table.lookup(node.id.name)
+    if (info && info.type instanceof InstanceType)
+      this.declarations.write(cr.classDeclaration(info.type)).nl()
+  }
+
   classBody(node: AST.ClassBody, env: VariableEnv): void {}
   classProperty(node: AST.ClassProperty, env: VariableEnv): void {}
   classMethod(node: AST.ClassMethod, env: VariableEnv): void {}
@@ -664,8 +678,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         func = '('
 
       if (AST.isMemberExpression(left)) {
-        let hasAnyType = !(getStaticType(left) == Integer || getStaticType(left) == Float || getStaticType(left) == Boolean)
-        if (hasAnyType) {
+        // if left is a member expression, getStaticType(left) is not undefined.
+        const type = getStaticType(left)
+        if (type && !isPrimitiveType(type)) {
           this.anyMemberAssignmentExpression(node, left, func, env)
           return
         }
@@ -694,11 +709,29 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.result.write('(')
   }
 
+  // Assign a value to a member of ANY type.
   private anyMemberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, func: string, env: VariableEnv) {
-    this.result.write(cr.arrayElementSetter())
-    this.visit(leftNode.object, env)
-    this.result.write(', ')
-    const n = this.callExpressionArg(leftNode.property, Integer, env)
+    let nvars = 0     // number of variables
+    if (leftNode.computed) {
+      // an array access like a[b]
+      this.result.write(cr.arrayElementSetter())
+      this.visit(leftNode.object, env)
+      this.result.write(', ')
+      nvars = this.callExpressionArg(leftNode.property, Integer, env)
+    }
+    else {
+      // a member access like a.b
+      const objType = getStaticType(leftNode.object) as InstanceType
+      const propertyName = (leftNode.property as AST.Identifier).name
+      const typeAndIndex  = objType.findProperty(propertyName)
+
+      // the resulting type of assignment is always ANY
+      this.result.write(`${cr.setObjectProperty}(`)
+      this.visit(leftNode.object, env)
+      this.result.write(`, ${typeAndIndex[1]}`)
+      nvars = 0
+    }
+
     this.result.write(', ')
     if (func === '(')
       this.visit(node.right, env)
@@ -708,7 +741,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.result.write(')')
     }
     this.result.write(')')
-    env.deallocate(n)
+    env.deallocate(nvars)
   }
 
   private accumulateExpression(left: AST.Node, leftType: StaticType | undefined, op: string,
@@ -813,10 +846,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   newExpression(node: AST.NewExpression, env: VariableEnv): void {
-    const atype = getStaticType(node)
-    if (!(atype instanceof ArrayType))
+    const type = getStaticType(node)
+    if (type instanceof ArrayType)
+      this.newArrayExpression(node, type, env)
+    else if (type instanceof InstanceType) {
+      this.result.write(cr.makeInstance(type))
+    }
+    else
       throw this.errorLog.push(`bad new expression`, node)
+  }
 
+  newArrayExpression(node: AST.NewExpression, atype: ArrayType, env: VariableEnv): void {
     this.result.write(cr.arrayFromSize(atype.elementType))
     let numOfObjectArgs = this.callExpressionArg(node.arguments[0], Integer, env)
 
@@ -859,13 +899,26 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   memberExpression(node: AST.MemberExpression, env: VariableEnv): void {
-    const elementType = getStaticType(node)
-    this.result.write(cr.arrayElementGetter(elementType, node))
-    this.visit(node.object, env)
-    this.result.write(', ')
-    const n = this.callExpressionArg(node.property, Integer, env)
-    this.result.write('))')
-    env.deallocate(n)   // n will be zero.
+    if (node.computed) {
+      // an array access like a[b]
+      const elementType = getStaticType(node)
+      this.result.write(cr.arrayElementGetter(elementType, node))
+      this.visit(node.object, env)
+      this.result.write(', ')
+      const n = this.callExpressionArg(node.property, Integer, env)
+      this.result.write('))')
+      env.deallocate(n)   // n will be zero.
+    }
+    else {
+      // a member access like a.b
+      const objType = getStaticType(node.object) as InstanceType
+      const propertyName = (node.property as AST.Identifier).name
+      const typeAndIndex  = objType.findProperty(propertyName)
+
+      this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
+      this.visit(node.object, env)
+      this.result.write(`, ${typeAndIndex[1]}))`)
+    }
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {
