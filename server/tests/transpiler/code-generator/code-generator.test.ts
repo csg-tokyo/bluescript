@@ -1394,6 +1394,26 @@ test('make an instance', () => {
   expect(compileAndRun(src)).toBe('0\n13\n')
 })
 
+test.only('make an instance holding a string etc.', () => {
+  const src = `
+  class Pos {
+    x: integer
+    str: string
+    arr: integer[]
+  }
+
+  const obj = new Pos()
+  const k = obj.x = 40
+  print(typeof(k))
+  obj.str = 'foo'
+  obj.arr = [1, 2, 3]
+  print(obj.str)
+  print(obj.x + obj.arr[2])
+  `
+
+  expect(compileAndRun(src)).toBe('any\nfoo\n43\n')
+})
+
 test('save arguments into rootset', () => {
   const src = `
   function foo(n: integer) {

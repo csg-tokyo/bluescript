@@ -1009,4 +1009,4 @@ extern bool safe_value_to_bool(value_t v);
 
 extern value_t gc_new_object(const class_object* clazz);
 extern value_t get_obj_property(value_t obj, int index);
-extern void set_obj_property(value_t obj, int index, value_t new_value);
+extern value_t set_obj_property(value_t obj, int index, value_t new_value);

@@ -157,8 +157,8 @@ inline value_t get_obj_property(value_t obj, int index) {
     return value_to_ptr(obj)->body[index];
 }
 
-inline void set_obj_property(value_t obj, int index, value_t new_value) {
-    value_to_ptr(obj)->body[index] = new_value;
+inline value_t set_obj_property(value_t obj, int index, value_t new_value) {
+    return value_to_ptr(obj)->body[index] = new_value;
 }
 
 extern value_t CR_SECTION gc_new_function(void* fptr, const char* signature, value_t this_object);
