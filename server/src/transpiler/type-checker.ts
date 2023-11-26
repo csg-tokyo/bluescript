@@ -279,6 +279,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         if (ftype === undefined || !(ftype instanceof FunctionType))
           throw new Error('fatal: a method type is not recorded')
         else {
+          this.assert(node.kind !== 'constructor' || ftype.returnType === Void, 'a constructor cannot return a value', node)
           const success = clazz.addProperty(node.key.name, ftype)
           this.assert(success, `duplicate method name: ${node.key.name}`, node)
         }

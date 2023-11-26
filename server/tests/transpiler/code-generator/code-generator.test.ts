@@ -1394,7 +1394,7 @@ test('make an instance', () => {
   expect(compileAndRun(src)).toBe('0\n13\n')
 })
 
-test.only('make an instance holding a string etc.', () => {
+test('make an instance holding a string etc.', () => {
   const src = `
   class Pos {
     x: integer

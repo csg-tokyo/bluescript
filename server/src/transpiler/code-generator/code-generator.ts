@@ -324,6 +324,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const info = env.table.lookup(node.id.name)
     if (info && info.type instanceof InstanceType)
       this.declarations.write(cr.classDeclaration(info.type)).nl()
+
+    this.visit(node.body, env)
   }
 
   classBody(node: AST.ClassBody, env: VariableEnv): void {}
@@ -446,30 +448,47 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   /* For this function:
-       function foo(n: integer) { return n + 1 }
+        function foo(n: integer) { return n + 1 }
      This method generates the following C code:
-       extern struct func_value _foo;
-       static int32_t fbody_foo(value_t self, int32_t _n) { ... function body ... }
-       struct func_body _foo = { fbody_foo, "(i)i" };
+        extern struct func_body _foo;
+        static int32_t fbody_foo(value_t self, int32_t _n) { ... function body ... }
+        struct func_body _foo = { fbody_foo, "(i)i" };
   */
   functionBodyDeclaration(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
                           funcName: string, env: VariableEnv): void {
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
-    const funcType = getStaticType(node) as FunctionType;
-    const prevResult = this.result
-    this.result = this.declarations
-    const bodyResult = this.result.copy()
-    bodyResult.right()
     fenv.allocateRootSet()
-
+    const funcType = getStaticType(node) as FunctionType;
     const funcInfo = env.table.lookup(funcName)
-    let sig = this.makeParameterList(funcType, node, fenv, bodyResult)
     const transpiledFuncName = funcInfo ? funcInfo.transpiledName(funcName) : funcName
     const bodyName = cr.functionBodyName(transpiledFuncName)
-    let funcHeader = cr.typeToCType(funcType.returnType, bodyName)
-    this.result.nl().write(`static ${funcHeader}${sig} {`)
-    this.result.right()
-    const declarations = this.result  // this.result == this.declarations
+
+    const prevResult = this.result
+    this.result = this.declarations
+    this.functionBody(node, fenv, funcType, bodyName)
+    this.result = prevResult
+
+    const fname = transpiledFuncName
+    if (fenv.isFreeVariable(funcInfo))
+      this.result.nl().write(`${fname}.${cr.functionPtr} = ${bodyName};`).nl()
+    else {
+      this.signatures += this.makeFunctionStruct(fname, funcType)
+      this.declarations.write(`${cr.funcStructInC} ${fname} = { ${bodyName}, "${encodeType(funcType)}" };`).nl()
+    }
+  }
+
+  /* For this function:
+        function foo(n: integer) { return n + 1 }
+     this method generates the following C code:
+        static int32_t ${bodyName}(value_t self, int32_t _n) { ... function body ... }
+  */
+  private functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
+                       fenv: FunctionEnv, funcType: FunctionType, bodyName: string) {
+    const bodyResult = this.result.copy()
+    bodyResult.right()
+    let sig = this.makeParameterList(funcType, node, fenv, bodyResult)
+
+    const declarations = this.result
     this.result = bodyResult
 
     this.result.nl()
@@ -478,26 +497,22 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     else
       this.visit(node.body, fenv)
 
+    const bodyCode = this.result.getCode()
+    this.result = declarations
+
+    let funcHeader = cr.typeToCType(funcType.returnType, bodyName)
+    this.result.nl().write(`static ${funcHeader}${sig} {`)
+    this.result.right()
     const numOfVars = fenv.getNumOfVars()
-    declarations.nl().write(cr.makeRootSet(numOfVars))
-    declarations.write(this.result.getCode())   // = .write(bodyResult.getCode())
+    this.result.nl().write(cr.makeRootSet(numOfVars))
+    this.result.write(bodyCode)
     if (!this.endWithReturn)
       if (funcType.returnType === Void)
-        declarations.nl().write(cr.deleteRootSet(numOfVars))
+        this.result.nl().write(cr.deleteRootSet(numOfVars))
       else
         this.errorLog.push('a non-void function must return a value', node)
 
-    declarations.left().nl().write('}').nl()
-
-    const fname = transpiledFuncName
-    if (fenv.isFreeVariable(funcInfo))
-      prevResult.nl().write(`${fname}.${cr.functionPtr} = ${bodyName};`).nl()
-    else {
-      this.signatures += this.makeFunctionStruct(fname, funcType)
-      declarations.write(`${cr.funcStructInC} ${fname} = { ${bodyName}, "${encodeType(funcType)}" };`).nl()
-    }
-
-    this.result = prevResult
+    this.result.left().nl().write('}').nl()
   }
 
   private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
