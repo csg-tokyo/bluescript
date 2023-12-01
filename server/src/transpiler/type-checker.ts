@@ -773,8 +773,15 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   private newObjectExpression(node: AST.NewExpression, type: InstanceType, names: NameTable<Info>): void {
     const args = node.arguments
-    for (let i = 0; i < args.length; i++)
-      this.callExpressionArg(args[i], Any, names)
+    let consType = type.findConstructor()
+    if (!consType)
+      consType = new FunctionType(Void, [])
+
+    if (args.length !== consType.paramTypes.length)
+      this.assert(false, 'wrong number of arguments', node)
+    else
+      for (let i = 0; i < args.length; i++)
+        this.callExpressionArg(args[i], consType.paramTypes[i], names)
 
     this.addStaticType(node, type)
     this.result = type
@@ -790,6 +797,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(this.firstPass, `'this' is not available here`, node)
       this.result = Any
     }
+  }
+
+  superExpression(node: AST.Super, env: NameTable<Info>): void {
   }
 
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {

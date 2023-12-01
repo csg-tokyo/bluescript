@@ -49,6 +49,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'CallExpression', (visitor, node, env) => visitor.callExpression(node as AST.CallExpression, env) ],
         [ 'NewExpression', (visitor, node, env) => visitor.newExpression(node as AST.NewExpression, env) ],
         [ 'ThisExpression', (visitor, node, env) => visitor.thisExpression(node as AST.ThisExpression, env) ],
+        [ 'Super', (visitor, node, env) => visitor.superExpression(node as AST.Super, env) ],
         [ 'ArrayExpression', (visitor, node, env) => visitor.arrayExpression(node as AST.ArrayExpression, env) ],
         [ 'MemberExpression', (visitor, node, env) => visitor.memberExpression(node as AST.MemberExpression, env) ],
         [ `TaggedTemplateExpression`,  (visitor, node, env) => visitor.taggedTemplateExpression(node as AST.TaggedTemplateExpression, env) ],
@@ -117,6 +118,7 @@ export abstract class NodeVisitor<Environment> {
     abstract callExpression(node: AST.CallExpression, env: Environment): void
     abstract newExpression(node: AST.NewExpression, env: Environment): void
     abstract thisExpression(node: AST.ThisExpression, env: Environment): void
+    abstract superExpression(node: AST.Super, env: Environment): void
     abstract arrayExpression(node: AST.ArrayExpression, env: Environment): void
     abstract memberExpression(node: AST.MemberExpression, env: Environment): void
     abstract taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: Environment): void
@@ -172,6 +174,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     callExpression(node: AST.CallExpression, env: Environment): void {}
     newExpression(node: AST.NewExpression, env: Environment): void {}
     thisExpression(node: AST.ThisExpression, env: Environment): void {}
+    superExpression(node: AST.Super, env: Environment): void {}
     arrayExpression(node: AST.ArrayExpression, env: Environment): void {}
     memberExpression(node: AST.MemberExpression, env: Environment): void {}
     taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: Environment): void {}

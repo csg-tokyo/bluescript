@@ -1400,6 +1400,7 @@ test('make an instance holding a string etc.', () => {
     x: integer
     str: string
     arr: integer[]
+    constructor() { this.x = 3 }
   }
 
   const obj = new Pos()
@@ -1412,6 +1413,45 @@ test('make an instance holding a string etc.', () => {
   `
 
   expect(compileAndRun(src)).toBe('any\nfoo\n43\n')
+})
+
+test('class with a constructor', () => {
+  const src = `
+  class Pos {
+    x: integer
+    y: integer
+    str: string
+    constructor(x: number, str: string) { this.x = x; this.y = 0; this.str = str }
+  }
+
+  const obj = new Pos(3, 'foo')
+  print(obj.x)
+  `
+
+  expect(compileAndRun(src)).toBe('3\n')
+})
+
+test.only('class with a super constructor', () => {
+  const src = `
+  class Pos {
+    x: integer
+    y: integer
+    constructor(x: number) { this.x = x; this.y = 0 }
+  }
+
+  class Pos3 extends Pos {
+    z: integer
+    constructor() {
+      // super(1)
+      this.z = 3
+    }
+  }
+
+  const obj = new Pos3()
+  print(obj.z)
+  `
+
+  expect(compileAndRun(src)).toBe('3\n')
 })
 
 test('save arguments into rootset', () => {

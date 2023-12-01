@@ -330,6 +330,14 @@ export function classNameInC(name: string) {
   return `class_${name}`
 }
 
+export function constructorNameInC(name: string) {
+  return `new_${name}`
+}
+
+export function constructorBodyNameInC(name: string) {
+  return `cons_${name}`
+}
+
 export function externClassDef(clazz: ObjectType) {
   if (clazz) {
     if (clazz === objectType)
@@ -362,5 +370,5 @@ export function classDeclaration(clazz: InstanceType) {
 
 export function makeInstance(clazz: InstanceType) {
   const name = clazz.name()
-  return `gc_new_object(&${classNameInC(name)}.clazz)`
+  return `${constructorNameInC(name)}(gc_new_object(&${classNameInC(name)}.clazz)`
 }

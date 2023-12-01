@@ -322,10 +322,41 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   classDeclaration(node: AST.ClassDeclaration, env: VariableEnv): void {
     const info = env.table.lookup(node.id.name)
-    if (info && info.type instanceof InstanceType)
-      this.declarations.write(cr.classDeclaration(info.type)).nl()
+    if (info && info.type instanceof InstanceType) {
+      const clazz = info.type
+      this.declarations.write(cr.classDeclaration(clazz)).nl()
 
-    this.visit(node.body, env)
+      let defaultConstructor = true
+      for (const mem of node.body.body) {
+        if (AST.isClassMethod(mem) && mem.kind === 'constructor') {
+          this.classConstructor(mem, clazz, env)
+          defaultConstructor = false
+          break
+        }
+      }
+
+      if (defaultConstructor)
+        this.declarations.nl().write(`value_t ${cr.constructorNameInC(clazz.name())}(value_t self) { return self; }`).nl().nl()
+    }
+  }
+
+  private classConstructor(node: AST.ClassMethod, clazz: InstanceType, env: VariableEnv) {
+    const fenv = new FunctionEnv(getVariableNameTable(node), env)
+    fenv.allocateRootSet()
+    const funcType = getStaticType(node) as FunctionType;
+    const funcName = cr.constructorBodyNameInC(clazz.name())
+
+    const prevResult = this.result
+    this.result = this.declarations
+    this.functionBody(node, fenv, funcType, funcName)
+
+    const sig = this.makeParameterList(funcType, node, fenv, this.result.copy(), true)
+    let args = 'self'
+    for (let i = 0; i < funcType.paramTypes.length; i++)
+      args += `, p${i}`
+    this.result.nl().write(`value_t ${cr.constructorNameInC(clazz.name())}${sig} { ${funcName}(${args}); return self; }`).nl().nl()
+    this.signatures += `value_t ${cr.constructorNameInC(clazz.name())}${sig};\n`
+    this.result = prevResult
   }
 
   classBody(node: AST.ClassBody, env: VariableEnv): void {}
@@ -482,7 +513,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
      this method generates the following C code:
         static int32_t ${bodyName}(value_t self, int32_t _n) { ... function body ... }
   */
-  private functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
+  private functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
                        fenv: FunctionEnv, funcType: FunctionType, bodyName: string) {
     const bodyResult = this.result.copy()
     bodyResult.right()
@@ -515,8 +546,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.left().nl().write('}').nl()
   }
 
-  private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
-                            fenv: FunctionEnv, bodyResult: CodeWriter) {
+  private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+                            fenv: FunctionEnv, bodyResult: CodeWriter, simpleName: boolean = false) {
     let sig = `(${cr.anyTypeInC} self`
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       sig += ', '
@@ -525,7 +556,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const paramType = funcType.paramTypes[i]
       let info = fenv.table.lookup(paramName)
       if (info !== undefined) {
-        const name = info.transpiledName(paramName)
+        const name = simpleName ? `p${i}` : info.transpiledName(paramName)
         sig += cr.typeToCType(paramType, name)
         if (info.index !== undefined)
           bodyResult.nl().write(info.transpile(paramName)).write(` = ${name};`)
@@ -739,6 +770,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const objType = getStaticType(leftNode.object) as InstanceType
       const propertyName = (leftNode.property as AST.Identifier).name
       const typeAndIndex  = objType.findProperty(propertyName)
+      if (!typeAndIndex)
+        throw this.errorLog.push('fatal: unknown member name', node)
 
       // the resulting type of assignment is always ANY
       this.result.write(`${cr.setObjectProperty}(`)
@@ -864,9 +897,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const type = getStaticType(node)
     if (type instanceof ArrayType)
       this.newArrayExpression(node, type, env)
-    else if (type instanceof InstanceType) {
-      this.result.write(cr.makeInstance(type))
-    }
+    else if (type instanceof InstanceType)
+      this.newObjectExpression(node, type, env)
     else
       throw this.errorLog.push(`bad new expression`, node)
   }
@@ -888,8 +920,28 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.write(')')
   }
 
+  newObjectExpression(node: AST.NewExpression, clazz: InstanceType, env: VariableEnv): void {
+    this.result.write(cr.makeInstance(clazz))
+    const cons = clazz.findConstructor()
+    if (cons !== undefined) {
+      const params = cons.paramTypes
+      let numOfObjectArgs = 0
+      for (let i = 0; i < node.arguments.length; i++) {
+        this.result.write(', ')
+        numOfObjectArgs += this.callExpressionArg(node.arguments[i], params[i], env)
+      }
+
+      env.deallocate(numOfObjectArgs)
+    }
+
+    this.result.write(')')
+  }
+
   thisExpression(node: AST.ThisExpression, env: VariableEnv): void {
-    this.result.write('0')
+    this.result.write('self')
+  }
+
+  superExpression(node: AST.Super, env: VariableEnv): void {
   }
 
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {
@@ -929,6 +981,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const objType = getStaticType(node.object) as InstanceType
       const propertyName = (node.property as AST.Identifier).name
       const typeAndIndex  = objType.findProperty(propertyName)
+      if (!typeAndIndex)
+        throw this.errorLog.push('fatal: unknown member name', node)
 
       this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
       this.visit(node.object, env)

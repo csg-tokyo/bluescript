@@ -1,11 +1,12 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { ObjectType, StaticType } from "./types"
+import { FunctionType, ObjectType, StaticType } from "./types"
 
 // Type for instances of a class
 export class InstanceType extends ObjectType {
   private properties: { [key: string]: [StaticType, number] } = {}
+  private constructorFunction: FunctionType | undefined = undefined
   private numOfProperties = 0
   private superClass: ObjectType
   private className: string
@@ -35,14 +36,27 @@ export class InstanceType extends ObjectType {
   }
 
   addProperty(name: string, type: StaticType) {
-    const success = !this.properties[name]
-    this.properties[name] = [type, this.numOfProperties++]
-    return success
+    if (name === 'constructor') {
+      const success = !this.constructorFunction
+      if (type instanceof FunctionType)
+        this.constructorFunction = type
+      else
+        return false
+
+      return success
+    }
+    else {
+      const success = !this.properties[name]
+      this.properties[name] = [type, this.numOfProperties++]
+      return success
+    }
   }
 
-  findProperty(name: string) {
+  findProperty(name: string): [StaticType, number] | undefined {
     return this.properties[name]
   }
+
+  findConstructor() { return this.constructorFunction }
 }
 
 export class ClassTable {
