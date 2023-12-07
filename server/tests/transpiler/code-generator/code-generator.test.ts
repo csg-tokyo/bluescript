@@ -574,6 +574,17 @@ test('calling a const function', () => {
   expect(compileAndRun(src)).toMatch(/result\n1/)
 })
 
+test('an arrow function cannot capture a local variable', () => {
+  const src = `
+  function foo(n) {
+    const k = n + 1
+    return (i: number) => { return k }
+  }
+  `
+
+  expect(() => { compileAndRun(src) }).toThrow(/not accessible.*arrow.*line 4/)
+})
+
 test('unary operator', () => {
   const src = `
   function foo(n: integer) {
@@ -639,6 +650,20 @@ test('++ operator for const', () => {
   foo(5)
 `
   expect(() => compileAndRun(src)).toThrow(/assignment to constant.*line 4.*\n.*line 5/)
+})
+
+test('++ operator for arrays', () => {
+  const src = `
+  function foo(n: integer[], m: any[]) {
+    print(++n[0])
+    print(n[0]--)
+    print(n[0])
+    print(m[0]++)
+    print(m[0])
+  }
+  foo([3, 2], [7, 'foo'])
+`
+  expect(compileAndRun(src)).toBe('4\n4\n3\n7\n8\n')
 })
 
 test('equality operators', () => {
@@ -761,6 +786,26 @@ test('any to null', () => {
   `
 
   expect(compileAndRun(src)).toBe('null\n')
+})
+
+test('null to any or string', () => {
+  const src = `
+  function foo(obj: any) {
+    obj = null
+    return obj
+  }
+  print(foo(3))
+  `
+
+  const src2 = `
+  function foo(obj: string) {
+    obj = null  // type error
+    return obj
+  }
+  `
+
+  expect(compileAndRun(src)).toBe('null\n')
+  expect(() => compileAndRun(src2)).toThrow(/not assignable.*line 3/)
 })
 
 test('wrong assignment from any', () => {
@@ -1311,6 +1356,102 @@ test('convert an any-type value to an array', () => {
   foo(3)
   `
   expect(() => compileAndRun(src)).toThrow(/cannot convert any to string\[\]/)
+})
+
+test('class declaration', () => {
+  const src = `
+  class Position {
+    x: integer
+    y: integer
+    xmove(dx: integer) {}
+  }
+  `
+  const src2 = `
+  class BrokenPos {
+    x: integer
+    x: string
+  }
+  `
+
+  expect(compileAndRun(src)).toBe('')
+  expect(() => { compileAndRun(src2)}).toThrow(/duplicate property name.*line 4/)
+})
+
+test('make an instance', () => {
+  const src = `
+  class Pos {
+    x: integer
+    y: integer
+  }
+
+  const obj = new Pos()
+  print(obj.x + obj.y)
+  obj.x = 3
+  obj.y = 10
+  print(obj.x + obj.y)
+  `
+
+  expect(compileAndRun(src)).toBe('0\n13\n')
+})
+
+test('make an instance holding a string etc.', () => {
+  const src = `
+  class Pos {
+    x: integer
+    str: string
+    arr: integer[]
+    constructor() { this.x = 3 }
+  }
+
+  const obj = new Pos()
+  const k = obj.x = 40
+  print(typeof(k))
+  obj.str = 'foo'
+  obj.arr = [1, 2, 3]
+  print(obj.str)
+  print(obj.x + obj.arr[2])
+  `
+
+  expect(compileAndRun(src)).toBe('any\nfoo\n43\n')
+})
+
+test('class with a constructor', () => {
+  const src = `
+  class Pos {
+    x: integer
+    y: integer
+    str: string
+    constructor(x: number, str: string) { this.x = x; this.y = 0; this.str = str }
+  }
+
+  const obj = new Pos(3, 'foo')
+  print(obj.x)
+  `
+
+  expect(compileAndRun(src)).toBe('3\n')
+})
+
+test.only('class with a super constructor', () => {
+  const src = `
+  class Pos {
+    x: integer
+    y: integer
+    constructor(x: number) { this.x = x; this.y = 0 }
+  }
+
+  class Pos3 extends Pos {
+    z: integer
+    constructor() {
+      // super(1)
+      this.z = 3
+    }
+  }
+
+  const obj = new Pos3()
+  print(obj.z)
+  `
+
+  expect(compileAndRun(src)).toBe('3\n')
 })
 
 test('save arguments into rootset', () => {

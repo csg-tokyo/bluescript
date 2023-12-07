@@ -48,8 +48,10 @@ export class ErrorLog {
 
   pushError(msg: string, line: number, col: number) {
     const loc = {
-      start: {line, column: col},
-      end: {line, column: col + 1}
+      start: {line, column: col, index: 0 },
+      end: {line, column: col + 1, index: 0 },
+      filename: '??',
+      identifierName: '??'
     }
     this.messages.push({message: msg, location: loc})
     return this

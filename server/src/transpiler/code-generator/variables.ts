@@ -5,29 +5,22 @@ import { Null, FunctionType, StaticType, isPrimitiveType } from '../types'
 import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../names'
+import { ClassTable, InstanceType } from '../classes'
 import { rootSetVariable } from './c-runtime'
 
-
-function globalVariableName(varName: string, index?: number) {
-  if (index === undefined)
-    return `_${varName}`
-  else
-    return rootSetVariable(index, varName)
-}
-
 export class VariableInfo extends NameInfo {
-  // set in VariableEnv.allocateRootSet()
   index?: number = undefined
 
   constructor(t: StaticType) {
     super(t)
   }
 
-  // Name used for its declaration.
+  // Name used for its declaration
   // the returned value should be the same as the value
   // returned by transpile() when this.index === undefined.
   transpiledName(name: string) { return `_${name}` }
 
+  // The expression to obtian the value of this variable.
   transpile(name: string) {
     if (this.index === undefined)
       return `_${name}`
@@ -35,7 +28,7 @@ export class VariableInfo extends NameInfo {
       return rootSetVariable(this.index)
   }
 }
-  
+
 class FreeVariableInfo extends VariableInfo {
   nameInfo: VariableInfo
   
@@ -53,20 +46,27 @@ class FreeVariableInfo extends VariableInfo {
 }
 
 class GlobalVariableInfo extends VariableInfo {
-  private variableName: string = '??'
-  private rootName?: string
+  private rootSetName?: string
 
-  setVariableName(name: string, rootName?: string) {
-    this.variableName = name
-    this.rootName = rootName
+  override transpile(name: string) {
+    if (this.rootSetName)
+      return rootSetVariable(this.index, this.rootSetName)
+    else
+      return super.transpile(name)
   }
 
-  transpiledName(name: string) { return `_${name}` }
-  transpile(name: string) { return this.variableName }
+  // set a rootset name and a rootset index
+  setIndex(varName: string, index: number) {
+    this.rootSetName = varName
+    this.index = index
+  }
 
   // name and type used for extern declaration
-  externName(): [string, StaticType] {
-      return this.rootName ? [this.rootName, Null] : [this.variableName, this.type]
+  externName(name: string): [string?, StaticType?] {
+    if (this.isTypeName)
+      return [undefined, this.type]
+    else
+      return this.rootSetName ? [this.rootSetName, undefined] : [this.transpile(name), this.type]
   }
 }
 
@@ -89,8 +89,27 @@ class FunctionVarNameTable extends FunctionNameTable<VariableInfo> {
 }
 
 export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
+  private classTableObject?: ClassTable
+
+  constructor(parent?: NameTable<VariableInfo>) {
+    super(parent)
+    if (parent)
+      this.classTableObject = undefined
+    else
+      this.classTableObject = new ClassTable()
+  }
+
   override makeFreeInfo(free: VariableInfo) {
     return new FreeVariableInfo(free)
+  }
+
+  override classTable(): ClassTable {
+    if (this.classTableObject)
+      return this.classTableObject
+    else if (this.parent)
+      return this.parent.classTable()
+    else
+      throw new Error('fatal: not class table found')
   }
 }
 
@@ -145,7 +164,8 @@ export class VariableEnv {
       if (info instanceof FreeVariableInfo) {
         // do nothing
       }
-      else if (!isPrimitiveType(info.type)) {
+      else if (!info.isTypeName && !isPrimitiveType(info.type)) {
+        // ObjectType or FunctionType
         info.index = this.allocate()
         num++
       }
@@ -193,12 +213,13 @@ export class GlobalEnv extends FunctionEnv {
     let num = 0
     this.table.forEach((info, key) => {
       if (info instanceof GlobalVariableInfo) {
-        if (isPrimitiveType(info.type))
-          info.setVariableName(globalVariableName(key))
-        else if (info.type instanceof FunctionType && info.isFunction)
-          info.setVariableName(globalVariableName(key))
+        if (isPrimitiveType(info.type)
+            || (info.isFunction && info.type instanceof FunctionType)
+            || (info.isTypeName && info.type instanceof InstanceType)) {
+          // do nothing
+        }
         else
-          info.setVariableName(globalVariableName(this.rootset, num++), this.rootset)
+          info.setIndex(this.rootset, num++)
       }
       else if (!(info instanceof FreeVariableInfo))
         throw new Error(`bad global info: ${key}, ${info.constructor.name}`)
@@ -206,12 +227,14 @@ export class GlobalEnv extends FunctionEnv {
     return num
   }
 
-  forEachExternalVariable(f: (name: string, type: StaticType) => void) {
+  // For a variable stored in a root set, undefined is given to f as the 2nd argument.
+  // For a type name, undefined is given to f as the 1st argument.
+  forEachExternalVariable(f: (name?: string, type?: StaticType) => void) {
     this.table.forEach((info, key) => {
       if (info instanceof FreeVariableInfo) {
         const origInfo = info.nameInfo
         if (origInfo instanceof GlobalVariableInfo) {
-          const nameAndType = origInfo.externName()
+          const nameAndType = origInfo.externName(key)
           f(nameAndType[0], nameAndType[1])
         }
         else

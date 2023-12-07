@@ -360,7 +360,7 @@ class_object* gc_get_class_of(value_t value) {
         return NULL;
 }
 
-static CLASS_OBJECT(object_class, 1) = {
+CLASS_OBJECT(object_class, 1) = {
     .clazz = { .size = 0, .start_index = 0, .name = "Object", .superclass = NULL }};
 
 static pointer_t allocate_heap(uint16_t word_size);
@@ -1051,5 +1051,6 @@ extern value_t bool_to_value(bool b);
 extern bool value_to_bool(value_t v);
 extern bool safe_value_to_bool(value_t v);
 
+extern value_t gc_new_object(const class_object* clazz);
 extern value_t get_obj_property(value_t obj, int index);
-extern void set_obj_property(value_t obj, int index, value_t new_value);
+extern value_t set_obj_property(value_t obj, int index, value_t new_value);

@@ -98,14 +98,6 @@ inline bool safe_value_to_bool(value_t v) {
     return value_to_bool(v);
 }
 
-inline value_t get_obj_property(value_t obj, int index) {
-    return value_to_ptr(obj)->body[index];
-}
-
-inline void set_obj_property(value_t obj, int index, value_t new_value) {
-    value_to_ptr(obj)->body[index] = new_value;
-}
-
 struct gc_root_set {
     struct gc_root_set* next;
     uint32_t length;
@@ -159,6 +151,19 @@ extern void CR_SECTION interrupt_handler_end();
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
+
+// allocate a new instance of the given class.
+inline value_t gc_new_object(const class_object* clazz) {
+    return ptr_to_value(gc_allocate_object(clazz));
+}
+
+inline value_t get_obj_property(value_t obj, int index) {
+    return value_to_ptr(obj)->body[index];
+}
+
+inline value_t set_obj_property(value_t obj, int index, value_t new_value) {
+    return value_to_ptr(obj)->body[index] = new_value;
+}
 
 extern value_t CR_SECTION gc_new_function(void* fptr, const char* signature, value_t this_object);
 extern bool CR_SECTION gc_is_function_object(value_t obj, const char* signature);

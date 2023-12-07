@@ -25,7 +25,7 @@ abstract class CompositeType {
   abstract isSubtypeOf(t: StaticType): boolean
   abstract sameType(t: StaticType): boolean
 
-  getSuperType(): ObjectType | null { return null }
+  superType(): ObjectType | null { return null }
 }
 
 export const noRuntimeTypeInfo = '0'
@@ -39,7 +39,7 @@ export class ObjectType extends CompositeType {
   runtimeTypeInfo() { return noRuntimeTypeInfo }
 
   isSubtypeOf(t: StaticType): boolean {
-    return this === t || this.getSuperType()?.isSubtypeOf(t) || false
+    return this === t || this.superType()?.isSubtypeOf(t) || false
   }
 
   sameType(t: StaticType): boolean {
@@ -196,7 +196,7 @@ export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | un
   else if (isSubtype(t2, t1))
     return t1
   else if (t1 instanceof CompositeType) {
-    const s = t1.getSuperType()
+    const s = t1.superType()
     if (s !== null)
       return commonSuperType(s, t2)
   }
