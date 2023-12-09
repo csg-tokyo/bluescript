@@ -16,14 +16,10 @@ export const returnValueVariable = 'ret_value_'
 
 export const uint32type = 'uint32_t'
 
-export function funcTypeToCType(type: StaticType, name: string = ''): string {
+export function funcTypeToCType(type: StaticType, name: string = '(*)'): string {
   if (type instanceof FunctionType) {
     let typename = typeToCType(type.returnType)
-    typename += ' (*'
-    if (typename !== '')
-      typename += name
-
-    typename += ')(value_t'
+    typename += ` ${name}(value_t`
     for (const param of type.paramTypes) {
       typename += ', '
       typename += typeToCType(param)
@@ -354,6 +350,21 @@ export function externClassDef(clazz: ObjectType) {
   }
   else
     return ''
+}
+
+export function externNew(clazz: InstanceType) {
+  const ftype = clazz.findConstructor()
+  let signature: string = ' extern value_t '
+  signature += constructorNameInC(clazz.name())
+  signature += '(value_t'
+  if (ftype) {
+    for (const param of ftype.paramTypes) {
+      signature += ', '
+      signature += typeToCType(param)
+    }
+  }
+
+  return signature + ');\n'
 }
 
 export function classDeclaration(clazz: InstanceType) {

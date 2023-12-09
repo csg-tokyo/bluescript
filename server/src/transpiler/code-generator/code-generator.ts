@@ -70,8 +70,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const externalRoots: { [key: string]: boolean } = {}
     env2.forEachExternalVariable((name, type) => {
       if (name === undefined) {
-        if (type instanceof ObjectType)
+        if (type instanceof ObjectType) {
           this.signatures += cr.externClassDef(type)
+          if (type instanceof InstanceType)
+            this.signatures += cr.externNew(type)
+        }
         else
           throw this.errorLog.push('fatal: bad external type', node)
       }

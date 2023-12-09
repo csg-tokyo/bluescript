@@ -7,7 +7,7 @@ import { FunctionType, ObjectType, StaticType } from "./types"
 export class InstanceType extends ObjectType {
   private properties: { [key: string]: [StaticType, number] } = {}
   private constructorFunction: FunctionType | undefined = undefined
-  private numOfProperties = 0
+  private numOfProperties: number
   private superClass: ObjectType
   private className: string
 
@@ -15,6 +15,7 @@ export class InstanceType extends ObjectType {
     super()
     this.superClass = superClass
     this.className = name
+    this.numOfProperties = superClass instanceof InstanceType ? superClass.objectSize() : 0
   }
 
   name() { return this.className }
@@ -53,7 +54,15 @@ export class InstanceType extends ObjectType {
   }
 
   findProperty(name: string): [StaticType, number] | undefined {
-    return this.properties[name]
+    const found = this.properties[name]
+    if (found)
+      return found
+
+    const superClass = this.superClass
+    if (superClass instanceof InstanceType)
+      return superClass.findProperty(name)
+    else
+      return undefined
   }
 
   findConstructor() { return this.constructorFunction }
@@ -66,6 +75,9 @@ export class ClassTable {
   // clazz must be added after all properties and methods are
   //   added to it.
   addClass(name: string, clazz: InstanceType) {
-    clazz.forEachName((n) => { this.methodNames.set(n, this.numOfMethods++) })
+    clazz.forEachName((name) => {
+      if (this.methodNames.get(name) === undefined)
+        this.methodNames.set(name, this.numOfMethods++)
+    })
   }
 }

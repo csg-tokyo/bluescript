@@ -1468,10 +1468,11 @@ test('class with a super constructor', () => {
   }
 
   const obj = new Pos3()
+  print(obj.x)
   print(obj.z)
   `
 
-  expect(compileAndRun(src)).toBe('3\n')
+  expect(compileAndRun(src)).toBe('1\n3\n')
 })
 
 test('class with a default super constructor', () => {
@@ -1487,6 +1488,26 @@ test('class with a default super constructor', () => {
   `
 
   expect(compileAndRun(src)).toBe('??\n')
+})
+
+test.only('multiple source files for classes', () => {
+  const src1 = `
+  class Pos {
+    x: number
+    constructor(x: number) { this.x = 3 }
+  }
+`
+
+  const src2 = `class Pos3 extends Pos {
+    y: number
+    constructor(x: number, y: number) { super(x); this.y = y }
+  }
+
+  const obj = new Pos3(3, 11)
+  print(obj.x)
+`
+
+  expect(multiCompileAndRun(src1, src2)).toEqual('3\n')
 })
 
 test('save arguments into rootset', () => {
