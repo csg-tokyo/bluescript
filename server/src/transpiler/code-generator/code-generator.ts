@@ -338,8 +338,16 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         }
       }
 
-      if (defaultConstructor)
-        this.declarations.nl().write(`value_t ${cr.constructorNameInC(clazz.name())}(value_t self) { return self; }`).nl().nl()
+      if (defaultConstructor) {
+        const superClass = clazz.superType()
+        let superCall
+        if (superClass instanceof InstanceType)
+          superCall = `${cr.constructorNameInC(superClass.name())}(self); `
+        else
+          superCall = ''
+
+        this.declarations.nl().write(`value_t ${cr.constructorNameInC(clazz.name())}(value_t self) { ${superCall}return self; }`).nl().nl()
+      }
     }
   }
 
@@ -852,6 +860,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       calleeIsIdentifier = true
       this.identifierAsCallable(node.callee, env)
     }
+    else if (AST.isSuper(node.callee)) {
+      calleeIsIdentifier = true
+      this.superConstructorCall(node.callee, env)
+    }
     else {
       calleeIsIdentifier = false
       numOfObjectArgs += 1
@@ -870,6 +882,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     env.deallocate(numOfObjectArgs)
     this.result.write(calleeIsIdentifier ? ')' : '))')
+  }
+
+  private superConstructorCall(node: AST.Super, env: VariableEnv) {
+    const type = env.table.lookup('this')?.type
+    if (type instanceof InstanceType) {
+      const t = type.superType()
+      if (t)
+        this.result.write(`${cr.constructorNameInC(t.name())}(self`)
+      else
+        throw this.errorLog.push('fatal: unknown super class', node)
+    }
   }
 
   private callExpressionArg(arg: AST.Node, type: StaticType, env: VariableEnv) {

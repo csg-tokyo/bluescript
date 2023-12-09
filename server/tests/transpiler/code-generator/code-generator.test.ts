@@ -1462,7 +1462,7 @@ test('class with a super constructor', () => {
   class Pos3 extends Pos {
     z: integer
     constructor() {
-      // super(1)
+      super(1)
       this.z = 3
     }
   }
@@ -1472,6 +1472,21 @@ test('class with a super constructor', () => {
   `
 
   expect(compileAndRun(src)).toBe('3\n')
+})
+
+test('class with a default super constructor', () => {
+  const src = `
+  class Pos {
+  }
+
+  class Pos3 extends Pos {
+  }
+
+  const obj = new Pos3()
+  print(obj)
+  `
+
+  expect(compileAndRun(src)).toBe('??\n')
 })
 
 test('save arguments into rootset', () => {

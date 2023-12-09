@@ -29,7 +29,8 @@ abstract class CompositeType {
   superType(): ObjectType | null { return null }
 }
 
-// type represented by value_t
+// A singleton class.
+// This class and its subclasses represent value_t values.
 export class ObjectType extends CompositeType {
   name() {
     return 'object'

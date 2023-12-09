@@ -747,6 +747,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         for (let i = 0; i < args.length; i++)
           this.callExpressionArg(args[i], consType.paramTypes[i], names)
 
+      this.addStaticType(node.callee, consType)
       this.result = Void
     }
     else
@@ -816,9 +817,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   thisExpression(node: AST.ThisExpression, names: NameTable<Info>): void {
     const nameInfo = names.lookup('this')
     if (nameInfo !== undefined) {
-      const info = nameInfo as NameInfo
-      this.assert(info.type instanceof InstanceType, `the type of 'this' is broken`, node)
-      this.result = info.type
+      this.assert(nameInfo.type instanceof InstanceType, `the type of 'this' is broken`, node)
+      this.result = nameInfo.type
     }
     else {
       this.assert(this.firstPass, `'this' is not available here`, node)
@@ -828,21 +828,15 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   superExpression(node: AST.Super, names: NameTable<Info>): void {
     const nameInfo = names.lookup('this')
-    if (nameInfo !== undefined) {
-      const info = nameInfo as NameInfo
-      if (info.type instanceof InstanceType) {
-        const t = info.type.superType()
-        if (t !== null) {
-          info.type = t
-          return
-        }
+    if (nameInfo?.type instanceof InstanceType) {
+      const t = nameInfo.type.superType()
+      if (t !== null) {
+        this.result = t
+        return
       }
-      else
-        this.assert(false, `the type of 'super' is broken`, node)
     }
-    else
-      this.assert(this.firstPass, `'super' is not available here`, node)
 
+    this.assert(this.firstPass, `'super' is not available here`, node)
     this.result = Any
   }
 
