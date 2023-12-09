@@ -191,6 +191,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   classDeclaration(node: AST.ClassDeclaration, names: NameTable<Info>): void {
+    if (!node.id) {
+      this.assert(false, 'class name must be given', node)
+      return
+    }
+
     const className = node.id.name
     if (!this.firstPass) {
       // 2nd phase
@@ -696,7 +701,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   callExpression(node: AST.CallExpression, names: NameTable<Info>): void {
     this.visit(node.callee, names)
-    if (this.result instanceof FunctionType) {
+    if (AST.isSuper(node.callee))
+      this.superConstructorCall(this.result, node, names)
+    else if (this.result instanceof FunctionType) {
       const func_type = this.result
       if (node.arguments.length !== func_type.paramTypes.length)
         this.assert(false, 'wrong number of arguments', node)
@@ -725,6 +732,25 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(isSubtype(argType, paramType),
         `passing an incompatible argument (${typeToString(argType)} to ${typeToString(paramType)})`,
         arg)
+  }
+
+  private superConstructorCall(type: StaticType, node: AST.CallExpression, names: NameTable<Info>): void {
+    const args = node.arguments
+    if (type instanceof InstanceType) {
+      let consType = type.findConstructor()
+      if (!consType)
+        consType = new FunctionType(Void, [])
+
+      if (args.length !== consType.paramTypes.length)
+        this.assert(false, 'wrong number of arguments', node)
+      else
+        for (let i = 0; i < args.length; i++)
+          this.callExpressionArg(args[i], consType.paramTypes[i], names)
+
+      this.result = Void
+    }
+    else
+      this.assert(false, 'fatal: bad super', node)
   }
 
   newExpression(node: AST.NewExpression, names: NameTable<Info>): void {
@@ -791,6 +817,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const nameInfo = names.lookup('this')
     if (nameInfo !== undefined) {
       const info = nameInfo as NameInfo
+      this.assert(info.type instanceof InstanceType, `the type of 'this' is broken`, node)
       this.result = info.type
     }
     else {
@@ -799,7 +826,24 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
   }
 
-  superExpression(node: AST.Super, env: NameTable<Info>): void {
+  superExpression(node: AST.Super, names: NameTable<Info>): void {
+    const nameInfo = names.lookup('this')
+    if (nameInfo !== undefined) {
+      const info = nameInfo as NameInfo
+      if (info.type instanceof InstanceType) {
+        const t = info.type.superType()
+        if (t !== null) {
+          info.type = t
+          return
+        }
+      }
+      else
+        this.assert(false, `the type of 'super' is broken`, node)
+    }
+    else
+      this.assert(this.firstPass, `'super' is not available here`, node)
+
+    this.result = Any
   }
 
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {

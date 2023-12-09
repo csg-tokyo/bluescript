@@ -1431,7 +1431,27 @@ test('class with a constructor', () => {
   expect(compileAndRun(src)).toBe('3\n')
 })
 
-test.only('class with a super constructor', () => {
+test('recursive-type clas', () => {
+  const src = `
+  class Ele {
+    next: Ele
+    constructor() { this.next = this }
+  }
+
+  function foo() {
+    const e = new Ele()
+    print(typeof e.next)
+    const e2 = e.next.next
+    return e2 == e
+  }
+
+  print(foo())
+  `
+
+  expect(compileAndRun(src)).toBe('Ele\n1\n')
+})
+
+test('class with a super constructor', () => {
   const src = `
   class Pos {
     x: integer
