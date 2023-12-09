@@ -20,6 +20,7 @@ export function isNumeric(t: StaticType) {
   return t === Integer || t === Float
 }
 
+// the common super class of ObjectType and FunctionType
 abstract class CompositeType {
   abstract name(): string
   abstract isSubtypeOf(t: StaticType): boolean
@@ -28,15 +29,11 @@ abstract class CompositeType {
   superType(): ObjectType | null { return null }
 }
 
-export const noRuntimeTypeInfo = '0'
-
 // type represented by value_t
 export class ObjectType extends CompositeType {
   name() {
     return 'object'
   }
-
-  runtimeTypeInfo() { return noRuntimeTypeInfo }
 
   isSubtypeOf(t: StaticType): boolean {
     return this === t || this.superType()?.isSubtypeOf(t) || false

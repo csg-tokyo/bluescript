@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
          ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType } from '../types'
+         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType, isSubtype } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
@@ -321,6 +321,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   classDeclaration(node: AST.ClassDeclaration, env: VariableEnv): void {
+    if (!node.id)
+      throw this.errorLog.push('internal error: class name must be given', node)
+
     const info = env.table.lookup(node.id.name)
     if (info && info.type instanceof InstanceType) {
       const clazz = info.type
@@ -942,6 +945,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   superExpression(node: AST.Super, env: VariableEnv): void {
+    this.result.write('self')
   }
 
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {
@@ -984,7 +988,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (!typeAndIndex)
         throw this.errorLog.push('fatal: unknown member name', node)
 
-      this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
+      if (isPrimitiveType(typeAndIndex[0]))
+        this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
+      else
+        this.result.write(`(${cr.getObjectProperty}(`)
+
       this.visit(node.object, env)
       this.result.write(`, ${typeAndIndex[1]}))`)
     }

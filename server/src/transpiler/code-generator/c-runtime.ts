@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
     ObjectType, objectType, FunctionType,
-    StaticType, isPrimitiveType, typeToString, ArrayType, noRuntimeTypeInfo, sameType, encodeType, } from '../types'
+    StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype, } from '../types'
 import { InstanceType } from '../classes'
 
 export const anyTypeInC = 'value_t'
@@ -158,12 +158,15 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
               // cannot determine wether a given array
               // is an array of String or Any
           }
+          else if (to instanceof InstanceType)
+            if (isSubtype(from, to))
+              return '('
+            else {
+              const info = classObjectNameInC(to.name())
+              return `safe_value_to_value(&${info}, `
+            }
 
-          const info = to.runtimeTypeInfo()
-          if (info === noRuntimeTypeInfo)
-            break
-
-          return `safe_value_to_value(${info}, `
+          break
         }
       }
       else if (from === Null)
@@ -330,6 +333,10 @@ export function classNameInC(name: string) {
   return `class_${name}`
 }
 
+export function classObjectNameInC(name: string) {
+  return `class_${name}.clazz`
+}
+
 export function constructorNameInC(name: string) {
   return `new_${name}`
 }
@@ -359,7 +366,7 @@ export function classDeclaration(clazz: InstanceType) {
     if (superClass === objectType)
       superAddr = '&object_class.clazz'
     else
-      superAddr = `&${classNameInC(superClass.name())}.clazz`
+      superAddr = `&${classObjectNameInC(superClass.name())}`
   }
 
   const size = clazz.objectSize()
@@ -370,5 +377,5 @@ export function classDeclaration(clazz: InstanceType) {
 
 export function makeInstance(clazz: InstanceType) {
   const name = clazz.name()
-  return `${constructorNameInC(name)}(gc_new_object(&${classNameInC(name)}.clazz)`
+  return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
 }
