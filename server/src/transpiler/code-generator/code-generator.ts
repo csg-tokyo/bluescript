@@ -744,6 +744,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           this.anyMemberAssignmentExpression(node, left, func, env)
           return
         }
+        // Otherwise, a member/element is a primitive type.
       }
 
       this.visit(left, env)
@@ -1014,13 +1015,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (!typeAndIndex)
         throw this.errorLog.push('fatal: unknown member name', node)
 
-      if (isPrimitiveType(typeAndIndex[0]))
+      const unbox = objType.unboxedProperties()
+      if (unbox && typeAndIndex[1] < unbox) {
+        this.result.write(cr.getObjectPrimitiveProperty(typeAndIndex[0]))
+        this.visit(node.object, env)
+        this.result.write(`, ${typeAndIndex[1]})`)
+      }
+      else {
         this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
-      else
-        this.result.write(`(${cr.getObjectProperty}(`)
-
-      this.visit(node.object, env)
-      this.result.write(`, ${typeAndIndex[1]}))`)
+        this.visit(node.object, env)
+        this.result.write(`, ${typeAndIndex[1]}))`)
+      }
     }
   }
 

@@ -1412,7 +1412,82 @@ test('make an instance holding a string etc.', () => {
   print(obj.x + obj.arr[2])
   `
 
-  expect(compileAndRun(src)).toBe('any\nfoo\n43\n')
+  expect(compileAndRun(src)).toBe('integer\nfoo\n43\n')
+})
+
+test('class inheriting from anotehr', () => {
+  const src = `
+  class Pos {
+    x: integer
+    y: integer
+    constructor(x, y) {
+      this.x = x
+      this.y = y
+    }
+  }
+
+  class Pos3D extends Pos {
+    z: integer
+    d: float
+    constructor(x, y, z, d) {
+      super(x, y)
+      this.z = z
+      this.d = d
+    }
+  }
+
+  function foo() {
+    const p = new Pos3D(1, 2, 3, 4.0)
+    const k = p.d = 5.0
+    print(typeof(k))
+    print(k)
+    print(p.x)
+    print(p.z)
+  }
+
+  foo()
+  `
+
+  expect(compileAndRun(src)).toBe('float\n5.000000\n1\n3\n')
+})
+
+test('class inheriting from anotehr 2', () => {
+  const src = `
+  class Person {
+    name: string
+    age: integer
+    constructor(name: string, age: integer) {
+      this.name = name
+      this.age = age
+    }
+  }
+
+  class Student extends Person {
+    id: integer
+    dept: string
+    constructor(name: string, age: integer, id: integer, dept: string) {
+      super(name, age)
+      this.id = id
+      this.dept = dept
+    }
+  }
+
+  function bar() {
+    const s = new Student('Alice', 21, 123, '??')
+    const k = s.id = 456
+    print(typeof(k))  // any
+    const k2 = s.dept = 'CS'
+    print(typeof(k2))
+    print(s.name)
+    print(s.age)
+    print(s.id)
+    print(s.dept)
+  }
+
+  bar()
+  `
+
+  expect(compileAndRun(src)).toBe(['any', 'string', 'Alice', 21, '456', 'CS' ].join('\n') + '\n')
 })
 
 test('class with a constructor', () => {
@@ -1490,7 +1565,7 @@ test('class with a default super constructor', () => {
   expect(compileAndRun(src)).toBe('??\n')
 })
 
-test.only('multiple source files for classes', () => {
+test('multiple source files for classes', () => {
   const src1 = `
   class Pos {
     x: number

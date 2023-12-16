@@ -259,6 +259,13 @@ export function rootSetVariable(index: number | undefined, rootset?: string) {
 export const getObjectProperty = 'get_obj_property'
 export const setObjectProperty = 'set_obj_property'
 
+export function getObjectPrimitiveProperty(t: StaticType) {
+  if (t === Float)
+    return '*get_obj_float_property('
+  else
+    return '*get_obj_int_property('
+}
+
 // a getter/setter function for arrays
 export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
   if (t === Integer)
@@ -381,9 +388,10 @@ export function classDeclaration(clazz: InstanceType) {
   }
 
   const size = clazz.objectSize()
+  const start = clazz.unboxedProperties() || 0
 
   return `CLASS_OBJECT(${classNameInC(name)}, 0) = {
-    .clazz = { .size = ${size}, .start_index = 0, .name = "${name}", .superclass = ${superAddr} }};`
+    .clazz = { .size = ${size}, .start_index = ${start}, .name = "${name}", .superclass = ${superAddr} }};`
 }
 
 export function makeInstance(clazz: InstanceType) {

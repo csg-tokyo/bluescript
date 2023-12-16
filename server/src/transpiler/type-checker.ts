@@ -234,6 +234,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     this.result = clazz
     this.visit(node.body, names)
+    clazz.sortProperties()
     this.result = clazz
   }
 
@@ -630,7 +631,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   memberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, names: NameTable<Info>): void {
     this.assertLvalue(leftNode, names)
     const checked = this.checkMemberExpr(leftNode, names)
-    if (!checked && leftNode.computed) {
+    if (!checked && leftNode.computed) {    // if an array type is unknown
       this.visit(node.right, names)
       this.result = Any
       return
@@ -641,8 +642,15 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const rightType = this.result
     const op = node.operator
 
-    // this depends on the implementation of array objects
-    const actualType = leftNode.computed ? actualElementType(elementType) : Any
+    // this depends on the implementation of array objects etc.
+    let actualType: StaticType
+    if (leftNode.computed)
+      actualType = actualElementType(elementType)
+    else
+      if (checked)
+        actualType = isPrimitiveType(elementType) ? Any : elementType
+      else
+        actualType = elementType
 
     if (op === '=')
       if (isConsistent(rightType, elementType)) {
@@ -870,8 +878,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.checkMemberExpr(node, names)
   }
 
-  // This returns false when the given expression is array access but the array type
-  // is unknown.  Otherwise, it returns true.
+  // This returns false when the given expression is an array access but the array type
+  // is unknown.  It also returns false when the given expression is a property access
+  // like a.b and the property is unboxed.  Otherwise, it returns true.
   private checkMemberExpr(node: AST.MemberExpression, names: NameTable<Info>) {
     this.assert(AST.isExpression(node.object), 'not supported object', node.object)
     if (node.computed) {
@@ -902,7 +911,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           const typeAndIndex  = type.findProperty(propertyName)
           if (typeAndIndex) {
             this.result = typeAndIndex[0]
-            return true
+            const unboxed = type.unboxedProperties()
+            return unboxed === undefined || unboxed <= typeAndIndex[1]
           }
         }
 

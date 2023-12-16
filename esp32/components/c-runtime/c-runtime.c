@@ -991,22 +991,24 @@ void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
     }
 }
 
-extern int32_t value_to_int(value_t v);
-extern value_t int_to_value(int32_t v);
-extern bool is_int_value(value_t v);
+extern CR_SECTION int32_t value_to_int(value_t v);
+extern CR_SECTION value_t int_to_value(int32_t v);
+extern CR_SECTION bool is_int_value(value_t v);
 
-extern float value_to_float(value_t v);
-extern value_t float_to_value(float v);
-extern bool is_float_value(value_t v);
+extern CR_SECTION float value_to_float(value_t v);
+extern CR_SECTION value_t float_to_value(float v);
+extern CR_SECTION bool is_float_value(value_t v);
 
-extern pointer_t value_to_ptr(value_t v);
-extern value_t ptr_to_value(pointer_t v);
-extern bool is_ptr_value(value_t v);
+extern CR_SECTION pointer_t value_to_ptr(value_t v);
+extern CR_SECTION value_t ptr_to_value(pointer_t v);
+extern CR_SECTION bool is_ptr_value(value_t v);
 
-extern value_t bool_to_value(bool b);
-extern bool value_to_bool(value_t v);
-extern bool safe_value_to_bool(value_t v);
+extern CR_SECTION value_t bool_to_value(bool b);
+extern CR_SECTION bool value_to_bool(value_t v);
+extern CR_SECTION bool safe_value_to_bool(value_t v);
 
-extern value_t gc_new_object(const class_object* clazz);
-extern value_t get_obj_property(value_t obj, int index);
-extern value_t set_obj_property(value_t obj, int index, value_t new_value);
+extern CR_SECTION value_t gc_new_object(const class_object* clazz);
+extern CR_SECTION value_t get_obj_property(value_t obj, int index);
+extern CR_SECTION value_t set_obj_property(value_t obj, int index, value_t new_value);
+extern CR_SECTION int32_t* get_obj_int_property(value_t obj, int index);
+extern CR_SECTION float* get_obj_float_property(value_t obj, int index);

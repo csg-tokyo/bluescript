@@ -1,13 +1,14 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { FunctionType, ObjectType, StaticType } from "./types"
+import { FunctionType, ObjectType, StaticType, isPrimitiveType, objectType } from "./types"
 
 // Type for instances of a class
 export class InstanceType extends ObjectType {
   private properties: { [key: string]: [StaticType, number] } = {}
   private constructorFunction: FunctionType | undefined = undefined
   private numOfProperties: number
+  private numOfUnboxed: number | undefined = undefined
   private superClass: ObjectType
   private className: string
 
@@ -23,6 +24,8 @@ export class InstanceType extends ObjectType {
   superType(): ObjectType | null { return this.superClass }
 
   objectSize() { return this.numOfProperties }
+
+  unboxedProperties() { return this.numOfUnboxed }
 
   forEach(f: (n: string, t: StaticType, i: number) => void) {
     for (const name in this.properties) {
@@ -63,6 +66,34 @@ export class InstanceType extends ObjectType {
       return superClass.findProperty(name)
     else
       return undefined
+  }
+
+  // move a property of primitive type to the front (an element with a smaller index).
+  sortProperties() {
+    let index = 0
+    if (this.superClass instanceof InstanceType) {
+      const size = this.superClass.objectSize()
+      const k = this.superClass.unboxedProperties()
+      if (k === undefined || k !== size) {
+        this.numOfUnboxed = k
+        return
+      }
+
+      index = size
+    }
+
+    for (const name in this.properties) {
+      const value = this.properties[name]
+      if (isPrimitiveType(value[0]))
+        value[1] = index++
+    }
+
+    this.numOfUnboxed = index
+    for (const name in this.properties) {
+      const value = this.properties[name]
+      if (!isPrimitiveType(value[0]))
+        value[1] = index++
+    }
   }
 
   findConstructor() { return this.constructorFunction }

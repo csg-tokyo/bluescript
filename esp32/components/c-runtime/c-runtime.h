@@ -161,6 +161,14 @@ inline value_t set_obj_property(value_t obj, int index, value_t new_value) {
     return value_to_ptr(obj)->body[index] = new_value;
 }
 
+inline int32_t* get_obj_int_property(value_t obj, int index) {
+    return (int32_t*)&value_to_ptr(obj)->body[index];
+}
+
+inline float* get_obj_float_property(value_t obj, int index) {
+    return (float*)&value_to_ptr(obj)->body[index];
+}
+
 extern value_t CR_SECTION gc_new_function(void* fptr, const char* signature, value_t this_object);
 extern bool CR_SECTION gc_is_function_object(value_t obj, const char* signature);
 extern const void* CR_SECTION gc_function_object_ptr(value_t obj, int index);
