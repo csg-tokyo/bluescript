@@ -296,7 +296,7 @@ void gc_initialize() {
 
 static inline int object_size(pointer_t obj, class_object* clazz) {
     int32_t size = clazz->size;
-    if (size >= 0)
+    if (size >= 0)      // != SIZE_NO_POINTER
         return size;
     else
         return obj->body[0] + 1;
@@ -672,10 +672,10 @@ inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_valu
 // An any-type array
 
 static CLASS_OBJECT(array_object, 1) = {
-    .clazz = { .size = 2, .start_index = 0, .name = "Array", .superclass = &object_class.clazz }};
+    .clazz = { .size = 2, .start_index = 1, .name = "Array", .superclass = &object_class.clazz }};
 
 static CLASS_OBJECT(anyarray_object, 1) = {
-    .clazz = { .size = 2, .start_index = 0, .name = "Array<any>", .superclass = &object_class.clazz }};
+    .clazz = { .size = 2, .start_index = 1, .name = "Array<any>", .superclass = &object_class.clazz }};
 
 value_t safe_value_to_array(value_t v) {
     return safe_value_to_value(&array_object.clazz, v);
@@ -691,9 +691,9 @@ value_t gc_new_array(int32_t is_any, int32_t n, value_t init_value) {
     pointer_t obj = gc_allocate_object(is_any ? &anyarray_object.clazz : &array_object.clazz);
     rootset.values[1] = ptr_to_value(obj);
     value_t vec = gc_new_vector(n, init_value);
-    obj->body[0] = vec;
+    obj->body[1] = vec;
     // the length must be less than or equal to the length of the vector.
-    obj->body[1] = int_to_value(n);
+    obj->body[0] = n;
     DELETE_ROOT_SET(rootset)
     return ptr_to_value(obj);
 }
@@ -705,7 +705,7 @@ value_t gc_make_array(int32_t is_any, int32_t n, ...) {
     va_start(args, n);
 
     for (int32_t i = 0; i < n; i++)
-        fast_vector_set(arrayp->body[0], i, va_arg(args, value_t));
+        fast_vector_set(arrayp->body[1], i, va_arg(args, value_t));
 
     va_end(args);
     return array;
@@ -713,14 +713,14 @@ value_t gc_make_array(int32_t is_any, int32_t n, ...) {
 
 int32_t gc_array_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
-    return value_to_int(objp->body[1]);
+    return objp->body[0];
 }
 
 value_t* gc_array_get(value_t obj, int32_t idx) {
     pointer_t objp = value_to_ptr(obj);
-    int32_t len = value_to_int(objp->body[1]);
+    int32_t len = objp->body[0];
     if (0 <= idx && idx < len)
-        return fast_vector_get(objp->body[0], idx);
+        return fast_vector_get(objp->body[1], idx);
     else {
         runtime_index_error(idx, len, "Array.get");
         return 0;
@@ -729,9 +729,9 @@ value_t* gc_array_get(value_t obj, int32_t idx) {
 
 value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
     pointer_t objp = value_to_ptr(obj);
-    int32_t len = value_to_int(objp->body[1]);
+    int32_t len = objp->body[0];
     if (0 <= index && index < len) {
-        fast_vector_set(objp->body[0], index, new_value);
+        fast_vector_set(objp->body[1], index, new_value);
         return new_value;
     } else {
         runtime_index_error(index, len, "Array.set");

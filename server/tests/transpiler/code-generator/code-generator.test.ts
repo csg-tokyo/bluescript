@@ -1358,6 +1358,36 @@ test('convert an any-type value to an array', () => {
   expect(() => compileAndRun(src)).toThrow(/cannot convert any to string\[\]/)
 })
 
+test('array length', () => {
+  const src = `
+  function foo() {
+    const arr1: integer[] = [1, 2, 3, 4]
+    print(arr1.length)
+    const arr2: float[] = [3.0, 5.0, 7.0]
+    print(arr2.length)
+    const arr3: boolean[] = [false, false, true, true, true]
+    print(arr3.length)
+    const arr4: string[] = ['foo', 'bar']
+    print(arr4.length)
+  }
+
+  foo() `
+
+  expect(compileAndRun(src)).toBe('4\n3\n5\n2\n')
+})
+
+test('cannot update .length on an array', () => {
+  const src = `
+  function foo() {
+    const arr = [1, 2, 3]
+    arr.length = 4
+  }
+
+  foo()`
+
+  expect(() => compileAndRun(src)).toThrow(/\.length/)
+})
+
 test('class declaration', () => {
   const src = `
   class Position {

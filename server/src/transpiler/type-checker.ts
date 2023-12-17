@@ -630,7 +630,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   memberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, names: NameTable<Info>): void {
     this.assertLvalue(leftNode, names)
-    const checked = this.checkMemberExpr(leftNode, names)
+    const checked = this.checkMemberExpr(leftNode, false, names)
     if (!checked && leftNode.computed) {    // if an array type is unknown
       this.visit(node.right, names)
       this.result = Any
@@ -851,7 +851,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {
     let etype: StaticType | undefined = undefined
     for (const ele of node.elements)
-      if (ele != null) {
+      if (AST.isExpression(ele)) {
         this.visit(ele, names)
         this.addStaticType(ele, this.result)
         if (etype === undefined)
@@ -863,7 +863,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           else
             etype = t
         }
-    }
+      }
+      else
+        this.assert(false, 'unsupported array element', node)
 
     if (etype === undefined)
       etype = Any     // the type of an empty array is any[]
@@ -875,13 +877,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   memberExpression(node: AST.MemberExpression, names: NameTable<Info>): void {
     // an array access is recognized as a member access.
-    this.checkMemberExpr(node, names)
+    this.checkMemberExpr(node, true, names)
   }
 
   // This returns false when the given expression is an array access but the array type
   // is unknown.  It also returns false when the given expression is a property access
   // like a.b and the property is unboxed.  Otherwise, it returns true.
-  private checkMemberExpr(node: AST.MemberExpression, names: NameTable<Info>) {
+  private checkMemberExpr(node: AST.MemberExpression, immutable: boolean, names: NameTable<Info>) {
     this.assert(AST.isExpression(node.object), 'not supported object', node.object)
     if (node.computed) {
       // an array access like a[b]
@@ -913,6 +915,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             this.result = typeAndIndex[0]
             const unboxed = type.unboxedProperties()
             return unboxed === undefined || unboxed <= typeAndIndex[1]
+          }
+        }
+        else if (type instanceof ArrayType) {
+          if (propertyName === 'length') {
+            this.assert(immutable, 'cannot change .length', node.property)
+            this.result = Integer
+            return false  // an uboxed value.
           }
         }
 

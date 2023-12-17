@@ -1009,23 +1009,32 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
     else {
       // a member access like a.b
-      const objType = getStaticType(node.object) as InstanceType
+      const objType = getStaticType(node.object)
       const propertyName = (node.property as AST.Identifier).name
-      const typeAndIndex  = objType.findProperty(propertyName)
-      if (!typeAndIndex)
-        throw this.errorLog.push('fatal: unknown member name', node)
+      if (objType instanceof InstanceType) {
+        const typeAndIndex  = objType.findProperty(propertyName)
+        if (!typeAndIndex)
+          throw this.errorLog.push('fatal: unknown member name', node)
 
-      const unbox = objType.unboxedProperties()
-      if (unbox && typeAndIndex[1] < unbox) {
-        this.result.write(cr.getObjectPrimitiveProperty(typeAndIndex[0]))
-        this.visit(node.object, env)
-        this.result.write(`, ${typeAndIndex[1]})`)
+        const unbox = objType.unboxedProperties()
+        if (unbox && typeAndIndex[1] < unbox) {
+          this.result.write(cr.getObjectPrimitiveProperty(typeAndIndex[0]))
+          this.visit(node.object, env)
+          this.result.write(`, ${typeAndIndex[1]})`)
+        }
+        else {
+          this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
+          this.visit(node.object, env)
+          this.result.write(`, ${typeAndIndex[1]}))`)
+        }
       }
-      else {
-        this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
+      else if (objType instanceof ArrayType && propertyName === 'length') {
+        this.result.write(cr.getObjectPrimitiveProperty(Integer))
         this.visit(node.object, env)
-        this.result.write(`, ${typeAndIndex[1]}))`)
+        this.result.write(`, ${cr.getArrayLengthIndex(objType.elementType)})`)
       }
+      else
+        throw this.errorLog.push('fatal: unknown array property', node)
     }
   }
 

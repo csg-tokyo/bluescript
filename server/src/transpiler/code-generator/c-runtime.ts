@@ -320,6 +320,13 @@ export function actualElementType(t: StaticType) {
     return Any
 }
 
+export function getArrayLengthIndex(t: StaticType) {
+  if (t === Boolean)
+    return 1
+  else
+    return 0
+}
+
 export const runtimeTypeArray = 'array_object'
 export const arrayMaker = 'gc_new_string'
 
