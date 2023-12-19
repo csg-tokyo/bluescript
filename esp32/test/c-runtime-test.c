@@ -1,9 +1,9 @@
 // Test code
 // To cmpile,
-// cc -DBIT64 c-runtime-test.c
+// cc -DTEST64 c-runtime-test.c
 
 #include <string.h>
-#include "../../../esp32/components/c-runtime/c-runtime.c"
+#include "../components/c-runtime/c-runtime.c"
 
 #define Assert_true(v)     assert_true(v, __LINE__)
 
@@ -57,7 +57,7 @@ static void assert_str_equals(const char* a, const char* b, int line) {
         printf("*** ERROR line %d: %p, %p\n", line, a, b);
 }
 
-#ifdef BIT64
+#ifdef TEST64
 
 void test_pointer_table() {
     initialize_pointer_table();
@@ -77,7 +77,7 @@ void test_pointer_table() {
     }
 }
 
-#endif /* BIT64 */
+#endif /* TEST64 */
 
 bool is_live_object(value_t obj) {
     value_t address = (value_t)((value_t*)value_to_ptr(obj) - heap_memory);
@@ -465,7 +465,7 @@ void test_main() {
 }
 
 int main() {
-#ifdef BIT64
+#ifdef TEST64
     test_pointer_table();
 #endif
   gc_initialize();
