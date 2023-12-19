@@ -63,12 +63,8 @@ inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
 inline bool is_int_value(value_t v) { return (v & 3) == 0; }
 
-inline float value_to_float(value_t v) {
-    value_t f = v & 0xfffffffc;
-    return *(float*)&f;
-}
-
-inline value_t float_to_value(float v) { return (*(uint32_t*)&v & 0xfffffffc) | 1; }
+float value_to_float(value_t v);
+value_t float_to_value(float v);
 inline bool is_float_value(value_t v) { return (v & 3) == 1; }
 
 #ifdef TEST64

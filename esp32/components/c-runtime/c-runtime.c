@@ -149,6 +149,58 @@ int32_t safe_value_to_int(value_t v) {
     return value_to_int(v);
 }
 
+// float_exp - 127 == value_float_exp - 31;
+// value_float_exp == float_exp - 96;
+// ENCODE_OFFSET == 96 << 23;
+const uint32_t FLOAT_ENCODE_OFFSET = 0x30000000u;
+
+// float_exp - 127 == value_float_exp - 31;
+// (MIN_ENCODABLE_EXP >> 23) - 127 == 1 - 31;
+// MIN_ENCODABLE_EXP == 97 << 23;
+const uint32_t FLOAT_MIN_ENCODABLE_EXP = 0x30800000u;
+
+// float_exp - 127 == value_float_exp - 31;
+// (MAX_ENCODABLE_EXP >> 23) - 127 == 62 - 31;
+// MAX_ENCODABLE_EXP == 158 << 23;
+const uint32_t FLOAT_MAX_ENCODABLE_EXP = 0x4F000000u;
+
+float value_to_float(value_t v) {
+    uint32_t exp = v & 0x7E000000u;
+    if (exp != 0u && exp != 0x7E000000u) {
+        // normal number
+        // uint32_t f = (v & 0x80000000u) | ((exp >> 2) + ENCODE_OFFSET) | ((v & 0x01FFFFFC) >> 2);
+        uint32_t f = (v & 0x80000000u) | (((v & 0x7FFFFFFCu) >> 2) + FLOAT_ENCODE_OFFSET);
+        return *(float*)&f;
+    } else if (exp == 0x00000000u) {
+        uint32_t f = v & 0x80000000u;
+        return *(float*)&f;
+    } else {
+        // inf, -inf, NaN
+        uint32_t f = (v & 0x80000000u) | 0x7F800000u | ((v & 0x01FFFFFCu) >> 2);
+        return *(float*)&f;
+    }
+}
+
+value_t float_to_value(float f) {
+    uint32_t f_u = *(uint32_t*)&f;
+    uint32_t exp = f_u & 0x7F800000u;
+    if (FLOAT_MIN_ENCODABLE_EXP <= exp && exp <= FLOAT_MAX_ENCODABLE_EXP) {
+        // normal numbers
+        // return (f_u & 0x80000000u) | ((exp - ENCODE_OFFSET) << 2) | ((f_u & 0x007FFFFFu) << 2) | 1u;
+        return (f_u & 0x80000000u) | (((f_u & 0x7FFFFFFF) - FLOAT_ENCODE_OFFSET) << 2) | 1u;
+    } else if (exp < FLOAT_MIN_ENCODABLE_EXP) {
+        // change to zero
+        return (f_u & 0x80000000u) | 1u;
+    } else if (exp == 0x7F800000u && (f_u & 0x007FFFFFu) != 0u) {
+        // NaN
+        // return (exp & 0x80000000u) | 0x7E000000 | ((exp & 0x007FFFFF) << 2) | 1;
+        return 0x7F000001u;  // normalized NaN
+    } else {
+        // inf, -inf
+        return (exp & 0x80000000u) | 0x7E000000u | 1u;
+    }
+}
+
 float safe_value_to_float(value_t v) {
     if (is_float_value(v))
         return value_to_float(v);
