@@ -2,9 +2,9 @@
 
 /*
   To run on a 64bit machine (for testing/debugging purpose only),
-  compile with -DBIT64.  To include test code, compile with -DTEST.
+  compile with -DTEST64.  To include test code, compile with -DTEST.
   So,
-    cc -DTEST -DBIT64 gc.c
+    cc -DTEST -DTEST64 gc.c
   will produce ./a.out that runs test code on a 64bit machine.
 
   Typical usecase:
@@ -32,8 +32,9 @@
 #include <setjmp.h>
 #include <string.h>
 #include "c-runtime.h"
+#include <inttypes.h>
 
-#ifdef BIT64
+#ifdef TEST64
 
 #include <stdlib.h>
 
@@ -79,13 +80,13 @@ static inline value_t raw_ptr_to_value(const void* v) { return (value_t)((uintpt
 static inline void* raw_value_to_ptr(value_t v) { return (void*)v; }
 static inline value_t raw_ptr_to_value(const void* v) { return (value_t)v; }
 
-#endif /* BIT64 */
+#endif /* TEST64 */
 
 #define HEAP_SIZE       (1024 * 8 + 2) // words (even number)
 
 static value_t heap_memory[HEAP_SIZE];
 
-#ifdef BIT64
+#ifdef TEST64
 pointer_t gc_heap_pointer(pointer_t ptr) {
     return (pointer_t)((uint64_t)heap_memory & MASK64H | (uint64_t)ptr & MASK32);
 }
@@ -310,7 +311,7 @@ void gc_initialize() {
     heap_memory[1] = 2;  // the size of the reserved space (first two words).
     heap_memory[2] = HEAP_SIZE;
     heap_memory[3] = HEAP_SIZE - 2;
-#ifdef BIT64
+#ifdef TEST64
     initialize_pointer_table();
 #endif
 }
@@ -336,7 +337,7 @@ static int32_t class_has_pointers(class_object* obj) {
 static uint32_t current_no_mark = 0;
 
 static void set_object_header(pointer_t obj, const class_object* clazz) {
-#ifdef BIT64
+#ifdef TEST64
     uint64_t clazz2 = (uint64_t)record_64bit_pointer((void*)(uintptr_t)clazz);
     obj->header = (((uint32_t)clazz2) & ~3) | current_no_mark;
 #else
@@ -383,7 +384,7 @@ static CLASS_OBJECT(function_object, 0) = {
 
 // this_object may be VALUE_UNDEF.
 value_t gc_new_function(void* fptr, const char* signature, value_t this_object) {
-#ifdef BIT64
+#ifdef TEST64
     fptr = record_64bit_pointer(fptr);
     signature = record_64bit_pointer(signature);
 #endif
@@ -416,7 +417,7 @@ static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.start_index =
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
-#ifdef BIT64
+#ifdef TEST64
     str = (char*)record_64bit_pointer(str);
 #endif
     pointer_t obj = gc_allocate_object(&string_literal.clazz);
@@ -772,7 +773,7 @@ static uint16_t real_objsize(uint16_t length) {
 
 static pointer_t no_more_memory() {
     puts("** memory exhausted **");
-#ifdef BIT64
+#ifdef TEST64
     exit(1);
 #else
     return 0;
