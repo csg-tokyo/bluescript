@@ -164,6 +164,14 @@ const uint32_t FLOAT_MIN_ENCODABLE_EXP = 0x30800000u;
 // MAX_ENCODABLE_EXP == 158 << 23;
 const uint32_t FLOAT_MAX_ENCODABLE_EXP = 0x4F000000u;
 
+#ifdef USE_SUBNORMAL_NUMBERS
+// #include <assert.h>
+// (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER >> 23) - 127 == (1 - 31) - 23;
+// MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER == 74 << 23;
+const uint32_t MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER = 0x25000000;
+float decode_subnormal_value(value_t v);
+#endif
+
 float value_to_float(value_t v) {
     uint32_t exp = v & 0x7E000000u;
     if (exp != 0u && exp != 0x7E000000u) {
@@ -171,7 +179,12 @@ float value_to_float(value_t v) {
         // uint32_t f = (v & 0x80000000u) | ((exp >> 2) + ENCODE_OFFSET) | ((v & 0x01FFFFFC) >> 2);
         uint32_t f = (v & 0x80000000u) | (((v & 0x7FFFFFFCu) >> 2) + FLOAT_ENCODE_OFFSET);
         return *(float*)&f;
+#ifdef USE_SUBNORMAL_NUMBERS
+    } else if (exp == 0x00000000u && (v & 0x01FFFFFCu) != 0x00000000u) {
+        return decode_subnormal_value(v);
+#endif
     } else if (exp == 0x00000000u) {
+        // +0.0, -0.0
         uint32_t f = v & 0x80000000u;
         return *(float*)&f;
     } else {
@@ -188,6 +201,14 @@ value_t float_to_value(float f) {
         // normal numbers
         // return (f_u & 0x80000000u) | ((exp - ENCODE_OFFSET) << 2) | ((f_u & 0x007FFFFFu) << 2) | 1u;
         return (f_u & 0x80000000u) | (((f_u & 0x7FFFFFFF) - FLOAT_ENCODE_OFFSET) << 2) | 1u;
+#ifdef USE_SUBNORMAL_NUMBERS
+    } else if (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER <= exp && exp < MIN_ENCODABLE_EXP) {
+        // change to subnormal number
+        uint32_t underflow = (MIN_ENCODABLE_EXP - exp) >> 23;
+        // assert(1 <= underflow && underflow < 24);
+        uint32_t subnormal_frac = (f_u & 0x007FFFFFu) | 0x00800000u;
+        return (f_u & 0x80000000u) | ((subnormal_frac >> underflow) << 2) | 1u;
+#endif
     } else if (exp < FLOAT_MIN_ENCODABLE_EXP) {
         // change to zero
         return (f_u & 0x80000000u) | 1u;
@@ -200,6 +221,25 @@ value_t float_to_value(float f) {
         return (exp & 0x80000000u) | 0x7E000000u | 1u;
     }
 }
+
+#ifdef USE_SUBNORMAL_NUMBERS
+float decode_subnormal_value(value_t v) {
+    // uint32_t frac = (v & 0x01FFFFFCu) >> 1;
+    // uint32_t exp;
+    // for (exp = 0x30000000; (frac & 0x00800000) == 0 ; frac <<= 1, exp -= 0x00800000);
+    // uint32_t f = (v & 0x80000000u) | exp | frac;
+    // return *(float*)&f;
+    uint32_t frac = v & 0x01FFFFFCu;
+    int shift = 0;
+    if ((frac & 0x01FFF800u) != 0u) { frac &= 0x01FFF800u; } else { shift += 16; }
+    if ((frac & 0x01F807F8u) != 0u) { frac &= 0x01F807F8u; } else { shift += 8; }
+    if ((frac & 0x01878784u) != 0u) { frac &= 0x01878784u; } else { shift += 4; }
+    if ((frac & 0x00666664u) != 0u) { frac &= 0x00666664u; } else { shift += 2; }
+    if ((frac & 0x01555554u) != 0u) { /* frac &= 0x01555554u; */ } else { shift += 1; }
+    uint32_t f = (v & 0x80000000u) | ((MIN_ENCODABLE_EXP - (shift << 23)) & 0x7F800000) | (v & 0x01FFFFFCu) >> shift;
+    return *(float*)&f;
+}
+#endif
 
 float safe_value_to_float(value_t v) {
     if (is_float_value(v))
