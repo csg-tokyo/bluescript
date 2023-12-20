@@ -164,6 +164,8 @@ const uint32_t FLOAT_MIN_ENCODABLE_EXP = 0x30800000u;
 // MAX_ENCODABLE_EXP == 158 << 23;
 const uint32_t FLOAT_MAX_ENCODABLE_EXP = 0x4F000000u;
 
+// #define USE_SUBNORMAL_NUMBERS
+
 #ifdef USE_SUBNORMAL_NUMBERS
 // #include <assert.h>
 // (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER >> 23) - 127 == (1 - 31) - 23;
@@ -202,9 +204,9 @@ value_t float_to_value(float f) {
         // return (f_u & 0x80000000u) | ((exp - ENCODE_OFFSET) << 2) | ((f_u & 0x007FFFFFu) << 2) | 1u;
         return (f_u & 0x80000000u) | (((f_u & 0x7FFFFFFF) - FLOAT_ENCODE_OFFSET) << 2) | 1u;
 #ifdef USE_SUBNORMAL_NUMBERS
-    } else if (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER <= exp && exp < MIN_ENCODABLE_EXP) {
+    } else if (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER <= exp && exp < FLOAT_MIN_ENCODABLE_EXP) {
         // change to subnormal number
-        uint32_t underflow = (MIN_ENCODABLE_EXP - exp) >> 23;
+        uint32_t underflow = (FLOAT_MIN_ENCODABLE_EXP - exp) >> 23;
         // assert(1 <= underflow && underflow < 24);
         uint32_t subnormal_frac = (f_u & 0x007FFFFFu) | 0x00800000u;
         return (f_u & 0x80000000u) | ((subnormal_frac >> underflow) << 2) | 1u;
@@ -236,7 +238,7 @@ float decode_subnormal_value(value_t v) {
     if ((frac & 0x01878784u) != 0u) { frac &= 0x01878784u; } else { shift += 4; }
     if ((frac & 0x00666664u) != 0u) { frac &= 0x00666664u; } else { shift += 2; }
     if ((frac & 0x01555554u) != 0u) { /* frac &= 0x01555554u; */ } else { shift += 1; }
-    uint32_t f = (v & 0x80000000u) | ((MIN_ENCODABLE_EXP - (shift << 23)) & 0x7F800000) | (v & 0x01FFFFFCu) >> shift;
+    uint32_t f = (v & 0x80000000u) | ((FLOAT_MIN_ENCODABLE_EXP - (shift << 23)) & 0x7F800000) | (v & 0x01FFFFFCu) >> shift;
     return *(float*)&f;
 }
 #endif
