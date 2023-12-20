@@ -17,7 +17,7 @@
     A 32bit address points to a structure of object_type type.
 */
 
-#ifdef BIT64
+#ifdef TEST64
 #define ALGIN __attribute__ ((aligned(8)))
 #define CR_SECTION 
 #else
@@ -63,15 +63,11 @@ inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
 inline bool is_int_value(value_t v) { return (v & 3) == 0; }
 
-inline float value_to_float(value_t v) {
-    value_t f = v & 0xfffffffc;
-    return *(float*)&f;
-}
-
-inline value_t float_to_value(float v) { return (*(uint32_t*)&v & 0xfffffffc) | 1; }
+float value_to_float(value_t v);
+value_t float_to_value(float v);
 inline bool is_float_value(value_t v) { return (v & 3) == 1; }
 
-#ifdef BIT64
+#ifdef TEST64
 extern pointer_t gc_heap_pointer(pointer_t ptr);
 inline pointer_t value_to_ptr(value_t v) { return gc_heap_pointer((pointer_t)((uint64_t)v & 0xfffffffc)); }
 #else

@@ -1,9 +1,9 @@
 // Test code for c-runtime.c
 // To compile,
-// cc -DBIT64 c-runtime-test2.c
+// cc -DTEST64 c-runtime-test2.c
 
 #include <stdio.h>
-#include "../../../esp32/components/c-runtime/c-runtime.c"
+#include "../components/c-runtime/c-runtime.c"
 
 static int nerrors = 0;
 
@@ -201,7 +201,7 @@ void test_function_object() {
 }
 
 int main() {
-#ifdef BIT64
+#ifdef TEST64
     initialize_pointer_table();
 #endif
   gc_initialize();

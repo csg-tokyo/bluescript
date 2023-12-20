@@ -2,9 +2,9 @@
 
 /*
   To run on a 64bit machine (for testing/debugging purpose only),
-  compile with -DBIT64.  To include test code, compile with -DTEST.
+  compile with -DTEST64.  To include test code, compile with -DTEST.
   So,
-    cc -DTEST -DBIT64 gc.c
+    cc -DTEST -DTEST64 gc.c
   will produce ./a.out that runs test code on a 64bit machine.
 
   Typical usecase:
@@ -32,8 +32,9 @@
 #include <setjmp.h>
 #include <string.h>
 #include "c-runtime.h"
+#include <inttypes.h>
 
-#ifdef BIT64
+#ifdef TEST64
 
 #include <stdlib.h>
 
@@ -79,13 +80,13 @@ static inline value_t raw_ptr_to_value(const void* v) { return (value_t)((uintpt
 static inline void* raw_value_to_ptr(value_t v) { return (void*)v; }
 static inline value_t raw_ptr_to_value(const void* v) { return (value_t)v; }
 
-#endif /* BIT64 */
+#endif /* TEST64 */
 
 #define HEAP_SIZE       (1024 * 8 + 2) // words (even number)
 
 static value_t heap_memory[HEAP_SIZE];
 
-#ifdef BIT64
+#ifdef TEST64
 pointer_t gc_heap_pointer(pointer_t ptr) {
     return (pointer_t)((uint64_t)heap_memory & MASK64H | (uint64_t)ptr & MASK32);
 }
@@ -147,6 +148,100 @@ int32_t safe_value_to_int(value_t v) {
 
     return value_to_int(v);
 }
+
+// float_exp - 127 == value_float_exp - 31;
+// value_float_exp == float_exp - 96;
+// ENCODE_OFFSET == 96 << 23;
+const uint32_t FLOAT_ENCODE_OFFSET = 0x30000000u;
+
+// float_exp - 127 == value_float_exp - 31;
+// (MIN_ENCODABLE_EXP >> 23) - 127 == 1 - 31;
+// MIN_ENCODABLE_EXP == 97 << 23;
+const uint32_t FLOAT_MIN_ENCODABLE_EXP = 0x30800000u;
+
+// float_exp - 127 == value_float_exp - 31;
+// (MAX_ENCODABLE_EXP >> 23) - 127 == 62 - 31;
+// MAX_ENCODABLE_EXP == 158 << 23;
+const uint32_t FLOAT_MAX_ENCODABLE_EXP = 0x4F000000u;
+
+// #define USE_SUBNORMAL_NUMBERS
+
+#ifdef USE_SUBNORMAL_NUMBERS
+// #include <assert.h>
+// (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER >> 23) - 127 == (1 - 31) - 23;
+// MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER == 74 << 23;
+const uint32_t MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER = 0x25000000;
+float decode_subnormal_value(value_t v);
+#endif
+
+float value_to_float(value_t v) {
+    uint32_t exp = v & 0x7E000000u;
+    if (exp != 0u && exp != 0x7E000000u) {
+        // normal number
+        // uint32_t f = (v & 0x80000000u) | ((exp >> 2) + ENCODE_OFFSET) | ((v & 0x01FFFFFC) >> 2);
+        uint32_t f = (v & 0x80000000u) | (((v & 0x7FFFFFFCu) >> 2) + FLOAT_ENCODE_OFFSET);
+        return *(float*)&f;
+#ifdef USE_SUBNORMAL_NUMBERS
+    } else if (exp == 0x00000000u && (v & 0x01FFFFFCu) != 0x00000000u) {
+        return decode_subnormal_value(v);
+#endif
+    } else if (exp == 0x00000000u) {
+        // +0.0, -0.0
+        uint32_t f = v & 0x80000000u;
+        return *(float*)&f;
+    } else {
+        // inf, -inf, NaN
+        uint32_t f = (v & 0x80000000u) | 0x7F800000u | ((v & 0x01FFFFFCu) >> 2);
+        return *(float*)&f;
+    }
+}
+
+value_t float_to_value(float f) {
+    uint32_t f_u = *(uint32_t*)&f;
+    uint32_t exp = f_u & 0x7F800000u;
+    if (FLOAT_MIN_ENCODABLE_EXP <= exp && exp <= FLOAT_MAX_ENCODABLE_EXP) {
+        // normal numbers
+        // return (f_u & 0x80000000u) | ((exp - ENCODE_OFFSET) << 2) | ((f_u & 0x007FFFFFu) << 2) | 1u;
+        return (f_u & 0x80000000u) | (((f_u & 0x7FFFFFFF) - FLOAT_ENCODE_OFFSET) << 2) | 1u;
+#ifdef USE_SUBNORMAL_NUMBERS
+    } else if (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER <= exp && exp < FLOAT_MIN_ENCODABLE_EXP) {
+        // change to subnormal number
+        uint32_t underflow = (FLOAT_MIN_ENCODABLE_EXP - exp) >> 23;
+        // assert(1 <= underflow && underflow < 24);
+        uint32_t subnormal_frac = (f_u & 0x007FFFFFu) | 0x00800000u;
+        return (f_u & 0x80000000u) | ((subnormal_frac >> underflow) << 2) | 1u;
+#endif
+    } else if (exp < FLOAT_MIN_ENCODABLE_EXP) {
+        // change to zero
+        return (f_u & 0x80000000u) | 1u;
+    } else if (exp == 0x7F800000u && (f_u & 0x007FFFFFu) != 0u) {
+        // NaN
+        // return (exp & 0x80000000u) | 0x7E000000 | ((exp & 0x007FFFFF) << 2) | 1;
+        return 0x7F000001u;  // normalized NaN
+    } else {
+        // inf, -inf
+        return (exp & 0x80000000u) | 0x7E000000u | 1u;
+    }
+}
+
+#ifdef USE_SUBNORMAL_NUMBERS
+float decode_subnormal_value(value_t v) {
+    // uint32_t frac = (v & 0x01FFFFFCu) >> 1;
+    // uint32_t exp;
+    // for (exp = 0x30000000; (frac & 0x00800000) == 0 ; frac <<= 1, exp -= 0x00800000);
+    // uint32_t f = (v & 0x80000000u) | exp | frac;
+    // return *(float*)&f;
+    uint32_t frac = v & 0x01FFFFFCu;
+    int shift = 0;
+    if ((frac & 0x01FFF800u) != 0u) { frac &= 0x01FFF800u; } else { shift += 16; }
+    if ((frac & 0x01F807F8u) != 0u) { frac &= 0x01F807F8u; } else { shift += 8; }
+    if ((frac & 0x01878784u) != 0u) { frac &= 0x01878784u; } else { shift += 4; }
+    if ((frac & 0x00666664u) != 0u) { frac &= 0x00666664u; } else { shift += 2; }
+    if ((frac & 0x01555554u) != 0u) { /* frac &= 0x01555554u; */ } else { shift += 1; }
+    uint32_t f = (v & 0x80000000u) | ((FLOAT_MIN_ENCODABLE_EXP - (shift << 23)) & 0x7F800000) | (v & 0x01FFFFFCu) >> shift;
+    return *(float*)&f;
+}
+#endif
 
 float safe_value_to_float(value_t v) {
     if (is_float_value(v))
@@ -310,7 +405,7 @@ void gc_initialize() {
     heap_memory[1] = 2;  // the size of the reserved space (first two words).
     heap_memory[2] = HEAP_SIZE;
     heap_memory[3] = HEAP_SIZE - 2;
-#ifdef BIT64
+#ifdef TEST64
     initialize_pointer_table();
 #endif
 }
@@ -336,7 +431,7 @@ static int32_t class_has_pointers(class_object* obj) {
 static uint32_t current_no_mark = 0;
 
 static void set_object_header(pointer_t obj, const class_object* clazz) {
-#ifdef BIT64
+#ifdef TEST64
     uint64_t clazz2 = (uint64_t)record_64bit_pointer((void*)(uintptr_t)clazz);
     obj->header = (((uint32_t)clazz2) & ~3) | current_no_mark;
 #else
@@ -383,7 +478,7 @@ static CLASS_OBJECT(function_object, 0) = {
 
 // this_object may be VALUE_UNDEF.
 value_t gc_new_function(void* fptr, const char* signature, value_t this_object) {
-#ifdef BIT64
+#ifdef TEST64
     fptr = record_64bit_pointer(fptr);
     signature = record_64bit_pointer(signature);
 #endif
@@ -416,7 +511,7 @@ static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.start_index =
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
-#ifdef BIT64
+#ifdef TEST64
     str = (char*)record_64bit_pointer(str);
 #endif
     pointer_t obj = gc_allocate_object(&string_literal.clazz);
@@ -772,7 +867,7 @@ static uint16_t real_objsize(uint16_t length) {
 
 static pointer_t no_more_memory() {
     puts("** memory exhausted **");
-#ifdef BIT64
+#ifdef TEST64
     exit(1);
 #else
     return 0;
