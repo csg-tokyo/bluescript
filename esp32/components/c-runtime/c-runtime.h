@@ -17,7 +17,7 @@
     A 32bit address points to a structure of object_type type.
 */
 
-#ifdef BIT64
+#ifdef TEST64
 #define ALGIN __attribute__ ((aligned(8)))
 #define CR_SECTION 
 #else
@@ -63,15 +63,11 @@ inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
 inline bool is_int_value(value_t v) { return (v & 3) == 0; }
 
-inline float value_to_float(value_t v) {
-    value_t f = v & 0xfffffffc;
-    return *(float*)&f;
-}
-
-inline value_t float_to_value(float v) { return (*(uint32_t*)&v & 0xfffffffc) | 1; }
+float value_to_float(value_t v);
+value_t float_to_value(float v);
 inline bool is_float_value(value_t v) { return (v & 3) == 1; }
 
-#ifdef BIT64
+#ifdef TEST64
 extern pointer_t gc_heap_pointer(pointer_t ptr);
 inline pointer_t value_to_ptr(value_t v) { return gc_heap_pointer((pointer_t)((uint64_t)v & 0xfffffffc)); }
 #else
@@ -144,6 +140,12 @@ extern value_t CR_SECTION any_post_decrement(value_t* expr);
 
 extern value_t CR_SECTION minus_any_value(value_t v);
 
+extern void CR_SECTION gc_write_barrier(pointer_t obj, value_t value);
+
+// The following functions should be called at start or end of interrupt handler.
+extern void CR_SECTION interrupt_handler_start();
+extern void CR_SECTION interrupt_handler_end();
+
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
@@ -158,7 +160,9 @@ inline value_t get_obj_property(value_t obj, int index) {
 }
 
 inline value_t set_obj_property(value_t obj, int index, value_t new_value) {
-    return value_to_ptr(obj)->body[index] = new_value;
+    pointer_t objp = value_to_ptr(obj);
+    gc_write_barrier(objp, new_value);
+    return objp->body[index] = new_value;
 }
 
 inline int32_t* get_obj_int_property(value_t obj, int index) {

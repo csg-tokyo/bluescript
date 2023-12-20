@@ -10,7 +10,7 @@ function print_i32(m: integer) {}
 function performance_now(): integer { return 0 }
 `
 
-const prologCcode = `/* To compile, cc -DBIT64 this_file.c c-runtime.c */
+const prologCcode = `/* To compile, cc -DTEST64 this_file.c c-runtime.c */
 #include "../../esp32/components/c-runtime/c-runtime.h"
 
 `
@@ -99,7 +99,7 @@ export function compileAndRunWithSingleFile(src: string, usePrintI32 = false, de
     globalNames = result2.names
     fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main))
     // throw an Error when compilation fails.
-    execSync(`cc -DBIT64 -O2 ${destFile} ../esp32/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
+    execSync(`cc -DTEST64 -O2 ${destFile} ../esp32/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
     return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
@@ -115,7 +115,7 @@ export function compileAndRun(src: string, destFile = './temp-files/bscript') {
   fs.writeFileSync(secondFile, prologCcode + result2.code + getEpilog(result2.main))
   // throw an Error when compilation fails.
 
-  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ../esp32/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
+  execSync(`cc -DTEST64 -O2 ${firstFile} ${secondFile} ../esp32/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
   return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
@@ -136,7 +136,7 @@ export function multiCompileAndRun(src: string, src2: string, destFile = './temp
   fs.writeFileSync(thirdFile, prologCcode + protoMain2 + result3.code + getEpilog2(result2.main, result3.main))
   // throw an Error when compilation fails.
 
-  execSync(`cc -DBIT64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../esp32/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
+  execSync(`cc -DTEST64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../esp32/components/c-runtime/c-runtime.c -o ./temp-files/bscript`)
   return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 

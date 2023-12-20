@@ -130,11 +130,13 @@ struct func_body HL_ATTR _clearLED = { fbody_clearLED, "()v" };
 esp_timer_handle_t oneshot_timer;
 
 static void cb_caller(void *cb) {
+    interrupt_handler_start();
     ROOT_SET(func_rootset, 1)
     func_rootset.values[0] = cb;
     printf("%d\n", (get_obj_property(func_rootset.values[0], 2)));
     ((void (*)(value_t))gc_function_object_ptr(func_rootset.values[0], 0))(get_obj_property(func_rootset.values[0], 2));
     DELETE_ROOT_SET(func_rootset)
+    interrupt_handler_end();
 }
 
 static void fbody_createOneShotTimer(value_t self, value_t _cb) {

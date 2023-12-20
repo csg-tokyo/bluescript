@@ -346,7 +346,7 @@ test('runtime type checking', () => {
   }
   print(foo(4))
   `
-  expect(compileAndRun(src37)).toBe('16.699997\n')
+  expect(compileAndRun(src37)).toBe('16.700001\n')
 
   const src4 = `function foo(n: integer) { return n + 1 }
   print(foo())
@@ -1087,7 +1087,7 @@ test('+= for float array', () => {
   }
   print(foo(10.5))`
 
-  expect(compileAndRun(src)).toBe('21.000000\n19.500000\n18.000000\n21.599998\n12.000000\n-8.000000\n14.000000\n6.500000\n')
+  expect(compileAndRun(src)).toBe('21.000000\n19.500000\n18.000000\n21.600000\n12.000000\n-8.000000\n14.000000\n6.500000\n')
 })
 
 test('int array assignment', () => {
@@ -1194,7 +1194,7 @@ test('new Array<float>(n)', () => {
 
   print(foo(3, 4))`
 
-  expect(compileAndRun(src)).toBe('99.699982\n')
+  expect(compileAndRun(src)).toBe('99.699997\n')
 })
 
 test('new Array<float>(n, v)', () => {
@@ -1206,7 +1206,7 @@ test('new Array<float>(n, v)', () => {
 
   print(foo(3))`
 
-  expect(compileAndRun(src)).toBe('14.399998\n')
+  expect(compileAndRun(src)).toBe('14.400000\n')
 })
 
 test('new Array<float>(n, v: any)', () => {
@@ -1221,7 +1221,7 @@ test('new Array<float>(n, v: any)', () => {
 
   print(foo(3))`
 
-  expect(compileAndRun(src)).toBe('14.399998\n')
+  expect(compileAndRun(src)).toBe('14.400000\n')
 })
 
 test('boolean array', () => {
