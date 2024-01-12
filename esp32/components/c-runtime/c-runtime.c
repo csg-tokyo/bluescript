@@ -128,7 +128,7 @@ static void runtime_index_error(int32_t idx, int32_t len, char* name) {
     if (strlen(name) + sizeof(fmt) / sizeof(fmt[0]) + 22 >= sizeof(error_message) / sizeof(error_message[0]))
         name = "??";
 
-    sprintf(error_message, fmt, idx, len, name);
+    sprintf(error_message, fmt, (int)idx, (int)len, name);
     longjmp(long_jump_buffer, -1);
 }
 
@@ -1121,6 +1121,7 @@ void gc_run() {
 }
 
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
+    printf("set: %p\n", set);
     set->next = gc_root_set_head;
     if (length > 0) {
         gc_root_set_head = set;

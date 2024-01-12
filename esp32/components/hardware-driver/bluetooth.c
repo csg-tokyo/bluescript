@@ -256,12 +256,12 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
             break;
         case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
             ESP_LOGI(GATTS_TABLE_TAG, "update connection params status = %d, min_int = %d, max_int = %d,conn_int = %d,latency = %d, timeout = %d",
-                  param->update_conn_params.status,
-                  param->update_conn_params.min_int,
-                  param->update_conn_params.max_int,
-                  param->update_conn_params.conn_int,
-                  param->update_conn_params.latency,
-                  param->update_conn_params.timeout);
+                  (int)param->update_conn_params.status,
+                  (int)param->update_conn_params.min_int,
+                  (int)param->update_conn_params.max_int,
+                  (int)param->update_conn_params.conn_int,
+                  (int)param->update_conn_params.latency,
+                  (int)param->update_conn_params.timeout);
             break;
         default:
             break;
@@ -270,7 +270,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 
 void prepare_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param)
 {
-    ESP_LOGI(GATTS_TABLE_TAG, "prepare write, handle = %d, value len = %d", param->write.handle, param->write.len);
+    ESP_LOGI(GATTS_TABLE_TAG, "prepare write, handle = %d, value len = %d", (int)param->write.handle, (int)param->write.len);
     write_exec_handle = param->write.handle;
     esp_gatt_status_t status = ESP_GATT_OK;
     if (prepare_write_env->prepare_buf == NULL) {
@@ -366,7 +366,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         }
        	    break;
         case ESP_GATTS_READ_EVT:
-            ESP_LOGI(GATTS_TABLE_TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
+            ESP_LOGI(GATTS_TABLE_TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", (int)param->read.conn_id, (int)param->read.trans_id, (int)param->read.handle);
             esp_gatt_rsp_t rsp;
             memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
             rsp.attr_value.handle = param->read.handle;
@@ -380,8 +380,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         case ESP_GATTS_WRITE_EVT:
             if (!param->write.is_prep){
                 // the data length of gattc write  must be less than GATTS_DEMO_CHAR_VAL_LEN_MAX.
-                ESP_LOGI(GATTS_TABLE_TAG, "idx char config a : %d, idx char val a: %d", gatt_event_handle_table[IDX_CHAR_CFG_A], gatt_event_handle_table[IDX_CHAR_VAL_A]);
-                ESP_LOGI(GATTS_TABLE_TAG, "GATT_WRITE_EVT, handle = %d, value len = %d, value :", param->write.handle, param->write.len);
+                ESP_LOGI(GATTS_TABLE_TAG, "idx char config a : %d, idx char val a: %d", (int)gatt_event_handle_table[IDX_CHAR_CFG_A], (int)gatt_event_handle_table[IDX_CHAR_VAL_A]);
+                ESP_LOGI(GATTS_TABLE_TAG, "GATT_WRITE_EVT, handle = %d, value len = %d, value :", (int)param->write.handle, (int)param->write.len);
                 if (param->write.len == 2)
                 { // For notify
                     uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
@@ -426,16 +426,16 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             exec_write_event_env(&prepare_write_env, param);
             break;
         case ESP_GATTS_MTU_EVT:
-            ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_MTU_EVT, MTU %d", param->mtu.mtu);
+            ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_MTU_EVT, MTU %d", (int)param->mtu.mtu);
             break;
         case ESP_GATTS_CONF_EVT:
-            ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_CONF_EVT, status = %d, attr_handle %d", param->conf.status, param->conf.handle);
+            ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_CONF_EVT, status = %d, attr_handle %d", (int)param->conf.status, (int)param->conf.handle);
             break;
         case ESP_GATTS_START_EVT:
-            ESP_LOGI(GATTS_TABLE_TAG, "SERVICE_START_EVT, status %d, service_handle %d", param->start.status, param->start.service_handle);
+            ESP_LOGI(GATTS_TABLE_TAG, "SERVICE_START_EVT, status %d, service_handle %d", (int)param->start.status, (int)param->start.service_handle);
             break;
         case ESP_GATTS_CONNECT_EVT:
-            ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_CONNECT_EVT, conn_id = %d", param->connect.conn_id);
+            ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_CONNECT_EVT, conn_id = %d", (int)param->connect.conn_id);
             esp_log_buffer_hex(GATTS_TABLE_TAG, param->connect.remote_bda, 6);
             esp_ble_conn_update_params_t conn_params = {0};
             memcpy(conn_params.bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
@@ -457,10 +457,10 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             }
             else if (param->add_attr_tab.num_handle != CODE_IDX_NB){
                 ESP_LOGE(GATTS_TABLE_TAG, "create attribute table abnormally, num_handle (%d) \
-                        doesn't equal to CODE_IDX_NB(%d)", param->add_attr_tab.num_handle, CODE_IDX_NB);
+                        doesn't equal to CODE_IDX_NB(%d)", (int)param->add_attr_tab.num_handle, (int)CODE_IDX_NB);
             }
             else {
-                ESP_LOGI(GATTS_TABLE_TAG, "create attribute table successfully, the number handle = %d\n",param->add_attr_tab.num_handle);
+                ESP_LOGI(GATTS_TABLE_TAG, "create attribute table successfully, the number handle = %d\n", (int)param->add_attr_tab.num_handle);
                 memcpy(gatt_event_handle_table, param->add_attr_tab.handles, sizeof(gatt_event_handle_table));
                 esp_ble_gatts_start_service(gatt_event_handle_table[IDX_SVC]);
             }
@@ -488,8 +488,8 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
             gatt_profile_table[PROFILE_APP_IDX].gatts_if = gatts_if;
         } else {
             ESP_LOGE(GATTS_TABLE_TAG, "reg app failed, app_id %04x, status %d",
-                    param->reg.app_id,
-                    param->reg.status);
+                    (int)param->reg.app_id,
+                    (int)param->reg.status);
             return;
         }
     }

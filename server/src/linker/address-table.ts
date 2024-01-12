@@ -122,7 +122,9 @@ function extractSection(elf32: Elf32, targetName: string, address: number): Sect
   for (const shdr of elf32.shdrs) {
     const sectionName = elf32.getSectionName(shdr);
     if (sectionName === targetName) {
-      return {name: sectionName, address, size: shdr.shSize};
+      let size = shdr.shSize;
+      size += (size % 4) ? 4 - (size % 4) : 0; // TODO: 要修正
+      return {name: sectionName, address, size};
     }
   }
   return {name: targetName, address, size: 0};

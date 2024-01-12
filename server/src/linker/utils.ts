@@ -17,14 +17,30 @@ export class ExePart {
   public toString() {
     let buffers: Buffer[] = [];
 
-    // Add section length
-    buffers.push(Buffer.from(this.text.length.toString(16).padStart(4, "0"), "hex"));
-    buffers.push(Buffer.from(this.literal.length.toString(16).padStart(4, "0"), "hex"));
-    buffers.push(Buffer.from(this.data.length.toString(16).padStart(4, "0"), "hex"));
-    // Add entry point address.
-    buffers.push(Buffer.from(this.entryPoint.toString(16).padStart(8, "0"), "hex"));
-    // Add section values.
+    let textSize = this.text.length;
+    let textSurplus = (textSize % 4) ? 4 - (textSize % 4) : 0; // TODO: 要修正。4 Byte align。
+
+    // text size
+    const textSizeBuf = Buffer.allocUnsafe(4);
+    textSizeBuf.writeUIntLE(textSize + textSurplus, 0, 4);
+    buffers.push(textSizeBuf);
+
+    // literal size
+    const literalSizeBuf = Buffer.allocUnsafe(4);
+    literalSizeBuf.writeUIntLE(this.literal.length, 0, 4);
+    buffers.push(literalSizeBuf);
+
+    // data size
+    const dataSizeBuf = Buffer.allocUnsafe(4);
+    dataSizeBuf.writeUIntLE(this.data.length, 0, 4);
+    buffers.push(dataSizeBuf);
+
+    const entryPointBuf = Buffer.allocUnsafe(4);
+    entryPointBuf.writeUIntLE(this.entryPoint, 0, 4);
+    buffers.push(entryPointBuf);
+
     buffers.push(this.text);
+    buffers.push(Buffer.alloc(textSurplus));
     buffers.push(this.literal);
     buffers.push(this.data);
 

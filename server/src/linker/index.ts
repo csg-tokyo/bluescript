@@ -20,7 +20,6 @@ export default function link(elfBuffer: Buffer, entryPointName: string, at: Addr
   });
   dataValues.push(Buffer.alloc(addressTable.dataSection.commonSize));
   const entryPoint = addressTable.getSymbolAddress(entryPointName);
-
   const exePart = new ExePart(textValue, literalValue, Buffer.concat(dataValues), entryPoint);
   return {exe: exePart.toString(), addressTable};
 }

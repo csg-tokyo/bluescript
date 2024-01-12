@@ -20,10 +20,10 @@ static int get_num_length(int n) {
 }
 
 void fbody_console_log_integer(value_t self, int32_t _n) {
-    printf("%d\n", _n);
+    printf("%ld\n", _n);
     int num_length = get_num_length(_n);
     char str[num_length + 1];
-    snprintf(str, num_length, "%d", _n);
+    snprintf(str, num_length, "%ld", _n);
     bluescript_log_push(str);
 }
 struct func_body HL_ATTR _console_log_integer = { fbody_console_log_integer, "(i)v" };
@@ -133,7 +133,6 @@ static void cb_caller(void *cb) {
     interrupt_handler_start();
     ROOT_SET(func_rootset, 1)
     func_rootset.values[0] = cb;
-    printf("%d\n", (get_obj_property(func_rootset.values[0], 2)));
     ((void (*)(value_t))gc_function_object_ptr(func_rootset.values[0], 0))(get_obj_property(func_rootset.values[0], 2));
     DELETE_ROOT_SET(func_rootset)
     interrupt_handler_end();
