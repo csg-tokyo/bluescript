@@ -355,6 +355,10 @@ export function constructorBodyNameInC(name: string) {
   return `cons_${name}`
 }
 
+export function methodBodyNameInC(className: string, index: number) {
+  return `mth_${index}_${className}`
+}
+
 export function externClassDef(clazz: ObjectType) {
   if (clazz) {
     if (clazz === objectType)
@@ -394,14 +398,23 @@ export function classDeclaration(clazz: InstanceType) {
       superAddr = `&${classObjectNameInC(superClass.name())}`
   }
 
+  const table = clazz.makeMethodTable()
+  let tableArray = ''
+  for (let i = 0; i < table.length; i++)
+    tableArray += `${methodBodyNameInC(table[i].clazz.name(), i)}, `
+
   const size = clazz.objectSize()
   const start = clazz.unboxedProperties() || 0
 
-  return `CLASS_OBJECT(${classNameInC(name)}, 0) = {
-    .clazz = { .size = ${size}, .start_index = ${start}, .name = "${name}", .superclass = ${superAddr} }};`
+  return `CLASS_OBJECT(${classNameInC(name)}, ${table.length}) = {
+    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .vtbl = { ${tableArray} }}};`
 }
 
 export function makeInstance(clazz: InstanceType) {
   const name = clazz.name()
   return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
+}
+
+export function methodLookup(method: [StaticType, number], func: string) {
+  return `((${funcTypeToCType(method[0])})method_lookup(${func}, ${method[1]}))`
 }

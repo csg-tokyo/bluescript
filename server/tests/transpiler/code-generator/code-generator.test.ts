@@ -1393,7 +1393,7 @@ test('class declaration', () => {
   class Position {
     x: integer
     y: integer
-    xmove(dx: integer) {}
+    xmove(dx: integer) { return dx }
   }
   `
   const src2 = `
@@ -1613,6 +1613,79 @@ test('multiple source files for classes', () => {
 `
 
   expect(multiCompileAndRun(src1, src2)).toEqual('3\n')
+})
+
+test('method call', () => {
+  const src = `
+  class Position {
+    x: integer
+    y: integer
+    constructor(x: integer, y: integer) {
+      this.x = x
+      this.y = y
+    }
+    xmove(dx: integer) { return this.x + dx }
+    ymove(dy: integer) { return this.y + dy }
+  }
+  class Position3 extends Position {
+    constructor(x: integer, y: integer) { super(x, y) }
+    xmove(dx: integer) { return this.x + dx * 100 }
+  }
+
+  const r = new Position(10, 20).xmove(3)
+  print(r)
+  const p3 = new Position3(10, 20)
+  const r2 = p3.xmove(3)
+  print(r2)
+  const r3 = p3.ymove(3)
+  print(r3)
+  const p: Position = p3
+  const r4 = p.xmove(4)
+  print(r4)
+  const r5 = p.ymove(4)
+  print(r5)
+  `
+
+  expect(compileAndRun(src)).toBe('13\n310\n23\n410\n24\n')
+})
+
+test('multiple source files for methods', () => {
+  const src1 = `
+  class Pos {
+    x: number
+    constructor(x: number) { this.x = x }
+    getx() { return this.x }
+  }
+`
+
+  const src2 = `class Pos3 extends Pos {
+    y: number
+    constructor(x: number, y: number) { super(x); this.y = y }
+    gety() { return this.y }
+  }
+
+  const obj = new Pos3(3, 11)
+  print(obj.getx())
+  const obj2 = new Pos(7)
+  print(obj2.getx())
+`
+
+  expect(multiCompileAndRun(src1, src2)).toEqual('3\n7\n')
+})
+
+test('wrong method overriding', () => {
+  const src = `
+  class Pos {
+    x: number
+    constructor(x: number) { this.x = x }
+    getx() { return this.x }
+  }
+  class Pos2 extends Pos {
+    getx() { return "this.x" }
+  }
+`
+
+  expect(() => { compileAndRun(src)}).toThrow(/overriding method.*incompatible type.*getx/)
 })
 
 test('save arguments into rootset', () => {

@@ -453,6 +453,10 @@ class_object* gc_get_class_of(value_t value) {
         return NULL;
 }
 
+void* method_lookup(value_t obj, uint32_t index) {
+    return get_objects_class(value_to_ptr(obj))->vtbl[index];
+}
+
 CLASS_OBJECT(object_class, 1) = {
     .clazz = { .size = 0, .start_index = 0, .name = "Object", .superclass = NULL }};
 

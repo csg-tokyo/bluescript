@@ -286,8 +286,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           throw new Error('fatal: a method type is not recorded')
         else {
           this.assert(node.kind !== 'constructor' || ftype.returnType === Void, 'a constructor cannot return a value', node)
-          const success = clazz.addProperty(node.key.name, ftype)
-          this.assert(success, `duplicate method name: ${node.key.name}`, node)
+          const error = clazz.addMethod(node.key.name, ftype)
+          if (error !== undefined)
+            this.assert(false, error, node)
         }
       }
       else
@@ -708,7 +709,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   callExpression(node: AST.CallExpression, names: NameTable<Info>): void {
-    this.visit(node.callee, names)
+    if (AST.isMemberExpression(node.callee) && this.checkMethodExpr(node.callee, names)) {
+      // "node" is a method call and checkMethodExpr() has visited node.callee.
+    } else
+      this.visit(node.callee, names)
+
     if (AST.isSuper(node.callee))
       this.superConstructorCall(this.result, node, names)
     else if (this.result instanceof FunctionType) {
@@ -932,6 +937,32 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
 
     return true
+  }
+
+  // returns true if "node" is a method
+  private checkMethodExpr(node: AST.MemberExpression, names: NameTable<Info>): boolean {
+    if (node.computed)
+      return false    // an array access like a[i]
+
+    if (!AST.isIdentifier(node.property))
+      return false
+
+    const propertyName = node.property.name
+    this.visit(node.object, names)
+    const type = this.result
+    this.addStaticType(node.object, type)
+    if (type instanceof InstanceType) {
+      const typeAndIndex  = type.findMethod(propertyName)
+      if (typeAndIndex) {
+        this.result = typeAndIndex[0]
+        return true
+      }
+    }
+    else if (type instanceof ArrayType) {
+      // no method available
+    }
+
+    return false
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, names: NameTable<Info>): void {
