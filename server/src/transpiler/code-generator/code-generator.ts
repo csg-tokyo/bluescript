@@ -330,15 +330,25 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const info = env.table.lookup(node.id.name)
     if (info && info.type instanceof InstanceType) {
       const clazz = info.type
+      const table = clazz.makeMethodTable()
+      for (let i = 0; i < table.length; i++) {
+        if (table[i].clazz !== clazz) {
+          const funcName = cr.methodBodyNameInC(table[i].clazz.name(), i)
+          this.declarations.write(`${cr.funcTypeToCType(table[i].type, funcName)};\n`)
+        }
+      }
+
       this.declarations.write(cr.classDeclaration(clazz)).nl()
 
       let defaultConstructor = true
       for (const mem of node.body.body) {
-        if (AST.isClassMethod(mem) && mem.kind === 'constructor') {
-          this.classConstructor(mem, clazz, env)
-          defaultConstructor = false
-          break
-        }
+        if (AST.isClassMethod(mem))
+          if (mem.kind === 'constructor') {
+            this.classConstructor(mem, clazz, env)
+            defaultConstructor = false
+          }
+          else
+            this.classMethodBody(mem, clazz, env)
       }
 
       if (defaultConstructor) {
@@ -370,6 +380,25 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       args += `, p${i}`
     this.result.nl().write(`value_t ${cr.constructorNameInC(clazz.name())}${sig} { ${funcName}(${args}); return self; }`).nl().nl()
     this.signatures += `value_t ${cr.constructorNameInC(clazz.name())}${sig};\n`
+    this.result = prevResult
+  }
+
+  private classMethodBody(node: AST.ClassMethod, clazz: InstanceType, env: VariableEnv) {
+    const fenv = new FunctionEnv(getVariableNameTable(node), env)
+    fenv.allocateRootSet()
+    const funcType = getStaticType(node) as FunctionType;
+    if (!AST.isIdentifier(node.key))
+      throw this.errorLog.push('internal error: method name must be an identifier', node)
+
+    const found = clazz.findMethod(node.key.name)
+    if (!found)
+      throw this.errorLog.push(`internal error: unknown method name: ${node.key.name}`, node)
+
+    const funcName = cr.methodBodyNameInC(clazz.name(), found[1])
+    const prevResult = this.result
+    this.result = this.declarations
+    const funcHeader = this.functionBody(node, fenv, funcType, funcName, '')
+    this.signatures += `${funcHeader};\n`
     this.result = prevResult
   }
 
@@ -528,10 +557,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         static int32_t ${bodyName}(value_t self, int32_t _n) { ... function body ... }
   */
   private functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
-                       fenv: FunctionEnv, funcType: FunctionType, bodyName: string) {
+                       fenv: FunctionEnv, funcType: FunctionType, bodyName: string,
+                       modifier: string = 'static ') {
     const bodyResult = this.result.copy()
     bodyResult.right()
-    let sig = this.makeParameterList(funcType, node, fenv, bodyResult)
+    const sig = this.makeParameterList(funcType, node, fenv, bodyResult)
 
     const declarations = this.result
     this.result = bodyResult
@@ -545,8 +575,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const bodyCode = this.result.getCode()
     this.result = declarations
 
-    let funcHeader = cr.typeToCType(funcType.returnType, bodyName)
-    this.result.nl().write(`static ${funcHeader}${sig} {`)
+    const funcHeader = `${modifier}${cr.typeToCType(funcType.returnType, bodyName)}${sig}`
+    this.result.nl().write(funcHeader).write(' {')
     this.result.right()
     const numOfVars = fenv.getNumOfVars()
     this.result.nl().write(cr.makeRootSet(numOfVars))
@@ -558,6 +588,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         this.errorLog.push('a non-void function must return a value', node)
 
     this.result.left().nl().write('}').nl()
+    return funcHeader
   }
 
   private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
@@ -874,8 +905,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const index = env.allocate()
       const func = cr.rootSetVariable(index)
       this.result.write(`(${func} = `)
-      this.visit(node.callee, env)
-      this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${cr.getObjectProperty}(${func}, 2)`)
+      const method = AST.isMemberExpression(node.callee) && this.visitIfMethodExpr(node.callee, env)
+      if (method)
+        this.result.write(`, ${cr.methodLookup(method, func)}(${func}`)
+      else {
+        this.visit(node.callee, env)
+        this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${cr.getObjectProperty}(${func}, 2)`)
+      }
     }
 
     for (let i = 0; i < node.arguments.length; i++) {
@@ -1036,6 +1072,26 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else
         throw this.errorLog.push('fatal: unknown array property', node)
     }
+  }
+
+  visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv) {
+    if (node.computed)
+      return undefined
+
+    if (!AST.isIdentifier(node.property))
+      return undefined
+
+    const propertyName = node.property.name
+    const receiverType = getStaticType(node.object)
+    if (receiverType instanceof InstanceType) {
+      const mth = receiverType.findMethod(propertyName)
+      if (mth)
+        this.visit(node.object, env)
+
+      return mth
+    }
+    else
+      return undefined
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {

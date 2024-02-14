@@ -52,12 +52,12 @@ typedef struct class_object {
                             // If start_index is 2, body[0] and body[1] don't hold a pointer.
     const char* const name; // printable class name
     const struct class_object* const superclass;    // super class or NULL
-    uintptr_t body[1];
+    void* vtbl[1];
 } class_object;
 
 // A macro for declaring a class_object.
 // n: the length of body (> 0).
-#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; uintptr_t body[n]; } body; } name
+#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; void* vtbl[n]; } body; } name
 
 inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
@@ -148,6 +148,8 @@ extern void CR_SECTION interrupt_handler_end();
 
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
+extern void* method_lookup(value_t obj, uint32_t index);
+
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
 
 // allocate a new instance of the given class.
