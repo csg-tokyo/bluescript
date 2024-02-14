@@ -149,99 +149,37 @@ int32_t safe_value_to_int(value_t v) {
     return value_to_int(v);
 }
 
-// float_exp - 127 == value_float_exp - 31;
-// value_float_exp == float_exp - 96;
-// ENCODE_OFFSET == 96 << 23;
-const uint32_t FLOAT_ENCODE_OFFSET = 0x30000000u;
+typedef uint32_t value_t;
+typedef union { uint32_t u; float f; } float_or_uint;
 
-// float_exp - 127 == value_float_exp - 31;
-// (MIN_ENCODABLE_EXP >> 23) - 127 == 1 - 31;
-// MIN_ENCODABLE_EXP == 97 << 23;
-const uint32_t FLOAT_MIN_ENCODABLE_EXP = 0x30800000u;
-
-// float_exp - 127 == value_float_exp - 31;
-// (MAX_ENCODABLE_EXP >> 23) - 127 == 62 - 31;
-// MAX_ENCODABLE_EXP == 158 << 23;
-const uint32_t FLOAT_MAX_ENCODABLE_EXP = 0x4F000000u;
-
-// #define USE_SUBNORMAL_NUMBERS
-
-#ifdef USE_SUBNORMAL_NUMBERS
-// #include <assert.h>
-// (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER >> 23) - 127 == (1 - 31) - 23;
-// MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER == 74 << 23;
-const uint32_t MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER = 0x25000000;
-float decode_subnormal_value(value_t v);
-#endif
-
-float value_to_float(value_t v) {
-    uint32_t exp = v & 0x7E000000u;
-    if (exp != 0u && exp != 0x7E000000u) {
-        // normal number
-        // uint32_t f = (v & 0x80000000u) | ((exp >> 2) + ENCODE_OFFSET) | ((v & 0x01FFFFFC) >> 2);
-        uint32_t f = (v & 0x80000000u) | (((v & 0x7FFFFFFCu) >> 2) + FLOAT_ENCODE_OFFSET);
-        return *(float*)&f;
-#ifdef USE_SUBNORMAL_NUMBERS
-    } else if (exp == 0x00000000u && (v & 0x01FFFFFCu) != 0x00000000u) {
-        return decode_subnormal_value(v);
-#endif
-    } else if (exp == 0x00000000u) {
-        // +0.0, -0.0
-        uint32_t f = v & 0x80000000u;
-        return *(float*)&f;
-    } else {
-        // inf, -inf, NaN
-        uint32_t f = (v & 0x80000000u) | 0x7F800000u | ((v & 0x01FFFFFCu) >> 2);
-        return *(float*)&f;
-    }
-}
+const uint32_t FLOAT_TAG = 0x1u;
+const float_or_uint ENCODE_MULT = { 0x0F800000u };
 
 value_t float_to_value(float f) {
-    uint32_t f_u = *(uint32_t*)&f;
-    uint32_t exp = f_u & 0x7F800000u;
-    if (FLOAT_MIN_ENCODABLE_EXP <= exp && exp <= FLOAT_MAX_ENCODABLE_EXP) {
-        // normal numbers
-        // return (f_u & 0x80000000u) | ((exp - ENCODE_OFFSET) << 2) | ((f_u & 0x007FFFFFu) << 2) | 1u;
-        return (f_u & 0x80000000u) | (((f_u & 0x7FFFFFFF) - FLOAT_ENCODE_OFFSET) << 2) | 1u;
-#ifdef USE_SUBNORMAL_NUMBERS
-    } else if (MIN_ENCODABLE_EXP_TO_SUBNORMAL_NUMBER <= exp && exp < FLOAT_MIN_ENCODABLE_EXP) {
-        // change to subnormal number
-        uint32_t underflow = (FLOAT_MIN_ENCODABLE_EXP - exp) >> 23;
-        // assert(1 <= underflow && underflow < 24);
-        uint32_t subnormal_frac = (f_u & 0x007FFFFFu) | 0x00800000u;
-        return (f_u & 0x80000000u) | ((subnormal_frac >> underflow) << 2) | 1u;
-#endif
-    } else if (exp < FLOAT_MIN_ENCODABLE_EXP) {
-        // change to zero
-        return (f_u & 0x80000000u) | 1u;
-    } else if (exp == 0x7F800000u && (f_u & 0x007FFFFFu) != 0u) {
-        // NaN
-        // return (exp & 0x80000000u) | 0x7E000000 | ((exp & 0x007FFFFF) << 2) | 1;
-        return 0x7F000001u;  // normalized NaN
+    if (isnan(f)) {
+        return 0x7F000000u | FLOAT_TAG;
+    }
+    float_or_uint v;
+    v.f = f * ENCODE_MULT.f;
+    if ((v.u & 0x60000000u) || (v.u | 0xE07FFFFFu) == 0xFFFFFFFFu) {
+        // change to inf
+        return (v.u & 0x80000000u) | 0x7E000000u | FLOAT_TAG;
     } else {
-        // inf, -inf
-        return (exp & 0x80000000u) | 0x7E000000u | 1u;
+        return (v.u & 0x80000000u) | ((v.u & 0x1FFFFFFF) << 2) | FLOAT_TAG;
     }
 }
 
-#ifdef USE_SUBNORMAL_NUMBERS
-float decode_subnormal_value(value_t v) {
-    // uint32_t frac = (v & 0x01FFFFFCu) >> 1;
-    // uint32_t exp;
-    // for (exp = 0x30000000; (frac & 0x00800000) == 0 ; frac <<= 1, exp -= 0x00800000);
-    // uint32_t f = (v & 0x80000000u) | exp | frac;
-    // return *(float*)&f;
-    uint32_t frac = v & 0x01FFFFFCu;
-    int shift = 0;
-    if ((frac & 0x01FFF800u) != 0u) { frac &= 0x01FFF800u; } else { shift += 16; }
-    if ((frac & 0x01F807F8u) != 0u) { frac &= 0x01F807F8u; } else { shift += 8; }
-    if ((frac & 0x01878784u) != 0u) { frac &= 0x01878784u; } else { shift += 4; }
-    if ((frac & 0x00666664u) != 0u) { frac &= 0x00666664u; } else { shift += 2; }
-    if ((frac & 0x01555554u) != 0u) { /* frac &= 0x01555554u; */ } else { shift += 1; }
-    uint32_t f = (v & 0x80000000u) | ((FLOAT_MIN_ENCODABLE_EXP - (shift << 23)) & 0x7F800000) | (v & 0x01FFFFFCu) >> shift;
-    return *(float*)&f;
+float value_to_float(value_t v) {
+    if ((v | ~0x7E000000) == 0xFFFFFFFF) {
+        // inf, -inf, NaN
+        float_or_uint f;
+        f.u = (v & 0x80000000u) | 0x7F800000u | ((v & 0x01FFFFFC) >> 2);
+        return f.f;
+    } else {
+        float_or_uint f = { (v & 0x80000000u) | ((v & 0x7FFFFFFCu) >> 2) };
+        return f.f / ENCODE_MULT.f;
+    }
 }
-#endif
 
 float safe_value_to_float(value_t v) {
     if (is_float_value(v))
