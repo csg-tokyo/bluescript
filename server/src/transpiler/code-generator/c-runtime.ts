@@ -387,16 +387,12 @@ export function externNew(clazz: InstanceType) {
 
 export function classDeclaration(clazz: InstanceType) {
   const name = clazz.name()
-  const superClass = clazz.superType()
+  const superClass = clazz.superclass()
   let superAddr: string
-  if (!superClass)
-    superAddr = '0'   // NULL
-  else {
-    if (superClass === objectType)
-      superAddr = '&object_class.clazz'
-    else
-      superAddr = `&${classObjectNameInC(superClass.name())}`
-  }
+  if (superClass === objectType)
+    superAddr = '&object_class.clazz'
+  else
+    superAddr = `&${classObjectNameInC(superClass.name())}`
 
   const table = clazz.makeMethodTable()
   let tableArray = ''

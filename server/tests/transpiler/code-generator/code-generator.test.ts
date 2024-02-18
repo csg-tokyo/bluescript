@@ -1393,6 +1393,7 @@ test('class declaration', () => {
   class Position {
     x: integer
     y: integer
+    constructor() { this.x = 3; this.y = 7 }
     xmove(dx: integer) { return dx }
   }
   `
@@ -1412,6 +1413,7 @@ test('make an instance', () => {
   class Pos {
     x: integer
     y: integer
+    constructor() { this.x = this.y = 0 }
   }
 
   const obj = new Pos()
@@ -1430,7 +1432,11 @@ test('make an instance holding a string etc.', () => {
     x: integer
     str: string
     arr: integer[]
-    constructor() { this.x = 3 }
+    constructor() {
+      this.x = 3
+      this.str = 'foo'
+      this.arr = [0]
+    }
   }
 
   const obj = new Pos()
@@ -1580,6 +1586,31 @@ test('class with a super constructor', () => {
   expect(compileAndRun(src)).toBe('1\n3\n')
 })
 
+test('class with a super constructor 2', () => {
+  const src = `
+  class Pos {
+    x: integer
+    y: integer
+    constructor() { this.x = 3; this.y = 10 }
+  }
+
+  class Pos3 extends Pos {
+    z: integer
+    constructor(z: integer) {
+      super()
+      this.z = z
+    }
+  }
+
+  const obj = new Pos3(7)
+  print(obj.x)
+  print(obj.y)
+  print(obj.z)
+  `
+
+  expect(compileAndRun(src)).toBe('3\n10\n7\n')
+})
+
 test('class with a default super constructor', () => {
   const src = `
   class Pos {
@@ -1594,6 +1625,85 @@ test('class with a default super constructor', () => {
 
   expect(compileAndRun(src)).toBe('??\n')
 })
+
+
+test('class with a bad constructor', () => {
+  const src = `
+  class Pos {
+    x: integer
+  }
+  `
+  const src1 = `
+  class Pos {
+    x: integer
+    y: integer
+    constructor() { this.x = 7 }
+  }
+  `
+  const src2 = `
+  class Pos {
+    x: integer
+    constructor() {
+      super()    // bad call
+      this.x = 3
+    }
+  }
+  `
+  const src3 = `
+  class Pos {
+    x: integer
+    constructor(x: integer) { this.x = x }
+  }
+  class Pos2 extends Pos {
+    // error: a constructor is missing.
+    move() { this.x += 1 }
+  }
+  `
+  const src4 = `
+  class Pos {
+    x: integer
+    constructor() { this.x = 7 }
+  }
+  class Pos2 extends Pos {
+    // a default constructor is generated because its super class
+    // has a constructor taking no arguments.
+    move() { this.x += 1 }
+  }
+  const p = new Pos2()
+  p.move()
+  print(p.x)
+  `
+  const src5 = `
+  class Pos {
+    getx() { return 3 }
+  }
+  class Pos2 extends Pos {
+    // a default constructor is generated.
+    getx() { return 4 }
+  }
+  const p: Pos = new Pos2()
+  print(p.getx())
+  `
+  const src6 = `
+  class Pos {
+    x: integer
+    constructor(x: integer) { this.x = x }
+  }
+  class Pos2 extends Pos {
+    constructor() { this.x = 7 }   // this must call super()
+    move() { this.x += 1 }
+  }
+  `
+
+  expect(() => { compileAndRun(src)}).toThrow(/constructor is missing/)
+  expect(() => { compileAndRun(src1)}).toThrow(/uninitialized property: y/)
+  expect(() => { compileAndRun(src2)}).toThrow(/super\(\).*only valid inside a class constructor of a subclass.*not extending another class/)
+  expect(() => { compileAndRun(src3)}).toThrow(/constructor is missing/)
+  expect(compileAndRun(src4)).toBe('8\n')
+  expect(compileAndRun(src5)).toBe('4\n')
+  expect(() => { compileAndRun(src6)}).toThrow(/super\(\) is not called/)
+})
+
 
 test('multiple source files for classes', () => {
   const src1 = `

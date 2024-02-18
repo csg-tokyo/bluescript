@@ -18,6 +18,7 @@ export class InstanceType extends ObjectType {
     super()
     this.superClass = superClass
     this.className = name
+
     this.numOfProperties = superClass instanceof InstanceType ? superClass.objectSize() : 0
     this.numOfMethods = superClass instanceof InstanceType ? superClass.methodCount() : 0
   }
@@ -26,11 +27,21 @@ export class InstanceType extends ObjectType {
 
   superType(): ObjectType | null { return this.superClass }
 
+  superclass(): ObjectType { return this.superClass }
+
+  // false if this class extends another class that is not Object class.
+  extendsObject() { return !(this.superClass instanceof InstanceType) }
+
   objectSize() { return this.numOfProperties }
 
   methodCount() { return this.numOfMethods }
 
   unboxedProperties() { return this.numOfUnboxed }
+
+  declaredProperties() {
+    const size = this.superClass instanceof InstanceType ? this.superClass.objectSize() : 0
+    return this.objectSize() - size
+  }
 
   forEach(f: (n: string, t: StaticType, i: number) => void) {
     for (const name in this.properties) {

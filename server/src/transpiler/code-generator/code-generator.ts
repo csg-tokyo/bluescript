@@ -927,12 +927,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private superConstructorCall(node: AST.Super, env: VariableEnv) {
     const type = env.table.lookup('this')?.type
     if (type instanceof InstanceType) {
-      const t = type.superType()
-      if (t)
-        this.result.write(`${cr.constructorNameInC(t.name())}(self`)
-      else
-        throw this.errorLog.push('fatal: unknown super class', node)
+      const t = type.superclass()
+      this.result.write(`${cr.constructorNameInC(t.name())}(self`)
     }
+    else
+      throw this.errorLog.push('fatal: unknown super class', node)
   }
 
   private callExpressionArg(arg: AST.Node, type: StaticType, env: VariableEnv) {
