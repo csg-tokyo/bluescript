@@ -411,6 +411,6 @@ export function makeInstance(clazz: InstanceType) {
   return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
 }
 
-export function methodLookup(method: [StaticType, number], func: string) {
+export function methodLookup(method: [StaticType, number, InstanceType], func: string) {
   return `((${funcTypeToCType(method[0])})method_lookup(${func}, ${method[1]}))`
 }

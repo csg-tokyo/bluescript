@@ -37,8 +37,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private signatures = ''                   // function prototypes etc.
   private declarations = new CodeWriter()   // function declarations etc.
   private endWithReturn = false
-  private initializerName                   // the name of an initializer function
-  private globalRootSetName                 // the rootset name for global variables
+  private initializerName: string           // the name of an initializer function
+  private globalRootSetName: string         // the rootset name for global variables
+  private externalMethods: Map<string, StaticType>
   private uniqueId = 0
   private uniqueIdCounter = 0
 
@@ -46,6 +47,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     super()
     this.initializerName = initializerName
     this.globalRootSetName = `${cr.globalRootSetName}${codeId}`
+    this.externalMethods = new Map()
     this.uniqueId = codeId
   }
 
@@ -88,6 +90,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else
         this.signatures += `extern ${cr.typeToCType(type, name)};\n`
     })
+
+    this.externalMethods.forEach((type, name, map) =>
+      this.signatures += `${cr.funcTypeToCType(type, name)};\n`
+    )
 
     this.signatures += `void ${this.initializerName}();\n${cr.declareRootSet(this.globalRootSetName, size)}\n`
     const numOfVars = env2.getNumOfVars()
@@ -334,7 +340,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       for (let i = 0; i < table.length; i++) {
         if (table[i].clazz !== clazz) {
           const funcName = cr.methodBodyNameInC(table[i].clazz.name(), i)
-          this.declarations.write(`${cr.funcTypeToCType(table[i].type, funcName)};\n`)
+          this.externalMethods.set(funcName, table[i].type)
         }
       }
 
@@ -906,8 +912,18 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const func = cr.rootSetVariable(index)
       this.result.write(`(${func} = `)
       const method = AST.isMemberExpression(node.callee) && this.visitIfMethodExpr(node.callee, env)
-      if (method)
-        this.result.write(`, ${cr.methodLookup(method, func)}(${func}`)
+      if (method) {
+        if (method[1]) {
+          const funcType = method[0][0]
+          const index = method[0][1]
+          const clazz = method[0][2]
+          const funcName = cr.methodBodyNameInC(clazz.name(), index)
+          this.externalMethods.set(funcName, funcType)
+          this.result.write(`, ${funcName}(${func}`)
+        }
+        else
+          this.result.write(`, ${cr.methodLookup(method[0], func)}(${func}`)
+      }
       else {
         this.visit(node.callee, env)
         this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${cr.getObjectProperty}(${func}, 2)`)
@@ -1073,7 +1089,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
   }
 
-  visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv) {
+  // This returns [[method_type, method_table_index, declaring_class], is_call_on_super?] or undefined.
+  visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv): [[StaticType, number, InstanceType], boolean] | undefined {
     if (node.computed)
       return undefined
 
@@ -1084,13 +1101,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const receiverType = getStaticType(node.object)
     if (receiverType instanceof InstanceType) {
       const mth = receiverType.findMethod(propertyName)
-      if (mth)
+      if (mth) {
         this.visit(node.object, env)
-
-      return mth
+        return [mth, AST.isSuper(node.object)]
+      }
     }
-    else
-      return undefined
+
+    return undefined
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {

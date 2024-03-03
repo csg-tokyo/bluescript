@@ -943,6 +943,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             const unboxed = type.unboxedProperties()
             return unboxed === undefined || unboxed <= typeAndIndex[1]
           }
+          else if (this.firstPass) {
+            // forward reference
+            this.result = Any
+            return true
+          }
         }
         else if (type instanceof ArrayType) {
           if (propertyName === 'length') {
@@ -982,9 +987,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else if (type instanceof ArrayType) {
       // no method available
+      return false
     }
 
-    return false
+    this.result = Any
+    return this.firstPass
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, names: NameTable<Info>): void {

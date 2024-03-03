@@ -617,7 +617,7 @@ test('typeof operator', () => {
   print(typeof(null))
   print(typeof(foo))
   `
-  expect(compileAndRun(src)).toBe('integer\ninteger\nstring\ninteger[]\nnull\nany => any\n')
+  expect(compileAndRun(src)).toBe('integer\ninteger\nstring\ninteger[]\nnull\n(any) => any\n')
 })
 
 test('++/-- operator', () => {
@@ -1704,7 +1704,6 @@ test('class with a bad constructor', () => {
   expect(() => { compileAndRun(src6)}).toThrow(/super\(\) is not called/)
 })
 
-
 test('multiple source files for classes', () => {
   const src1 = `
   class Pos {
@@ -1796,6 +1795,69 @@ test('wrong method overriding', () => {
 `
 
   expect(() => { compileAndRun(src)}).toThrow(/overriding method.*incompatible type.*getx/)
+})
+
+test('a bad super call', () => {
+  const src = `
+  class Pos {
+    xmove() { return 7 }
+  }
+  class Pos2 extends Pos {
+    ymove() {
+      const z = this.zmove()
+      return z + super.ymove()
+    }
+    zmove() { return 20 }
+  }
+  `
+
+  expect(() => { compileAndRun(src) }).toThrow(/unknown property name: ymove in line 8/)
+})
+
+test('a super call', () => {
+  const src = `
+  class Pos {
+    xmove() { return 7 }
+    ymove() { return 800 }
+  }
+  class Pos2 extends Pos {
+    ymove() {
+      const z: integer = this.zmove()
+      return z + super.xmove() + super.ymove()
+    }
+    zmove() { return 20 }
+  }
+  print(new Pos2().ymove())
+  `
+
+  expect(compileAndRun(src)).toBe('827\n')
+})
+
+test('call a method on super declared in a different source file', () => {
+  const src1 = `
+  class Pos {
+    x: number
+    constructor(x: number) { this.x = x }
+    getx() { return this.x }
+  }
+`
+
+  const src2 = `class Pos2 extends Pos {
+    y: number
+    constructor(x: number, y: number) { super(x); this.y = y }
+    getx() { return this.y }
+    gety() { return this.y }
+    thisx() { return this.getx() }
+    superx() { return super.getx() }
+  }
+
+  const obj = new Pos2(3, 11)
+  print(obj.gety())
+  print(obj.thisx())
+  print(obj.superx())
+`
+
+  expect(multiCompileAndRun(src1, src2)).toEqual('11\n11\n3\n')
 })
 
 test('save arguments into rootset', () => {

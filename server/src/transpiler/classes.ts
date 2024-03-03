@@ -1,12 +1,12 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { FunctionType, ObjectType, StaticType, isPrimitiveType, isSubtype, objectType } from "./types"
+import { FunctionType, ObjectType, StaticType, isPrimitiveType, isSubtype, typeToString } from "./types"
 
 // Type for instances of a class
 export class InstanceType extends ObjectType {
   private properties: { [key: string]: [StaticType, number] } = {}
-  private methods: { [key: string]: [StaticType, number] } = {}
+  private methods: { [key: string]: [StaticType, number, InstanceType] } = {}
   private constructorFunction: FunctionType | undefined = undefined
   private numOfProperties: number
   private numOfUnboxed: number | undefined = undefined
@@ -79,20 +79,20 @@ export class InstanceType extends ObjectType {
           if (isSubtype(type, found[0]))
             index = found[1]
           else
-            return `an overriding method with an incompatible type: ${name}`
+            return `an overriding method with an incompatible type: ${name}. '${typeToString(type)}' is not a subtype of '${typeToString(found[0])}'.`
         else
           index = this.numOfMethods++
       }
       else
         index = this.numOfMethods++
 
-      this.methods[name] = [type, index]
+      this.methods[name] = [type, index, this]
     }
 
     return undefined  // no error
   }
 
-  findMethod(name: string): [StaticType, number] | undefined {
+  findMethod(name: string): [StaticType, number, InstanceType] | undefined {
     const found = this.methods[name]
     if (found)
       return found
