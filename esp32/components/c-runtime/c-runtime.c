@@ -33,6 +33,7 @@
 #include <string.h>
 #include "c-runtime.h"
 #include <inttypes.h>
+#include <math.h>
 
 #ifdef TEST64
 
