@@ -60,22 +60,44 @@ class CodeBuffer {
   }
 }
 
+function completer(line: string) {
+  const completions = '.quit .load print print_i32 performance_now function let const class'.split(' ')
+  const hits = completions.filter((c) => c.startsWith(line))
+  return hits.length ? [hits, line] : [[], '']
+}
+
+function loadSourceFile(line: string) {
+  if (!line.startsWith('.load '))
+    return line
+
+  const cmd = line.split(' ')
+  try {
+    const src = fs.readFileSync(cmd[1])
+    return src.toString('utf-8')
+  }
+  catch (e) {
+    process.stdout.write(`Error: no such file: ${cmd[1]}\n`)
+    return ''
+  }
+}
+
 export async function mainLoop() {
     const prompt = '\x1b[1;94m> \x1b[0m'
     let sessionId = 1
     const result1 = transpile(sessionId++, prolog)
     let globalNames = result1.names
-    const consoleDev = readline.createInterface(process.stdin, process.stdout)
+    const consoleDev = readline.createInterface(process.stdin, process.stdout, completer)
     let finished = -1
     const shell = makeShell(code => { finished = code ? code : 1 })
 
     let libs = `${dir}/c-runtime.so`
+    let sources = ''
     consoleDev.setPrompt(prompt)
     consoleDev.prompt()
 
     const codeBuffer = new CodeBuffer()
     for await (const oneline of consoleDev) {
-      const line = codeBuffer.append(oneline)
+      let line = codeBuffer.append(oneline)
       if (line !== null)
         consoleDev.setPrompt(prompt)
       else {
@@ -84,11 +106,12 @@ export async function mainLoop() {
         continue
       }
 
+      line = loadSourceFile(line)
       if (line === '') {
         consoleDev.prompt()
         continue
       }
-      else if (line === 'quit') {
+      else if (line === '.quit') {
         consoleDev.close()
         finished = 0
         break
@@ -104,6 +127,7 @@ export async function mainLoop() {
         execSync(`cc -shared -DTEST64 -O2 -o ${fileName}.so ${fileName}.c ${libs}`)
 
         libs =`${libs} ${fileName}.so`
+        sources = `${sources} ${fileName}.c`
         globalNames = result.names
         shell.stdin.cork()
         shell.stdin.write(`${fileName}.so\n${result.main}\n`)
@@ -125,13 +149,16 @@ export async function mainLoop() {
             break
     }
 
-    shell.stdin.end()
+    shell.stdin.end();
+    (libs + sources).split(' ').forEach(name => fs.rmSync(name))
 }
 
 buildShell()
 
-process.stdout.write(`** BlueScript Shell **
+process.stdout.write(`\x1b[1;94mBlueScript Shell\x1b[0m
   print(v: any), print_i32(v: integer), and performance_now() are available.
-  Type 'quit' or 'Ctrl-D' to exit.
+  Type '.load <file name>' to load a source file.
+  Type '.quit' or 'Ctrl-D' to exit.
 `)
+
 mainLoop()
