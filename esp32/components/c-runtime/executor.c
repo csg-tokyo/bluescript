@@ -12,7 +12,7 @@
 SemaphoreHandle_t executor_semphr;
 
 
-uint32_t __attribute__((section(".iram0.data"))) virtual_text[5000];
+uint32_t __attribute__((section(".iram0.data"))) virtual_text[3000];
 uint32_t __attribute__((section(".iram0.data"))) virtual_literal[1500];
 uint8_t DRAM_ATTR virtual_data[30000];
 

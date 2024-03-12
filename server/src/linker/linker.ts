@@ -76,13 +76,14 @@ export default class Linker {
         const symbolName = this.elf32.getSymbolName(symbol);
         to = this.addressTable.getSymbolAddress(symbolName) + relocation.rAddend;
         embedded = CALL8(to, from);
-        value.writeIntLE(embedded, relocation.rOffset, 3);
+        value.writeUIntLE(embedded, relocation.rOffset, 3);
         break;
       case STType.STT_SECTION:
         if ((base & 0b1111) === 0b0001) { // instruction === l32r TODO: 全体に共通のlink方法を見つける。
           const sectionName = this.elf32.getSectionName(this.elf32.shdrs[symbol.stShndx]);
           to = this.addressTable.getSectionAddress(sectionName) + relocation.rAddend;
           embedded = L32R(base, to, from);
+          console.log(embedded)
           value.writeIntLE(embedded, relocation.rOffset, 3);
         }
         break;
