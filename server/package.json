@@ -17,6 +17,7 @@
   },
   "scripts": {
     "exec": "./node_modules/.bin/tsc && node ./dist/index.js",
+    "shell": "./node_modules/.bin/tsc && node ./dist/transpiler/shell.js",
     "test": "jest"
   }
 }

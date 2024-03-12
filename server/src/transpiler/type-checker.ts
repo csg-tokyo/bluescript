@@ -56,6 +56,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.maker = maker
   }
 
+  copyTo(checker: TypeChecker<Info>) {
+    checker.maker = this.maker
+    checker.errorLog = this.errorLog
+    checker.result = this.result
+    checker.firstPass = this.firstPass
+  }
+
   file(node: AST.File, names: NameTable<Info>): void {
     visitor.file(node, names, this)
   }
@@ -235,6 +242,16 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.result = clazz
     this.visit(node.body, names)
     clazz.sortProperties()
+  
+    if (!clazz.findConstructor()) {
+      // this class has a default constructor.
+      this.assert(clazz.declaredProperties() === 0, 'a constructor is missing', node)
+      if (superClass instanceof InstanceType) {
+        const cons = superClass.findConstructor()
+        this.assert(!cons || cons.paramTypes.length === 0, 'a constructor is missing', node)
+      }
+    }
+
     this.result = clazz
   }
 
@@ -280,7 +297,15 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.assert(node.kind === 'constructor' || node.kind === 'method', 'getter/setter is not supported', node)
     if (this.firstPass)
       if (AST.isIdentifier(node.key)) {
-        this.functionDeclarationPass1(node, null, names)
+        if (node.kind === 'constructor') {
+          const visitor = new ConstructorChecker(this, clazz)
+          visitor.functionDeclarationPass1(node, null, names)
+          const error = visitor.isValid(clazz)
+          this.assert(error === null, error || '', node)
+        }
+        else
+          this.functionDeclarationPass1(node, null, names)
+
         const ftype = getStaticType(node)
         if (ftype === undefined || !(ftype instanceof FunctionType))
           throw new Error('fatal: a method type is not recorded')
@@ -747,7 +772,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         arg)
   }
 
-  private superConstructorCall(type: StaticType, node: AST.CallExpression, names: NameTable<Info>): void {
+  protected superConstructorCall(type: StaticType, node: AST.CallExpression, names: NameTable<Info>): void {
     const args = node.arguments
     if (type instanceof InstanceType) {
       let consType = type.findConstructor()
@@ -842,11 +867,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   superExpression(node: AST.Super, names: NameTable<Info>): void {
     const nameInfo = names.lookup('this')
     if (nameInfo?.type instanceof InstanceType) {
-      const t = nameInfo.type.superType()
-      if (t !== null) {
-        this.result = t
-        return
-      }
+      this.result = nameInfo.type.superclass()
+      return
     }
 
     this.assert(this.firstPass, `'super' is not available here`, node)
@@ -921,6 +943,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             const unboxed = type.unboxedProperties()
             return unboxed === undefined || unboxed <= typeAndIndex[1]
           }
+          else if (this.firstPass) {
+            // forward reference
+            this.result = Any
+            return true
+          }
         }
         else if (type instanceof ArrayType) {
           if (propertyName === 'length') {
@@ -933,7 +960,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.assert(false, `unknown property name: ${propertyName}`, node.property)
       }
       else
-        this.assert(AST.isIdentifier(node.property), 'a wrong property name', node.property)
+        this.assert(false, 'a wrong property name', node.property)
     }
 
     return true
@@ -960,9 +987,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else if (type instanceof ArrayType) {
       // no method available
+      return false
     }
 
-    return false
+    this.result = Any
+    return this.firstPass
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, names: NameTable<Info>): void {
@@ -1146,5 +1175,85 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.errorLog.push(msg, node)
 
     return test
+  }
+}
+
+class ConstructorChecker<Info extends NameInfo> extends TypeChecker<Info> {
+  private hasSuperCall: boolean
+  private toplevel: number
+  private properties: { [key: string]: boolean }
+
+  constructor(checker: TypeChecker<Info>, clazz: InstanceType) {
+    super(checker.maker)
+    checker.copyTo(this)
+    this.hasSuperCall = false
+    this.toplevel = 0
+    this.properties = {}
+    clazz.forEachName(name => {
+      this.properties[name] = false
+    })
+  }
+
+  isValid(clazz: InstanceType) {
+    let error: string | null = (this.hasSuperCall || clazz.extendsObject()) ? null : 'super() is not called'
+    for (const prop in this.properties)
+      if (!this.properties[prop])
+        error = `uninitialized property: ${prop}`
+
+    return error
+  }
+
+  whileStatement(node: AST.WhileStatement, names: NameTable<Info>): void {
+    this.toplevel++
+    super.whileStatement(node, names)
+    this.toplevel--
+  }
+
+  ifStatement(node: AST.IfStatement, names: NameTable<Info>): void {
+    this.toplevel++
+    super.ifStatement(node, names)
+    this.toplevel--
+  }
+
+  forStatement(node: AST.ForStatement, names: NameTable<Info>): void {
+    this.toplevel++
+    super.forStatement(node, names)
+    this.toplevel--
+  }
+
+  blockStatement(node: AST.BlockStatement, names: NameTable<Info>): void {
+    this.toplevel++
+    super.blockStatement(node, names)
+    this.toplevel--
+  }
+
+  arrowFunctionExpression(node: AST.ArrowFunctionExpression, names: NameTable<Info>): void {
+    this.toplevel++
+    super.arrowFunctionExpression(node, names)
+    this.toplevel--
+  }
+
+  conditionalExpression(node: AST.ConditionalExpression, names: NameTable<Info>): void {
+    this.toplevel++
+    super.conditionalExpression(node, names)
+    this.toplevel--
+  }
+
+  protected superConstructorCall(type: StaticType, node: AST.CallExpression, names: NameTable<Info>): void {
+    if (this.toplevel === 1) {
+      this.assert(!this.hasSuperCall, 'cannot call super() here', node)
+      this.hasSuperCall = true
+    }
+
+    super.superConstructorCall(type, node, names)
+  }
+
+  memberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, names: NameTable<Info>): void {
+    super.memberAssignmentExpression(node, leftNode, names)
+    if (this.toplevel === 1 && node.operator === '=' && !leftNode.computed
+        && AST.isThisExpression(leftNode.object) && AST.isIdentifier(leftNode.property)) {
+      const name = leftNode.property.name
+      this.properties[name] = true
+    }
   }
 }

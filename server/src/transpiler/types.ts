@@ -59,7 +59,7 @@ export class FunctionType extends CompositeType {
   }
 
   name() {
-    return `${this.paramTypes.map(typeToString)} => ${typeToString(this.returnType)}`
+    return `(${this.paramTypes.map(typeToString)}) => ${typeToString(this.returnType)}`
   }
 
   isSubtypeOf(t: StaticType): boolean {
