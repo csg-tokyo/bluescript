@@ -90,6 +90,7 @@ export class FunctionType extends CompositeType {
 }
 
 export class ArrayType extends ObjectType {
+  static readonly lengthMethod = 'length'
   elementType: StaticType
 
   constructor(element: StaticType) {

@@ -1,7 +1,8 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
-import * as AST from '@babel/types'
-import { FunctionType, ObjectType, StaticType, isPrimitiveType, isSubtype, typeToString } from "./types"
+import { FunctionType, ObjectType, StaticType, isPrimitiveType, isSubtype,
+         typeToString, encodeType,
+         ArrayType} from "./types"
 
 // Type for instances of a class
 export class InstanceType extends ObjectType {
@@ -36,6 +37,7 @@ export class InstanceType extends ObjectType {
 
   methodCount() { return this.numOfMethods }
 
+  // returns an effective value after calling sortProperties()
   unboxedProperties() { return this.numOfUnboxed }
 
   declaredProperties() {
@@ -52,6 +54,21 @@ export class InstanceType extends ObjectType {
 
   forEachName(f: (n: string) => void) {
     for (const name in this.properties)
+      f(name)
+  }
+
+  forEachMethod(f: (n: string, t: StaticType, index: number, declaring: InstanceType) => void) {
+    for (const name in this.methods) {
+      const m = this.methods[name]
+      const type = m[0]
+      const index = m[1]
+      const declaring = m[2]
+      f(name, type, index, declaring)
+    }
+  }
+
+  forEachMethodName(f: (n: string) => void) {
+    for (const name in this.methods)
       f(name)
   }
 
@@ -184,15 +201,47 @@ export class InstanceType extends ObjectType {
 }
 
 export class ClassTable {
-  private methodNames = new Map<string, number>()
-  private numOfMethods = 0
+  private names
+  private numOfNames
+
+  constructor() {
+    this.names = new Map<string, number>()
+    this.numOfNames = 0
+    const builtinMethods: string[] = [ArrayType.lengthMethod]
+    builtinMethods.forEach(name => { this.names.set(name, this.numOfNames++) })
+  }
 
   // clazz must be added after all properties and methods are
   //   added to it.
   addClass(name: string, clazz: InstanceType) {
-    clazz.forEachName((name) => {
-      if (this.methodNames.get(name) === undefined)
-        this.methodNames.set(name, this.numOfMethods++)
+    const f = (name: string) => {
+      if (this.names.get(name) === undefined)
+        this.names.set(name, this.numOfNames++)
+    }
+
+    clazz.forEachName(f)
+    clazz.forEachMethodName(f)
+  }
+
+  encodeName(name: string) {
+    return this.names.get(name)
+  }
+
+  propertyTable(clazz: InstanceType) {
+    const superClass = clazz.superType()
+    const offset = superClass instanceof InstanceType ? superClass.objectSize() : 0
+    const unboxed = clazz.unboxedProperties() || 0
+    let props: number[] = []
+    let unboxedTypes: string[] = []
+
+    clazz.forEach((name: string, type: StaticType, index: number) => {
+      const code = this.encodeName(name)
+      props[index - offset] = code === undefined ? -1 : code
+      if (index < unboxed)
+        unboxedTypes[index - offset] = encodeType(type)
     })
+
+    return { offset: offset, unboxed: unboxed,
+             props: props, unboxedTypes: unboxedTypes.join('')}
   }
 }

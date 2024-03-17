@@ -1860,6 +1860,261 @@ test('call a method on super declared in a different source file', () => {
   expect(multiCompileAndRun(src1, src2)).toEqual('11\n11\n3\n')
 })
 
+test('property accesses to any-type objects', () => {
+  const src = `
+  class Foo {
+    s: string
+    t: any
+    x: integer
+    y: float
+    length: float
+    constructor() {
+      this.x = 3
+      this.y = 7.2
+      this.s = 'foo'
+      this.t = 5
+      this.length = 13.4
+    }
+  }
+
+  class Bar extends Foo {
+    p: integer
+    q: string
+    r: integer
+    constructor() {
+      super()
+      this.p = 9
+      this.q = 'nine'
+      this.r = 3
+    }
+  }
+
+  const obj: any = new Foo()
+  print(obj.s)
+  print(obj.t)
+  print(obj.x)
+  print(obj.y)
+  print(obj.length)
+
+  const obj2: any = new Bar()
+  print(obj2.s)
+  print(obj2.y)
+  print(obj2.p)
+  print(obj2.q)
+  print(obj2.r)
+
+  obj.x = 7
+  obj.y = 4.7
+  obj.s = 'bar'
+  obj.t = 1
+  obj.length = 71.3
+  print(obj.s)
+  print(obj.t)
+  print(obj.x)
+  print(obj.y)
+  print(obj.length)
+
+  obj2.x = 17
+  obj2.t = 'obj2'
+  obj2.p = 19
+  obj2.q = 'ten'
+  obj2.r = 13
+  print(obj2.x)
+  print(obj2.t)
+  print(obj2.p)
+  print(obj2.q)
+  print(obj2.r)
+
+  const v: any = 999
+  obj2.p = v
+  print(obj2.p)
+`
+
+  expect(compileAndRun(src)).toBe(['foo', 5, 3, '7.200000', '13.400000',
+    'foo', '7.200000', 9, 'nine', 3,
+    'bar', 1, 7, '4.700000', '71.300003',
+    17, 'obj2', 19, 'ten', 13, 999].join('\n') + '\n')
+})
+
+test('super class with unboxed properties only', () => {
+  const src = `
+  class Foo {
+    i: integer
+    f: float
+    j: integer
+    constructor() {
+      this.i = 3
+      this.f = 5.2
+      this.j = 7
+    }
+  }
+
+  class Bar extends Foo {
+    s: string
+    k: integer
+    constructor() {
+      super()
+      this.s = 'bar'
+      this.k = 11
+    }
+  }
+
+  const obj: any = new Bar()
+  print(obj.s)
+  print(obj.k)
+  obj.s = 'baz'
+  obj.k = 111
+  obj.j = 17
+  print(obj.j)
+  print(obj.s)
+  print(obj.k)
+
+  const v: any = 333
+  obj.i = v
+  print(obj.i)
+`
+
+  expect(compileAndRun(src)).toBe(['bar', 11, 17, 'baz', 111, 333].join('\n') + '\n')
+})
+
+test('bad property access to an object of any type', () => {
+  const src = `
+  class Foo {
+    i: integer
+    f: float
+    j: any
+    constructor() {
+      this.i = 3
+      this.f = 5.2
+      this.j = 7
+    }
+  }
+
+  class Bar extends Foo {
+    s: string
+    k: integer
+    constructor() {
+      super()
+      this.s = 'bar'
+      this.k = 11
+    }
+  }
+  `
+  const src2 = `
+  const obj: any = new Bar()
+  obj.length = 7
+`
+
+  expect(() => compileAndRun(src + src2)).toThrow(/runtime type error: no such property/)
+
+  const src3 = `
+  const obj: any = new Bar()
+  obj.no_such_property = 8
+  `
+
+  expect(() => compileAndRun(src + src3)).toThrow(/no_such_property/)
+})
+
+test('accumulation in properties of any-type objects', () => {
+  const src = `
+  class Foo {
+    i: integer
+    f: float
+    s: string
+    j: any
+    constructor() {
+      this.i = 3
+      this.f = 3.6
+      this.s = 'foo'
+      this.j = 7
+    }
+  }
+
+  class Bar extends Foo {
+    k: integer
+    g: float
+    constructor() {
+      super()
+      this.k = 11
+      this.g = 4.4
+    }
+  }`
+
+  const src2 = `
+  const obj: any = new Bar()
+  obj.i += 20
+  obj.j *= 10
+  obj.f /= 2
+  print(obj.i)
+  print(obj.j)
+  print(obj.f)
+  const k: any = 100
+  print(typeof (obj.i += k))    // any type
+  obj.i += k
+  print(obj.i)
+  obj.k += 100
+  print(obj.k)
+  obj.k -= k
+  print(obj.k)
+  obj.g *= 2.0
+  print(obj.g)
+`
+
+  expect(compileAndRun(src + src2)).toBe([23, 70, '1.800000', 'any', 123, 111, 11, '8.800000'].join('\n') + '\n')
+
+  const src3 = `
+  const obj: any = new Bar()
+  obj.s += 100
+  `
+
+  expect(() => { compileAndRun(src + src3)}).toThrow(/bad operand for \+/)
+
+
+  const src4 = `
+  const obj: any = new Bar()
+  obj.no_such_field += 100    // no_such_field is not declared in any classes.
+  `
+
+  expect(() => { compileAndRun(src + src4)}).toThrow(/no_such_field/)
+
+  const src5 = `
+  const obj: any = new Bar()
+  obj.length = 33
+  `
+
+  expect(() => { compileAndRun(src + src5)}).toThrow(/no such property/)
+})
+
+test('an array object bound to a any-type variable', () => {
+  const maker = (init: string, v1: string, v2: string, v3: string) => `
+  const a1 = ${init}
+  print(typeof a1)
+  const a2: any = a1
+  print(a2.length)
+  print(a2[0])
+  print(a2[0] = ${v1})
+  print(a2[1] += ${v2})
+  print(a2[1] -= ${v3})
+  `
+
+  const src = maker('[1, 2, 3]', '5', '10', '10')
+  expect(compileAndRun(src)).toBe(['integer[]', 3, 1, 5, 12, 2].join('\n') + '\n')
+  const src2 = maker('[1.1, 2.1, 3.1, 4.1]', '5.5', '10.0', '10.0')
+  expect(compileAndRun(src2)).toBe(['float[]', 4, '1.100000', '5.500000', '12.100000', '2.100000'].join('\n') + '\n')
+  const src3 = maker('[1, 2, "3"]', '5', '10', '10')
+  expect(compileAndRun(src3)).toBe(['any[]', 3, 1, 5, 12, 2].join('\n') + '\n')
+})
+
+test('bad array access', () => {
+  const src = `
+  const a1:any = 3
+  `
+
+  expect(() => compileAndRun(src + 'print(a1[0])')).toThrow(/reading a non array/)
+  expect(() => compileAndRun(src + 'a1[0] = 1')).toThrow(/assignment to a non array/)
+  expect(() => compileAndRun(src + 'a1[0] += 10')).toThrow(/a non array/)
+})
+
 test('save arguments into rootset', () => {
   const src = `
   function foo(n: integer) {

@@ -910,7 +910,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   // This returns false when the given expression is an array access but the array type
   // is unknown.  It also returns false when the given expression is a property access
   // like a.b and the property is unboxed.  Otherwise, it returns true.
-  private checkMemberExpr(node: AST.MemberExpression, immutable: boolean, names: NameTable<Info>) {
+  private checkMemberExpr(node: AST.MemberExpression, readonly: boolean, names: NameTable<Info>) {
     this.assert(AST.isExpression(node.object), 'not supported object', node.object)
     if (node.computed) {
       // an array access like a[b]
@@ -920,13 +920,17 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
                 'an array index must be an integer', node.property)
       this.addCoercionIfAny(node.property, this.result)
       this.visit(node.object, names)
+      this.addStaticType(node.object, this.result)
       if (this.result instanceof ArrayType) {
         this.result = this.result.elementType
         this.addStaticType(node, this.result)
       }
       else {
-        this.assert(this.firstPass, 'an element access to a non-array', node.object)
-        return false    // an array access but the object is unknown.
+        this.assert(this.firstPass || this.result === Any, 'an element access to a non-array', node.object)
+        this.result = Any
+        this.addStaticType(node, this.result)
+        // false if this is an array access but the array object type is unknown since this path is the first one.
+        return !this.firstPass
       }
     }
     else {
@@ -950,13 +954,18 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           }
         }
         else if (type instanceof ArrayType) {
-          if (propertyName === 'length') {
-            this.assert(immutable, 'cannot change .length', node.property)
+          if (propertyName === ArrayType.lengthMethod) {
+            this.assert(readonly, 'cannot change .length', node.property)
             this.result = Integer
             return false  // an uboxed value.
           }
         }
+        else if (type === Any) {
+          this.result = Any
+          return true
+        }
 
+        this.result = Any
         this.assert(false, `unknown property name: ${propertyName}`, node.property)
       }
       else
