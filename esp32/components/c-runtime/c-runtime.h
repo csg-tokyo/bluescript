@@ -44,6 +44,14 @@ struct object_type {
 
 typedef struct object_type* pointer_t;
 
+struct property_table {
+    const uint16_t size;        // the number of properties declared in this class.
+    const uint16_t offset;      // the index of the first property
+    const uint16_t unboxed;     // 1 + the maximum index of the unboxed properties
+    const uint16_t* const prop_names;   // property names
+    const char* const unboxed_types; // the types of unboxed properties
+};
+
 typedef struct class_object {
     int32_t size;           // instance size excluding a header.
                             // -1 if the instance is an array.
@@ -52,19 +60,20 @@ typedef struct class_object {
                             // If start_index is 2, body[0] and body[1] don't hold a pointer.
     const char* const name; // printable class name
     const struct class_object* const superclass;    // super class or NULL
+    struct property_table table;
     void* vtbl[1];
 } class_object;
 
 // A macro for declaring a class_object.
 // n: the length of body (> 0).
-#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; void* vtbl[n]; } body; } name
+#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; struct property_table pt; void* vtbl[n]; } body; } name
 
 inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
 inline bool is_int_value(value_t v) { return (v & 3) == 0; }
 
-float value_to_float(value_t v);
-value_t float_to_value(float v);
+extern float CR_SECTION value_to_float(value_t v);
+extern value_t CR_SECTION float_to_value(float v);
 inline bool is_float_value(value_t v) { return (v & 3) == 1; }
 
 #ifdef TEST64
@@ -148,7 +157,7 @@ extern void CR_SECTION interrupt_handler_end();
 
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
-extern void* method_lookup(value_t obj, uint32_t index);
+extern void* CR_SECTION method_lookup(value_t obj, uint32_t index);
 
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
 
@@ -174,6 +183,11 @@ inline int32_t* get_obj_int_property(value_t obj, int index) {
 inline float* get_obj_float_property(value_t obj, int index) {
     return (float*)&value_to_ptr(obj)->body[index];
 }
+
+extern value_t CR_SECTION get_anyobj_property(value_t obj, int property);
+extern value_t CR_SECTION get_anyobj_legth_property(value_t obj, int property);
+extern value_t CR_SECTION set_anyobj_property(value_t obj, int property, value_t new_value);
+extern value_t CR_SECTION acc_anyobj_property(value_t obj, char op, int property, value_t new_value);
 
 extern value_t CR_SECTION gc_new_function(void* fptr, const char* signature, value_t this_object);
 extern bool CR_SECTION gc_is_function_object(value_t obj, const char* signature);
@@ -213,6 +227,11 @@ extern value_t CR_SECTION gc_make_array(int32_t is_any, int32_t n, ...);
 extern int32_t CR_SECTION gc_array_length(value_t obj);
 extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);
 extern value_t CR_SECTION gc_array_set(value_t obj, int32_t index, value_t new_value);
+
+extern value_t CR_SECTION get_anyobj_length_property(value_t obj, int property);
+extern value_t CR_SECTION gc_safe_array_get(value_t obj, int32_t idx);
+extern value_t CR_SECTION gc_safe_array_set(value_t obj, int32_t idx, value_t new_value);
+extern value_t CR_SECTION gc_safe_array_acc(value_t obj, int32_t index, char op, value_t new_value);
 
 extern void CR_SECTION gc_init_rootset(struct gc_root_set* set, uint32_t length);
 extern void CR_SECTION gc_run();

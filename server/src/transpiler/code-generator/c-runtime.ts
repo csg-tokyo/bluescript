@@ -5,7 +5,7 @@ import { ErrorLog } from '../utils'
 import { Integer, Float, Boolean, String, Void, Null, Any,
     ObjectType, objectType, FunctionType,
     StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype, } from '../types'
-import { InstanceType } from '../classes'
+import { InstanceType, ClassTable } from '../classes'
 
 export const anyTypeInC = 'value_t'
 export const funcTypeInC = 'value_t'
@@ -258,6 +258,15 @@ export function rootSetVariable(index: number | undefined, rootset?: string) {
 
 export const getObjectProperty = 'get_obj_property'
 export const setObjectProperty = 'set_obj_property'
+export const setAnyObjectProperty = 'set_anyobj_property'
+export const accmulateInUnknownMember = 'acc_anyobj_property'
+
+export function getAnyObjectProperty(name: string) {
+  if (name === ArrayType.lengthMethod)
+    return 'get_anyobj_length_property'
+  else
+    return 'get_anyobj_property'
+}
 
 export function getObjectPrimitiveProperty(t: StaticType) {
   if (t === Float)
@@ -267,8 +276,10 @@ export function getObjectPrimitiveProperty(t: StaticType) {
 }
 
 // a getter/setter function for arrays
-export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
-  if (t === Integer)
+export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticType | undefined, node: AST.Node) {
+  if (arrayType === Any)
+    return '(gc_safe_array_get('
+  else if (t === Integer)
     return '(*gc_intarray_get('
   else if (t === Float)
     return '(*gc_floatarray_get('
@@ -278,9 +289,16 @@ export function arrayElementGetter(t: StaticType | undefined, node: AST.Node) {
     return `(*gc_array_get(`
 }
 
-export function arrayElementSetter() {
-  return `gc_array_set(`
+export function arrayElementSetter(arrayType: StaticType | undefined) {
+  if (arrayType === undefined)
+    throw new Error('unknown array type')
+  else if (arrayType === Any)
+    return 'gc_safe_array_set('
+  else
+    return `gc_array_set(`
 }
+
+export const accumulateInUnknownArray = 'gc_safe_array_acc'
 
 // makes an array object from elements
 export function arrayFromElements(t: StaticType) {
@@ -343,6 +361,10 @@ export function classNameInC(name: string) {
   return `class_${name}`
 }
 
+function propertyListNameInC(name: string) {
+  return `plist_${name}`
+}
+
 export function classObjectNameInC(name: string) {
   return `class_${name}.clazz`
 }
@@ -385,7 +407,7 @@ export function externNew(clazz: InstanceType) {
   return signature + ');\n'
 }
 
-export function classDeclaration(clazz: InstanceType) {
+export function classDeclaration(clazz: InstanceType, classTable: ClassTable) {
   const name = clazz.name()
   const superClass = clazz.superclass()
   let superAddr: string
@@ -402,8 +424,15 @@ export function classDeclaration(clazz: InstanceType) {
   const size = clazz.objectSize()
   const start = clazz.unboxedProperties() || 0
 
-  return `CLASS_OBJECT(${classNameInC(name)}, ${table.length}) = {
-    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .vtbl = { ${tableArray} }}};`
+  const ptable = classTable.propertyTable(clazz)
+  const propListName = propertyListNameInC(name)
+  const propTable = `{ .size = ${ptable.props.length}, .offset = ${ptable.offset},
+    .unboxed = ${ptable.unboxed}, .prop_names = ${propListName}, .unboxed_types = "${ptable.unboxedTypes}" }`
+
+  const propList = `static const uint16_t ${propListName}[] = { ${ptable.props.join(', ')} };`
+
+  return `${propList}\nCLASS_OBJECT(${classNameInC(name)}, ${table.length}) = {
+    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .pt = ${propTable}, .vtbl = { ${tableArray} }}};`
 }
 
 export function makeInstance(clazz: InstanceType) {

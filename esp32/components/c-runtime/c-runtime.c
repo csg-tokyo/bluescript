@@ -396,8 +396,10 @@ void* method_lookup(value_t obj, uint32_t index) {
     return get_objects_class(value_to_ptr(obj))->vtbl[index];
 }
 
+#define DEFAULT_PTABLE      { .size = 0, .offset = 0, .unboxed = 0, .prop_names = NULL, .unboxed_types = NULL }
+
 CLASS_OBJECT(object_class, 1) = {
-    .clazz = { .size = 0, .start_index = 0, .name = "Object", .superclass = NULL }};
+    .clazz = { .size = 0, .start_index = 0, .name = "Object", .superclass = NULL, .table = DEFAULT_PTABLE }};
 
 static pointer_t allocate_heap(uint16_t word_size);
 
@@ -414,8 +416,112 @@ pointer_t gc_allocate_object(const class_object* clazz) {
     return obj;
 }
 
+static int get_anyobj_property2(const class_object* clazz, int property, char* type) {
+    if (clazz == NULL)
+        runtime_type_error("no such property is found");
+
+    const uint16_t size = clazz->table.size;
+    const uint16_t* names = clazz->table.prop_names;
+    for (int i = 0; i < size; i++)
+        if (names[i] == property) {
+            int index = i + clazz->table.offset;
+            if (index < clazz->table.unboxed)
+                *type = clazz->table.unboxed_types[i];
+            else
+                *type = ' ';
+
+            return index;
+        }
+
+    return get_anyobj_property2(clazz->superclass, property, type);
+}
+
+value_t get_anyobj_property(value_t obj, int property) {
+    class_object* clazz = gc_get_class_of(obj);
+    char type;
+    int index = get_anyobj_property2(clazz, property, &type);
+    if (type == ' ')
+        return get_obj_property(obj, index);
+    else if (type == 'i' || type == 'b')
+        return int_to_value(*get_obj_int_property(obj, index));
+    else if (type == 'f')
+        return float_to_value(*get_obj_float_property(obj, index));
+    else {
+        runtime_type_error("get_anyobj_property");
+        return VALUE_UNDEF;
+    }
+}
+
+// see also get_anyobj_length_property()
+
+value_t set_anyobj_property(value_t obj, int property, value_t new_value) {
+    class_object* clazz = gc_get_class_of(obj);
+    char type;
+    int index = get_anyobj_property2(clazz, property, &type);
+    if (type == ' ')
+        return set_obj_property(obj, index, new_value);
+    else if (type == 'i' || type == 'b')
+        *get_obj_int_property(obj, index) = safe_value_to_int(new_value);
+    else if (type == 'f')
+        *get_obj_float_property(obj, index) = safe_value_to_float(new_value);
+    else
+        runtime_type_error("set_anyobj_property");
+
+    return new_value;
+}
+
+// accumulate a value in a property of an any-type object
+value_t acc_anyobj_property(value_t obj, char op, int property, value_t value) {
+    class_object* clazz = gc_get_class_of(obj);
+    char type;
+    int index = get_anyobj_property2(clazz, property, &type);
+    if (type == ' ') {
+        value_t left = get_obj_property(obj, index);
+        value_t new_value = VALUE_UNDEF;
+        switch (op) {
+            case '+': new_value = any_add(left, value); break;
+            case '-': new_value = any_subtract(left, value); break;
+            case '*': new_value = any_multiply(left, value); break;
+            case '/': new_value = any_divide(left, value); break;
+            default: runtime_type_error("acc_anyobj_property");
+        }
+        return set_obj_property(obj, index, new_value);
+    }
+    else if (type == 'i') {
+        int32_t* left = get_obj_int_property(obj, index);
+        int32_t right = safe_value_to_int(value);
+        switch (op) {
+        case '+': *left += right; break;
+        case '-': *left -= right; break;
+        case '*': *left *= right; break;
+        case '/': *left /= right; break;
+        default: runtime_type_error("acc_anyobj_property:integer");
+        }
+        return int_to_value(*left);
+    }
+    else if (type == 'f') {
+        float* left = get_obj_float_property(obj, index);
+        float right = safe_value_to_float(value);
+        switch (op) {
+        case '+': *left += right; break;
+        case '-': *left -= right; break;
+        case '*': *left *= right; break;
+        case '/': *left /= right; break;
+        default: runtime_type_error("acc_anyobj_property:float");
+        }
+        return float_to_value(*left);
+    }
+    else {
+        runtime_type_error("acc_anyobj_property");
+        return value;
+    }
+}
+
+// a function object
+
 static CLASS_OBJECT(function_object, 0) = {
-     .clazz = { .size = 3, .start_index = 2, .name = "Function", .superclass = &object_class.clazz }};
+     .clazz = { .size = 3, .start_index = 2, .name = "Function",
+                .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
 // this_object may be VALUE_UNDEF.
 value_t gc_new_function(void* fptr, const char* signature, value_t this_object) {
@@ -448,7 +554,7 @@ const void* gc_function_object_ptr(value_t obj, int index) {
 // This C string is not allocated in the heap memory managed by the garbage collector.
 
 static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.start_index = SIZE_NO_POINTER,
-                                           .clazz.name = "string", .clazz.superclass = NULL };
+                                           .clazz.name = "string", .clazz.superclass = NULL, .clazz.table = DEFAULT_PTABLE };
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
@@ -474,7 +580,8 @@ const char* gc_string_literal_cstr(value_t obj) {
 // An int32_t array
 
 static CLASS_OBJECT(intarray_object, 1) = {
-    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<integer>", .superclass = &object_class.clazz }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<integer>",
+               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_intarray(value_t v) {
     return safe_value_to_value(&intarray_object.clazz, v);
@@ -536,7 +643,8 @@ int32_t* gc_intarray_get(value_t obj, int32_t index) {
 // A float array
 
 static CLASS_OBJECT(floatarray_object, 1) = {
-    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<float>", .superclass = &object_class.clazz }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<float>",
+               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_floatarray(value_t v) {
     return safe_value_to_value(&floatarray_object.clazz, v);
@@ -597,7 +705,8 @@ float* gc_floatarray_get(value_t obj, int32_t index) {
 // A byte array
 
 static CLASS_OBJECT(bytearray_object, 1) = {
-    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "ByteArray", .superclass = &object_class.clazz }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "ByteArray",
+               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_bytearray(value_t v) {
     return safe_value_to_value(&bytearray_object.clazz, v);
@@ -672,7 +781,8 @@ uint8_t* gc_bytearray_get(value_t obj, int32_t idx) {
 // A fixed-length array
 
 static CLASS_OBJECT(vector_object, 1) = {
-    .clazz = { .size = -1, .start_index = 1, .name = "Vector", .superclass = &object_class.clazz }};
+    .clazz = { .size = -1, .start_index = 1, .name = "Vector",
+               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_vector(value_t v) {
     return safe_value_to_value(&vector_object.clazz, v);
@@ -730,11 +840,14 @@ inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_valu
 
 // An any-type array
 
+/* this may be Array<string> etc. */
 static CLASS_OBJECT(array_object, 1) = {
-    .clazz = { .size = 2, .start_index = 1, .name = "Array", .superclass = &object_class.clazz }};
+    .clazz = { .size = 2, .start_index = 1, .name = "Array",
+               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
 static CLASS_OBJECT(anyarray_object, 1) = {
-    .clazz = { .size = 2, .start_index = 1, .name = "Array<any>", .superclass = &object_class.clazz }};
+    .clazz = { .size = 2, .start_index = 1, .name = "Array<any>",
+               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_array(value_t v) {
     return safe_value_to_value(&array_object.clazz, v);
@@ -797,6 +910,66 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
         runtime_index_error(index, len, "Array.set");
         return 0;
     }
+}
+
+value_t get_anyobj_length_property(value_t obj, int property) {
+    class_object* clazz = gc_get_class_of(obj);
+    if (clazz == &intarray_object.clazz || clazz == &floatarray_object.clazz || clazz == &bytearray_object.clazz
+        || clazz == &vector_object.clazz || clazz == &array_object.clazz || clazz == &anyarray_object.clazz) {
+        int32_t len = *get_obj_int_property(obj, clazz == &bytearray_object.clazz ? 1 : 0);
+        return int_to_value(len);
+    }
+    else
+        return get_anyobj_property(obj, property);
+}
+
+value_t gc_safe_array_get(value_t obj, int32_t idx) {
+    class_object* clazz = gc_get_class_of(obj);
+    if (clazz == &intarray_object.clazz)
+        return int_to_value(*gc_intarray_get(obj, idx));
+    else if (clazz == &floatarray_object.clazz)
+        return float_to_value(*gc_floatarray_get(obj, idx));
+    else if (clazz == &bytearray_object.clazz)
+        return int_to_value(*gc_bytearray_get(obj, idx));
+    else if (clazz == &vector_object.clazz)
+        return *gc_vector_get(obj, idx);
+    else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
+        return *gc_array_get(obj, idx);
+    else {
+        runtime_type_error("reading a non array");
+        return VALUE_UNDEF;
+    }
+}
+
+value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
+    class_object* clazz = gc_get_class_of(obj);
+    if (clazz == &intarray_object.clazz)
+        return int_to_value(*gc_intarray_get(obj, idx) = safe_value_to_int(new_value));
+    else if (clazz == &floatarray_object.clazz)
+        return float_to_value(*gc_floatarray_get(obj, idx) = safe_value_to_float(new_value));
+    else if (clazz == &bytearray_object.clazz)
+        return int_to_value(*gc_bytearray_get(obj, idx) = safe_value_to_int(new_value));
+    else if (clazz == &vector_object.clazz)
+        return (*gc_vector_get(obj, idx) = new_value);
+    else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
+        return (*gc_array_get(obj, idx) = new_value);
+    else {
+        runtime_type_error("assignment to a non array");
+        return VALUE_UNDEF;
+    }
+}
+
+value_t gc_safe_array_acc(value_t obj, int32_t index, char op, value_t value) {
+    value_t left = gc_safe_array_get(obj, index);
+    value_t new_value = VALUE_UNDEF;
+    switch (op) {
+        case '+': new_value = any_add(left, value); break;
+        case '-': new_value = any_subtract(left, value); break;
+        case '*': new_value = any_multiply(left, value); break;
+        case '/': new_value = any_divide(left, value); break;
+        default: runtime_type_error("gc_safe_array_acc");
+    }
+    return gc_safe_array_set(obj, index, new_value);
 }
 
 // Compute an object size.   It is always an even number.
@@ -1078,8 +1251,6 @@ extern CR_SECTION int32_t value_to_int(value_t v);
 extern CR_SECTION value_t int_to_value(int32_t v);
 extern CR_SECTION bool is_int_value(value_t v);
 
-extern CR_SECTION float value_to_float(value_t v);
-extern CR_SECTION value_t float_to_value(float v);
 extern CR_SECTION bool is_float_value(value_t v);
 
 extern CR_SECTION pointer_t value_to_ptr(value_t v);

@@ -344,7 +344,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         }
       }
 
-      this.declarations.write(cr.classDeclaration(clazz)).nl()
+      this.declarations.write(cr.classDeclaration(clazz, env.table.classTable())).nl()
 
       let defaultConstructor = true
       for (const mem of node.body.body) {
@@ -775,9 +775,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         func = '('
 
       if (AST.isMemberExpression(left)) {
-        // if left is a member expression, getStaticType(left) is not undefined.
-        const type = getStaticType(left)
-        if (type && !isPrimitiveType(type)) {
+        // if left is a member expression, left_type is not undefined.
+        if (left_type && !isPrimitiveType(left_type)) {
           this.anyMemberAssignmentExpression(node, left, func, env)
           return
         }
@@ -812,24 +811,37 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     let nvars = 0     // number of variables
     if (leftNode.computed) {
       // an array access like a[b]
-      this.result.write(cr.arrayElementSetter())
+      this.result.write(cr.arrayElementSetter(getStaticType(leftNode.object)))
       this.visit(leftNode.object, env)
       this.result.write(', ')
       nvars = this.callExpressionArg(leftNode.property, Integer, env)
     }
     else {
       // a member access like a.b
-      const objType = getStaticType(leftNode.object) as InstanceType
       const propertyName = (leftNode.property as AST.Identifier).name
-      const typeAndIndex  = objType.findProperty(propertyName)
-      if (!typeAndIndex)
-        throw this.errorLog.push('fatal: unknown member name', node)
-
-      // the resulting type of assignment is always ANY
-      this.result.write(`${cr.setObjectProperty}(`)
-      this.visit(leftNode.object, env)
-      this.result.write(`, ${typeAndIndex[1]}`)
       nvars = 0
+      const objType = getStaticType(leftNode.object)
+      if (objType instanceof InstanceType) {
+        const typeAndIndex  = objType.findProperty(propertyName)
+        if (!typeAndIndex)
+          throw this.errorLog.push('fatal: unknown member name', node)
+
+        // the resulting type of assignment is always ANY
+        this.result.write(`${cr.setObjectProperty}(`)
+        this.visit(leftNode.object, env)
+        this.result.write(`, ${typeAndIndex[1]}`)
+      }
+      else if (objType === Any || objType === undefined) {
+        const propertyCode = env.table.classTable().encodeName(propertyName)
+        if (propertyCode === undefined)
+          throw this.errorLog.push(`no class declares a member: ${propertyName}`, node)
+
+        this.result.write(`${cr.setAnyObjectProperty}(`)
+        this.visit(leftNode.object, env)
+        this.result.write(`, ${propertyCode}`)
+      }
+      else
+        throw this.errorLog.push(`fatal: unknown member name: ${propertyName}`, node)
     }
 
     this.result.write(', ')
@@ -848,7 +860,31 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
                                right: AST.Expression, rightType: StaticType | undefined,
                                env: VariableEnv): void {
     // when string_array += string is supported, `gc_array_set` must be used for string accumulation.
-    if (leftType === Any) {
+    if (AST.isMemberExpression(left) && getStaticType(left.object) === Any) {
+      if (left.computed) {
+        this.result.write(`${cr.accumulateInUnknownArray}(`)
+        this.visit(left.object, env)
+        this.result.write(', ')
+        const n = this.callExpressionArg(left.property, Integer, env)
+        this.result.write(`, '${op[0]}', ${cr.typeConversion(rightType, Any, right)}`)
+        this.visit(right, env)
+        this.result.write('))')
+        env.deallocate(n)   // n will be zero.
+      }
+      else {
+        const propertyName = (left.property as AST.Identifier).name
+        const propertyCode = env.table.classTable().encodeName(propertyName)
+        if (propertyCode === undefined)
+          throw this.errorLog.push(`no class declares such a member: ${propertyName}`, left.property)
+
+        this.result.write(`${cr.accmulateInUnknownMember}(`)
+        this.visit(left.object, env)
+        this.result.write(`, '${op[0]}', ${propertyCode}, ${cr.typeConversion(rightType, Any, right)}`)
+        this.visit(right, env)
+        this.result.write('))')
+      }
+    }
+    else if (leftType === Any) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(&(`)
       this.visit(left, env)
       this.result.write(`), ${cr.typeConversion(rightType, Any, right)}`)
@@ -914,6 +950,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const method = AST.isMemberExpression(node.callee) && this.visitIfMethodExpr(node.callee, env)
       if (method) {
         if (method[1]) {
+          // a method call on super
           const funcType = method[0][0]
           const index = method[0][1]
           const clazz = method[0][2]
@@ -925,6 +962,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           this.result.write(`, ${cr.methodLookup(method[0], func)}(${func}`)
       }
       else {
+        // the callee is an expression resulting in a function object.
         this.visit(node.callee, env)
         this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${cr.getObjectProperty}(${func}, 2)`)
       }
@@ -1050,8 +1088,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   memberExpression(node: AST.MemberExpression, env: VariableEnv): void {
     if (node.computed) {
       // an array access like a[b]
+      const arrayType = getStaticType(node.object)
       const elementType = getStaticType(node)
-      this.result.write(cr.arrayElementGetter(elementType, node))
+      this.result.write(cr.arrayElementGetter(elementType, arrayType, node))
       this.visit(node.object, env)
       this.result.write(', ')
       const n = this.callExpressionArg(node.property, Integer, env)
@@ -1079,10 +1118,19 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           this.result.write(`, ${typeAndIndex[1]}))`)
         }
       }
-      else if (objType instanceof ArrayType && propertyName === 'length') {
+      else if (objType instanceof ArrayType && propertyName === ArrayType.lengthMethod) {
         this.result.write(cr.getObjectPrimitiveProperty(Integer))
         this.visit(node.object, env)
         this.result.write(`, ${cr.getArrayLengthIndex(objType.elementType)})`)
+      }
+      else if (objType === Any) {
+        const propertyCode = env.table.classTable().encodeName(propertyName)
+        if (propertyCode === undefined)
+          throw this.errorLog.push(`no class declares such a member: ${propertyName}`, node)
+
+        this.result.write(`${cr.getAnyObjectProperty(propertyName)}(`)
+        this.visit(node.object, env)
+        this.result.write(`, ${propertyCode})`)
       }
       else
         throw this.errorLog.push('fatal: unknown array property', node)
