@@ -28,9 +28,9 @@ typedef union {
 static QueueHandle_t task_queue;
 
 
-uint32_t __attribute__((section(".iram0.data"))) virtual_text[3000];
-uint32_t __attribute__((section(".iram0.data"))) virtual_literal[1500];
-uint8_t DRAM_ATTR virtual_data[30000];
+static uint32_t __attribute__((section(".iram0.data"))) virtual_text[3000];
+static uint32_t __attribute__((section(".iram0.data"))) virtual_literal[1500];
+static uint8_t DRAM_ATTR virtual_data[30000];
 
 typedef struct {
     uint32_t text;

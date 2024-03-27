@@ -545,7 +545,7 @@ void bs_ble_init(void) {
 }
 
 
-void bs_ble_send_str(uint8_t *str, int length) {
+void bs_ble_send_str(uint8_t *str, uint32_t length) {
     if (notify_enabled) {
         esp_ble_gatts_send_indicate(notify_gatt_if, notify_cnn_id, gatt_event_handle_table[IDX_CHAR_VAL_LOG], length, str, false);
     }

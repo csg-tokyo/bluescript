@@ -13,6 +13,6 @@ void bs_ble_init();
 /**
  * Send string via BLE.
  */
-void bs_ble_send_str(uint8_t *str, int length);
+void bs_ble_send_str(uint8_t *str, uint32_t length);
 
 #endif /* __BS_BLE__ */
