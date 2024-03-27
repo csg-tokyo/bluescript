@@ -83,7 +83,6 @@ export default class Linker {
           const sectionName = this.elf32.getSectionName(this.elf32.shdrs[symbol.stShndx]);
           to = this.addressTable.getSectionAddress(sectionName) + relocation.rAddend;
           embedded = L32R(base, to, from);
-          console.log(embedded)
           value.writeIntLE(embedded, relocation.rOffset, 3);
         }
         break;

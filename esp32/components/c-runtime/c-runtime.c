@@ -1237,7 +1237,6 @@ void gc_run() {
 }
 
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
-    printf("set: %p\n", set);
     set->next = gc_root_set_head;
     if (length > 0) {
         gc_root_set_head = set;
