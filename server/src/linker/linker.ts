@@ -1,8 +1,7 @@
 import {AddressTable} from "./address-table";
 import {Section, Relocation} from "./elf32-parser";
 import {Buffer} from "node:buffer";
-import Elf32Rela, {RType} from "../linker-old/elf-parser/elf32-rela";
-import {STType} from "../linker-old/elf-parser/elf32-sym";
+import {RType, STType} from "./elf32";
 
 
 const CALL8 = (to: number, from: number) => (to - (from & (-4)) - 4) * 16 + 0b100101;
