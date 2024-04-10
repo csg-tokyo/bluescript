@@ -1,10 +1,10 @@
 import {GlobalVariableNameTable} from "../transpiler/code-generator/variables";
-import {AddressTableInterface} from "../linker/address-table";
 import * as fs from "fs";
 import FILE_PATH from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
-import link, {addressTableOrigin} from "../linker";
 import {execSync} from "child_process";
+import {link, AddressTable} from "../linker";
+
 
 const cProlog = `
 #include <stdint.h>
@@ -15,7 +15,7 @@ const cProlog = `
 export default class Session {
   currentCodeId: number;
   nameTable: GlobalVariableNameTable;
-  addressTable: AddressTableInterface;
+  addressTable?: AddressTable;
 
   constructor() {
     this.currentCodeId = 0;
@@ -24,7 +24,6 @@ export default class Session {
     // const src0 = fs.readFileSync(FILE_PATH.USER_PROGRAM).toString();
     // const src0Result = transpile(this.currentCodeId, src0, libResult.names);
     this.nameTable = libResult.names;
-    this.addressTable = addressTableOrigin();
   }
 
   public execute(tsString: string): string {
@@ -37,7 +36,7 @@ export default class Session {
 
     // Compile
     fs.writeFileSync(FILE_PATH.C_FILE, cString);
-    execSync(`export PATH=$PATH:${FILE_PATH.GCC}; xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w`);
+    execSync(`export PATH=$PATH:${FILE_PATH.GCC}; xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals`);
     const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
 
     // Link

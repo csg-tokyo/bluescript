@@ -28,35 +28,15 @@ typedef union {
 static QueueHandle_t task_queue;
 
 
-static uint32_t __attribute__((section(".iram0.data"))) virtual_text[3000];
-static uint32_t __attribute__((section(".iram0.data"))) virtual_literal[1500];
+static uint32_t __attribute__((section(".iram0.data"))) virtual_text[4000];
 static uint8_t DRAM_ATTR virtual_data[30000];
 
 typedef struct {
     uint32_t text;
-    uint32_t literal;
     uint32_t data;
 } used_virtual_memory_t;
 
 static used_virtual_memory_t used_virtual_memory;
-
-
-static void soft_reset() {
-    // Reset memory.
-    memset(virtual_text, 0, sizeof(virtual_text));
-    memset(virtual_literal, 0, sizeof(virtual_literal));
-    memset(virtual_data, 0, sizeof(virtual_data));
-
-    used_virtual_memory.text = 0;
-    used_virtual_memory.literal = 0;
-    used_virtual_memory.data = 0;
-
-    // Reset entry-point queue.
-    xQueueReset(task_queue);
-
-    // Reset BlueScript heap.
-    gc_initialize();
-}
 
 
 void bs_shell_execute_code(uint8_t *code, int code_len) {
@@ -66,18 +46,17 @@ void bs_shell_execute_code(uint8_t *code, int code_len) {
     // Set virtual memory.
     uint32_t* code32 = (uint32_t*) code;
     uint32_t new_text_size = code32[0];
-    uint32_t new_literal_size = code32[1];
-    uint32_t new_data_size = code32[2];
+    uint32_t new_data_size = code32[1];
+    uint32_t entry_point = code32[2];
 
-    uint32_t entry_point = code32[3];
-    uint32_t* body_start = code32 + 4;
+    printf("text address: %p\n", virtual_text);
+    printf("data address: %p\n", virtual_data);
 
-    memcpy(virtual_text + used_virtual_memory.text/4, body_start, new_text_size); // text
-    memcpy(virtual_literal + used_virtual_memory.literal/4, body_start + new_text_size / 4, new_literal_size); // literal
-    memcpy(virtual_data + used_virtual_memory.data, body_start + (new_text_size + new_literal_size)/4, new_data_size); // data
+    uint32_t* body_start = code32 + 3;
+    memcpy(virtual_text + used_virtual_memory.text/sizeof(uint32_t), body_start, new_text_size); // text
+    memcpy(virtual_data + used_virtual_memory.data, body_start + new_text_size/sizeof(uint32_t), new_data_size); // data
 
     used_virtual_memory.text += new_text_size;
-    used_virtual_memory.literal += new_literal_size;
     used_virtual_memory.data += new_data_size;
 
     // Push execute code task into queue.
@@ -95,6 +74,21 @@ void bs_shell_soft_reset() {
     xQueueSend(task_queue, &task, portMAX_DELAY);
 }
 
+
+static void soft_reset() {
+    // Reset memory.
+    memset(virtual_text, 0, sizeof(virtual_text));
+    memset(virtual_data, 0, sizeof(virtual_data));
+
+    used_virtual_memory.text = 0;
+    used_virtual_memory.data = 0;
+
+    // Reset entry-point queue.
+    xQueueReset(task_queue);
+
+    // Reset BlueScript heap.
+    gc_initialize();
+}
 
 void bs_shell_task(void *arg) {
     task_item_u task_item;
@@ -114,7 +108,7 @@ void bs_shell_task(void *arg) {
                 soft_reset();
                 break;
             default:
-                ESP_LOGE(BS_SHELL_TAG, "Unknown write handler.");
+                ESP_LOGE(BS_SHELL_TAG, "Unknown task command.");
                 break;
             }
     }

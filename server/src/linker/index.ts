@@ -1,30 +1,66 @@
 import {Buffer} from "node:buffer";
+import {AddressTableOrigin, AddressTable} from "./address-table";
+import {LinkedELF32Parser, UnlinkedELF32Parser} from "./elf32-parser";
 import * as fs from 'fs';
-import {AddressTable, AddressTableOrigin, AddressTableInterface} from "./address-table";
-import {ExePart} from "./utils";
 import FILE_PATH from "../constants";
-import Elf32 from "./elf-parser/elf32";
 import Linker from "./linker";
 
+function link(buffer: Buffer, entryPointName: string, addressTable?: AddressTable) {
+  // 1. read data from buffer
+  let elfParser = new UnlinkedELF32Parser(buffer);
 
-export default function link(elfBuffer: Buffer, entryPointName: string, at: AddressTableInterface) {
-  const elf32 = new Elf32(elfBuffer);
-  const addressTable = new AddressTable(elf32, at);
-  const linker = new Linker(elf32, addressTable);
+  // 2. decide address
+  let _addressTable: AddressTable;
+  if (addressTable === undefined) {
+    const mcuBuffer = fs.readFileSync(FILE_PATH.MCU_ELF);
+    const origin = new AddressTableOrigin(new LinkedELF32Parser(mcuBuffer));
+    _addressTable = new AddressTable(elfParser, origin);
+  } else
+    _addressTable = new AddressTable(elfParser, addressTable);
 
-  const textValue = linker.linkedValue(addressTable.textSection.name);
-  const literalValue = linker.linkedValue(addressTable.literalSection.name);
-  const dataValues: Buffer[] = [];
-  addressTable.dataSection.subSections.forEach((subSection) => {
-    dataValues.push(linker.linkedValue(subSection.name));
-  });
-  dataValues.push(Buffer.alloc(addressTable.dataSection.commonSize));
-  const entryPoint = addressTable.getSymbolAddress(entryPointName);
-  const exePart = new ExePart(textValue, literalValue, Buffer.concat(dataValues), entryPoint);
-  return {exe: exePart.toString(), addressTable};
+  // 3. link
+  let textSection = elfParser.textSection();
+  let dataSection = elfParser.dataSection();
+
+  let linker = new Linker(_addressTable);
+  linker.link(textSection);
+  linker.link(dataSection);
+
+  // 4. set value size
+  _addressTable.setTextSize(textSection.value.length);
+  _addressTable.setDataSize(dataSection.value.length);
+
+  // 5. get entry point
+  let entryPoint = _addressTable.symbolAddress(entryPointName);
+
+  // 6. generate exe
+  let exe = generateExe(textSection.value, dataSection.value, entryPoint);
+
+  return {exe, addressTable: _addressTable }
 }
 
-export function addressTableOrigin(): AddressTableOrigin {
-  const mcuBuffer = fs.readFileSync(FILE_PATH.MCU_ELF);
-  return new AddressTableOrigin(new Elf32(mcuBuffer));
+
+function generateExe(text: Buffer, data: Buffer, entryPoint: number) {
+  let buffers: Buffer[] = [];
+
+  // text size
+  const textSizeBuf = Buffer.allocUnsafe(4);
+  textSizeBuf.writeUIntLE(text.length, 0, 4);
+  buffers.push(textSizeBuf);
+
+  // data size
+  const dataSizeBuf = Buffer.allocUnsafe(4);
+  dataSizeBuf.writeUIntLE(data.length, 0, 4);
+  buffers.push(dataSizeBuf);
+
+  const entryPointBuf = Buffer.allocUnsafe(4);
+  entryPointBuf.writeUIntLE(entryPoint, 0, 4);
+  buffers.push(entryPointBuf);
+
+  buffers.push(text);
+  buffers.push(data);
+
+  return Buffer.concat(buffers).toString("hex");
 }
+
+export {link, AddressTable};
