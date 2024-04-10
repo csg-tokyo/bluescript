@@ -8,7 +8,7 @@ import {link, AddressTable} from "../linker";
 
 const cProlog = `
 #include <stdint.h>
-#include "../../esp32/components/c-runtime/c-runtime.h"
+#include "../../microcontroller/core/include/c-runtime.h"
 
 `
 

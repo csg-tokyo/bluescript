@@ -1,5 +1,5 @@
 /*
-  Before compiling shell.c, comile this file and build c-runtime.so.
+  Before compiling shell.c, compile this file and build c-runtime.so.
 
   cd BlueScript/server
   cc -shared -fPIC -DTEST64 -o temp-files/c-runtime.so temp-files/shell-builtins.c ../esp32/components/c-runtime/c-runtime.c
@@ -7,7 +7,7 @@
 
 #include <stdio.h>
 #include <time.h>
-#include "../../../esp32/components/c-runtime/c-runtime.h"
+#include "../../../microcontroller/core/include/c-runtime.h"
 
 // builtin functions
 
