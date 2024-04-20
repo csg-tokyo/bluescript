@@ -1,10 +1,12 @@
 import * as fs from "fs";
 import {execSync} from "child_process";
 import FILE_PATH from "../../src/constants";
-import link, {addressTableOrigin} from "../../src/linker";
+// import link, {addressTableOrigin} from "../../src/linker-old";
 import {translateExe} from "./common";
 import {Buffer} from "node:buffer";
-import {AddressTableOrigin} from "../../src/linker/address-table";
+// import {AddressTableOrigin} from "../../src/linker-old/address-table";
+
+import {link, AddressTable} from "../../src/linker";
 
 // File Path
 const MOCK_MCU_C_FILE = "./temp-files/mock-mcu.c";
@@ -26,14 +28,14 @@ int main() { return 2; }
 `
 
 describe('test linker', () => {
-  let addressTable: AddressTableOrigin;
+  let addressTable: AddressTable|undefined = undefined;
 
-  beforeAll(() => {
-    fs.writeFileSync(MOCK_MCU_C_FILE, mockMCUCode);
-    execSync(`export PATH=$PATH:${FILE_PATH.GCC}; xtensa-esp32-elf-gcc -O2 ${MOCK_MCU_C_FILE} -o ${MOCK_MCU_OBJ_FILE} -w`);
-    FILE_PATH.MCU_ELF = MOCK_MCU_OBJ_FILE;
-    addressTable = addressTableOrigin();
-  });
+  // beforeAll(() => {
+  //   fs.writeFileSync(MOCK_MCU_C_FILE, mockMCUCode);
+  //   execSync(`export PATH=$PATH:${FILE_PATH.GCC}; xtensa-esp32-elf-gcc -O2 ${MOCK_MCU_C_FILE} -o ${MOCK_MCU_OBJ_FILE} -w`);
+  //   FILE_PATH.MCU_ELF = MOCK_MCU_OBJ_FILE;
+  //   addressTable = addressTableOrigin();
+  // });
 
   test("test single main function", () => {
     const cCode = `
@@ -292,7 +294,8 @@ test("dummy", () => {
   const L32R = (base: number, to: number, from: number) => (to - ((from + 3) & (-4)) << 6) + base
 
   const buf: Buffer = Buffer.allocUnsafe(3);
-  // buf.writeIntLE(L32R(0x81, 0x004019bc + 0x00, 0x004015d4 + 0x03), 0, 3);
-  buf.writeIntLE(CALL8(0x00400198, 0x004015d4 + 0x0a), 0, 3);
+  // console.log(L32R(0xa1feff, 1074365492-4, 1074365492 + 3), 0, 3);
+  buf.writeIntLE(L32R(0xa1, 1074365492-4, 1074365492 + 3), 0, 3);
+  // buf.writeIntLE(CALL8(0x00400198, 0x004015d4 + 0x0a), 0, 3);
   console.log(buf.toString("hex"));
 });

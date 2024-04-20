@@ -5,8 +5,9 @@ import * as readline from 'node:readline/promises'
 import { ErrorLog } from './utils'
 
 const dir = './temp-files'
-const cRuntimeDir = '../esp32/components/c-runtime'
-const prologCcode = `#include "../${cRuntimeDir}/c-runtime.h"
+const cRuntimeH = "../microcontroller/core/include/c-runtime.h"
+const cRuntimeC = "../microcontroller/core/src/c-runtime.c"
+const prologCcode = `#include "../${cRuntimeH}"
 `
 
 const prolog = `// predefined native functions
@@ -17,7 +18,8 @@ function performance_now(): integer { return 0 }
 
 export function buildShell() {
   const srcdir = 'src/transpiler'
-  execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeDir}/c-runtime.c ${srcdir}/shell-builtins.c`)
+  console.log(execSync("pwd").toString())
+  execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeC} ${srcdir}/shell-builtins.c`)
   execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${srcdir}/shell.c ${dir}/c-runtime.so`)
 }
 

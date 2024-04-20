@@ -1,217 +1,107 @@
-import Elf32 from "./elf-parser/elf32";
-import {SHNType, STType} from "./elf-parser/elf32-sym";
-import {SHFlag} from "./elf-parser/elf32-shdr";
-
-const TEXT_SECTION_NAME = ".text";
-const LITERAL_SECTION_NAME = ".literal";
+import {LinkedELF32Parser, SECTION_TYPE, Symbol, UnlinkedELF32Parser} from "./elf32-parser";
 
 // Virtual section name is a symbol name on MCU (Micro Controller Unit) for storing binaries.
 const V_TEXT_SECTION_NAME = "virtual_text";
-const V_LITERAL_SECTION_NAME = "virtual_literal";
 const V_DATA_SECTION_NAME = "virtual_data";
 
 
-type Symbol = {
-  name: string,
-  address: number,
-}
-
-type Section = {
-  name: string,
-  size: number,
-  address: number
-}
-
-type SubSection = {
-  name: string,
-  offset: number
-}
-
-type DataSection = {
-  address: number,
-  size: number,
-  subSections: Map<string, SubSection>,
-  commonSize: number, // Sum of sizes of symbols whose stShndx is common.
-}
-
 export interface AddressTableInterface {
-  readonly parent?: AddressTableInterface;
-
-  symbols: Map<string, Symbol>;
-  textSection: Section;
-  literalSection: Section;
-  dataSection: DataSection;
-
-  getSymbolAddress: (symbolName: string) => number;
-  getSymbols: () => Symbol[]; // For debugging.
+  symbolAddress: (name: string) => number;
+  nextTextAddress: () => number;
+  nextDataAddress: () => number;
 }
+
 
 export class AddressTableOrigin implements AddressTableInterface {
-  public symbols: Map<string, Symbol>;
-  public textSection: Section;
-  public literalSection: Section;
-  public dataSection: DataSection;
+  private readonly symbols: Map<string, number>;
+  private readonly textAddress: number;
+  private readonly dataAddress: number;
 
-  constructor(mcuElf32: Elf32) {
-    this.textSection = extractMCUVSection(mcuElf32, V_TEXT_SECTION_NAME);
-    this.literalSection = extractMCUVSection(mcuElf32, V_LITERAL_SECTION_NAME);
-    this.dataSection = extractMCUVDataSection(mcuElf32, V_DATA_SECTION_NAME);
-    this.symbols = extractMCUSymbols(mcuElf32);
+  constructor(elfParser: LinkedELF32Parser) {
+    this.symbols = new Map(elfParser.symbols().map((obj) => [obj.name, obj.address]));
+    this.textAddress = AddressTableOrigin.getVSectionAddress(this.symbols, V_TEXT_SECTION_NAME);
+    this.dataAddress = AddressTableOrigin.getVSectionAddress(this.symbols, V_DATA_SECTION_NAME);
   }
 
-  public getSymbolAddress(symbolName: string): number {
-    const symbol = this.symbols.get(symbolName);
-    if (symbol === undefined)
-      throw Error(`Could not find symbol: ${symbolName}`);
-    return symbol.address;
+  public symbolAddress(name: string): number {
+    const symbolAddress = this.symbols.get(name);
+    if (symbolAddress !== undefined)
+      return symbolAddress;
+    else
+      throw new Error(`Can not find the symbol. The symbol name: ${name}`);
   }
 
-  public getSymbols() {
-    const results: Symbol[] = [];
-    this.symbols.forEach(s => results.push(s));
-    return results;
+  public nextTextAddress(): number {
+    return this.textAddress;
+  }
+
+  public nextDataAddress(): number {
+    return this.dataAddress;
+  }
+
+  private static getVSectionAddress(symbols: Map<string, number>, vSectionName: string): number {
+    const vTextAddress = symbols.get(vSectionName);
+    if (vTextAddress !== undefined)
+      return vTextAddress;
+    else
+      throw new Error(`Can not find virtual text address. The virtual section name: ${vSectionName}`);
   }
 }
-
 
 export class AddressTable implements AddressTableInterface {
-  readonly parent: AddressTableInterface;
+  private readonly parent: AddressTableInterface;
 
-  public symbols: Map<string, Symbol>;
-  public textSection: Section;
-  public literalSection: Section;
-  public dataSection: DataSection;
+  private readonly symbols: Map<string, number>;
+  private readonly textAddress: number;
+  private readonly dataAddress: number;
 
-  constructor(elf32: Elf32, parent: AddressTableInterface) {
+  private textSize: number = 0;
+  private dataSize: number = 0;
+
+
+  constructor(elfParser: UnlinkedELF32Parser, parent: AddressTableInterface) {
     this.parent = parent;
-    this.textSection = extractSection(elf32, TEXT_SECTION_NAME, parent.textSection.address + parent.textSection.size);
-    this.literalSection = extractSection(elf32, LITERAL_SECTION_NAME, parent.literalSection.address + parent.literalSection.size);
-    this.dataSection = extractDataSection(elf32, parent.dataSection.address + parent.dataSection.size + parent.dataSection.commonSize);
-    const {symbols, commonSize} = extractSymbols(elf32, this.textSection, this.dataSection);
-    this.symbols = symbols;
-    this.dataSection.commonSize = commonSize
+    this.textAddress = parent.nextTextAddress();
+    this.dataAddress = parent.nextDataAddress();
+    this.symbols = this.decideSymbolAddresses(elfParser.symbols());
   }
 
-  public getSymbolAddress(symbolName: string): number {
-    const symbol = this.symbols.get(symbolName);
-    return symbol ? symbol.address : this.parent.getSymbolAddress(symbolName);
+  public symbolAddress(name: string): number {
+    const symbolAddress = this.symbols.get(name);
+    return symbolAddress ? symbolAddress : this.parent.symbolAddress(name);
   }
 
-  public getSectionAddress(sectionName: string): number {
-    if (sectionName === this.textSection.name)
-      return this.textSection.address;
-    else if (sectionName === this.literalSection.name)
-      return this.literalSection.address;
-    else {
-      const subSection = this.dataSection.subSections.get(sectionName);
-      if (subSection === undefined)
-        throw Error(`Could not find subsection: ${sectionName}`);
-      return this.dataSection.address + subSection.offset;
-    }
+  public sectionAddress(sectionType: SECTION_TYPE) {
+    if (sectionType === SECTION_TYPE.TEXT)
+      return this.textAddress;
+    else
+      return this.dataAddress;
   }
 
-  public getSymbols() {
-    const result = this.parent.getSymbols();
-    this.symbols.forEach(s => result.push(s));
-    return result;
+  public nextTextAddress(): number {
+    return this.textAddress + this.textSize;
   }
-}
 
-
-function extractSection(elf32: Elf32, targetName: string, address: number): Section {
-  for (const shdr of elf32.shdrs) {
-    const sectionName = elf32.getSectionName(shdr);
-    if (sectionName === targetName) {
-      let size = shdr.shSize;
-      size += (size % 4) ? 4 - (size % 4) : 0; // TODO: 要修正
-      return {name: sectionName, address, size};
-    }
+  public nextDataAddress(): number {
+    return this.dataAddress + this.dataSize;
   }
-  return {name: targetName, address, size: 0};
-}
 
-function extractDataSection(elf32: Elf32, address: number): DataSection {
-  const subSections = new Map<string, SubSection>();
-  let nextOffset = 0;
-  elf32.shdrs.forEach(shdr => {
-    const name = elf32.getSectionName(shdr);
-    const isAlloc = !!(shdr.shFlags & SHFlag.SHF_ALLOC)
-    if (isAlloc && (name !== TEXT_SECTION_NAME && name !== LITERAL_SECTION_NAME)) {
-      subSections.set(name, {name, offset: nextOffset});
-      nextOffset += shdr.shSize;
-    }
-  });
-  return {address, size: nextOffset, subSections, commonSize: 0};
-}
-
-function extractSymbols(elf32: Elf32, textSection: Section, dataSection: DataSection) {
-  const result = new Map<string, Symbol>();
-  let commonSize = 0;
-  elf32.symbols.forEach(symbol => {
-    if (symbol.stType === STType.STT_FUNC) {
-      const name = elf32.getSymbolName(symbol);
-      const address = textSection.address + symbol.stValue;
-      result.set(name, {name, address});
-    }
-    if (symbol.stType === STType.STT_OBJECT) {
-      const name = elf32.getSymbolName(symbol);
-      let address: number;
-      if (symbol.stShndx === SHNType.SHN_COMMON) {
-        address = dataSection.address + dataSection.size + commonSize;
-        commonSize += symbol.stSize;
-      }
-      else {
-        const residesSectionName = elf32.getSectionName(elf32.shdrs[symbol.stShndx]);
-        const residesSubSection = dataSection.subSections.get(residesSectionName);
-        if (residesSubSection === undefined)
-          throw Error(`${residesSectionName} does not exists in the data sections.`);
-        address = dataSection.address + residesSubSection.offset + symbol.stValue
-      }
-      result.set(name, {name, address});
-    }
-  });
-  return {symbols: result, commonSize};
-}
-
-function extractMCUVSection(mcuElf32: Elf32, vSectionName: string): Section {
-  for (const symbol of mcuElf32.symbols) {
-    const name = mcuElf32.getSymbolName(symbol);
-    if (name === vSectionName)
-      return {name: vSectionName, size: 0, address: symbol.stValue};
+  public setTextSize(size: number) {
+    this.textSize = size;
   }
-  throw Error(`Could not fine virtual section address. The virtual section name is ${vSectionName}`);
-}
 
-function extractMCUVDataSection(mcuElf32: Elf32, vSectionName: string): DataSection {
-  for (const symbol of mcuElf32.symbols) {
-    const name = mcuElf32.getSymbolName(symbol);
-    if (name === vSectionName)
-      return {size: 0, address: symbol.stValue, subSections: new Map<string, SubSection>(), commonSize: 0};
+  public setDataSize(size: number) {
+    this.dataSize = size;
   }
-  throw Error(`Could not fine virtual section address. The virtual section name is ${vSectionName}`);
-}
 
-function extractMCUSymbols0(mcuElf32: Elf32, names: string[]) {
-  const results = new Map<string, Symbol>();
-  const nameSet = new Set(names);
-  for (const symbol of mcuElf32.symbols) {
-    const name = mcuElf32.getSymbolName(symbol);
-    if (nameSet.has(name)) {
-      results.set(name, {name, address: symbol.stValue});
-    }
+  private decideSymbolAddresses(symbols: Symbol[]): Map<string, number> {
+    const symbolAddressMap = new Map<string, number>();
+    symbols.forEach(symbol => {
+      if (symbol.residesSectionType === SECTION_TYPE.TEXT)
+        symbolAddressMap.set(symbol.name, this.textAddress + symbol.offset);
+      else
+        symbolAddressMap.set(symbol.name, this.dataAddress + symbol.offset);
+    });
+    return symbolAddressMap;
   }
-  return results;
-}
-
-function extractMCUSymbols(mcuElf32: Elf32) {
-  const result = new Map<string, Symbol>();
-
-  // Search symbols.
-  mcuElf32.symbols.forEach((symbol) => {
-    if (symbol.stType == STType.STT_OBJECT || symbol.stType == STType.STT_FUNC) {
-      const name = mcuElf32.getSymbolName(symbol);
-      result.set(name, {name, address: symbol.stValue});
-    }
-  });
-  return result;
 }

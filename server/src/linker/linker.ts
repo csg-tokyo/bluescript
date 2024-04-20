@@ -1,94 +1,89 @@
-import {Buffer} from "node:buffer";
 import {AddressTable} from "./address-table";
-import Elf32 from "./elf-parser/elf32";
-import Elf32Rela, {RType} from "./elf-parser/elf32-rela";
-import {STType} from "./elf-parser/elf32-sym";
+import {Section, Relocation} from "./elf32-parser";
+import {Buffer} from "node:buffer";
+import {RType, STType} from "./elf32";
 
-const REL_SECTION_PREFIX = ".rela";
+
 const CALL8 = (to: number, from: number) => (to - (from & (-4)) - 4) * 16 + 0b100101;
 const L32R = (base: number, to: number, from: number) => (to - ((from + 3) & (-4)) << 6) + base
 
 
 export default class Linker {
-  private readonly elf32: Elf32;
   private readonly addressTable: AddressTable;
 
-  constructor(elf32: Elf32, addressTable: AddressTable) {
-    this.elf32 = elf32;
+  constructor(addressTable: AddressTable) {
     this.addressTable = addressTable;
   }
 
-  public linkedValue(sectionName: string): Buffer {
-    const value = this.elf32.copySectionValue(sectionName);
-    const relocations = this.elf32.relaTables[REL_SECTION_PREFIX + sectionName];
-    if (relocations === undefined)
-      return value;
-
+  public link(section: Section) {
+    const value = section.value;
+    const relocations = section.relocations;
     relocations.forEach(relocation => {
-      switch (relocation.rType) {
+      switch (relocation.relocationType) {
         case RType.R_XTENSA_32:
           this.linkRXtensa32(value, relocation);
           break;
         case RType.R_XTENSA_SLOT0_OP:
-          this.linkRXtensaSlot0Op(this.addressTable.getSectionAddress(sectionName), value, relocation);
+          this.linkRXtensaSlot0Op(value, relocation);
           break;
         default:
-          throw new Error(`There is an unknown relocation type: ${relocation.rType}`);
+          throw new Error(`There is an unknown relocation type: ${relocation.relocationType}`);
       }
-    });
-    return value;
+    })
   }
 
-  private linkRXtensa32(value: Buffer, relocation: Elf32Rela) {
-    const symbol = this.elf32.symbols[relocation.rSymndx];
-    let embedded: number;
-
-    switch (symbol.stType) {
+  private linkRXtensa32(value: Buffer, relocation: Relocation) {
+    let embedded;
+    switch (relocation.targetSymbol.type) {
       case STType.STT_NOTYPE:
+        // Do same thing with STT_OBJECT.
       case STType.STT_OBJECT:
-        const symbolName = this.elf32.getSymbolName(symbol);
-        embedded = this.addressTable.getSymbolAddress(symbolName) + value.readUint32LE(relocation.rOffset) + relocation.rAddend;
+        embedded = this.addressTable.symbolAddress(relocation.targetSymbol.symbolName)
+                            + value.readUint32LE(relocation.offset)
+                            + relocation.addEnd;
+        value.writeIntLE(embedded, relocation.offset, 4);
         break;
       case STType.STT_SECTION:
-        const sectionName = this.elf32.getSectionName(this.elf32.shdrs[symbol.stShndx]);
-        embedded = this.addressTable.getSectionAddress(sectionName) + value.readUint32LE(relocation.rOffset) + relocation.rAddend;
-        break;
+          embedded = this.addressTable.sectionAddress(relocation.targetSymbol.sectionType)
+                            + relocation.targetSymbol.offset
+                            + value.readUint32LE(relocation.offset)
+                            + relocation.addEnd;
+          value.writeIntLE(embedded, relocation.offset, 4);
+          break;
       default:
-        throw new Error(`There is an unknown symbol type with R_XTENSA_32. symbol type: ${STType[symbol.stType]}`);
+        throw new Error(`There is an unknown symbol type with R_XTENSA_32. symbol type: ${STType[relocation.targetSymbol.type]}`);
     }
-
-    // Write down jumpedAddress.
-    value.writeIntLE(embedded, relocation.rOffset, 4);
   }
 
-  // baseAddress: Address of the section.
-  private linkRXtensaSlot0Op(baseAddress: number, value: Buffer, relocation: Elf32Rela) {
-    const symbol = this.elf32.symbols[relocation.rSymndx];
+  private linkRXtensaSlot0Op(value: Buffer, relocation: Relocation) {
+    let from = this.addressTable.sectionAddress(relocation.rSectionType) + relocation.offset; // アドレスを埋め込む対象のrelocationのアドレス。
+    let to;
+    let embedded;
 
-    let embedded: number;
-    const base = value.readUintLE(relocation.rOffset, 3);
-    let from = baseAddress + relocation.rOffset;
-    let to: number;
-
-    switch (symbol.stType) {
-      case STType.STT_FUNC:
+    switch (relocation.targetSymbol.type) {
       case STType.STT_NOTYPE:
-        const symbolName = this.elf32.getSymbolName(symbol);
-        to = this.addressTable.getSymbolAddress(symbolName) + relocation.rAddend;
+      // Do same thing with STT_FUNC.
+      case STType.STT_FUNC:
+        to = this.addressTable.symbolAddress(relocation.targetSymbol.symbolName) + relocation.addEnd;
         embedded = CALL8(to, from);
-        value.writeUIntLE(embedded, relocation.rOffset, 3);
+        value.writeUIntLE(embedded, relocation.offset, 3);
         break;
       case STType.STT_SECTION:
-        if ((base & 0b1111) === 0b0001) { // instruction === l32r TODO: 全体に共通のlink方法を見つける。
-          const sectionName = this.elf32.getSectionName(this.elf32.shdrs[symbol.stShndx]);
-          to = this.addressTable.getSectionAddress(sectionName) + relocation.rAddend;
-          embedded = L32R(base, to, from);
-          console.log(embedded)
-          value.writeIntLE(embedded, relocation.rOffset, 3);
+        const base = value.readUintLE(relocation.offset, 3);
+        if ((base & 0b1111) === 0b0001) { // instruction === l32r
+            to = this.addressTable.sectionAddress(relocation.targetSymbol.sectionType)
+                        + relocation.targetSymbol.offset
+                        + relocation.addEnd;
+            embedded = L32R(base & 0xff, to, from);
+            if (embedded > 0)
+              value.writeUIntLE(embedded, relocation.offset, 3);
+            else
+              value.writeIntLE(embedded, relocation.offset, 3);
+            break;
         }
-        break;
+        throw new Error("Unknown relocation target!");
       default:
-        throw new Error(`There is an unknown symbol type with R_XTENSA_SLOT0_OP. symbol type: ${STType[symbol.stType]}`);
+        throw new Error(`There is an unknown symbol type with R_XTENSA_SLOT0_OP. symbol type: ${STType[relocation.targetSymbol.type]}`);
     }
   }
 }

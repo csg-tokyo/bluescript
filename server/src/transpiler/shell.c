@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <dlfcn.h>
-#include "../../../esp32/components/c-runtime/c-runtime.h"
+#include "../../../microcontroller/core/include/c-runtime.h"
 
 // Read-Evaluate-Print-Loop
 
