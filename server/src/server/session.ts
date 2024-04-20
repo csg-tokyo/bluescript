@@ -13,18 +13,9 @@ const cProlog = `
 `
 
 export default class Session {
-  currentCodeId: number;
-  nameTable: GlobalVariableNameTable;
+  currentCodeId: number = 0;
+  nameTable?: GlobalVariableNameTable;
   addressTable?: AddressTable;
-
-  constructor() {
-    this.currentCodeId = 0;
-    const libSrc = fs.readFileSync(FILE_PATH.HARDWARE_LIB).toString();
-    const libResult = transpile(this.currentCodeId, libSrc);
-    // const src0 = fs.readFileSync(FILE_PATH.USER_PROGRAM).toString();
-    // const src0Result = transpile(this.currentCodeId, src0, libResult.names);
-    this.nameTable = libResult.names;
-  }
 
   public execute(tsString: string): string {
     this.currentCodeId += 1;

@@ -49,9 +49,6 @@ void bs_shell_execute_code(uint8_t *code, int code_len) {
     uint32_t new_data_size = code32[1];
     uint32_t entry_point = code32[2];
 
-    printf("text address: %p\n", virtual_text);
-    printf("data address: %p\n", virtual_data);
-
     uint32_t* body_start = code32 + 3;
     memcpy(virtual_text + used_virtual_memory.text/sizeof(uint32_t), body_start, new_text_size); // text
     memcpy(virtual_data + used_virtual_memory.data, body_start + new_text_size/sizeof(uint32_t), new_data_size); // data
