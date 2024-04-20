@@ -1,54 +1,42 @@
 # BlueScript
 
-## Directories
-```
-|- server // Node.js server for compiling BlueScript code.
-|- notebook // React app for showing REPL to users.
-|- esp32 // ESP-IDF app for recieving and executing binaries. 
-```
+## Directory structure
+- **server:** Node.js server for compiling BlueScript code.
+- **notebook:** React app of BlueScript development environment.
+- **esp32:** ESP-IDF app for recieving and executing code. 
+- **lib:** BlueScript libraries which will be converted to `./esp32/components/lib/hardwarelib.c`.
 
 ## Setting Up BlueScript
 
-### Preparation
-1. Install node, npm and react.
-2. Install ESP-IDF by following this [page](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html).
-3. Prepare microcontroller with ESP32 core.
+### Architecture
+![BlueScript architecture image](./docs/images/bluescript-arch.png)
 
-### 1. Installing BlueScript app to microcontroller 
-1. Confirm the microcontroller is connected to your Host machine by serial cable.
-2. Open a new tab in terminal and move to `./esp32/`.
-3. Run the following command.
-   ```bash
-    idf.py build flash monitor
-   ```
-   
-### 2. Launching local server
-1. Open a new tab in terminal and move to `./server/`
+
+### Setting up server
+**Dependencies:** [Node.js](https://nodejs.org/en), [npm](https://www.npmjs.com)
+
+1. Open the terminal app and move to `./server/`.
 2. Run the following command.
-   ```
+   ```bash
    npm run exec
    ```
+   
+### Setting up notebook
+**Dependencies:** [Node.js](https://nodejs.org/en), [npm](https://www.npmjs.com), [React](https://ja.legacy.reactjs.org)
 
-### 3. Launching REPL
-1. Open a new tab in terminal and move to `./notebook/`
+1. Open a terminal app and move to `./notebook/`.
 2. Run the following command.
-   ```
+   ```bash
    npm start
    ```
-3. Open a new tab in browser and access to `localhost:3000/repl`
+3. Open a new tab in the chrome browser and access to [localhost:3000/repl](localhost:3000/repl)
 
-## Adding library functions
-Add new function to `./esp32/components/lib/`.
-You can use `./lib/` and `./server/tools/generate-c.ts`.
+### Setting up esp32
+**Dependencies:** [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/) version 5.0
 
-
-## Adding runtime functions
-4 files should be update.
-Consider the function name you want to add to be `NEW_RUNTIME_FUNCTION`
-1. ./esp32/main/c-runtime.c
-2. ./esp32/main/c-runtime.h
-```c
-// You should add attribute as follows so that the function won't deleted by the linker.
-// (The linker delete the unused functions.)
-extern void CR_SECTION NEW_RUNTIME_FUNCTION();
-```
+1. Open a terminal app and move to `./esp32/`.
+2. Connect your machine and ESP32 device with a serial cable.
+3. Run a following command.
+   ```bash
+   idf.py build flash monitor
+   ```
