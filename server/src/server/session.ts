@@ -17,6 +17,18 @@ export default class Session {
   nameTable?: GlobalVariableNameTable;
   addressTable?: AddressTable;
 
+  constructor() {
+    // Read module files.
+    fs.readdirSync(FILE_PATH.MODULES).forEach(file => {
+      if (/.*\.ts$/.test(file)) {
+        this.currentCodeId += 1;
+        const tsString = fs.readFileSync(`${FILE_PATH.MODULES}/${file}`).toString()
+        const result = transpile(this.currentCodeId, tsString, this.nameTable);
+        this.nameTable = result.names;
+      }
+    });
+  }
+
   public execute(tsString: string): string {
     this.currentCodeId += 1;
 

@@ -3,7 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-#include "shell.h"
+#include "include/shell.h"
 #include "c-runtime.h"
 
 #define BS_SHELL_TAG "BS_SHELL"

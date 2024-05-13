@@ -2,7 +2,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-#include "logger.h"
+#include "include/logger.h"
 
 #define BS_LOGGER_TAG "BS_LOGGER"
 

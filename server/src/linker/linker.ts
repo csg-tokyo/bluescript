@@ -81,7 +81,9 @@ export default class Linker {
               value.writeIntLE(embedded, relocation.offset, 3);
             break;
         }
-        throw new Error("Unknown relocation target!");
+        // throw new Error("Unknown relocation target!");
+        console.log("Need caution");
+        break;
       default:
         throw new Error(`There is an unknown symbol type with R_XTENSA_SLOT0_OP. symbol type: ${STType[relocation.targetSymbol.type]}`);
     }
