@@ -174,7 +174,7 @@ export class UnlinkedELF32Parser extends ELF32Parser {
           throw new Error(`Something wrong happened! Unknown section name: ${residesSectionOffset}`);
         symbols.push({
           name,
-          offset: residesSectionOffset,
+          offset: residesSectionOffset + sym.stValue,
           residesSectionType: SECTION_TYPE.DATA
         });
       }
