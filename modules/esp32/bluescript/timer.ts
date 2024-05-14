@@ -1,4 +1,4 @@
-import { integer, code } from "../../utils";
+import { integer, code } from "../../base";
 
 
 export const setInterval = (func:()=>void, delay:integer):integer => {

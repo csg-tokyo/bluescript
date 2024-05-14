@@ -4,7 +4,7 @@
 #include "./include/button.h"
 #include "./include/display.h"
 #include "./include/timer.h"
-#include "./include/print.h"
+#include "./include/utils.h"
 
 void MD_SECTION bs_modules_init() {
     printf("button: %p\n", &_buttonOnPressed);
@@ -15,4 +15,5 @@ void MD_SECTION bs_modules_init() {
     printf("clearInterval: %p\n", &_clearInterval);
     printf("clearTimeout: %p\n", &_clearInterval);
     printf("print: %p\n", &_print);
+    printf("randInt: %p\n", &_randInt);
 }
