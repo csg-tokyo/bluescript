@@ -11,7 +11,7 @@
 #include "esp_bt_main.h"
 #include "esp_gatt_common_api.h"
 
-#include "ble.h"
+#include "include/ble.h"
 #include "shell.h"
 
 
