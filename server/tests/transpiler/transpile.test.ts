@@ -9,12 +9,26 @@ test("transpile", () => {
   expect(result.code.split('\n')[0]).toBe(expectedCString);
 })
 
+const bsSrc = `
+class GPIO {
+    pinNum:integer;
+
+    constructor(pinNum: integer) {
+        this.pinNum = pinNum;
+    }
+
+    set(level: integer) {
+      this.pinNum + 1
+    }
+}
+`
+
 test("playground", () => {
   const tsString = "1 + 1";
 
   try {
     const result1 = transpile(1, 'const arr1 = [1, 2]; const f: float = 3.0;');
-    const result2 = transpile(2, tsString, result1.names);
+    const result2 = transpile(2, bsSrc, result1.names);
     const names = result2.names;
     const code = result2.code;
 
