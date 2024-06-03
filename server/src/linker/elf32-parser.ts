@@ -150,7 +150,7 @@ class ELF32Parser {
 }
 
 export class UnlinkedELF32Parser extends ELF32Parser {
-  private _dataSubSections?: {name: string, offset: number, shdr:ELF32.Shdr}[];
+  private _dataSubSections?: {name: string, offset: number, value: Buffer}[];
 
   constructor(buffer: Buffer) {
     super(buffer);
@@ -202,9 +202,8 @@ export class UnlinkedELF32Parser extends ELF32Parser {
     let relocations: Relocation[] = [];
     const dataSubsectionOffsets = this.dataSubSectionOffsetMap;
     dataSubSections.forEach(section => {
-      const shdr = section.shdr;
-      const sectionName = this.readSectionName(shdr);
-      dataValues.push(this.copySectionValue(shdr));
+      const sectionName = section.name;
+      dataValues.push(section.value);
       relocations = relocations.concat(
         this.relocations(RELA_SECTION_PREFIX + sectionName, SECTION_TYPE.DATA, dataSubsectionOffsets.get(sectionName))
       )
@@ -266,18 +265,19 @@ export class UnlinkedELF32Parser extends ELF32Parser {
     return Buffer.concat([buffer, Buffer.alloc(-buffer.length & 3)])
   }
 
-  private get dataSubSections(): {name: string, offset: number, shdr: ELF32.Shdr}[] {
+  private get dataSubSections(): {name: string, offset: number, value: Buffer}[] {
     if (this._dataSubSections)
       return this._dataSubSections;
 
-    const subSections:{name: string, offset: number, shdr: ELF32.Shdr}[] = [];
+    const subSections:{name: string, offset: number, value: Buffer}[] = [];
     let nextOffset = 0;
     this.elf32Shdrs.forEach(shdr => {
       const name = this.readSectionName(shdr);
       const isAlloc = !!(shdr.shFlags & ELF32.SHFlag.SHF_ALLOC)
       if (isAlloc && (name !== TEXT_SECTION_NAME)) {
-        subSections.push({name, offset: nextOffset, shdr});
-        nextOffset += shdr.shSize;
+        let value = this.align4(this.copySectionValue(shdr));
+        subSections.push({name, offset: nextOffset, value});
+        nextOffset += value.length;
       }
     });
     this._dataSubSections = subSections;

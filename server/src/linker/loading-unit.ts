@@ -122,20 +122,22 @@ export class LoadingUnit implements LoadingUnitInterface {
   private linkRXtensa32(value: Buffer, relocation: Relocation) {
     let embedded;
     switch (relocation.targetSymbol.type) {
+      case STType.STT_FUNC:
+        // Do same thing with STT_OBJECT.
       case STType.STT_NOTYPE:
       // Do same thing with STT_OBJECT.
       case STType.STT_OBJECT:
         embedded = this.symbolAddress(relocation.targetSymbol.symbolName)
           + value.readUint32LE(relocation.offset)
           + relocation.addEnd;
-        value.writeIntLE(embedded, relocation.offset, 4);
+        writeToBuffer(value, embedded, relocation.offset, 4);
         break;
       case STType.STT_SECTION:
         embedded = this.sectionAddress(relocation.targetSymbol.sectionType)
           + relocation.targetSymbol.offset
           + value.readUint32LE(relocation.offset)
           + relocation.addEnd;
-        value.writeIntLE(embedded, relocation.offset, 4);
+        writeToBuffer(value, embedded, relocation.offset, 4);
         break;
       default:
         throw new Error(`There is an unknown symbol type with R_XTENSA_32. symbol type: ${STType[relocation.targetSymbol.type]}`);
@@ -153,7 +155,7 @@ export class LoadingUnit implements LoadingUnitInterface {
       case STType.STT_FUNC:
         to = this.symbolAddress(relocation.targetSymbol.symbolName) + relocation.addEnd;
         embedded = CALL8(to, from);
-        value.writeUIntLE(embedded, relocation.offset, 3);
+        writeToBuffer(value, embedded, relocation.offset, 3);
         break;
       case STType.STT_SECTION:
         const base = value.readUintLE(relocation.offset, 3);
@@ -162,11 +164,7 @@ export class LoadingUnit implements LoadingUnitInterface {
             + relocation.targetSymbol.offset
             + relocation.addEnd;
           embedded = L32R(base & 0xff, to, from);
-          if (embedded > 0)
-            value.writeUIntLE(embedded, relocation.offset, 3);
-          else
-            value.writeIntLE(embedded, relocation.offset, 3);
-          break;
+          writeToBuffer(value, embedded, relocation.offset, 3);
         }
         // throw new Error("Unknown relocation target!");
         console.log("Need caution");
@@ -175,4 +173,11 @@ export class LoadingUnit implements LoadingUnitInterface {
         throw new Error(`There is an unknown symbol type with R_XTENSA_SLOT0_OP. symbol type: ${STType[relocation.targetSymbol.type]}`);
     }
   }
+}
+
+function writeToBuffer(target: Buffer, embedded: number, offset: number, byteLength: number) {
+  if (embedded > 0)
+    target.writeUIntLE(embedded, offset, byteLength);
+  else
+    target.writeIntLE(embedded, offset, byteLength);
 }
