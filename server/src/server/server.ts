@@ -59,17 +59,12 @@ export default class HttpServer {
       switch (request.url) {
         case "/repl-compile":
           if (!this.session) { this.session = new Session(); }
-          responseBody = {exe: this.session.execute(JSON.parse(requestBody).src)};
+          responseBody = this.session.execute(JSON.parse(requestBody).src);
           statusCode = 200;
           break;
         case "/clear":
           this.session = new Session();
           responseBody = {};
-          statusCode = 200;
-          break;
-        case "/onetime-compile":
-          this.session = new Session();
-          responseBody = {exe: this.session.execute(JSON.parse(requestBody).src)};
           statusCode = 200;
           break;
         default:

@@ -6,15 +6,9 @@
 #include <string.h>
 
 /**
- * Execute received code.
+ * Set data.
  */
-void bs_shell_execute_code(uint8_t *code, int code_len);
-
-
-/**
- * Soft reset.
- */
-void bs_shell_soft_reset();
+void bs_shell_set_tasks(uint8_t *task_data, int data_len);
 
 
 /**

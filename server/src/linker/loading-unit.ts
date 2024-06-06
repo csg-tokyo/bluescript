@@ -19,8 +19,8 @@ interface LoadingUnitInterface {
 
 export class LoadingUnitOrigin implements LoadingUnitInterface {
   private readonly symbols: Map<string, number>;
-  private readonly textAddress: number;
-  private readonly dataAddress: number;
+  public readonly textAddress: number;
+  public readonly dataAddress: number;
 
   constructor(elfParser: LinkedELF32Parser) {
     this.symbols = new Map(elfParser.symbols().map((obj) => [obj.name, obj.address]));
@@ -53,8 +53,8 @@ export class LoadingUnit implements LoadingUnitInterface {
   private readonly parent: LoadingUnitInterface;
 
   private readonly symbols: Map<string, number>;
-  private readonly textAddress: number;
-  private readonly dataAddress: number;
+  public readonly textAddress: number;
+  public readonly dataAddress: number;
 
   private readonly text: Section;
   private readonly data: Section;

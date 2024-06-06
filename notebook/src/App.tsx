@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppBar, Toolbar, Typography } from '@mui/material';
 
 import Home from './pages/home';
-import TsEditor from "./pages/ts-editor";
 import Repl from "./pages/repl";
 
 function App() {
@@ -18,7 +17,6 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path={`/`} element={<Home />} />
-          <Route path={`/ts-editor`} element={<TsEditor />} />
           <Route path={`/repl`} element={<Repl />} />
         </Routes>
       </BrowserRouter>

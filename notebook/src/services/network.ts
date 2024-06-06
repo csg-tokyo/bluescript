@@ -1,11 +1,16 @@
 import axios from "axios";
 import { CompileError } from "../utils/error";
 
-export async function onetimeCompile(src: string): Promise<{exe: string}> {
-    return post("onetime-compile", {src});
+
+export type CompileResult = {
+  text: string, 
+  textAddress: number,
+  data: string, 
+  dataAddress: number,
+  entryPoint: number
 }
 
-export async function replCompile(src: string): Promise<{exe: string}> {
+export async function replCompile(src: string): Promise<CompileResult> {
     return post("repl-compile", {src});
 }
 

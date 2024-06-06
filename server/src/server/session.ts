@@ -29,7 +29,7 @@ export default class Session {
     });
   }
 
-  public execute(tsString: string): string {
+  public execute(tsString: string) {
     this.currentCodeId += 1;
 
     // Transpile

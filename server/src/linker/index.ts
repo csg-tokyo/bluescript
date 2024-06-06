@@ -17,38 +17,16 @@ function link(buffer: Buffer, entryPointName: string, loadingUnitHead?: LoadingU
   } else
     newLoadingUnit = new LoadingUnit(elfParser, loadingUnitHead);
 
-  // Generate exe.
-  let exe = generateExe(newLoadingUnit, entryPointName);
-
-  return { exe, loadingUnitHead: newLoadingUnit };
-}
-
-
-function generateExe(loadingUnit: LoadingUnit, entryPointName: string) {
-  const text = loadingUnit.textValue();
-  const data = loadingUnit.dataValue();
-  const entryPoint = loadingUnit.symbolAddress(entryPointName);
-
-  let buffers: Buffer[] = [];
-
-  // text size
-  const textSizeBuf = Buffer.allocUnsafe(4);
-  textSizeBuf.writeUIntLE(text.length, 0, 4);
-  buffers.push(textSizeBuf);
-
-  // data size
-  const dataSizeBuf = Buffer.allocUnsafe(4);
-  dataSizeBuf.writeUIntLE(data.length, 0, 4);
-  buffers.push(dataSizeBuf);
-
-  const entryPointBuf = Buffer.allocUnsafe(4);
-  entryPointBuf.writeUIntLE(entryPoint, 0, 4);
-  buffers.push(entryPointBuf);
-
-  buffers.push(text);
-  buffers.push(data);
-
-  return Buffer.concat(buffers).toString("hex");
+  return {
+    exe: {
+      text: newLoadingUnit.textValue().toString("hex"),
+      textAddress: newLoadingUnit.textAddress,
+      data: newLoadingUnit.dataValue().toString("hex"),
+      dataAddress: newLoadingUnit.dataAddress,
+      entryPoint: newLoadingUnit.symbolAddress(entryPointName)
+    },
+    loadingUnitHead: newLoadingUnit
+  }
 }
 
 export {link, LoadingUnit};

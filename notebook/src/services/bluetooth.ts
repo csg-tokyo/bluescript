@@ -1,65 +1,52 @@
 import {Buffer} from "buffer";
 
-export const CHARACTERISTIC_IDS = {
-  REPL: 0xff01,
-  ONETIME: 0xff02,
-  CLEAR: 0xff03,
-  NOTIFICATION: 0xff03
-}
-
-const SERVICE_UUID = 0x00ff
+const SERVICE_UUID = 0x00ff;
+const CHAR_UUID = 0xFF01;
+export const MAX_MTU = 495;
 
 export default class Bluetooth {
-  private serviceUUID: number;
   private device: BluetoothDevice | undefined = undefined;
-  private service: BluetoothRemoteGATTService | undefined = undefined;
+  private characteristic: BluetoothRemoteGATTCharacteristic | undefined = undefined;
+  private notificationHandler:((event: Event)=>void) | undefined = undefined;
 
-  constructor() {
-    this.serviceUUID = SERVICE_UUID;
+  public async sendBuffers(buffs: Buffer[]) {
+    await this.init();
+    let start = performance.now();
+    for (const buff of buffs) {
+      await this.characteristic?.writeValueWithResponse(buff);
+    }
+    let end = performance.now();
+    console.log("bluetooth dulation: ", end - start, "ms");
   }
 
-  public async sendMachineCode(cid: number, exe: string) {
-    await this.init();
-    const characteristic = await this.service?.getCharacteristic(cid);
-    await characteristic?.writeValue(Buffer.from(exe, "hex"));
+  public setNotificationHandler(handler: (event: Event) => void) {
+    this.notificationHandler = handler;
   }
 
-  public async startNotifications(notificationHandler: (event:Event) => void) {
-    await this.init();
-    let char03 = await this.service?.getCharacteristic(0xff03);
-    if (char03) {
+  private async init() {
+    if (this.device !== undefined && this.characteristic !== undefined) return;
 
-      char03 = await char03?.startNotifications();
-      char03.addEventListener("characteristicvaluechanged",notificationHandler);
+    await navigator.bluetooth.requestDevice({
+      filters: [
+        {services: [SERVICE_UUID]},
+      ],
+    }).then(device => {
+      this.device = device;
+      return device.gatt?.connect();
+    }).then(server=> {
+      return server?.getPrimaryService(SERVICE_UUID)
+    }).then(service => {
+      return service?.getCharacteristic(CHAR_UUID);
+    }).then(characteristic => {
+      this.characteristic = characteristic;
+    }).catch(error => {
+      console.log(error);
+    });
+
+    if (this.notificationHandler !== undefined) {
+      await this.characteristic?.startNotifications();
+      this.characteristic?.addEventListener("characteristicvaluechanged", this.notificationHandler);
       console.log("notification started.");
-    }
-  }
-
-  public async stopLogNotification() {
-    await this.init();
-    let char03 = await this.service?.getCharacteristic(0xff03);
-    if (char03) {
-      (await char03)?.stopNotifications();
-    }
-  }
-
-  public async init() {
-    if (this.device === undefined) {
-      await navigator.bluetooth.requestDevice({
-        filters: [
-          {services: [this.serviceUUID]},
-        ],
-      }).then(device => {
-        this.device = device;
-      })
-    }
-
-    if (this.device !== undefined && (!this.device.gatt?.connected || this.service === undefined)) {
-      await this.device.gatt?.connect()
-        .then(server => server.getPrimaryService(this.serviceUUID))
-        .then(service => {
-          this.service = service;
-        });
     }
   }
 }
