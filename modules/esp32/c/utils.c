@@ -16,7 +16,7 @@ static void fbody_print(value_t self, value_t _value) {
     sprintf(message, "%s\n", gc_string_literal_cstr(_value));
   else
     sprintf(message, "??\n");
-  bs_logger_push_log(message, strlen(message));
+  bs_logger_push_log(message);
 }
 
 static int32_t fbody_randInt(value_t self, int32_t _min, int32_t _max) {

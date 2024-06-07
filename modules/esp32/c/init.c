@@ -15,6 +15,7 @@ void MD_SECTION bs_modules_init() {
     printf("setTimeout: %p\n", &_setTimeout);
     printf("clearInterval: %p\n", &_clearInterval);
     printf("clearTimeout: %p\n", &_clearInterval);
+    printf("getTimeUs: %p\n", &_getTimeUs);
     printf("print: %p\n", &_print);
     printf("randInt: %p\n", &_randInt);
     printf("new GPIO: %p\n", &new_GPIO);

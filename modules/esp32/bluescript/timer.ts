@@ -15,3 +15,7 @@ export const clearInterval = (timerId:integer):void => {}
 
 
 export const clearTimeout = (timerId:integer):void => {}
+
+export const getTimeUs = ():integer => {
+    return 2;
+}

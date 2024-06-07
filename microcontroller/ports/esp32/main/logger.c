@@ -1,3 +1,4 @@
+#include <string.h>
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -24,11 +25,17 @@ void bs_logger_register_sender(void (* sender)(uint8_t*, uint32_t)) {
 }
 
 
-void bs_logger_push_log(char *str, uint32_t str_len) {
+void bs_logger_push_log(char *str) {
+    uint32_t str_len = strlen(str);
     log_t log;
-    log.str = str;
+    log.str = (char*)malloc(str_len + 1); // contain null
+    strcpy(log.str, str);
     log.str_len = str_len;
     xQueueSend(log_queue, &log, portMAX_DELAY);
+}
+
+void bs_logger_reset() {
+    xQueueReset(log_queue);
 }
 
 
@@ -39,6 +46,7 @@ void bs_logger_task(void *arg) {
     while (true) {
        xQueueReceive(log_queue, &log, portMAX_DELAY);
        log_sender((uint8_t *)log.str, log.str_len);
+       free(log.str);
     }
 }
 

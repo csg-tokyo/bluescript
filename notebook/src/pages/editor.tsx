@@ -1,15 +1,13 @@
 import {useState, useEffect} from 'react';
-import {CSSProperties} from 'react';
 import {Button} from '@mui/material';
 import {ButtonGroup} from "@mui/material";
 
 import Bluetooth, {MAX_MTU} from '../services/bluetooth';
 import * as network from "../services/network"
-import BSCodeEditorCell from "../components/code-editor-cell";
-import BSCodeEditorCellDisabled from "../components/code-editor-cell-disabled";
 import {Buffer} from "buffer";
 import Grid2 from "@mui/material/Unstable_Grid2";
 import BSLogArea from "../components/log-area";
+import BSCodeEditorArea from '../components/code-editor-area';
 import { CompileError } from '../utils/error';
 
 const LOAD_CMD  = 0x01;
@@ -18,27 +16,36 @@ const RESET_CMD = 0x03;
 
 const bluetooth = new Bluetooth();
 
-export default function Repl() {
+export default function Editor() {
   const [code, setCode] = useState("");
-  const [exitedCodes, setExitedCodes] = useState<string[]>([]);
   const [log, setLog] = useState("");
-  const [compileError, setCompileError] = useState("");
 
   useEffect(() => {
     bluetooth.setNotificationHandler(onReceiveLog);
-  },[])
+  },[]);
 
-  const exitCode = async () => {
-    setCompileError("");
+  const reset = async () => {
+    const header = Buffer.from([RESET_CMD]);
+    try {
+      await Promise.all([
+        network.clear(),
+        bluetooth.sendBuffers([header])
+      ]);
+    } catch (error: any) {
+      window.alert(`Failed to clear: ${error.message}`);
+    }
+  }
+
+  const onExecutePushed = async () => {
+    await reset();
+    setLog("");
     try {
       const compileResult = await network.replCompile(code);
       const bleData = generateBLEBuffs(compileResult);
       await bluetooth.sendBuffers(bleData);
-      setExitedCodes([...exitedCodes, code]);
-      setCode("");
     } catch (error: any) {
       if (error instanceof CompileError) {
-        setCompileError(error.toString());
+        setLog(error.toString());
       } else {
         console.log(error);
         window.alert(`Failed to compile: ${error.message}`);
@@ -47,20 +54,9 @@ export default function Repl() {
   }
 
   const onClearPushed = async () => {
-    const header = Buffer.from([RESET_CMD]);
-    try {
-      await Promise.all([
-        network.clear(),
-        bluetooth.sendBuffers([header])
-      ]);
-      setExitedCodes([]);
-      setCode("");
-      setLog("");
-      setCompileError("");
-    } catch (error: any) {
-      console.log(error);
-      window.alert(`Failed to clear: ${error.message}`);
-    }
+    await reset();
+    setCode("");
+    setLog("");
   }
 
   const onReceiveLog = (event: Event) => {
@@ -74,33 +70,21 @@ export default function Repl() {
       <Grid2 container spacing={3}>
         <Grid2 style={{height: 50, textAlign: "end"}} xs={12}>
           <ButtonGroup variant="contained" color={"success"}>
+            <Button onClick={onExecutePushed}>Execute</Button>
             <Button onClick={onClearPushed}>Clear</Button>
           </ButtonGroup>
         </Grid2>
         <Grid2 xs={7}>
-          {exitedCodes.map((exitedCode, index) => {
-            return <BSCodeEditorCellDisabled code={exitedCode} key={index}/>
-          })}
-          <BSCodeEditorCell code={code} exitCode={exitCode} setCode={setCode}/>
-          <div style={style.compileErrorBox}>{compileError}</div>
+            <BSCodeEditorArea code={code} setCode={setCode}/>
         </Grid2>
         <Grid2 xs={5}>
-          <BSLogArea log={log} />
+          <BSLogArea log={log}/>
         </Grid2>
       </Grid2>
     </div>
   );
 }
 
-
-const style: { [key: string]: CSSProperties } = {
-  compileErrorBox: {
-    color: "red",
-    paddingLeft: 10,
-    whiteSpace: "pre-wrap",
-    lineHeight: "150%"
-  }
-}
 
 function generateBLEBuffs(compileResult: network.CompileResult): Buffer[] {
   const resultBuffs:Buffer[] = [];

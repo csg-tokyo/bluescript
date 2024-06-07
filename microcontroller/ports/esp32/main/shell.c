@@ -2,8 +2,10 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "esp_timer.h"
 
 #include "include/shell.h"
+#include "include/logger.h"
 #include "c-runtime.h"
 
 #define BS_SHELL_TAG "BS_SHELL"
@@ -76,48 +78,13 @@ void bs_shell_set_tasks(uint8_t *task_data, int data_len) {
 }
 
 
-// void bs_shell_execute_code(uint8_t *code, int code_len) {
-//     ESP_LOGI(BS_SHELL_TAG, "Push exec command into queue.");
-//     esp_log_buffer_hex(BS_SHELL_TAG, code, code_len);
-
-//     // Set virtual memory.
-//     uint32_t* code32 = (uint32_t*) code;
-//     uint32_t new_text_size = code32[0];
-//     uint32_t new_data_size = code32[1];
-//     uint32_t entry_point = code32[2];
-
-//     uint32_t* body_start = code32 + 3;
-//     memcpy(virtual_text + used_virtual_memory.text/sizeof(uint32_t), body_start, new_text_size); // text
-//     memcpy(virtual_data + used_virtual_memory.data, body_start + new_text_size/sizeof(uint32_t), new_data_size); // data
-
-//     used_virtual_memory.text += new_text_size;
-//     used_virtual_memory.data += new_data_size;
-
-//     // Push execute code task into queue.
-//     task_item_u task;
-//     task.execute_code.cmd = TASK_CMD_EXECUTE_CODE;
-//     task.execute_code.entry_point = entry_point;
-//     xQueueSend(task_queue, &task, portMAX_DELAY);
-// }
-
-
-// void bs_shell_soft_reset() {
-//     ESP_LOGI(BS_SHELL_TAG, "Push soft reset command into queue.");
-//     task_item_u task;
-//     task.cmd = TASK_CMD_SOFT_RESET;
-//     xQueueSend(task_queue, &task, portMAX_DELAY);
-// }
-
-
 static void reset() {
     // Reset memory.
     memset(virtual_text, 0, sizeof(virtual_text));
     memset(virtual_data, 0, sizeof(virtual_data));
-
     // Reset entry-point queue.
     xQueueReset(task_queue);
 
-    // Reset BlueScript heap.
     gc_initialize();
 }
 
@@ -132,11 +99,15 @@ void bs_shell_task(void *arg) {
         switch (task_item.cmd) {
             case TASK_CMD_JUMP:
                 ESP_LOGI(BS_SHELL_TAG, "Jump to %x", (int)task_item.jump.to);
+                uint32_t start_us = esp_timer_get_time();
                 try_and_catch((void *)task_item.jump.to);
+                uint32_t end_us = esp_timer_get_time();
+                printf("execution time: %f ms\n", (float)(end_us - start_us) / 1000.0);
                 break;
             case TASK_CMD_RESET:
                 ESP_LOGI(BS_SHELL_TAG, "Soft reset");
                 reset();
+                bs_logger_reset();
                 break;
             default:
                 ESP_LOGE(BS_SHELL_TAG, "Unknown task command.");

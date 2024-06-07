@@ -9,7 +9,7 @@ type Props = {
 
 export default function BSCodeEditorArea(props: Props) {
   return (
-    <div>
+    <div style={{marginTop:-13}}>
       <small style={{color:"GrayText"}}>{"BlueScript"}</small>
       <CodeEditor
         value={props.code}

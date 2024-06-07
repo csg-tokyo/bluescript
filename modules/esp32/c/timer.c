@@ -64,9 +64,13 @@ void MD_SECTION fbody_clearTimeout(value_t self, int32_t _timerId) {
     timer_handlers[_timerId] = 0;
 }
 
+int32_t MD_SECTION fbody_getTimeUs(value_t self) {
+    return (int32_t)esp_timer_get_time();
+}
+
 
 struct func_body _setInterval = { fbody_setInterval, "(()vi)i" };
 struct func_body _setTimeout = { fbody_setTimeout, "(()vi)i" };
 struct func_body _clearInterval = { fbody_clearInterval, "(i)v" };
 struct func_body _clearTimeout = { fbody_clearTimeout, "(i)v" };
-    
+struct func_body _getTimeUs = { fbody_getTimeUs, "(v)i" };
