@@ -1,5 +1,89 @@
 import { Buffer } from 'node:buffer';
 
+const SYMBOL_TABLE_SECTION_NAME = ".symtab";
+const STRING_SECTION_NAME = ".strtab";
+
+export class ELF32 {
+  private readonly buffer: Buffer;
+
+  // ELF32 items
+  readonly ehdr: Ehdr;
+  readonly shdrs: Shdr[];
+
+  // Special section header ids.
+  protected readonly shstrtabId: number; // Index of section name section header in section headers.
+  protected readonly strtabId: number; // Index of symbol name section header in section headers.
+  protected readonly symtabId: number; // Index of symbol table section header in section headers.
+
+  constructor(buffer: Buffer) {
+    this.buffer = buffer;
+
+    this.ehdr = new Ehdr(buffer);
+    this.shdrs = this.readShdrs();
+
+    const specialIds = this.readSpecialShdrIds(this.ehdr, this.shdrs);
+    this.shstrtabId = specialIds.shstrtabId;
+    this.strtabId = specialIds.strtabId;
+    this.symtabId = specialIds.symtabId;
+  }
+
+  public readSectionName(shdr: Shdr): string {
+    const offset = this.shdrs[this.shstrtabId].shOffset + shdr.shName;
+    return this.readString(offset);
+  }
+
+  public readSectionValue(shdr: Shdr): Buffer {
+    const value = Buffer.alloc(shdr.shSize);
+    this.buffer.copy(value, 0, shdr.shOffset, shdr.shOffset + shdr.shSize);
+    return value;
+  }
+
+  public readSyms() {
+    const symtab = this.shdrs[this.symtabId];
+    const syms: Sym[] = [];
+    const numOfSyms = symtab.shSize / symtab.shEntsize;
+    for (let i = 0; i < numOfSyms; i++) {
+      const offset = symtab.shOffset + symtab.shEntsize * i;
+      const symbol = new Sym(this.buffer, offset);
+      syms.push(symbol);
+    }
+    return syms;
+  }
+
+  public readSymbolName(sym: Sym): string {
+    const offset = this.shdrs[this.strtabId].shOffset + sym.stName;
+    return this.readString(offset);
+  }
+
+  private readShdrs(): Shdr[] {
+    const shdrs: Shdr[] = [];
+    for (let i = 0; i < this.ehdr.eShnum; i++) {
+      const offset = this.ehdr.eShoff + this.ehdr.eShentsize * i
+      const shdr = new Shdr(this.buffer, offset);
+      shdrs.push(shdr);
+    }
+    return shdrs;
+  }
+
+  private readSpecialShdrIds(elfHeader: Ehdr, shdrs: Shdr[]) {
+    const shstrtabId = elfHeader.eShstrndx;
+    const shstrtab = shdrs[shstrtabId];
+    const strtabId = shdrs.findIndex(shdr => this.readString(shstrtab.shOffset + shdr.shName) == STRING_SECTION_NAME);
+    const symtabId = shdrs.findIndex(shdr => this.readString(shstrtab.shOffset + shdr.shName) == SYMBOL_TABLE_SECTION_NAME);
+    return {shstrtabId, strtabId, symtabId};
+  }
+
+  private readString(offset: number) {
+    if (offset > this.buffer.length)
+      throw new Error(`Unexpected error. The offset value(${offset}) is larger than buffer.length(${this.buffer.length})`);
+    let end = offset;
+    while (this.buffer[end] !== 0)
+      end += 1;
+    const stringBuffer = this.buffer.subarray(offset, end);
+    return stringBuffer.toString();
+  }
+}
+
 
 const EI_NIDENT: number = 16
 const ELF_ST_BIND = (x:number) => x >> 4;
