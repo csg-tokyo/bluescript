@@ -1,32 +1,20 @@
-import {Buffer} from "node:buffer";
-import {LoadingUnit, LoadingUnitOrigin} from "./loading-unit";
-import {LinkedELF32Parser, UnlinkedELF32Parser} from "./elf32-parser";
-import * as fs from 'fs';
+import {ShadowMemory} from "./shadow-memory";
 import FILE_PATH from "../constants";
 
-function link(buffer: Buffer, entryPointName: string, loadingUnitHead?: LoadingUnit) {
-  // Read data from ELF buffer.
-  let elfParser = new UnlinkedELF32Parser(buffer);
+export function link(objFilePath: string, entryPointName: string, shadowMemory?: ShadowMemory) {
+  let sm = shadowMemory;
+  if (sm === undefined)
+    sm = new ShadowMemory(FILE_PATH.MCU_ELF);
 
-  // Create new loading unit.
-  let newLoadingUnit: LoadingUnit;
-  if (loadingUnitHead === undefined) {
-    const mcuBuffer = fs.readFileSync(FILE_PATH.MCU_ELF);
-    const origin = new LoadingUnitOrigin(new LinkedELF32Parser(mcuBuffer));
-    newLoadingUnit = new LoadingUnit(elfParser, origin);
-  } else
-    newLoadingUnit = new LoadingUnit(elfParser, loadingUnitHead);
+  sm.loadAndLink(objFilePath);
+  const update = sm.getLatestUpdate();
+  const entryPoint = sm.getSymbolAddress(entryPointName);
+  if (entryPoint === undefined) {
+    throw new Error("Cannot find entry point");
+  }
 
   return {
-    exe: {
-      text: newLoadingUnit.textValue().toString("hex"),
-      textAddress: newLoadingUnit.textAddress,
-      data: newLoadingUnit.dataValue().toString("hex"),
-      dataAddress: newLoadingUnit.dataAddress,
-      entryPoint: newLoadingUnit.symbolAddress(entryPointName)
-    },
-    loadingUnitHead: newLoadingUnit
+    exe: {...update, entryPoint},
+    shadowMemory: sm
   }
 }
-
-export {link, LoadingUnit};

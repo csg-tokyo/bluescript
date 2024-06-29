@@ -3,7 +3,8 @@ import * as fs from "fs";
 import FILE_PATH from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
 import {execSync} from "child_process";
-import {link, LoadingUnit} from "../linker";
+import {ShadowMemory} from "../linker/shadow-memory";
+import {link} from "../linker";
 
 
 const cProlog = `
@@ -15,7 +16,8 @@ const cProlog = `
 export default class Session {
   currentCodeId: number = 0;
   nameTable?: GlobalVariableNameTable;
-  loadingUnit?: LoadingUnit;
+  // loadingUnit?: LoadingUnit;
+  shadowMemory?: ShadowMemory;
 
   constructor() {
     // Read module files.
@@ -43,11 +45,13 @@ export default class Session {
     const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
 
     // Link
-    const lResult = link(buffer, entryPoint, this.loadingUnit);
+    const lResult = link(FILE_PATH.OBJ_FILE, entryPoint, this.shadowMemory);
+    // const lResult = link(buffer, entryPoint, this.loadingUnit);
 
     // Update tables.
     this.nameTable = tResult.names;
-    this.loadingUnit = lResult.loadingUnitHead;
+    this.shadowMemory = lResult.shadowMemory;
+    // this.loadingUnit = lResult.loadingUnitHead;
 
     return lResult.exe;
   }
