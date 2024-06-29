@@ -16,7 +16,6 @@ const cProlog = `
 export default class Session {
   currentCodeId: number = 0;
   nameTable?: GlobalVariableNameTable;
-  // loadingUnit?: LoadingUnit;
   shadowMemory?: ShadowMemory;
 
   constructor() {
@@ -46,12 +45,10 @@ export default class Session {
 
     // Link
     const lResult = link(FILE_PATH.OBJ_FILE, entryPoint, this.shadowMemory);
-    // const lResult = link(buffer, entryPoint, this.loadingUnit);
 
     // Update tables.
     this.nameTable = tResult.names;
     this.shadowMemory = lResult.shadowMemory;
-    // this.loadingUnit = lResult.loadingUnitHead;
 
     return lResult.exe;
   }
