@@ -1,7 +1,7 @@
 import {Buffer} from "node:buffer";
 import * as fs from "fs";
 import {ELF32} from "./elf32";
-import {SHFlag, STBind, STType} from "../linker2/elf32";
+import {SHFlag, STBind, STType} from "./elf32";
 
 export enum SYMBOL_TYPE {
   FUNCTION,
