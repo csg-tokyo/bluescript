@@ -19,7 +19,6 @@ export class ShadowMemory {
   private iram: MemoryUnit;
   private dram: MemoryUnit;
   private symbols:Map<string, Symbol> = new Map<string, Symbol>();
-  // public flush: MemoryUnit;
 
   constructor(bsRuntimePath: string) {
     const bsRuntime = new ExecutableElfReader(bsRuntimePath);
