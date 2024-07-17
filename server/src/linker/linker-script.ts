@@ -45,3 +45,24 @@ SECTIONS {
 `
   }
 }
+
+export class LinkerScriptForFlash {
+  public flashAddress: number;
+  public dramAddress: number;
+  public sectionNamesIn: string[] = [];
+  public externalSymbols: {name: string, address: number}[] = [];
+
+  constructor(flashAddress: number, dramAddress: number) {
+    this.flashAddress = flashAddress;
+    this.dramAddress = dramAddress;
+  }
+
+  public save(path: string) {
+    const str = this.getStr();
+    fs.writeFileSync(path, Buffer.from(str));
+  }
+
+  private getStr() {
+    return ""
+  }
+}

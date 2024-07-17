@@ -16,6 +16,8 @@ type MemoryUnit = {
 }
 
 export class ShadowMemory {
+  public flashAddress:number|undefined;
+
   private iram: MemoryUnit;
   private dram: MemoryUnit;
   private symbols:Map<string, Symbol> = new Map<string, Symbol>();
@@ -84,6 +86,14 @@ export class ShadowMemory {
     executableElf.readDefinedSymbols().forEach(symbol => {
       this.symbols.set(symbol.name, symbol);
     })
+  }
+
+  public loadToFlashAndLink(objFilePath: string) {
+
+  }
+
+  public setFlashAddress(address: number) {
+    this.flashAddress = address;
   }
 
   public getLatestUpdate() {
