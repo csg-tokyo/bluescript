@@ -16,7 +16,7 @@ const cProlog = `
 export default class Session {
   currentCodeId: number = 0;
   nameTable?: GlobalVariableNameTable;
-  shadowMemory?: ShadowMemory;
+  shadowMemory: ShadowMemory;
 
   constructor() {
     // Read module files.
@@ -28,28 +28,35 @@ export default class Session {
         this.nameTable = result.names;
       }
     });
+
+    this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF);
   }
 
-  public execute(tsString: string) {
+  public execute(tsString: string, useFlash:boolean=false) {
     this.currentCodeId += 1;
 
     // Transpile
     const tResult = transpile(this.currentCodeId, tsString, this.nameTable);
-    const entryPoint = tResult.main;
+    const entryPointName = tResult.main;
     const cString = cProlog + tResult.code;
 
     // Compile
     fs.writeFileSync(FILE_PATH.C_FILE, cString);
     execSync(`export PATH=$PATH:${FILE_PATH.GCC}; xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals`);
     const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
+    this.nameTable = tResult.names;
 
     // Link
-    const lResult = link(FILE_PATH.OBJ_FILE, entryPoint, this.shadowMemory);
+    const linkResult = useFlash ? this.shadowMemory.loadToFlashAndLink(FILE_PATH.OBJ_FILE) : this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE);
+    const entryPoint = this.shadowMemory.getSymbolAddress(entryPointName);
+    if (entryPoint === undefined) {
+      throw new Error("Cannot find entry point");
+    }
 
-    // Update tables.
-    this.nameTable = tResult.names;
-    this.shadowMemory = lResult.shadowMemory;
+    return {...linkResult, entryPoint}
+  }
 
-    return lResult.exe;
+  public setFlashAddress(address: number, size: number) {
+    this.shadowMemory.setFlashAddress(address, size);
   }
 }

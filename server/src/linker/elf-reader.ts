@@ -8,6 +8,12 @@ export enum SYMBOL_TYPE {
   OBJECT,
 }
 
+export enum SECTION_TYPE {
+  EXECUTABLE,
+  WRITABLE,
+  READONLY
+}
+
 export type Section = {
   address: number,
   size: number,
@@ -38,23 +44,17 @@ export class RelocatableElfReader {
     return symbolNames;
   }
 
-  public readExecSectionNames():string[] {
+  public readSectionNames(type: SECTION_TYPE):string[] {
     const sectionNames:string[] = [];
     this.elf.shdrs.forEach(shdr => {
       const name = this.elf.readSectionName(shdr);
-      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC) && !!(shdr.shFlags & SHFlag.SHF_EXECINSTR)) {
-          sectionNames.push(name);
-      }
-    });
-    return sectionNames;
-  }
-
-  public readDataSectionNames():string[] {
-    const sectionNames:string[] = [];
-    this.elf.shdrs.forEach(shdr => {
-      const name = this.elf.readSectionName(shdr);
-      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC) && !(shdr.shFlags & SHFlag.SHF_EXECINSTR)) {
-        sectionNames.push(name);
+      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC)) {
+          if (type === SECTION_TYPE.EXECUTABLE && !!(shdr.shFlags & SHFlag.SHF_EXECINSTR))
+            sectionNames.push(name);
+          if (type === SECTION_TYPE.WRITABLE && !!(shdr.shFlags & SHFlag.SHF_WRITE))
+            sectionNames.push(name);
+          if (type === SECTION_TYPE.READONLY)
+            sectionNames.push(name)
       }
     });
     return sectionNames;

@@ -49,7 +49,9 @@ SECTIONS {
 export class LinkerScriptForFlash {
   public flashAddress: number;
   public dramAddress: number;
-  public sectionNamesIn: string[] = [];
+  public writeSectionNames: string[] = [];
+  public executeSectionNames: string[] = [];
+  public rodataSectionNames: string[] = [];
   public externalSymbols: {name: string, address: number}[] = [];
 
   constructor(flashAddress: number, dramAddress: number) {
@@ -63,6 +65,33 @@ export class LinkerScriptForFlash {
   }
 
   private getStr() {
-    return ""
+    return `
+MEMORY {
+    FLASH             (rx)  : ORIGIN = 0x${this.flashAddress.toString(16)}, LENGTH = 1M
+    DRAM             (rwx)  : ORIGIN = 0x${this.dramAddress.toString(16)},  LENGTH = 1M
+    EXTERNAL_SYMBOLS  (rx)  : ORIGIN = 0x0000, LENGTH = 1000M
+}
+
+SECTIONS {
+    .text : {
+        . = 0x00000000;
+        */code.o (${this.executeSectionNames.join(" ")})
+    } > FLASH
+    
+    .rodata : {
+        . = 0x00000000;
+        */code.o (${this.rodataSectionNames.join(" ")})
+    } > FLASH
+    
+    .data : {
+        . = 0x00000000;
+        */code.o (${this.writeSectionNames.join(" ")})
+    } > DRAM AT > FLASH
+
+    .external_symbols : {
+        ${this.externalSymbols.map(symbol => `${symbol.name} = 0x${symbol.address.toString(16)};\n`).join("")}
+    } > EXTERNAL_SYMBOLS
+}
+`
   }
 }

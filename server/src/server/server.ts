@@ -59,7 +59,19 @@ export default class HttpServer {
       switch (request.url) {
         case "/repl-compile":
           if (!this.session) { this.session = new Session(); }
-          responseBody = this.session.execute(JSON.parse(requestBody).src);
+          responseBody = this.session.execute(JSON.parse(requestBody).src, false);
+          statusCode = 200;
+          break;
+        case "/repl-compile-use-flash":
+          if (!this.session) { this.session = new Session(); }
+          responseBody = this.session.execute(JSON.parse(requestBody).src, true);
+          statusCode = 200;
+          break;
+        case "/set-flash-address":
+          if (!this.session) { this.session = new Session(); }
+          const requestBodyJson = JSON.parse(requestBody)
+          this.session.setFlashAddress(requestBodyJson.address, requestBodyJson.size);
+          responseBody = {};
           statusCode = 200;
           break;
         case "/clear":
