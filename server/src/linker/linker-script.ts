@@ -86,7 +86,7 @@ SECTIONS {
     .data : {
         . = 0x00000000;
         */code.o (${this.writeSectionNames.join(" ")})
-    } > DRAM AT > FLASH
+    } > DRAM
 
     .external_symbols : {
         ${this.externalSymbols.map(symbol => `${symbol.name} = 0x${symbol.address.toString(16)};\n`).join("")}

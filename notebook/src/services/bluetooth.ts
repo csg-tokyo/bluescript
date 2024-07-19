@@ -13,10 +13,16 @@ export default class Bluetooth {
     await this.init();
     let start = performance.now();
     for (const buff of buffs) {
-      await this.characteristic?.writeValueWithResponse(buff);
+      const result = await this.characteristic?.writeValueWithResponse(buff);
+      console.log(result)
     }
     let end = performance.now();
     console.log("bluetooth dulation: ", end - start, "ms");
+  }
+
+  public async readBuffer() {
+    await this.init();
+    return await this.characteristic?.readValue();
   }
 
   public setNotificationHandler(handler: (event: Event) => void) {

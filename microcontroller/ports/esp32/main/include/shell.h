@@ -8,7 +8,13 @@
 /**
  * Set data.
  */
-void bs_shell_set_tasks(uint8_t *task_data, int data_len);
+void bs_shell_receptionist(uint8_t *task_data, int data_len);
+
+
+/**
+ * Register result sender.  
+ */
+void bs_shell_register_sender(void (* sender)(uint8_t*, uint32_t));
 
 
 /**

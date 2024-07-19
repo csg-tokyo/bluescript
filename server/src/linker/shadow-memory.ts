@@ -27,19 +27,9 @@ export class ShadowMemory {
     let dram:MemoryUnit|undefined = undefined;
     bsRuntime.readDefinedSymbols().forEach(symbol => {
       if (symbol.name === V_TEXT_SECTION_NAME) {
-        iram = {
-          address: symbol.address,
-          size: DEFAULT_MEMORY_SIZE,
-          used: 0,
-          sections: []
-        }
+        iram = {address: symbol.address, size: DEFAULT_MEMORY_SIZE, used: 0, sections: []}
       } else if (symbol.name === V_DATA_SECTION_NAME) {
-        dram = {
-          address: symbol.address,
-          size: DEFAULT_MEMORY_SIZE,
-          used: 0,
-          sections: []
-        }
+        dram = {address: symbol.address, size: DEFAULT_MEMORY_SIZE, used: 0, sections: []}
       } else {
         this.symbols.set(symbol.name, symbol);
       }
@@ -122,11 +112,11 @@ export class ShadowMemory {
     //
     // // get linked elf32.
     const executableElf = new ExecutableElfReader(FILE_PATH.LINKED_ELF);
-    const textSection = executableElf.readSection(".text");
-    const rodataSection = executableElf.readSection(".rodata");
-    const dataSection = executableElf.readSection(".data");
-    if (textSection === undefined || dataSection === undefined || rodataSection === undefined)
-      throw new Error("Cannot find .text section or .data section or .rodata section");
+    const emptySection:Section = {address: 0, size:0, value:Buffer.from([])}
+    const textSection = executableElf.readSection(".text") ?? emptySection;
+    const rodataSection = executableElf.readSection(".rodata") ?? emptySection;
+    const dataSection = executableElf.readSection(".data") ?? emptySection;
+
     this.flash.sections.push(textSection);
     this.flash.used += textSection.size;
     this.flash.sections.push(rodataSection);
@@ -147,12 +137,12 @@ export class ShadowMemory {
     }
   }
 
-  public setFlashAddress(address: number, size: number) {
+  public setFlashAddress(address: number) {
     if (this.flash !== undefined) {
       console.log("The flash address is already set.");
       return;
     }
-    this.flash = { address, size, used: 0, sections: []}
+    this.flash = { address, size: DEFAULT_MEMORY_SIZE, used: 0, sections: []}
   }
 
   public getSymbolAddress(name: string) {

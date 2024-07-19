@@ -7,15 +7,25 @@ export type CompileResult = {
   textAddress: number,
   data: string, 
   dataAddress: number,
+  rodata: string,
+  rodataAddress: number,
   entryPoint: number
 }
 
 export async function replCompile(src: string): Promise<CompileResult> {
-    return post("repl-compile", {src});
+  return post("repl-compile", {src});
 }
 
 export async function clear() {
     return post("clear", {});
+}
+
+export async function setFlashAddress(address: number) {
+  return post("set-flash-address", {address});
+}
+
+export async function replCompileWithFlash(src: string): Promise<CompileResult> {
+  return post("repl-compile-with-flash", {src});
 }
 
 async function post(path: string, body: object) {
