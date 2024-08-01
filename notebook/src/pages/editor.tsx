@@ -28,7 +28,11 @@ export default function Editor() {
     const header = Buffer.from([RESET_CMD]);
     try {
       await Promise.all([
-        network.clear(),
+        network.reset({
+          iram:{address:0, size:0},
+          dram:{address:0, size:0},
+          flash:{address:0, size:0},
+        }),
         bluetooth.sendBuffers([header])
       ]);
     } catch (error: any) {
@@ -37,20 +41,20 @@ export default function Editor() {
   }
 
   const onExecutePushed = async () => {
-    await reset();
-    setLog("");
-    try {
-      const compileResult = await network.replCompile(code);
-      const bleData = generateBLEBuffs(compileResult);
-      await bluetooth.sendBuffers(bleData);
-    } catch (error: any) {
-      if (error instanceof CompileError) {
-        setLog(error.toString());
-      } else {
-        console.log(error);
-        window.alert(`Failed to compile: ${error.message}`);
-      }
-    }
+    // await reset();
+    // setLog("");
+    // try {
+    //   const compileResult = await network.replCompile(code);
+    //   const bleData = generateBLEBuffs(compileResult);
+    //   await bluetooth.sendBuffers(bleData);
+    // } catch (error: any) {
+    //   if (error instanceof CompileError) {
+    //     setLog(error.toString());
+    //   } else {
+    //     console.log(error);
+    //     window.alert(`Failed to compile: ${error.message}`);
+    //   }
+    // }
   }
 
   const onClearPushed = async () => {
@@ -86,94 +90,94 @@ export default function Editor() {
 }
 
 
-function generateBLEBuffs(compileResult: network.CompileResult): Buffer[] {
-  const resultBuffs:Buffer[] = [];
+// function generateBLEBuffs(compileResult: network.CompileResult): Buffer[] {
+//   const resultBuffs:Buffer[] = [];
 
-  const textBuff = Buffer.from(compileResult.text, "hex");
-  const dataBuff = Buffer.from(compileResult.data, "hex");
+//   const textBuff = Buffer.from(compileResult.text, "hex");
+//   const dataBuff = Buffer.from(compileResult.data, "hex");
 
-  let buffRemain = MAX_MTU;
-  let currentBuff = Buffer.alloc(0); // zero length buffer.
+//   let buffRemain = MAX_MTU;
+//   let currentBuff = Buffer.alloc(0); // zero length buffer.
 
-  // text
-  let textRemain = textBuff.length;
-  let textOffset = 0;
-  let textLoadAddress = compileResult.textAddress;
-  while (true) {
-    if (9 + textRemain <= buffRemain) {
-      const header = createLoadHeader(textLoadAddress, textRemain);
-      const body = textBuff.subarray(textOffset);
-      currentBuff = Buffer.concat([currentBuff, header, body]);
-      buffRemain -= 9 + textRemain;
-      break;
-    } else if (9 + 3 <= buffRemain) { // text should be 4 byte align
-      const loadSize = (buffRemain - 9) - (buffRemain - 9) % 4;
-      const header = createLoadHeader(textLoadAddress, loadSize);
-      const body = textBuff.subarray(textOffset, textOffset+loadSize);
-      currentBuff = Buffer.concat([currentBuff, header, body]);
+//   // text
+//   let textRemain = textBuff.length;
+//   let textOffset = 0;
+//   let textLoadAddress = compileResult.textAddress;
+//   while (true) {
+//     if (9 + textRemain <= buffRemain) {
+//       const header = createLoadHeader(textLoadAddress, textRemain);
+//       const body = textBuff.subarray(textOffset);
+//       currentBuff = Buffer.concat([currentBuff, header, body]);
+//       buffRemain -= 9 + textRemain;
+//       break;
+//     } else if (9 + 3 <= buffRemain) { // text should be 4 byte align
+//       const loadSize = (buffRemain - 9) - (buffRemain - 9) % 4;
+//       const header = createLoadHeader(textLoadAddress, loadSize);
+//       const body = textBuff.subarray(textOffset, textOffset+loadSize);
+//       currentBuff = Buffer.concat([currentBuff, header, body]);
 
-      resultBuffs.push(currentBuff);
-      currentBuff = Buffer.alloc(0);
-      textRemain -= loadSize;
-      textOffset += loadSize;
-      textLoadAddress += loadSize;
-      buffRemain = MAX_MTU;
-    } else {
-      resultBuffs.push(currentBuff);
-      currentBuff = Buffer.alloc(0);
-      buffRemain = MAX_MTU;
-    }
-  }
+//       resultBuffs.push(currentBuff);
+//       currentBuff = Buffer.alloc(0);
+//       textRemain -= loadSize;
+//       textOffset += loadSize;
+//       textLoadAddress += loadSize;
+//       buffRemain = MAX_MTU;
+//     } else {
+//       resultBuffs.push(currentBuff);
+//       currentBuff = Buffer.alloc(0);
+//       buffRemain = MAX_MTU;
+//     }
+//   }
 
-  // data
-  let dataRemain = dataBuff.length;
-  let dataOffset = 0;
-  let dataLoadAddress = compileResult.dataAddress;
-  while (true) {
-    if (9 + dataRemain <= buffRemain) {
-      const header = createLoadHeader(dataLoadAddress, dataRemain);
-      const body = dataBuff.subarray(dataOffset);
-      currentBuff = Buffer.concat([currentBuff, header, body]);
-      buffRemain -= 9 + dataRemain
-      break;
-    } else if (9 < buffRemain) {
-      const loadSize = buffRemain - 9;
-      const header = createLoadHeader(dataLoadAddress, loadSize);
-      const body = dataBuff.subarray(dataOffset, dataOffset+loadSize);
-      currentBuff = Buffer.concat([currentBuff, header, body]);
+//   // data
+//   let dataRemain = dataBuff.length;
+//   let dataOffset = 0;
+//   let dataLoadAddress = compileResult.dataAddress;
+//   while (true) {
+//     if (9 + dataRemain <= buffRemain) {
+//       const header = createLoadHeader(dataLoadAddress, dataRemain);
+//       const body = dataBuff.subarray(dataOffset);
+//       currentBuff = Buffer.concat([currentBuff, header, body]);
+//       buffRemain -= 9 + dataRemain
+//       break;
+//     } else if (9 < buffRemain) {
+//       const loadSize = buffRemain - 9;
+//       const header = createLoadHeader(dataLoadAddress, loadSize);
+//       const body = dataBuff.subarray(dataOffset, dataOffset+loadSize);
+//       currentBuff = Buffer.concat([currentBuff, header, body]);
 
-      resultBuffs.push(currentBuff);
-      currentBuff = Buffer.alloc(0);
-      dataRemain -= loadSize;
-      dataOffset += loadSize;
-      dataLoadAddress += loadSize;
-      buffRemain = MAX_MTU;
-    } else {
-      resultBuffs.push(currentBuff);
-      currentBuff = Buffer.alloc(0);
-      buffRemain = MAX_MTU;
-    }
-  }
+//       resultBuffs.push(currentBuff);
+//       currentBuff = Buffer.alloc(0);
+//       dataRemain -= loadSize;
+//       dataOffset += loadSize;
+//       dataLoadAddress += loadSize;
+//       buffRemain = MAX_MTU;
+//     } else {
+//       resultBuffs.push(currentBuff);
+//       currentBuff = Buffer.alloc(0);
+//       buffRemain = MAX_MTU;
+//     }
+//   }
 
-  // entry point
-  const header = Buffer.allocUnsafe(5);
-  header.writeUIntLE(JUMP_CMD, 0, 1); // cmd
-  header.writeUIntLE(compileResult.entryPoint, 1, 4);
-  if (5 <= buffRemain) {
-    currentBuff = Buffer.concat([currentBuff, header]);
-    resultBuffs.push(currentBuff);
-  } else {
-    resultBuffs.push(currentBuff);
-    resultBuffs.push(header);
-  }
+//   // entry point
+//   const header = Buffer.allocUnsafe(5);
+//   header.writeUIntLE(JUMP_CMD, 0, 1); // cmd
+//   header.writeUIntLE(compileResult.entryPoint, 1, 4);
+//   if (5 <= buffRemain) {
+//     currentBuff = Buffer.concat([currentBuff, header]);
+//     resultBuffs.push(currentBuff);
+//   } else {
+//     resultBuffs.push(currentBuff);
+//     resultBuffs.push(header);
+//   }
   
-  return resultBuffs;
-}
+//   return resultBuffs;
+// }
 
-function createLoadHeader(address: number, size: number) {
-  const header = Buffer.allocUnsafe(9);
-  header.writeUIntLE(LOAD_CMD, 0, 1); // cmd
-  header.writeUIntLE(address, 1, 4); // address
-  header.writeUIntLE(size, 5, 4); // size
-  return header;
-}
+// function createLoadHeader(address: number, size: number) {
+//   const header = Buffer.allocUnsafe(9);
+//   header.writeUIntLE(LOAD_CMD, 0, 1); // cmd
+//   header.writeUIntLE(address, 1, 4); // address
+//   header.writeUIntLE(size, 5, 4); // size
+//   return header;
+// }

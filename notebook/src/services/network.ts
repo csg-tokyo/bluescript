@@ -3,29 +3,24 @@ import { CompileError } from "../utils/error";
 
 
 export type CompileResult = {
-  text: string, 
-  textAddress: number,
-  data: string, 
-  dataAddress: number,
-  rodata: string,
-  rodataAddress: number,
-  entryPoint: number
+    iram: {address: number, data: string},
+    dram: {address: number, data: string},
+    flash: {address: number, data: string},
+    entryPoint: number
 }
 
-export async function replCompile(src: string): Promise<CompileResult> {
-  return post("repl-compile", {src});
+export type MemInfo = {
+  iram:{address:number, size:number},
+  dram:{address:number, size:number},
+  flash:{address:number, size:number}
 }
 
-export async function clear() {
-    return post("clear", {});
+export async function compile(src: string, useFlash: boolean): Promise<CompileResult> {
+  return post("compile", {src, useFlash});
 }
 
-export async function setFlashAddress(address: number) {
-  return post("set-flash-address", {address});
-}
-
-export async function replCompileWithFlash(src: string): Promise<CompileResult> {
-  return post("repl-compile-with-flash", {src});
+export async function reset(memInfo:MemInfo) {
+    return post("reset", memInfo);
 }
 
 async function post(path: string, body: object) {

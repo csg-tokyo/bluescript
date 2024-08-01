@@ -9,11 +9,11 @@ typedef enum {
     BS_CMD_FLOAD, 
     BS_CMD_JUMP,
     BS_CMD_RESET,
-    BS_CMD_READ_FADDRESS,     // read flash address
 
     // For sending notification
     BS_CMD_RESULT_LOG,
-    BS_CMD_RESULT_FADDRESS,
+    BS_CMD_RESULT_MEMINFO,
+    BS_CMD_RESULT_EXECTIME,
 
     // Sentinel
     BS_CMD_END

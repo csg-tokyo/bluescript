@@ -1,14 +1,15 @@
 import {Buffer} from "buffer";
 
-const LOAD_CMD  = 0x01;
-const FLOAD_CMD = 0x02;
-const JUMP_CMD  = 0x03;
-const RESET_CMD = 0x04;
-const READ_FADDRESS = 0x05;
-const RESULT_LOG_CMD = 0x06;
-const RESULT_FADDRESS_CMD = 0x07;
-
-
+export enum BS_CMD {
+    NONE,
+    LOAD,
+    FLOAD,
+    JUMP,
+    RESET,
+    RESULT_LOG,
+    RESULT_MEMINFO,
+    RESULT_EXECTIME
+}
 
 export class BufferGenerator {
     private readonly unitSize:number;
@@ -23,13 +24,11 @@ export class BufferGenerator {
     }
 
     public loadToRAM(address: number, data: Buffer) {
-        if (address === 0) return;
-        this.load(LOAD_CMD, address, data);
+        this.load(BS_CMD.LOAD, address, data);
     }
 
     public loadToFlash(address: number, data: Buffer) {
-        if (address === 0) return;
-        this.load(FLOAD_CMD, address, data);
+        this.load(BS_CMD.FLOAD, address, data);
     }
 
     private load(loadCmd: number, address: number, data: Buffer) {
@@ -74,7 +73,7 @@ export class BufferGenerator {
 
     public jump(address: number) {
         const header = Buffer.allocUnsafe(5);
-        header.writeUIntLE(JUMP_CMD, 0, 1); // cmd
+        header.writeUIntLE(BS_CMD.JUMP, 0, 1); // cmd
         header.writeUIntLE(address, 1, 4);
         if (5 <= this.lastUnitRemain) {
             this.lastUnit = Buffer.concat([this.lastUnit, header]);
@@ -86,7 +85,7 @@ export class BufferGenerator {
 
 
     public reset() {
-        const header = Buffer.from([RESET_CMD]);
+        const header = Buffer.from([BS_CMD.RESET]);
         if (1 <= this.lastUnitRemain) {
             this.lastUnit = Buffer.concat([this.lastUnit, header]);
         } else {
@@ -94,18 +93,6 @@ export class BufferGenerator {
             this.lastUnit = header;
         }
     }
-
-
-    public readFlashAddress() {
-        const header = Buffer.from([READ_FADDRESS]);
-        if (1 <= this.lastUnitRemain) {
-            this.lastUnit = Buffer.concat([this.lastUnit, header]);
-        } else {
-            this.units.push(this.lastUnit);
-            this.lastUnit = header;
-        }
-    }
-
 
     public generate() {
         this.units.push(this.lastUnit);

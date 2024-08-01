@@ -33,7 +33,7 @@ export class RelocatableElfReader {
     this.elf = new ELF32(fs.readFileSync(path));
   }
 
-  public readGlobalUnknownSymbolNames():string[] {
+  public readUndefinedSymbolNames():string[] {
     const symbolNames:string[] = [];
     const syms = this.elf.readSyms();
     syms.forEach(sym => {
@@ -51,9 +51,10 @@ export class RelocatableElfReader {
       if (!!(shdr.shFlags & SHFlag.SHF_ALLOC)) {
           if (type === SECTION_TYPE.EXECUTABLE && !!(shdr.shFlags & SHFlag.SHF_EXECINSTR))
             sectionNames.push(name);
-          if (type === SECTION_TYPE.WRITABLE && !!(shdr.shFlags & SHFlag.SHF_WRITE))
+          else if (type === SECTION_TYPE.WRITABLE && !!(shdr.shFlags & SHFlag.SHF_WRITE))
             sectionNames.push(name);
-          if (type === SECTION_TYPE.READONLY)
+          else if (type === SECTION_TYPE.READONLY
+            && !(shdr.shFlags & SHFlag.SHF_EXECINSTR) && !(shdr.shFlags & SHFlag.SHF_WRITE))
             sectionNames.push(name)
       }
     });

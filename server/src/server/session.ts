@@ -1,9 +1,9 @@
 import {GlobalVariableNameTable} from "../transpiler/code-generator/variables";
 import * as fs from "fs";
-import FILE_PATH from "../constants";
+import {FILE_PATH} from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
 import {execSync} from "child_process";
-import {ShadowMemory} from "../linker/shadow-memory";
+import {MemoryInfo, ShadowMemory} from "../linker/shadow-memory";
 
 
 const cProlog = `
@@ -17,7 +17,7 @@ export default class Session {
   nameTable?: GlobalVariableNameTable;
   shadowMemory: ShadowMemory;
 
-  constructor() {
+  constructor(memoryInfo: MemoryInfo) {
     // Read module files.
     fs.readdirSync(FILE_PATH.MODULES).forEach(file => {
       if (/.*\.ts$/.test(file)) {
@@ -27,8 +27,7 @@ export default class Session {
         this.nameTable = result.names;
       }
     });
-
-    this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF);
+    this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, memoryInfo);
   }
 
   public execute(tsString: string, useFlash:boolean=false) {
@@ -46,16 +45,6 @@ export default class Session {
     this.nameTable = tResult.names;
 
     // Link
-    const linkResult = useFlash ? this.shadowMemory.loadToFlashAndLink(FILE_PATH.OBJ_FILE) : this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE);
-    const entryPoint = this.shadowMemory.getSymbolAddress(entryPointName);
-    if (entryPoint === undefined) {
-      throw new Error("Cannot find entry point");
-    }
-
-    return {...linkResult, entryPoint}
-  }
-
-  public setFlashAddress(address: number) {
-    this.shadowMemory.setFlashAddress(address);
+    return this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName, useFlash);
   }
 }
