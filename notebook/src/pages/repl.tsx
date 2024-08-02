@@ -117,7 +117,7 @@ export default function Repl() {
   return (
     <div style={{marginTop: 100, paddingLeft: 100, paddingRight: 100, paddingBottom: 100}}>
       {memoryInfo === undefined
-       ? <Grid2 container spacing={3}>
+      ? <Grid2 container spacing={3}>
           <Button onClick={onResetPushed} variant="contained">START REPL</Button>
         </Grid2>
 
