@@ -11,6 +11,8 @@ export enum BS_CMD {
     RESULT_EXECTIME
 }
 
+const LOAD_HEADER_SIZE = 9;
+
 export class BufferGenerator {
     private readonly unitSize:number;
     private units: Buffer[] = [];
@@ -36,14 +38,14 @@ export class BufferGenerator {
         let offset = 0;
         let loadAddress = address;
         while (true) {
-            if (9 + dataRemain <= this.lastUnitRemain) {
+            if (LOAD_HEADER_SIZE + dataRemain <= this.lastUnitRemain) {
                 const header = this.createLoadHeader(loadCmd, loadAddress, dataRemain);
                 const body = data.subarray(offset);
                 this.lastUnit = Buffer.concat([this.lastUnit, header, body]);
-                this.lastUnitRemain -= 9 + dataRemain
+                this.lastUnitRemain -= LOAD_HEADER_SIZE + dataRemain
                 break;
-            } else if (9 < this.lastUnitRemain) {
-                const loadSize = this.lastUnitRemain - 9;
+            } else if (LOAD_HEADER_SIZE < this.lastUnitRemain) {
+                const loadSize = (this.lastUnitRemain - LOAD_HEADER_SIZE) & ~0b11; // 4 byte align
                 const header = this.createLoadHeader(loadCmd, loadAddress, loadSize);
                 const body = data.subarray(offset, offset+loadSize);
                 this.lastUnit = Buffer.concat([this.lastUnit, header, body]);
@@ -63,7 +65,7 @@ export class BufferGenerator {
     }
 
     private createLoadHeader(loadCmd: number, address: number, size: number) {
-        const header = Buffer.allocUnsafe(9);
+        const header = Buffer.allocUnsafe(LOAD_HEADER_SIZE);
         header.writeUIntLE(loadCmd, 0, 1); // cmd
         header.writeUIntLE(address, 1, 4); // address
         header.writeUIntLE(size, 5, 4); // size

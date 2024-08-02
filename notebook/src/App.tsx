@@ -3,7 +3,6 @@ import { AppBar, Toolbar, Typography } from '@mui/material';
 
 import Home from './pages/home';
 import Repl from "./pages/repl";
-import Editor from "./pages/editor";
 
 function App() {
   return (
@@ -19,7 +18,6 @@ function App() {
         <Routes>
           <Route path={`/`} element={<Home />} />
           <Route path={`/repl`} element={<Repl />} />
-          <Route path={`/editor`} element={<Editor />} />
         </Routes>
       </BrowserRouter>
     </div>

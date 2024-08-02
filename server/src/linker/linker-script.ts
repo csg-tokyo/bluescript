@@ -51,7 +51,7 @@ SECTIONS {
     } > FLASH
 
     .external_symbols : {
-        ${this.externalSymbols.map(symbol => `\t\t${symbol.name} = 0x${symbol.address.toString(16)};\n`).join("")}
+${this.externalSymbols.map(symbol => `\t\t${symbol.name} = 0x${symbol.address.toString(16)};\n`).join("")}
     } > EXTERNAL_SYMBOLS
 }
 `

@@ -4,6 +4,8 @@ import {Button} from '@mui/material';
 import {ButtonGroup} from "@mui/material";
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Backdrop from '@mui/material/Backdrop';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import Bluetooth, {MAX_MTU} from '../services/bluetooth';
 import { BufferGenerator, BS_CMD} from '../services/buffer-generator';
@@ -23,6 +25,8 @@ export default function Repl() {
   const [log, setLog] = useState("");
   const [compileError, setCompileError] = useState("");
   const [useFlash, setUseFlash] = useState(false);
+  const [memoryInfo, setMemoryInfo] = useState<network.MemInfo|undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     bluetooth.setNotificationHandler(onReceiveLog);
@@ -32,15 +36,12 @@ export default function Repl() {
     setCompileError("");
     try {
       const compileResult = await network.compile(code, useFlash);
-      console.log(compileResult);
       const bufferGenerator = new BufferGenerator(MAX_MTU);
       bufferGenerator.loadToRAM(compileResult.iram.address, Buffer.from(compileResult.iram.data, "hex"));
       bufferGenerator.loadToRAM(compileResult.dram.address, Buffer.from(compileResult.dram.data, "hex"));
       bufferGenerator.loadToFlash(compileResult.flash.address, Buffer.from(compileResult.flash.data, "hex"));
       bufferGenerator.jump(compileResult.entryPoint);
-      const bleData = bufferGenerator.generate();
-      console.log(bleData);
-      await bluetooth.sendBuffers(bleData);
+      await bluetooth.sendBuffers(bufferGenerator.generate());
         setExitedCodes([...exitedCodes, code]);
         setCode("");
     } catch (error: any) {
@@ -54,6 +55,7 @@ export default function Repl() {
   }
 
   const onResetPushed = async () => {
+    setIsLoading(true)
     const bufferGenerator = new BufferGenerator(MAX_MTU);
     bufferGenerator.reset();
     try {
@@ -93,6 +95,7 @@ export default function Repl() {
             flash:{address:value.getUint32(17, true), size:value.getUint32(21, true)}
           }
           console.log(memInfo);
+          setMemoryInfo(memInfo);
           network.reset(memInfo).then(() => {
             setExitedCodes([]);
             setCode("");
@@ -100,7 +103,8 @@ export default function Repl() {
             setCompileError("");
           }).catch(e => {
             console.log(e);
-          })
+          });
+          setIsLoading(false);
           return;
       case BS_CMD.RESULT_EXECTIME:
         console.log("exec time: ", value.getFloat32(1, true));
@@ -112,32 +116,44 @@ export default function Repl() {
 
   return (
     <div style={{marginTop: 100, paddingLeft: 100, paddingRight: 100, paddingBottom: 100}}>
-      <Grid2 container spacing={3}>
-        <Grid2 style={{height: 50, textAlign: "end"}} xs={12}>
-        <FormControlLabel
-          value="start"
-          style={{marginRight: 20}}
-          control={
-            <Switch checked={useFlash} onChange={onUseFlashChange} inputProps={{ 'aria-label': 'controlled' }}/>
-          }
-          label="Use Flash"
-          labelPlacement="start"
-        />
-          <ButtonGroup variant="contained" color={"success"}>
-            <Button onClick={onResetPushed}>RESET</Button>
-          </ButtonGroup>
+      {memoryInfo === undefined
+       ? <Grid2 container spacing={3}>
+          <Button onClick={onResetPushed} variant="contained">START REPL</Button>
         </Grid2>
-        <Grid2 xs={7}>
-          {exitedCodes.map((exitedCode, index) => {
-            return <BSCodeEditorCellDisabled code={exitedCode} key={index}/>
-          })}
-          <BSCodeEditorCell code={code} exitCode={exitCode} setCode={setCode}/>
-          <div style={style.compileErrorBox}>{compileError}</div>
+
+      : <Grid2 container spacing={3}>
+          <Grid2 style={{height: 50, textAlign: "end"}} xs={12}>
+          <FormControlLabel
+            value="start"
+            style={{marginRight: 20}}
+            control={
+              <Switch checked={useFlash} onChange={onUseFlashChange} inputProps={{ 'aria-label': 'controlled' }}/>
+            }
+            label="Use Flash"
+            labelPlacement="start"
+          />
+            <ButtonGroup variant="contained" color={"success"}>
+              <Button onClick={onResetPushed}>RESET</Button>
+            </ButtonGroup>
+          </Grid2>
+          <Grid2 xs={7}>
+            {exitedCodes.map((exitedCode, index) => {
+              return <BSCodeEditorCellDisabled code={exitedCode} key={index}/>
+            })}
+            <BSCodeEditorCell code={code} exitCode={exitCode} setCode={setCode}/>
+            <div style={style.compileErrorBox}>{compileError}</div>
+          </Grid2>
+          <Grid2 xs={5}>
+            <BSLogArea log={log} />
+          </Grid2>
         </Grid2>
-        <Grid2 xs={5}>
-          <BSLogArea log={log} />
-        </Grid2>
-      </Grid2>
+      }
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        open={isLoading}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
     </div>
   );
 }
