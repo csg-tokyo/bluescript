@@ -1,9 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppBar, Toolbar, Typography } from '@mui/material';
 
-import Home from './pages/home';
-import Repl from "./pages/repl";
-import Editor from "./pages/editor";
+import Repl from "./view/repl";
 
 function App() {
   return (
@@ -17,9 +15,7 @@ function App() {
       </AppBar>
       <BrowserRouter>
         <Routes>
-          <Route path={`/`} element={<Home />} />
-          <Route path={`/repl`} element={<Repl />} />
-          <Route path={`/editor`} element={<Editor />} />
+          <Route path={`/`} element={<Repl />} />
         </Routes>
       </BrowserRouter>
     </div>

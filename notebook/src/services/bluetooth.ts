@@ -19,12 +19,17 @@ export default class Bluetooth {
     console.log("bluetooth dulation: ", end - start, "ms");
   }
 
+  public async readBuffer() {
+    await this.init();
+    return await this.characteristic?.readValue();
+  }
+
   public setNotificationHandler(handler: (event: Event) => void) {
     this.notificationHandler = handler;
   }
 
   private async init() {
-    if (this.device !== undefined && this.characteristic !== undefined) return;
+    if (this.device !== undefined && this.characteristic !== undefined && this.device.gatt?.connected) return;
 
     await navigator.bluetooth.requestDevice({
       filters: [

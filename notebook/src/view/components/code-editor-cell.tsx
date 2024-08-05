@@ -9,7 +9,7 @@ import {grey} from "@mui/material/colors";
 type Props = {
   code: string,
   setCode: (code: string) => void,
-  exitCode: () => void
+  onExecuteClick: () => void
 }
 
 export default function BSCodeEditorCell(props: Props) {
@@ -26,7 +26,7 @@ export default function BSCodeEditorCell(props: Props) {
           <IconButton
             sx={{color: grey[100], backgroundColor: grey[500], m: 1}}
             size={"small"}
-            onClick={props.exitCode}
+            onClick={props.onExecuteClick}
           >
             <PlayArrowIcon sx={{height: 20, width: 20}}/>
           </IconButton>

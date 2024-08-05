@@ -4,6 +4,7 @@
 #include "freertos/semphr.h"
 
 #include "include/logger.h"
+#include "include/cmd.h"
 
 #define BS_LOGGER_TAG "BS_LOGGER"
 
@@ -13,7 +14,7 @@ static void (* log_sender)(uint8_t*, uint32_t);
 
 
 typedef struct {
-    char*    str;
+    uint8_t*    str;
     uint32_t str_len;
 } log_t;
 
@@ -28,9 +29,10 @@ void bs_logger_register_sender(void (* sender)(uint8_t*, uint32_t)) {
 void bs_logger_push_log(char *str) {
     uint32_t str_len = strlen(str);
     log_t log;
-    log.str = (char*)malloc(str_len + 1); // contain null
-    strcpy(log.str, str);
-    log.str_len = str_len;
+    log.str = (uint8_t*)malloc(str_len + 1 + 1); // contain null and cmd
+    log.str[0] = BS_CMD_RESULT_LOG;
+    strcpy((char*)(log.str+1), str);
+    log.str_len = str_len + 1;
     xQueueSend(log_queue, &log, portMAX_DELAY);
 }
 
