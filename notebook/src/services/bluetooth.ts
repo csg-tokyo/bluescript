@@ -13,8 +13,7 @@ export default class Bluetooth {
     await this.init();
     let start = performance.now();
     for (const buff of buffs) {
-      const result = await this.characteristic?.writeValueWithResponse(buff);
-      console.log(result)
+      await this.characteristic?.writeValueWithResponse(buff);
     }
     let end = performance.now();
     console.log("bluetooth dulation: ", end - start, "ms");
@@ -30,7 +29,7 @@ export default class Bluetooth {
   }
 
   private async init() {
-    if (this.device !== undefined && this.characteristic !== undefined) return;
+    if (this.device !== undefined && this.characteristic !== undefined && this.device.gatt?.connected) return;
 
     await navigator.bluetooth.requestDevice({
       filters: [

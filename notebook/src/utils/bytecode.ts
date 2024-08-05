@@ -1,6 +1,7 @@
 import {Buffer} from "buffer";
+import { MemInfo } from "./type";
 
-export enum BS_CMD {
+export enum BYTECODE {
     NONE,
     LOAD,
     FLOAD,
@@ -13,7 +14,7 @@ export enum BS_CMD {
 
 const LOAD_HEADER_SIZE = 9;
 
-export class BufferGenerator {
+export class BytecodeGenerator {
     private readonly unitSize:number;
     private units: Buffer[] = [];
     private lastUnit: Buffer;
@@ -26,11 +27,11 @@ export class BufferGenerator {
     }
 
     public loadToRAM(address: number, data: Buffer) {
-        this.load(BS_CMD.LOAD, address, data);
+        this.load(BYTECODE.LOAD, address, data);
     }
 
     public loadToFlash(address: number, data: Buffer) {
-        this.load(BS_CMD.FLOAD, address, data);
+        this.load(BYTECODE.FLOAD, address, data);
     }
 
     private load(loadCmd: number, address: number, data: Buffer) {
@@ -75,7 +76,7 @@ export class BufferGenerator {
 
     public jump(address: number) {
         const header = Buffer.allocUnsafe(5);
-        header.writeUIntLE(BS_CMD.JUMP, 0, 1); // cmd
+        header.writeUIntLE(BYTECODE.JUMP, 0, 1); // cmd
         header.writeUIntLE(address, 1, 4);
         if (5 <= this.lastUnitRemain) {
             this.lastUnit = Buffer.concat([this.lastUnit, header]);
@@ -87,7 +88,7 @@ export class BufferGenerator {
 
 
     public reset() {
-        const header = Buffer.from([BS_CMD.RESET]);
+        const header = Buffer.from([BYTECODE.RESET]);
         if (1 <= this.lastUnitRemain) {
             this.lastUnit = Buffer.concat([this.lastUnit, header]);
         } else {
@@ -106,5 +107,34 @@ export class BufferGenerator {
         this.lastUnit = Buffer.alloc(0);
 
         return result;
+    }
+}
+
+type parseResult = 
+    {bytecode:BYTECODE.RESULT_LOG, log:string} | 
+    {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemInfo} |
+    {bytecode:BYTECODE.RESULT_EXECTIME, exectime:number} |
+    {bytecode:BYTECODE.NONE}
+
+export function bytecodeParser(data: DataView):parseResult {
+    const bytecode = data.getUint8(0);
+    switch (bytecode) {
+      case BYTECODE.RESULT_LOG:
+        // | cmd (1byte) | log string |
+        const log = Buffer.from(data.buffer.slice(1)).toString();
+        return {bytecode, log};
+      case BYTECODE.RESULT_MEMINFO:
+          // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | flash address | flash size |
+          const meminfo = {
+            iram:{address:data.getUint32(1, true), size:data.getUint32(5, true)},
+            dram:{address:data.getUint32(9, true), size:data.getUint32(13, true)},
+            flash:{address:data.getUint32(17, true), size:data.getUint32(21, true)},
+          }
+          return {bytecode, meminfo};
+      case BYTECODE.RESULT_EXECTIME:
+        const exectime = data.getFloat32(1, true);
+        return {bytecode, exectime};
+      default:
+        return {bytecode:BYTECODE.NONE}
     }
 }

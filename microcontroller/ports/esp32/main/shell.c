@@ -152,8 +152,6 @@ static void shell_init() {
 }
 
 static void shell_reset() {
-    ram_reset();
-    flash_reset();
     xQueueReset(task_queue);
     gc_initialize();
     bs_logger_reset();
@@ -199,7 +197,7 @@ void bs_shell_task(void *arg) {
                 break;
             case BS_CMD_RESET:
                 ESP_LOGI(BS_SHELL_TAG, "Soft reset");
-                shell_reset();
+                // shell_reset();
                 send_result_meminfo();
                 break;
             default:

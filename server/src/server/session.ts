@@ -30,7 +30,7 @@ export default class Session {
     this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, memoryInfo);
   }
 
-  public execute(tsString: string, useFlash:boolean=false) {
+  public execute(tsString: string) {
     this.currentCodeId += 1;
 
     // Transpile
@@ -45,6 +45,6 @@ export default class Session {
     this.nameTable = tResult.names;
 
     // Link
-    return this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName, useFlash);
+    return this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName);
   }
 }

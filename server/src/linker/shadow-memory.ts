@@ -6,7 +6,8 @@ import {execSync} from "child_process";
 export type MemoryInfo = {
   iram:{address:number, size:number},
   dram:{address:number, size:number},
-  flash:{address:number, size:number}
+  flash:{address:number, size:number},
+  useFlash: boolean
 }
 
 
@@ -21,6 +22,7 @@ export class ShadowMemory {
   private dram: MemoryUnit;
   private flash: MemoryUnit;
   private symbols:Map<string, Symbol> = new Map<string, Symbol>();
+  private useFlash: boolean;
 
   constructor(bsRuntimePath: string, memoryInfo: MemoryInfo) {
     const bsRuntime = new ExecutableElfReader(bsRuntimePath);
@@ -28,9 +30,10 @@ export class ShadowMemory {
     this.iram = {...memoryInfo.iram, used:0};
     this.dram = {...memoryInfo.dram, used:0};
     this.flash = {...memoryInfo.flash, used:0};
+    this.useFlash = memoryInfo.useFlash;
   }
 
-  public loadAndLink(objFilePath: string, entryPointName: string, useFlash:boolean) {
+  public loadAndLink(objFilePath: string, entryPointName: string) {
     const relocatableElf = new RelocatableElfReader(objFilePath);
     const externalSymbols:Symbol[] = [];
     relocatableElf.readUndefinedSymbolNames().forEach(name => {
@@ -45,10 +48,7 @@ export class ShadowMemory {
       this.dram.address + this.dram.used,
       this.flash.address + this.flash.used);
     linkerScript.externalSymbols = externalSymbols;
-    console.log("executable", relocatableElf.readSectionNames(SECTION_TYPE.EXECUTABLE));
-    console.log("writable", relocatableElf.readSectionNames(SECTION_TYPE.WRITABLE));
-    console.log("readonly", relocatableElf.readSectionNames(SECTION_TYPE.READONLY));
-    if (!useFlash) {
+    if (!this.useFlash) {
       linkerScript.sectionNamesInIram = relocatableElf.readSectionNames(SECTION_TYPE.EXECUTABLE);
       let dramSection = relocatableElf.readSectionNames(SECTION_TYPE.WRITABLE);
       dramSection = dramSection.concat(relocatableElf.readSectionNames(SECTION_TYPE.READONLY));

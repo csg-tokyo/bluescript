@@ -63,27 +63,9 @@ export default class HttpServer {
             responseBody = {error: "Session have not started."}
             break;
           }
-          const requestBodyJson = JSON.parse(requestBody);
-          responseBody = this.session.execute(requestBodyJson.src, requestBodyJson.useFlash);
+          responseBody = this.session.execute(JSON.parse(requestBody).src);
           statusCode = 200;
           break;
-        // case "/repl-compile-with-flash":
-        //   if (this.session === undefined) {
-        //     statusCode = 400;
-        //     responseBody = {error: "Session have not started."}
-        //     break;
-        //   }
-        //   responseBody = this.session.execute(JSON.parse(requestBody).src, true);
-        //   statusCode = 200;
-        //   break;
-        // case "/set-flash-address":
-        //   if (!this.session) { this.session = new Session(); }
-        //   const requestBodyJson = JSON.parse(requestBody);
-        //   console.log("flash address", requestBodyJson.address);
-        //   this.session.setFlashAddress(requestBodyJson.address);
-        //   responseBody = {};
-        //   statusCode = 200;
-        //   break;
         case "/reset":
           this.session = new Session(JSON.parse(requestBody));
           responseBody = {};

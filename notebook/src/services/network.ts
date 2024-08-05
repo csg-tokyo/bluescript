@@ -1,5 +1,6 @@
 import axios from "axios";
 import { CompileError } from "../utils/error";
+import { MemInfo } from "../utils/type";
 
 
 export type CompileResult = {
@@ -9,18 +10,12 @@ export type CompileResult = {
     entryPoint: number
 }
 
-export type MemInfo = {
-  iram:{address:number, size:number},
-  dram:{address:number, size:number},
-  flash:{address:number, size:number}
+export async function compile(src: string): Promise<CompileResult> {
+  return post("compile", {src});
 }
 
-export async function compile(src: string, useFlash: boolean): Promise<CompileResult> {
-  return post("compile", {src, useFlash});
-}
-
-export async function reset(memInfo:MemInfo) {
-    return post("reset", memInfo);
+export async function reset(memInfo:MemInfo, useFlash:boolean) {
+    return post("reset", {...memInfo, useFlash});
 }
 
 async function post(path: string, body: object) {
