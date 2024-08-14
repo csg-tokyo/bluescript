@@ -413,7 +413,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 
 static void write_action_handler(uint8_t *value, int value_len) {
     puts("write action handler");
-    bs_shell_set_tasks(value, value_len);
+    bs_shell_receptionist(value, value_len);
     // esp_log_buffer_hex(GATTS_TAG, value, value_len);
 }
 
@@ -477,11 +477,11 @@ void bs_ble_init(void)
     return;
 }
 
-void bs_ble_send_str(uint8_t *str, uint32_t length) {
+void bs_ble_send_notification(uint8_t *value, uint32_t length) {
     esp_ble_gatts_send_indicate(
         gl_profile_tab[PROFILE_SHELL_APP_ID].gatts_if, 
         gl_profile_tab[PROFILE_SHELL_APP_ID].conn_id, 
         gl_profile_tab[PROFILE_SHELL_APP_ID].char_handle, 
-        length, str, false
+        length, value, false
     );
 }

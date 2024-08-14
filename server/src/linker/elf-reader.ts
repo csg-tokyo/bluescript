@@ -8,6 +8,12 @@ export enum SYMBOL_TYPE {
   OBJECT,
 }
 
+export enum SECTION_TYPE {
+  EXECUTABLE,
+  WRITABLE,
+  READONLY
+}
+
 export type Section = {
   address: number,
   size: number,
@@ -27,7 +33,7 @@ export class RelocatableElfReader {
     this.elf = new ELF32(fs.readFileSync(path));
   }
 
-  public readGlobalUnknownSymbolNames():string[] {
+  public readUndefinedSymbolNames():string[] {
     const symbolNames:string[] = [];
     const syms = this.elf.readSyms();
     syms.forEach(sym => {
@@ -38,23 +44,18 @@ export class RelocatableElfReader {
     return symbolNames;
   }
 
-  public readExecSectionNames():string[] {
+  public readSectionNames(type: SECTION_TYPE):string[] {
     const sectionNames:string[] = [];
     this.elf.shdrs.forEach(shdr => {
       const name = this.elf.readSectionName(shdr);
-      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC) && !!(shdr.shFlags & SHFlag.SHF_EXECINSTR)) {
-          sectionNames.push(name);
-      }
-    });
-    return sectionNames;
-  }
-
-  public readDataSectionNames():string[] {
-    const sectionNames:string[] = [];
-    this.elf.shdrs.forEach(shdr => {
-      const name = this.elf.readSectionName(shdr);
-      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC) && !(shdr.shFlags & SHFlag.SHF_EXECINSTR)) {
-        sectionNames.push(name);
+      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC)) {
+          if (type === SECTION_TYPE.EXECUTABLE && !!(shdr.shFlags & SHFlag.SHF_EXECINSTR))
+            sectionNames.push(name);
+          else if (type === SECTION_TYPE.WRITABLE && !!(shdr.shFlags & SHFlag.SHF_WRITE))
+            sectionNames.push(name);
+          else if (type === SECTION_TYPE.READONLY
+            && !(shdr.shFlags & SHFlag.SHF_EXECINSTR) && !(shdr.shFlags & SHFlag.SHF_WRITE))
+            sectionNames.push(name)
       }
     });
     return sectionNames;

@@ -1,21 +1,21 @@
 import axios from "axios";
 import { CompileError } from "../utils/error";
+import { MemInfo } from "../utils/type";
 
 
 export type CompileResult = {
-  text: string, 
-  textAddress: number,
-  data: string, 
-  dataAddress: number,
-  entryPoint: number
+    iram: {address: number, data: string},
+    dram: {address: number, data: string},
+    flash: {address: number, data: string},
+    entryPoint: number
 }
 
-export async function replCompile(src: string): Promise<CompileResult> {
-    return post("repl-compile", {src});
+export async function compile(src: string): Promise<CompileResult> {
+  return post("compile", {src});
 }
 
-export async function clear() {
-    return post("clear", {});
+export async function reset(memInfo:MemInfo, useFlash:boolean) {
+    return post("reset", {...memInfo, useFlash});
 }
 
 async function post(path: string, body: object) {

@@ -9,7 +9,7 @@
 ## Setting Up BlueScript
 
 ### Architecture
-![BlueScript architecture image](./docs/images/bs-architecture.png)
+![BlueScript architecture image](./docs/images/bluescript-arch.png)
 
 
 ### Setting up server

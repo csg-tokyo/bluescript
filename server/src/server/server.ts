@@ -2,6 +2,7 @@ import * as http from "http";
 import {Buffer} from "node:buffer";
 import {ErrorLog} from "../transpiler/utils";
 import Session from "./session";
+import {execSync} from "child_process";
 
 const ERROR_CODE = {
   COMPILE_ERROR: 460,
@@ -57,16 +58,25 @@ export default class HttpServer {
     try {
       requestBody = await this.getRequestBody(request);
       switch (request.url) {
-        case "/repl-compile":
-          if (!this.session) { this.session = new Session(); }
+        case "/compile":
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
+            break;
+          }
           responseBody = this.session.execute(JSON.parse(requestBody).src);
           statusCode = 200;
           break;
-        case "/clear":
-          this.session = new Session();
+        case "/reset":
+          this.session = new Session(JSON.parse(requestBody));
           responseBody = {};
           statusCode = 200;
           break;
+          case "/check":
+            const cmd_result = execSync("which xtensa-esp32-elf-gcc").toString();
+            responseBody = {cmd_result};
+            statusCode = 200;
+            break;
         default:
           responseBody = {message: "Page not found."};
           statusCode = 404;
