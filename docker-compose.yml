@@ -1,0 +1,24 @@
+version: '3'
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    container_name: bluescript_server
+    volumes:
+      - ./server:/bluescript/server
+      - ./modules:/bluescript/modules
+      - ./microcontroller:/bluescript/microcontroller
+    working_dir: /bluescript/server
+    command: npm run dev
+    ports:
+      - "8080:8080"
+
+  notebook:
+    build:
+      context: .
+      dockerfile: notebook.Dockerfile
+    container_name: bluescript_notebook
+    command: npm start
+    ports:
+      - "3000:3000"

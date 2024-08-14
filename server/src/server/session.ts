@@ -40,7 +40,7 @@ export default class Session {
 
     // Compile
     fs.writeFileSync(FILE_PATH.C_FILE, cString);
-    execSync(`export PATH=$PATH:${FILE_PATH.GCC}; xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
+    execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
     const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
     this.nameTable = tResult.names;
 

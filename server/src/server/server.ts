@@ -2,6 +2,7 @@ import * as http from "http";
 import {Buffer} from "node:buffer";
 import {ErrorLog} from "../transpiler/utils";
 import Session from "./session";
+import {execSync} from "child_process";
 
 const ERROR_CODE = {
   COMPILE_ERROR: 460,
@@ -71,6 +72,11 @@ export default class HttpServer {
           responseBody = {};
           statusCode = 200;
           break;
+          case "/check":
+            const cmd_result = execSync("which xtensa-esp32-elf-gcc").toString();
+            responseBody = {cmd_result};
+            statusCode = 200;
+            break;
         default:
           responseBody = {message: "Page not found."};
           statusCode = 404;

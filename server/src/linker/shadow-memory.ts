@@ -62,7 +62,7 @@ export class ShadowMemory {
     linkerScript.save(FILE_PATH.LINKER_SCRIPT);
 
     // link
-    execSync(`export PATH=$PATH:${FILE_PATH.GCC}; xtensa-esp32-elf-ld -o ${FILE_PATH.LINKED_ELF} -T ${FILE_PATH.LINKER_SCRIPT} ${FILE_PATH.OBJ_FILE}`)
+    execSync(`xtensa-esp32-elf-ld -o ${FILE_PATH.LINKED_ELF} -T ${FILE_PATH.LINKER_SCRIPT} ${FILE_PATH.OBJ_FILE}`)
 
     // get linked elf32.
     const executableElf = new ExecutableElfReader(FILE_PATH.LINKED_ELF);
