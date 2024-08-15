@@ -1,42 +1,80 @@
 # BlueScript
 
-## Directory structure
-- **server:** Node.js server for compiling BlueScript code.
-- **notebook:** React app of BlueScript development environment.
-- **esp32:** ESP-IDF app for recieving and executing code. 
-- **lib:** BlueScript libraries which will be converted to `./esp32/components/lib/hardwarelib.c`.
+BlueScript is a small and efficient programming language designed specifically for microcontrollers.  
+While it currently supports only the ESP32 board, future updates will include support for a wider range of boards.
 
-## Setting Up BlueScript
+# Getting Started
 
-### Architecture
-![BlueScript architecture image](./docs/images/bluescript-arch.png)
+## Requirements
+To start using BlueScript, you'll need the following:
+- **ESP32** board
+    - Currently, only the **ESP32-WROOM-32** module is supported.
+- A computer running **Windows**, **Linux**, or **macOS**.
+- A **USB cable** (USB A / micro USB B) to connect your ESP32 to your computer.
 
+## Installation and Build
 
-### Setting up server
-**Dependencies:** [Node.js](https://nodejs.org/en), [npm](https://www.npmjs.com)
+### Clone the Repository
+First, clone the BlueScript repository using Git:
 
-1. Open the terminal app and move to `./server/`.
-2. Run the following command.
-   ```bash
-   npm run exec
-   ```
-   
-### Setting up notebook
-**Dependencies:** [Node.js](https://nodejs.org/en), [npm](https://www.npmjs.com), [React](https://ja.legacy.reactjs.org)
+```bash
+git clone git@github.com:csg-tokyo/bluescript.git
+```
 
-1. Open a terminal app and move to `./notebook/`.
-2. Run the following command.
-   ```bash
-   npm start
-   ```
-3. Open a new tab in the chrome browser and access to [localhost:3000/repl](localhost:3000/repl)
+### Build and Start the BlueScript Server
 
-### Setting up esp32
-**Dependencies:** [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/) version 5.0
+1. Set up Docker and Docker Compose:
+    - Install Docker: [Docker installation guide](https://docs.docker.com/get-docker/)
+    - Install Docker Compose: [Docker Compose installation guide](https://docs.docker.com/compose/install/)
 
-1. Open a terminal app and move to `./esp32/`.
-2. Connect your machine and ESP32 device with a serial cable.
-3. Run a following command.
-   ```bash
-   idf.py build flash monitor
-   ```
+2. Start the BlueScript Local Server
+```
+docker compose up -d
+```
+
+3. Verify that the server has started successfully
+    Open [Google Chrome browser](https://www.google.com/chrome/) and access [http://localhost:3000/](http://localhost:3000/).  
+    You can see BlueScript REPL page on the browser.
+
+### Build and Flash the BlueScript Runtime  
+
+1. Build the BlueScript runtime:
+```bash
+cd ./microcontroller/port/esp32/
+docker run --rm -v $PWD:/project -w /project -u $UID -e HOME=/tmp espressif/idf:release-v5.0 idf.py build
+```
+
+2. Install [esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32/):
+```bash
+pip install esptool
+```
+
+3. Connect your microcontroller to the computer via USB and check the serial port.  
+Common serial port naming patterns:
+    * Windows: Ports start with `COM`.
+    * MacOS: Ports start with `/dev/tty`.
+    * Linux: Ports start with `/dev/cu`.
+
+4. Flash the BlueScript runtime to the ESP32 device:
+```bash
+cd ./build
+esptool.py --chip esp32 -p $PORT -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 40m --flash_size 4MB 0x1000 bootloader/bootloader.bin 0x10000 bluescript.bin 0x8000 partition_table/partition-table.bin
+```
+
+## Writing Your First Program
+After setting up BlueScript, follow these steps to write and run a "Hello World" program:
+
+1. Open [Google Chrome browser](https://www.google.com/chrome/) and access [http://localhost:3000/](http://localhost:3000/).  
+  BlueScript REPL communicates with the microcontroller via Bluetooth, so the browser should be [Google Chrome browser](https://www.google.com/chrome/) which only supports [Web Bluetooth](https://developer.mozilla.org/ja/docs/Web/API/Web_Bluetooth_API). 
+
+2. Click the Start button.  
+  You’ll be prompted to select a Bluetooth device. Choose `BLUESCRIPT`.  
+
+3. Write the following code in the cell:
+```typescript
+print("Hello world!");
+```
+
+4. Click the execution button on the left side of the cell to run your code in the cell.  
+  You can see "Hello world!" in the log area on the right side of the page.
+
