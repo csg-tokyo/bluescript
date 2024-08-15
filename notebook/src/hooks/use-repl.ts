@@ -6,14 +6,14 @@ import { MemInfo } from '../utils/type';
 import { BYTECODE, BytecodeGenerator, bytecodeParser } from '../utils/bytecode';
 import {Buffer} from "buffer";
 
-export type ReplState = "unIntialized" | "initializing" | "initialized";
+export type ReplState = "unInitialized" | "initializing" | "initialized";
 
 export default function useRepl() {
     const [currentCell, setCurrentCell] = useState("");
     const [executedCells, setExecutedCells] = useState<string[]>([]);
     const [log, setLog] = useState("");
     const [compileError, setCompileError] = useState("");
-    const [replState, setReplState] = useState<ReplState>("unIntialized");
+    const [replState, setReplState] = useState<ReplState>("unInitialized");
     
     const bluetooth = useRef(new Bluetooth());
     const onReceiveMeminfo = useRef((meminfo: MemInfo) => {});

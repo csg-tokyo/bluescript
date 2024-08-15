@@ -19,6 +19,9 @@ services:
       context: .
       dockerfile: notebook.Dockerfile
     container_name: bluescript_notebook
+    volumes:
+      - ./notebook:/notebook
+    working_dir: /notebook
     command: npm start
     ports:
       - "3000:3000"

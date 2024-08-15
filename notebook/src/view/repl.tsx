@@ -25,7 +25,7 @@ export default function Repl() {
 
   return (
     <div style={{marginTop: 100, paddingLeft: 100, paddingRight: 100, paddingBottom: 100}}>
-      {replParams.replState === "unIntialized"
+      {replParams.replState === "unInitialized"
       ? <Grid2 container spacing={3}>
           <Button onClick={() => replActions.reset()} variant="contained">START REPL</Button>
         </Grid2>
