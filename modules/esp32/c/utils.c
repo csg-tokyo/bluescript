@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "include/timer.h"
+#include "include/utils.h"
 #include "logger.h"
 
 char message[256];
 
-static void fbody_print(value_t self, value_t _value) {
+void fbody_print(value_t self, value_t _value) {
   if (is_int_value(_value)) 
     sprintf(message, "%d\n", (int) value_to_int(_value));
   else if (is_float_value(_value))
@@ -19,7 +19,7 @@ static void fbody_print(value_t self, value_t _value) {
   bs_logger_push_log(message);
 }
 
-static int32_t fbody_randInt(value_t self, int32_t _min, int32_t _max) {
+int32_t fbody_randInt(value_t self, int32_t _min, int32_t _max) {
   int32_t ri = 0;
   return rand() % (_max - _min + 1) + _min;
 }

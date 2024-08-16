@@ -2,7 +2,6 @@
 #include "driver/gpio.h"
 #include "include/button.h"
 #include "event.h"
-#include "init.h"
 
 
 #define ESP_INTR_FLAG_DEFAULT 0

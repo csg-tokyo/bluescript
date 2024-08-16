@@ -18,7 +18,7 @@ static int32_t find_unused_timer_id() {
 }
 
 
-int32_t MD_SECTION fbody_setInterval(value_t self, value_t _func, int32_t _delayMs) {
+int32_t fbody_setInterval(value_t self, value_t _func, int32_t _delayMs) {
     ROOT_SET(func_rootset, 1)
     func_rootset.values[0] = _func;
     int32_t timer_id = find_unused_timer_id();
@@ -34,7 +34,7 @@ int32_t MD_SECTION fbody_setInterval(value_t self, value_t _func, int32_t _delay
 }
 
 
-int32_t MD_SECTION fbody_setTimeout(value_t self, value_t _func, int32_t _delayMs) {
+int32_t fbody_setTimeout(value_t self, value_t _func, int32_t _delayMs) {
     ROOT_SET(func_rootset, 1)
     func_rootset.values[0] = _func;
     int32_t timer_id = find_unused_timer_id();
@@ -50,7 +50,7 @@ int32_t MD_SECTION fbody_setTimeout(value_t self, value_t _func, int32_t _delayM
 }
 
 
-void MD_SECTION fbody_clearInterval(value_t self, int32_t _timerId) {
+void fbody_clearInterval(value_t self, int32_t _timerId) {
     esp_timer_handle_t timer = timer_handlers[_timerId];
     esp_timer_stop(timer);
     esp_timer_delete(timer);
@@ -58,13 +58,13 @@ void MD_SECTION fbody_clearInterval(value_t self, int32_t _timerId) {
 }
 
 
-void MD_SECTION fbody_clearTimeout(value_t self, int32_t _timerId) {
+void fbody_clearTimeout(value_t self, int32_t _timerId) {
     esp_timer_handle_t timer = timer_handlers[_timerId];
     esp_timer_delete(timer);
     timer_handlers[_timerId] = 0;
 }
 
-int32_t MD_SECTION fbody_getTimeUs(value_t self) {
+int32_t fbody_getTimeUs(value_t self) {
     return (int32_t)esp_timer_get_time();
 }
 
