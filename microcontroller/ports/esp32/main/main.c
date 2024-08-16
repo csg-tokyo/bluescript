@@ -8,7 +8,6 @@
 #include "include/event.h"
 #include "include/ble.h"
 
-#include "init.h"
 
 void app_main(void) {
     bs_ble_init();
