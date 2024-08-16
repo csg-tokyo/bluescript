@@ -7,7 +7,8 @@ export type CompileResult = {
     iram: {address: number, data: string},
     dram: {address: number, data: string},
     flash: {address: number, data: string},
-    entryPoint: number
+    entryPoint: number,
+    compileTime: number
 }
 
 export async function compile(src: string): Promise<CompileResult> {

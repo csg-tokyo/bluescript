@@ -7,16 +7,17 @@ import {grey} from "@mui/material/colors";
 
 type Props = {
   code: string,
+  executionLog: string
 }
 
-export default function BSCodeEditorCellDisabled(props: Props) {
+export default function BSCodeEditorCellExecuted(props: Props) {
   const calcRows = () => {
     const rows:number = props.code.split('\n').length;
     return rows > 4 ? rows : 4;
   }
   return (
-    <div>
-      <Card sx={{display: 'flex', mb:3}} elevation={0} variant="outlined"  style={{backgroundColor: "#f5f5f5"}}>
+    <div style={{marginBottom: 20}}>
+      <Card sx={{display: 'flex', mb:0.5}} elevation={0} variant="outlined"  style={{backgroundColor: "#f5f5f5"}}>
         <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}
              style={{backgroundColor: "lightgray", width: 50}}>
           <IconButton
@@ -38,6 +39,8 @@ export default function BSCodeEditorCellDisabled(props: Props) {
           />
         </Box>
       </Card>
+      <small style={{color:"grey", marginLeft:55}}>{props.executionLog}</small>
+      {/* <small style={{color:"grey", marginLeft:55}}> compile: 10 ms | bluetooth: 40 ms | execution: 50 ms </small> */}
     </div>
   );
 }

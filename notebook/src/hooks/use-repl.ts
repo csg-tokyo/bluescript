@@ -8,15 +8,23 @@ import {Buffer} from "buffer";
 
 export type ReplState = "unInitialized" | "initializing" | "initialized";
 
+export type Cell = {
+    code: string,
+    compileTime?:number,
+    bluetoothTime?:number,
+    executionTime?:number
+}
+
 export default function useRepl() {
-    const [currentCell, setCurrentCell] = useState("");
-    const [executedCells, setExecutedCells] = useState<string[]>([]);
+    const [currentCell, setCurrentCell] = useState<Cell>({code:""});
+    const [executedCells, setExecutedCells] = useState<Cell[]>([]);
     const [log, setLog] = useState("");
     const [compileError, setCompileError] = useState("");
     const [replState, setReplState] = useState<ReplState>("unInitialized");
     
     const bluetooth = useRef(new Bluetooth());
     const onReceiveMeminfo = useRef((meminfo: MemInfo) => {});
+    const onReceiveExectime = useRef((exectime: number) => {});
 
     useEffect(() => {
         bluetooth.current.setNotificationHandler(onReceiveNotification);
@@ -47,16 +55,17 @@ export default function useRepl() {
 
     const execute = async () => {
         setCompileError("");
+        let updatedCurrentCell:Cell;
         try {
-            const compileResult = await network.compile(currentCell);
+            const compileResult = await network.compile(currentCell.code);
             const bufferGenerator = new BytecodeGenerator(MAX_MTU);
             bufferGenerator.loadToRAM(compileResult.iram.address, Buffer.from(compileResult.iram.data, "hex"));
             bufferGenerator.loadToRAM(compileResult.dram.address, Buffer.from(compileResult.dram.data, "hex"));
             bufferGenerator.loadToFlash(compileResult.flash.address, Buffer.from(compileResult.flash.data, "hex"));
             bufferGenerator.jump(compileResult.entryPoint);
-            await bluetooth.current.sendBuffers(bufferGenerator.generate());
-            setCurrentCell("");
-            setExecutedCells([...executedCells, currentCell]);
+            const bluetoothTime = await bluetooth.current.sendBuffers(bufferGenerator.generate());
+            updatedCurrentCell = {...currentCell, bluetoothTime, compileTime:compileResult.compileTime}
+            setCurrentCell(updatedCurrentCell);
         } catch (error: any) {
             if (error instanceof CompileError) {
                 setCompileError(error.toString());
@@ -64,6 +73,10 @@ export default function useRepl() {
                 console.log(error);
                 window.alert(`Failed to compile: ${error.message}`);
             }
+        }
+        onReceiveExectime.current = (exectime:number) => {
+            setExecutedCells([...executedCells, {...updatedCurrentCell, executionTime:exectime}]);
+            setCurrentCell({code:""});
         }
     }
 
@@ -79,8 +92,8 @@ export default function useRepl() {
                 onReceiveMeminfo.current(parseResult.meminfo);
                 break;
             case BYTECODE.RESULT_EXECTIME:
-                console.log(parseResult.exectime);
-                break;                
+                onReceiveExectime.current(parseResult.exectime);
+                break;            
         }
     }
 

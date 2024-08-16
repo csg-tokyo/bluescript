@@ -8,20 +8,27 @@ import Backdrop from '@mui/material/Backdrop';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import BSCodeEditorCell from "./components/code-editor-cell";
-import BSCodeEditorCellDisabled from "./components/code-editor-cell-disabled";
+import BSCodeEditorCellExecuted from "./components/code-editor-cell-executed";
 import Grid2 from "@mui/material/Unstable_Grid2";
 import BSLogArea from "./components/log-area";
-import useRepl from '../hooks/use-repl';
+import useRepl, {Cell} from '../hooks/use-repl';
 
 
 export default function Repl() {
-    const {replParams, replActions} = useRepl();
-    const [useFlash, setUseFlash] = useState(false);
+  const {replParams, replActions} = useRepl();
+  const [useFlash, setUseFlash] = useState(false);
 
-    const onUseFlashChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        setUseFlash(event.target.checked);
-        await replActions.reset(useFlash);
-    };
+  const onUseFlashChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      setUseFlash(event.target.checked);
+      await replActions.reset(useFlash);
+  };
+
+  const executionLogStr = (cell:Cell):string => {
+    const compileTimeStr = cell.compileTime ? `compile: ${Math.round(cell.compileTime * 1000) / 1000} ms` : "compile: no data"
+    const bluetoothTimeStr = cell.bluetoothTime ? `bluetooth: ${Math.round(cell.bluetoothTime * 1000) / 1000} ms` : "bluetooth: no data"
+    const executionTime = cell.executionTime ? `execution: ${Math.round(cell.executionTime * 1000) / 1000} ms` : "execution: no data"
+    return `${compileTimeStr} | ${bluetoothTimeStr} | ${executionTime}`
+  }
 
   return (
     <div style={{marginTop: 100, paddingLeft: 100, paddingRight: 100, paddingBottom: 100}}>
@@ -47,9 +54,11 @@ export default function Repl() {
           </Grid2>
           <Grid2 xs={7}>
             {replParams.executedCells.map((cell, index) => {
-              return <BSCodeEditorCellDisabled code={cell} key={index}/>
+              return <BSCodeEditorCellExecuted 
+                code={cell.code} executionLog={executionLogStr(cell)} key={index}/>
             })}
-            <BSCodeEditorCell code={replParams.currentCell} onExecuteClick={() => replActions.execute()} setCode={replActions.setCurrentCell}/>
+            <BSCodeEditorCell code={replParams.currentCell.code} 
+              onExecuteClick={() => replActions.execute()} setCode={(code)=>replActions.setCurrentCell({...replParams.currentCell, code})}/>
             <div style={style.compileErrorBox}>{replParams.compileError}</div>
           </Grid2>
           <Grid2 xs={5}>
