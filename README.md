@@ -5,7 +5,7 @@
 **BlueScript** is a small and efficient programming language designed specifically for microcontrollers.  
 While it currently supports only the ESP32 board, future updates will include support for a wider range of boards.
 
-# Getting Started
+# Get Started
 
 ## Requirements
 To start using BlueScript, you'll need the following:
@@ -14,7 +14,7 @@ To start using BlueScript, you'll need the following:
 - A computer running **Windows**, **Linux**, or **macOS**.
 - A **USB cable** (USB A / micro USB B) to connect your ESP32 to your computer.
 
-## Installation and Build
+## Install and Build
 
 ### Clone the Repository
 First, clone the BlueScript repository using Git:
@@ -63,7 +63,7 @@ cd ./build
 esptool.py --chip esp32 -p $PORT -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 40m --flash_size 4MB 0x1000 bootloader/bootloader.bin 0x10000 bluescript.bin 0x8000 partition_table/partition-table.bin
 ```
 
-## Writing Your First Program
+## Write Your First Program
 After setting up BlueScript, follow these steps to write and run a "Hello World" program:
 
 1. Open [Google Chrome browser](https://www.google.com/chrome/) and access [http://localhost:3000/](http://localhost:3000/).  
