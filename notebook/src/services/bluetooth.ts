@@ -16,7 +16,7 @@ export default class Bluetooth {
       await this.characteristic?.writeValueWithResponse(buff);
     }
     let end = performance.now();
-    console.log("bluetooth dulation: ", end - start, "ms");
+    return end - start
   }
 
   public async readBuffer() {

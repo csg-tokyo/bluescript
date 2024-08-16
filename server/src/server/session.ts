@@ -33,6 +33,7 @@ export default class Session {
   public execute(tsString: string) {
     this.currentCodeId += 1;
 
+    const start = performance.now();
     // Transpile
     const tResult = transpile(this.currentCodeId, tsString, this.nameTable);
     const entryPointName = tResult.main;
@@ -45,6 +46,8 @@ export default class Session {
     this.nameTable = tResult.names;
 
     // Link
-    return this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName);
+    const lResult = this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName);
+    const end = performance.now();
+    return {...lResult, compileTime:end-start}
   }
 }
