@@ -40,7 +40,6 @@ export default function BSCodeEditorCellExecuted(props: Props) {
         </Box>
       </Card>
       <small style={{color:"grey", marginLeft:55}}>{props.executionLog}</small>
-      {/* <small style={{color:"grey", marginLeft:55}}> compile: 10 ms | bluetooth: 40 ms | execution: 50 ms </small> */}
     </div>
   );
 }

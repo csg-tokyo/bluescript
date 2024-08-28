@@ -1,4 +1,4 @@
-import {CSSProperties} from 'react';
+import {CSSProperties, useState} from 'react';
 import CodeEditor from '@uiw/react-textarea-code-editor';
 import {Card} from "@mui/material";
 import Box from '@mui/material/Box';
@@ -39,6 +39,7 @@ export default function BSCodeEditorCell(props: Props) {
             onChange={(evn) => props.setCode(evn.target.value)}
             style={style.codeEditor}
             rows={calcRows()}
+            onKeyDown={(e) => {if (e.key === 'Enter' && e.shiftKey) props.onExecuteClick()}}
           />
         </Box>
       </Card>
