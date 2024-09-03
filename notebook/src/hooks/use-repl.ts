@@ -45,6 +45,7 @@ export default function useRepl() {
                 setExecutedCells([]);
                 setLog("");
                 setCompileError("");
+                setCurrentCell({code:""})
                 setReplState("initialized");
             }).catch(e => {
                 console.log(e);
