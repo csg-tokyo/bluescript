@@ -36,6 +36,16 @@ void bs_logger_push_log(char *str) {
     xQueueSend(log_queue, &log, portMAX_DELAY);
 }
 
+void bs_logger_push_error(char *str) {
+    uint32_t str_len = strlen(str);
+    log_t log;
+    log.str = (uint8_t*)malloc(str_len + 1 + 1); // contain null and cmd
+    log.str[0] = BS_CMD_RESULT_ERROR;
+    strcpy((char*)(log.str+1), str);
+    log.str_len = str_len + 1;
+    xQueueSend(log_queue, &log, portMAX_DELAY);
+}
+
 void bs_logger_reset() {
     xQueueReset(log_queue);
 }

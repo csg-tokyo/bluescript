@@ -8,6 +8,7 @@ export enum BYTECODE {
     JUMP,
     RESET,
     RESULT_LOG,
+    RESULT_ERROR,
     RESULT_MEMINFO,
     RESULT_EXECTIME
 }
@@ -112,6 +113,7 @@ export class BytecodeGenerator {
 
 type parseResult = 
     {bytecode:BYTECODE.RESULT_LOG, log:string} | 
+    {bytecode:BYTECODE.RESULT_ERROR, log:string} |
     {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemInfo} |
     {bytecode:BYTECODE.RESULT_EXECTIME, exectime:number} |
     {bytecode:BYTECODE.NONE}
@@ -121,8 +123,10 @@ export function bytecodeParser(data: DataView):parseResult {
     switch (bytecode) {
       case BYTECODE.RESULT_LOG:
         // | cmd (1byte) | log string |
-        const log = Buffer.from(data.buffer.slice(1)).toString();
-        return {bytecode, log};
+        return {bytecode, log:Buffer.from(data.buffer.slice(1)).toString()};
+      case BYTECODE.RESULT_ERROR:
+        // | cmd (1byte) | log string |
+        return {bytecode, log:Buffer.from(data.buffer.slice(1)).toString()}
       case BYTECODE.RESULT_MEMINFO:
           // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | flash address | flash size |
           const meminfo = {
@@ -132,8 +136,7 @@ export function bytecodeParser(data: DataView):parseResult {
           }
           return {bytecode, meminfo};
       case BYTECODE.RESULT_EXECTIME:
-        const exectime = data.getFloat32(1, true);
-        return {bytecode, exectime};
+        return {bytecode, exectime:data.getFloat32(1, true)};
       default:
         return {bytecode:BYTECODE.NONE}
     }

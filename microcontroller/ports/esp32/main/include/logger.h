@@ -15,7 +15,12 @@ void bs_logger_register_sender(void (* sender)(uint8_t*, uint32_t));
 /**
  * Push the log string to the log queue.
  */
-void bs_logger_push_log(char *log);
+void bs_logger_push_log(char *str);
+
+/**
+ * Push the error string to the log queue.
+ */
+void bs_logger_push_error(char *str);
 
 /**
  * Reset log queue.

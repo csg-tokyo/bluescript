@@ -12,6 +12,7 @@ typedef enum {
 
     // For sending notification
     BS_CMD_RESULT_LOG,
+    BS_CMD_RESULT_ERROR,
     BS_CMD_RESULT_MEMINFO,
     BS_CMD_RESULT_EXECTIME,
 

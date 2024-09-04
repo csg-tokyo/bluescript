@@ -103,6 +103,7 @@ static char error_message[256];
 int32_t try_and_catch(void (*main_function)()) {
     error_message[0] = '\0';
     if (setjmp(long_jump_buffer) != 0) {
+        bs_logger_push_error(error_message);
         fputs(error_message, stderr);
         return 1;
     }
