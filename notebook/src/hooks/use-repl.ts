@@ -89,7 +89,6 @@ export default function useRepl() {
         switch (parseResult.bytecode) {
             case BYTECODE.RESULT_LOG:
                 setLog(currentLog => [...currentLog, {type:"log", str:parseResult.log}])
-                // setLog([...log, {type:"log", str:parseResult.log}]);
                 break;
             case BYTECODE.RESULT_ERROR:
                 setLog(currentLog => [...currentLog, {type:"error", str:parseResult.log}])
