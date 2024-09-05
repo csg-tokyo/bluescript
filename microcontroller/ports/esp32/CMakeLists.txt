@@ -8,3 +8,5 @@ set(EXTRA_COMPONENT_DIRS  "../../core" "../../../modules/esp32/c")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(bluescript)
+
+idf_build_set_property(COMPILE_OPTIONS "-Wno-maybe-uninitialized" APPEND)
