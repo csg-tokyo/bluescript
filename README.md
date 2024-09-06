@@ -31,6 +31,7 @@ git clone git@github.com:csg-tokyo/bluescript.git
 
 2. Start the BlueScript Local Server
 ```
+cd bluescript
 docker compose up -d
 ```
 
@@ -55,14 +56,19 @@ Common serial port naming patterns:
     * Windows: Ports start with `COM`.
     * MacOS: Ports start with `/dev/tty`.
     * Linux: Ports start with `/dev/cu`.
+Once you have identified the correct port, set it to the PORT environment variable:
+```bash
+PORT=your_serial_port_name
+```
 
 4. Flash the BlueScript runtime to the ESP32 device:
 ```bash
-esptool.py --chip esp32 -p $PORT -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 40m --flash_size 4MB \
+esptool.py --chip esp32 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 40m --flash_size 4MB \
 0x1000 ./microcontroller/ports/esp32/build/bootloader/bootloader.bin \
 0x10000 ./microcontroller/ports/esp32/build/bluescript.bin \
 0x8000 ./microcontroller/ports/esp32/build/partition_table/partition-table.bin
 ```
+
 
 ## Write Your First Program
 After setting up BlueScript, follow these steps to write and run a "Hello World" program:
