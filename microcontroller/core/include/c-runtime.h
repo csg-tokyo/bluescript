@@ -238,6 +238,8 @@ extern void CR_SECTION gc_run();
 
 extern struct gc_root_set* gc_root_set_head;
 
+#ifndef TEST64
 extern void bs_logger_push_error(char *str);
+#endif
 
 #endif
