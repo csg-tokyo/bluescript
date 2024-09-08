@@ -5,6 +5,7 @@ import { CompileError } from '../utils/error';
 import { MemInfo } from '../utils/type';
 import { BYTECODE, BytecodeGenerator, bytecodeParser } from '../utils/bytecode';
 import {Buffer} from "buffer";
+import { Log } from '../view/components/log-area';
 
 export type ReplState = "unInitialized" | "initializing" | "initialized";
 
@@ -18,7 +19,7 @@ export type Cell = {
 export default function useRepl() {
     const [currentCell, setCurrentCell] = useState<Cell>({code:""});
     const [executedCells, setExecutedCells] = useState<Cell[]>([]);
-    const [log, setLog] = useState("");
+    const [log, setLog] = useState<Log[]>([]);
     const [compileError, setCompileError] = useState("");
     const [replState, setReplState] = useState<ReplState>("unInitialized");
     
@@ -43,7 +44,7 @@ export default function useRepl() {
         onReceiveMeminfo.current = (meminfo: MemInfo) => {
             network.reset(meminfo, useFlash).then(() => {
                 setExecutedCells([]);
-                setLog("");
+                setLog([]);
                 setCompileError("");
                 setCurrentCell({code:""})
                 setReplState("initialized");
@@ -87,7 +88,10 @@ export default function useRepl() {
         const parseResult = bytecodeParser(value);
         switch (parseResult.bytecode) {
             case BYTECODE.RESULT_LOG:
-                setLog(currentLog => currentLog + parseResult.log);
+                setLog(currentLog => [...currentLog, {type:"log", str:parseResult.log}])
+                break;
+            case BYTECODE.RESULT_ERROR:
+                setLog(currentLog => [...currentLog, {type:"error", str:parseResult.log}])
                 break;
             case BYTECODE.RESULT_MEMINFO:
                 onReceiveMeminfo.current(parseResult.meminfo);

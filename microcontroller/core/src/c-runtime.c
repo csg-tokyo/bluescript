@@ -104,6 +104,9 @@ int32_t try_and_catch(void (*main_function)()) {
     error_message[0] = '\0';
     if (setjmp(long_jump_buffer) != 0) {
         fputs(error_message, stderr);
+#ifndef TEST64
+        bs_logger_push_error(error_message);
+#endif
         return 1;
     }
     else {

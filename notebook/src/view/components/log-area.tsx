@@ -1,15 +1,29 @@
 import {CSSProperties} from 'react';
 
 
+export type Log = {
+  type: "log"|"error", 
+  str: string
+}
+
 type Props = {
-  log: string,
+  log: Log[],
 }
 
 export default function BSLogArea(props: Props) {
   return (
     <div style={style.logBox}>
       <div style={style.scrollContents}>
-        <p>{props.log}</p>
+        {props.log.map(l => {
+          switch (l.type) {
+            case "log":
+              return <p>{l.str}</p>
+            case "error":
+              return <p style={{color:"red"}}>{l.str}</p>
+            default:
+              return <p>{l.str}</p>
+          } 
+        })}
       </div>
     </div>
   );
