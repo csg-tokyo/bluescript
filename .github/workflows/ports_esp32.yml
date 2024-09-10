@@ -14,23 +14,9 @@ on:
 jobs:
   build_idf:
     runs-on: ubuntu-latest
-    # container:
-    #   image: espressif/idf:release-v5.0
-    #   env:
-    #     HOME: tmp
-    #   volumes:
-    #     - .:/project
-    #   options: --user root:root
 
     steps:
       - uses: actions/checkout@v4
 
-    #   - name: test
-    #     run: ls .
-
-    #   - name: Read the ESP-IDF version
-    #     run: idf.py --version
-
       - name: Build runtime for ESP32
-        # working-directory: /project/microcontroller/ports/esp32 
         run: docker run --rm -v $PWD:/project -w /project/microcontroller/ports/esp32 -u $UID -e HOME=/tmp espressif/idf:release-v5.0 idf.py build
