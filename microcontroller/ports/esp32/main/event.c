@@ -19,7 +19,7 @@ static QueueHandle_t event_queue;
 void bs_event_push(void* event_fn) {
     event_t event = {(value_t)event_fn};
     xQueueSend(event_queue, &event, portMAX_DELAY);
-}
+// }
 
 
 void bs_event_push_from_isr(void* event_fn) {
