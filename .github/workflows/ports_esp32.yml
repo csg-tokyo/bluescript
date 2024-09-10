@@ -11,23 +11,26 @@ on:
       - "microcontroller/ports/esp32/**"
       - "modules/esp32/**"
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
   build_idf:
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:release-v5.0
+      env:
+        HOME: tmp
+      volumes:
+        - .:/project
       options: --user root:root
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: test
+        run: ls .
+
       - name: Read the ESP-IDF version
         run: idf.py --version
 
       - name: Build runtime for ESP32
-        working-directory: ./microcontroller/ports/esp32
+        working-directory: /project/microcontroller/ports/esp32 
         run: idf.py build
