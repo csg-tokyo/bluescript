@@ -1,0 +1,33 @@
+name: esp32 port
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/*.yml"
+      - "microcontroller/core/**"
+      - "microcontroller/ports/esp32/**"
+      - "modules/esp32/**"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build_idf:
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:release-v5.0
+      options: --user root:root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the ESP-IDF version
+        run: idf.py --version
+
+      - name: Build runtime for ESP32
+        working-directory: ./microcontroller/ports/esp32
+        run: idf.py build
