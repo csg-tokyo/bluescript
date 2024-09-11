@@ -1,0 +1,27 @@
+name: core test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/*.yml"
+      - "microcontroller/core/**"
+
+jobs:
+  build_idf:
+    runs-on: ubuntu-latest
+    defaults:
+        run:
+          working-directory: ./microcontroller/core/test/
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build c-runtime-test
+        run: gcc -DTEST64 c-runtime-test.c -o c-runtime-test
+    
+      - name: Run c-runtime-test
+        run: ./c-runtime-test
+

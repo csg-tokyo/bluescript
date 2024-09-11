@@ -3,7 +3,7 @@
 // cc -DTEST64 c-runtime-test2.c
 
 #include <stdio.h>
-#include "../components/c-runtime/c-runtime.c"
+#include "../src/c-runtime.c"
 
 static int nerrors = 0;
 
