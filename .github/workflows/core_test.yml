@@ -32,8 +32,8 @@ jobs:
       - name: Run c-runtime-test2
         run: ./c-runtime-test2
 
-      - name: Build test-float
-        run: gcc -DTEST64 test-float.c -o test-float
+      - name: Build float-test
+        run: gcc -DTEST64 float-test.c -o float-test
 
-      - name: Run test-float
-        run: ./test-float
+      - name: Run float-test
+        run: ./float-test
