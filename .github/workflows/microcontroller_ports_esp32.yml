@@ -12,7 +12,8 @@ on:
       - "modules/esp32/**"
 
 jobs:
-  check_microcontroller_for_esp32_build:
+  build:
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
