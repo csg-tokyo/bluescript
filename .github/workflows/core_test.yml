@@ -10,8 +10,7 @@ on:
       - "microcontroller/core/**"
 
 jobs:
-  test_core:
-    name: Build and Test microcontroller/core
+  build_and_test_microcontroller_core:
     runs-on: ubuntu-latest
     defaults:
       run:

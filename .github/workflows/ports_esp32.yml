@@ -12,8 +12,7 @@ on:
       - "modules/esp32/**"
 
 jobs:
-  build_idf:
-    name: Build microcontroller/ for ESP32
+  check_microcontroller_for_esp32_build:
     runs-on: ubuntu-latest
 
     steps:
