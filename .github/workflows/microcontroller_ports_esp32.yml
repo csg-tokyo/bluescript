@@ -1,4 +1,4 @@
-name: esp32 port
+name: microcontroller ports ESP32
 
 on:
   push:
@@ -12,7 +12,8 @@ on:
       - "modules/esp32/**"
 
 jobs:
-  build_idf:
+  build:
+    name: Build
     runs-on: ubuntu-latest
 
     steps:

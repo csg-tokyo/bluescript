@@ -1,0 +1,39 @@
+name: microcontroller core
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/*.yml"
+      - "microcontroller/core/**"
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./microcontroller/core/test/
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build c-runtime-test
+        run: gcc -DTEST64 c-runtime-test.c -o c-runtime-test
+
+      - name: Run c-runtime-test
+        run: ./c-runtime-test
+
+      - name: Build c-runtime-test2
+        run: gcc -DTEST64 c-runtime-test2.c -o c-runtime-test2
+
+      - name: Run c-runtime-test2
+        run: ./c-runtime-test2
+
+      - name: Build float-test
+        run: gcc -DTEST64 float-test.c -o float-test
+
+      - name: Run float-test
+        run: ./float-test

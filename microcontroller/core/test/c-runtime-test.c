@@ -3,7 +3,7 @@
 // cc -DTEST64 c-runtime-test.c
 
 #include <string.h>
-#include "../components/c-runtime/c-runtime.c"
+#include "../src/c-runtime.c"
 
 #define Assert_true(v)     assert_true(v, __LINE__)
 

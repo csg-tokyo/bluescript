@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
-#include "../components/c-runtime/c-runtime.c"
+#include "../src/c-runtime.c"
 
 // VALUE_FLOAT__MAX_NORMAL_NUMBER = 1.111... x 2^(31)
 value_t       VALUE_FLOAT__MAX_NORMAL_NUMBER__IN_VALUE =   0x7DFFFFFDu;

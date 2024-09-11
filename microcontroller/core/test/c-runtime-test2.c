@@ -3,7 +3,7 @@
 // cc -DTEST64 c-runtime-test2.c
 
 #include <stdio.h>
-#include "../components/c-runtime/c-runtime.c"
+#include "../src/c-runtime.c"
 
 static int nerrors = 0;
 
@@ -214,10 +214,10 @@ int main() {
     test_function_object();
     if (nerrors > 0) {
         printf("Test failed %d\n", nerrors);
-        return 0;
+        return 1;
     }
     else {
         puts("Test succeeded");
-        return 1;
+        return 0;
     }
 }
