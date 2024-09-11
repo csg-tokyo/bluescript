@@ -214,10 +214,10 @@ int main() {
     test_function_object();
     if (nerrors > 0) {
         printf("Test failed %d\n", nerrors);
-        return 0;
+        return 1;
     }
     else {
         puts("Test succeeded");
-        return 1;
+        return 0;
     }
 }
