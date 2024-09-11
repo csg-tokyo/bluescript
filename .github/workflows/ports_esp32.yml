@@ -13,6 +13,7 @@ on:
 
 jobs:
   build_idf:
+    name: Build microcontroller/ for ESP32
     runs-on: ubuntu-latest
 
     steps:

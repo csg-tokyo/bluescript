@@ -10,18 +10,30 @@ on:
       - "microcontroller/core/**"
 
 jobs:
-  build_idf:
+  test_core:
+    name: Build and Test microcontroller/core
     runs-on: ubuntu-latest
     defaults:
-        run:
-          working-directory: ./microcontroller/core/test/
+      run:
+        working-directory: ./microcontroller/core/test/
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Build c-runtime-test
         run: gcc -DTEST64 c-runtime-test.c -o c-runtime-test
-    
+
       - name: Run c-runtime-test
         run: ./c-runtime-test
 
+      - name: Build c-runtime-test2
+        run: gcc -DTEST64 c-runtime-test2.c -o c-runtime-test2
+
+      - name: Run c-runtime-test2
+        run: ./c-runtime-test2
+
+      - name: Build test-float
+        run: gcc -DTEST64 test-float.c -o test-float
+
+      - name: Run test-float
+        run: ./test-float
