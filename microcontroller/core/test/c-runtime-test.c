@@ -177,19 +177,19 @@ void test_bytearray() {
     Assert_equals(gc_bytearray_length(arr2), 7);
 }
 
-static value_t gc_vector_set(value_t obj, value_t index, value_t new_value) {
-    return *gc_vector_get(obj, value_to_int(index)) = new_value;
+static value_t gc_vector_setter(value_t obj, value_t index, value_t new_value) {
+    return gc_vector_set(obj, value_to_int(index), new_value);
 }
 
 void test_vector() {
     value_t arr = gc_new_vector2(4);
     value_t arr2 = gc_new_vector2(4);
     for (int i = 0; i < 4; i++)
-        Assert_equals(gc_vector_set(arr2, int_to_value(i), int_to_value(i)), int_to_value(i));
+        Assert_equals(gc_vector_setter(arr2, int_to_value(i), int_to_value(i)), int_to_value(i));
     for (int i = 0; i < 4; i++)
-        gc_vector_set(arr, i, int_to_value(i));
+        gc_vector_setter(arr, i, int_to_value(i));
     for (int i = 0; i < 4; i++) {
-        value_t e = *gc_vector_get(arr2, int_to_value(i));
+        value_t e = gc_vector_get(arr2, int_to_value(i));
         Assert_equals(value_to_int(e), i);
     }
     Assert_equals(value_to_int(gc_array_length(arr)), 4);
@@ -389,12 +389,12 @@ void test_gc_liveness2() {
     value_t obj, obj2, obj3, obj4;
     root_set.values[0] = obj = gc_new_vector2(4);
     obj4 = gc_new_vector2(1);
-    gc_vector_set(obj, int_to_value(0), obj2 = gc_new_bytearray(8, 0));
+    gc_vector_setter(obj, int_to_value(0), obj2 = gc_new_bytearray(8, 0));
     gc_bytearray_set_raw_word(obj2, 0, obj4);
     gc_new_vector2(1);
     gc_new_vector2(1);
-    gc_vector_set(obj, int_to_value(1), obj3 = gc_new_vector2(2));
-    gc_vector_set(obj3, int_to_value(0), obj);
+    gc_vector_setter(obj, int_to_value(1), obj3 = gc_new_vector2(2));
+    gc_vector_setter(obj3, int_to_value(0), obj);
     root_set.values[1] = gc_new_string("test");
 
     gc_run();
@@ -423,7 +423,7 @@ void test_gc_sweep() {
     gc_new_vector2(3);
     root_set.values[3] = obj = gc_new_vector2(4);
     obj2 = gc_new_vector2(3);
-    gc_vector_set(obj, 0, obj2);
+    gc_vector_setter(obj, 0, obj2);
 
     gc_run();
 
