@@ -535,6 +535,21 @@ test('arrow function', () => {
   expect(compileAndRun(src)).toBe('37\n')
 })
 
+test('arrow function with a free variable', () => {
+  const src = `
+  function foo() {
+    const x = 3
+    let y = 10
+    const f = () => { return x + y }
+    y += 200
+    return f()
+  }
+  print(foo())
+`
+
+  expect(compileAndRun(src)).toBe('213\n')
+})
+
 test('redefinition of a const function', () => {
   const src1 = 'const foo = (a: number): number => a + 1'
 
@@ -545,7 +560,7 @@ print(foo(100))
   expect(() => { multiCompileAndRun(src1, src2) }).toThrow(/assignment to constant variable.*line 1/)
 })
 
-test('calling a const function', () => {
+test('calling a const function (it compares execution times.  If it fails, try again.)', () => {
   const src = `
   function fib(i: integer): integer {
     if (i < 2)
@@ -569,20 +584,48 @@ test('calling a const function', () => {
   print(t1 - t0)
   print(t2 - t1)
   print('result')
-  print(t1 - t0 > t2 - t1)`
+  print(t1 - t0 + 100 > t2 - t1)`
 
   expect(compileAndRun(src)).toMatch(/result\n1/)
 })
 
-test('an arrow function cannot capture a local variable', () => {
+test('an arrow function capturing a local variable', () => {
   const src = `
   function foo(n) {
     const k = n + 1
     return (i: number) => { return k }
   }
+  print(foo(10)(3))
   `
 
-  expect(() => { compileAndRun(src) }).toThrow(/not accessible.*arrow.*line 4/)
+  expect(compileAndRun(src)).toBe('11\n')
+})
+
+test('an arrow function capturng local variables that are updated', () => {
+  const src = `
+  let gv = 1000
+  function foo(n: integer) {
+    let k = n + 1
+    k = n
+    k += 3
+    let p = 3.0
+    p += 1
+    return (i: number) => { gv += 1000; --p; p *= 10000; k++; print(p); return gv + k + i }
+  }
+  print(foo(10)(100))
+
+  function bar(n: any) {
+    let k = n + 1
+    k = n
+    k += 3
+    let p = 3.0
+    p -= 1
+    return (i: number) => { gv += 1000; --p; k++; p *= 10000; return p + gv + k + i }
+  }
+  print(bar(10)(100))
+  `
+
+  expect(compileAndRun(src)).toBe('30000.000000\n2114\n13114.000000\n')
 })
 
 test('unary operator', () => {
@@ -1704,6 +1747,76 @@ test('class with a bad constructor', () => {
   expect(() => { compileAndRun(src6)}).toThrow(/super\(\) is not called/)
 })
 
+test('property accesses', () => {
+  const src = `
+  class Foo {
+    i: integer
+    f: float
+    s: string
+    j: any
+    constructor() {
+      this.i = 3
+      this.f = 3.6
+      this.s = 'foo'
+      this.j = 7
+    }
+  }
+
+  const obj = new Foo()
+  obj.i += 20
+  print(++obj.i)
+  print(obj.i++)
+  print(--obj.i)
+  print(obj.i--)
+  print(obj.i)
+
+  obj.j *= 10
+  print(++obj.j)
+  print(obj.j++)
+  print(--obj.j)
+  print(obj.j--)
+  print(obj.j)
+
+  obj.f /= 2
+  print(obj.f++)
+  print(++obj.f)
+  print(obj.f--)
+  print(--obj.f)
+
+  obj.s = 'bar'
+  print(obj.f)
+  print(obj.s)
+
+  obj.j = obj.f
+  print(++obj.j)
+  print(obj.j++)
+  print(--obj.j)
+  print(obj.j--)
+  print(obj.j)
+
+  const v: any = obj
+  print(v.i = 3)
+  print(v.i += 10)
+  print(v.i++)
+  print(++v.i)
+  print(v.i--)
+  print(--v.i)
+
+  print(v.j = 3)
+  print(v.j += 20)
+  print(v.j++)
+  print(++v.j)
+  print(v.j--)
+  print(--v.j)
+`
+
+  expect(compileAndRun(src)).toBe([24, 24, 24, 24, 23, 71, 71, 71, 71, 70,
+          '1.800000', '3.800000', '3.800000', '1.800000', '1.800000', 'bar',
+          '2.800000', '2.800000', '2.800000', '2.800000', '1.800000',
+          3, 13, 13, 15, 15, 13,
+          3, 23, 23, 25, 25, 23].join('\n') + '\n')
+})
+
 test('multiple source files for classes', () => {
   const src1 = `
   class Pos {
@@ -1722,6 +1835,52 @@ test('multiple source files for classes', () => {
 `
 
   expect(multiCompileAndRun(src1, src2)).toEqual('3\n')
+})
+
+test('access a class in another source file', () => {
+  const src1 = `
+  class Pos {
+    x: number
+    constructor(x: number) { this.x = x }
+    get() { return this.x }
+  }
+
+  const gobj = new Pos(1)
+  const gobj2 = new Pos(2)
+`
+
+  const src2 = `
+  function foo(i: integer) {
+    return new Pos(i)
+  }
+
+  class Pos3 extends Pos {
+    y: number
+    constructor(x: number, y: number) { super(x); this.y = y }
+  }
+
+  class Pos3bis extends Pos {
+    z: number
+    constructor(x: number, y: number) { super(x); this.z = y }
+    get() { return this.z }
+  }
+  
+  const obj = new Pos(3)
+  const obj2 = new Pos(4)
+  const obj3 = new Pos3(5, 30)
+  const obj4 = new Pos3bis(6, 50)
+  print(obj.x)
+  print(obj2.x)
+  print(obj3.x)
+  print(obj4.x)
+  print(foo(7).x)
+  print(gobj.x)
+  print(obj.get())
+  print(obj2.get())
+  print(gobj2.x)
+`
+
+  expect(multiCompileAndRun(src1, src2)).toEqual('3\n4\n5\n6\n7\n1\n3\n4\n2\n')
 })
 
 test('method call', () => {
@@ -2095,14 +2254,16 @@ test('an array object bound to a any-type variable', () => {
   print(a2[0] = ${v1})
   print(a2[1] += ${v2})
   print(a2[1] -= ${v3})
+  print(a2[1]--)
+  print(--a2[1])
   `
 
   const src = maker('[1, 2, 3]', '5', '10', '10')
-  expect(compileAndRun(src)).toBe(['integer[]', 3, 1, 5, 12, 2].join('\n') + '\n')
+  expect(compileAndRun(src)).toBe(['integer[]', 3, 1, 5, 12, 2, 2, 0].join('\n') + '\n')
   const src2 = maker('[1.1, 2.1, 3.1, 4.1]', '5.5', '10.0', '10.0')
-  expect(compileAndRun(src2)).toBe(['float[]', 4, '1.100000', '5.500000', '12.100000', '2.100000'].join('\n') + '\n')
+  expect(compileAndRun(src2)).toBe(['float[]', 4, '1.100000', '5.500000', '12.100000', '2.100000', '2.100000', '0.100000'].join('\n') + '\n')
   const src3 = maker('[1, 2, "3"]', '5', '10', '10')
-  expect(compileAndRun(src3)).toBe(['any[]', 3, 1, 5, 12, 2].join('\n') + '\n')
+  expect(compileAndRun(src3)).toBe(['any[]', 3, 1, 5, 12, 2, 2, 0].join('\n') + '\n')
 })
 
 test('bad array access', () => {
@@ -2208,4 +2369,48 @@ let arr: integer[] = [3, 70, 0, 0, 0, 0];
 print(foo(0))`
 
   expect(compileAndRun(src)).toBe('76\n')
+})
+
+test('global variable of non-primitive type', () => {
+  const src = `
+  let k = 'str'
+  let s = true
+  function foo() {
+    print(k)
+    k = 'bar'
+    s = false
+    print(k)
+  }
+  let m = k = 'baz'
+  s = true
+  print(k)
+  foo()
+  print(m)
+  print(s)
+  `
+
+  const expected = 'baz\nbaz\nbar\nbaz\n0\n'
+  expect(compileAndRun(src)).toBe(expected)
+
+  const src2 = `
+  m = 'foo2'
+  function bar() {
+    m = 'bar2'
+  }
+
+  print(m)
+  bar()
+  print(m)
+  `
+
+  expect(multiCompileAndRun(src, src2)).toBe(expected + 'foo2\nbar2\n')
+})
+
+test('use of any', () => {
+  const src = `
+  const a: any = 3
+  const b: integer = a + 4
+  print(b)
+`
+  expect(compileAndRun(src)).toBe('7\n')
 })
