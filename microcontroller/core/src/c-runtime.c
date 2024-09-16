@@ -115,8 +115,6 @@ int32_t try_and_catch(void (*main_function)()) {
     }
 }
 
-// arithmetic operators for any-type values
-
 static value_t runtime_type_error(const char* msg) {
     const char fmt[] = "** runtime type error: %s\n";
     if (strlen(msg) + sizeof(fmt) / sizeof(fmt[0]) >= sizeof(error_message) / sizeof(error_message[0]))
@@ -145,6 +143,13 @@ static value_t runtime_memory_allocation_error(const char* msg) {
     longjmp(long_jump_buffer, -1);
     return 0;
 }
+
+// arithmetic operators for any-type values
+
+#define INCREMENT_OP    'i'
+#define DECREMENT_OP    'd'
+#define POST_INCREMENT_OP    'p'
+#define POST_DECREMENT_OP    'q'
 
 int32_t safe_value_to_int(value_t v) {
     if (!is_int_value(v))
@@ -358,7 +363,8 @@ static inline int object_size(pointer_t obj, class_object* clazz) {
         return obj->body[0] + 1;
 }
 
-// start_idnex is SIZE_NO_POINTER when the object does not hold a pointer.
+// start_idnex is SIZE_NO_POINTER when the object does not hold a pointer
+// managed by a garbage collector.
 #define SIZE_NO_POINTER     -1
 
 #define HAS_POINTER(s)      (s >= 0)
@@ -439,6 +445,14 @@ static int get_anyobj_property2(const class_object* clazz, int property, char* t
     return get_anyobj_property2(clazz->superclass, property, type);
 }
 
+value_t* get_obj_property_addr(value_t obj, int index) {
+    value_t* ptr = &value_to_ptr(obj)->body[index];
+    if (is_ptr_value(*ptr))
+        runtime_type_error("get_obj_property_addr() is called on a pointer value.");
+
+    return ptr;
+}
+
 value_t get_anyobj_property(value_t obj, int property) {
     class_object* clazz = gc_get_class_of(obj);
     char type;
@@ -486,6 +500,16 @@ value_t acc_anyobj_property(value_t obj, char op, int property, value_t value) {
             case '-': new_value = any_subtract(left, value); break;
             case '*': new_value = any_multiply(left, value); break;
             case '/': new_value = any_divide(left, value); break;
+            case INCREMENT_OP: new_value = any_add(left, int_to_value(1)); break;
+            case DECREMENT_OP: new_value = any_subtract(left, int_to_value(1)); break;
+            case POST_INCREMENT_OP:
+                new_value = any_add(left, int_to_value(1));
+                set_obj_property(obj, index, new_value);
+                return left;
+            case POST_DECREMENT_OP:
+                new_value = any_subtract(left, int_to_value(1));
+                set_obj_property(obj, index, new_value);
+                return left;
             default: runtime_type_error("acc_anyobj_property");
         }
         return set_obj_property(obj, index, new_value);
@@ -498,6 +522,10 @@ value_t acc_anyobj_property(value_t obj, char op, int property, value_t value) {
         case '-': *left -= right; break;
         case '*': *left *= right; break;
         case '/': *left /= right; break;
+        case INCREMENT_OP: *left += 1; break;
+        case DECREMENT_OP: *left -= 1; break;
+        case POST_INCREMENT_OP: return int_to_value((*left)++);
+        case POST_DECREMENT_OP: return int_to_value((*left)--);
         default: runtime_type_error("acc_anyobj_property:integer");
         }
         return int_to_value(*left);
@@ -510,6 +538,10 @@ value_t acc_anyobj_property(value_t obj, char op, int property, value_t value) {
         case '-': *left -= right; break;
         case '*': *left *= right; break;
         case '/': *left /= right; break;
+        case INCREMENT_OP: *left += 1; break;
+        case DECREMENT_OP: *left -= 1; break;
+        case POST_INCREMENT_OP: return int_to_value((*left)++);
+        case POST_DECREMENT_OP: return int_to_value((*left)--);
         default: runtime_type_error("acc_anyobj_property:float");
         }
         return float_to_value(*left);
@@ -527,17 +559,17 @@ static CLASS_OBJECT(function_object, 0) = {
                 .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
 // this_object may be VALUE_UNDEF.
-value_t gc_new_function(void* fptr, const char* signature, value_t this_object) {
+value_t gc_new_function(void* fptr, const char* signature, value_t captured_values) {
 #ifdef TEST64
     fptr = record_64bit_pointer(fptr);
     signature = record_64bit_pointer(signature);
 #endif
     ROOT_SET(rootset, 1)
-    rootset.values[0] = this_object;
+    rootset.values[0] = captured_values;
     pointer_t obj = gc_allocate_object(&function_object.clazz);
     obj->body[0] = raw_ptr_to_value(fptr);
     obj->body[1] = raw_ptr_to_value(signature);
-    obj->body[2] = this_object;
+    obj->body[2] = captured_values;
     DELETE_ROOT_SET(rootset)
     return ptr_to_value(obj);
 }
@@ -551,6 +583,41 @@ bool gc_is_function_object(value_t obj, const char* signature) {
 const void* gc_function_object_ptr(value_t obj, int index) {
     pointer_t func = value_to_ptr(obj);
     return (void*)raw_value_to_ptr(func->body[index]);
+}
+
+value_t gc_function_captured_value(value_t obj, int index) {
+    value_t vec = value_to_ptr(obj)->body[2];
+    return gc_vector_get(vec, index);
+}
+
+// boxed_value and boxed_raw_value are classes for boxing.  Their instances hold one value_t value
+// or one primitive value.  They are used for implementing a free variable.
+
+static CLASS_OBJECT(boxed_value, 0) = { .clazz.size = 1, .clazz.start_index = 0,
+                                        .clazz.name = "boxed_value", .clazz.superclass = NULL, .clazz.table = DEFAULT_PTABLE };
+
+static CLASS_OBJECT(boxed_raw_value, 0) = { .clazz.size = 1, .clazz.start_index = SIZE_NO_POINTER,
+                                            .clazz.name = "boxed_raw_value", .clazz.superclass = NULL, .clazz.table = DEFAULT_PTABLE };
+
+value_t gc_new_box(value_t value) {
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = value;
+    value_t obj = ptr_to_value(gc_allocate_object(&boxed_value.clazz));
+    set_obj_property(obj, 0, value);
+    DELETE_ROOT_SET(rootset)
+    return obj;
+}
+
+value_t gc_new_int_box(int32_t value) {
+    value_t obj = ptr_to_value(gc_allocate_object(&boxed_raw_value.clazz));
+    *get_obj_int_property(obj, 0) = value;
+    return obj;
+}
+
+value_t gc_new_float_box(float value) {
+    value_t obj = ptr_to_value(gc_allocate_object(&boxed_raw_value.clazz));
+    *get_obj_float_property(obj, 0) = value;
+    return obj;
 }
 
 // string_literal is a class for objects that contain a pointer to a C string.
@@ -792,7 +859,7 @@ value_t safe_value_to_vector(value_t v) {
 }
 
 /*
-  A fixed-length array.
+  A fixed-length array.  We call it a vector.
   n: the number of vector elements.
      1st word is the number of elements.
      2nd, 3rd, ... words hold elements.
@@ -818,15 +885,28 @@ int32_t gc_vector_length(value_t obj) {
     return objp->body[0];
 }
 
-value_t* gc_vector_get(value_t obj, int32_t idx) {
-    // this may need gc_write_barrier.
+value_t gc_vector_get(value_t obj, int32_t idx) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[0];
     if (0 <= idx && idx < len)
-        return &objp->body[idx + 1];
+        return objp->body[idx + 1];
     else {
-        runtime_index_error(idx, len, "Vector.get/set");
+        runtime_index_error(idx, len, "Vector.get");
         return VALUE_UNDEF;
+    }
+}
+
+value_t gc_vector_set(value_t obj, int32_t index, value_t new_value) {
+    pointer_t objp = value_to_ptr(obj);
+    int32_t len = objp->body[0];
+    if (0 <= index && index < len) {
+        gc_write_barrier(objp, new_value);
+        objp->body[index + 1] = new_value;
+        return new_value;
+    }
+    else {
+        runtime_index_error(index, len, "Vector.set");
+        return 0;
     }
 }
 
@@ -839,6 +919,20 @@ inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_valu
     pointer_t objp = value_to_ptr(obj);
     gc_write_barrier(objp, new_value);
     objp->body[index + 1] = new_value;
+}
+
+/* The given vector elements are not stored in a root set.
+   A caller function must guarantee that they are reachable
+   from the root.
+*/
+value_t gc_make_vector(int32_t n, ...) {
+    va_list args;
+    value_t array = gc_new_vector(n, VALUE_UNDEF);
+    va_start(args, n);
+    for (int32_t i = 0; i < n; i++)
+        fast_vector_set(array, i, va_arg(args, value_t));
+    va_end(args);
+    return array;
 }
 
 // An any-type array
@@ -873,6 +967,10 @@ value_t gc_new_array(int32_t is_any, int32_t n, value_t init_value) {
     return ptr_to_value(obj);
 }
 
+/* The given array elements are not stored in a root set.
+   A caller function must guarantee that they are reachable
+   from the root.
+*/
 value_t gc_make_array(int32_t is_any, int32_t n, ...) {
     va_list args;
     value_t array = gc_new_array(is_any, n, VALUE_UNDEF);
@@ -935,7 +1033,7 @@ value_t gc_safe_array_get(value_t obj, int32_t idx) {
     else if (clazz == &bytearray_object.clazz)
         return int_to_value(*gc_bytearray_get(obj, idx));
     else if (clazz == &vector_object.clazz)
-        return *gc_vector_get(obj, idx);
+        return gc_vector_get(obj, idx);
     else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
         return *gc_array_get(obj, idx);
     else {
@@ -953,9 +1051,9 @@ value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
     else if (clazz == &bytearray_object.clazz)
         return int_to_value(*gc_bytearray_get(obj, idx) = safe_value_to_int(new_value));
     else if (clazz == &vector_object.clazz)
-        return (*gc_vector_get(obj, idx) = new_value);
+        return gc_vector_set(obj, idx, new_value);
     else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
-        return (*gc_array_get(obj, idx) = new_value);
+        return gc_array_set(obj, idx, new_value);
     else {
         runtime_type_error("assignment to a non array");
         return VALUE_UNDEF;
@@ -970,6 +1068,16 @@ value_t gc_safe_array_acc(value_t obj, int32_t index, char op, value_t value) {
         case '-': new_value = any_subtract(left, value); break;
         case '*': new_value = any_multiply(left, value); break;
         case '/': new_value = any_divide(left, value); break;
+        case INCREMENT_OP: new_value = any_add(left, int_to_value(1)); break;
+        case DECREMENT_OP: new_value = any_subtract(left, int_to_value(1)); break;
+        case POST_INCREMENT_OP:
+            new_value = any_add(left, int_to_value(1));
+            gc_safe_array_set(obj, index, new_value);
+            return left;
+        case POST_DECREMENT_OP:
+            new_value = any_subtract(left, int_to_value(1));
+            gc_safe_array_set(obj, index, new_value);
+            return left;
         default: runtime_type_error("gc_safe_array_acc");
     }
     return gc_safe_array_set(obj, index, new_value);
@@ -1266,5 +1374,6 @@ extern CR_SECTION bool safe_value_to_bool(value_t v);
 extern CR_SECTION value_t gc_new_object(const class_object* clazz);
 extern CR_SECTION value_t get_obj_property(value_t obj, int index);
 extern CR_SECTION value_t set_obj_property(value_t obj, int index, value_t new_value);
+extern CR_SECTION value_t set_global_variable(value_t* ptr, value_t new_value);
 extern CR_SECTION int32_t* get_obj_int_property(value_t obj, int index);
 extern CR_SECTION float* get_obj_float_property(value_t obj, int index);

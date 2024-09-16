@@ -170,6 +170,8 @@ inline value_t get_obj_property(value_t obj, int index) {
     return value_to_ptr(obj)->body[index];
 }
 
+extern value_t* CR_SECTION get_obj_property_addr(value_t obj, int index);
+
 inline value_t set_obj_property(value_t obj, int index, value_t new_value) {
     pointer_t objp = value_to_ptr(obj);
     gc_write_barrier(objp, new_value);
@@ -184,6 +186,11 @@ inline float* get_obj_float_property(value_t obj, int index) {
     return (float*)&value_to_ptr(obj)->body[index];
 }
 
+inline value_t set_global_variable(value_t* ptr, value_t new_value) {
+    // write barrier
+    return *ptr = new_value;
+}
+
 extern value_t CR_SECTION get_anyobj_property(value_t obj, int property);
 extern value_t CR_SECTION get_anyobj_legth_property(value_t obj, int property);
 extern value_t CR_SECTION set_anyobj_property(value_t obj, int property, value_t new_value);
@@ -192,6 +199,11 @@ extern value_t CR_SECTION acc_anyobj_property(value_t obj, char op, int property
 extern value_t CR_SECTION gc_new_function(void* fptr, const char* signature, value_t this_object);
 extern bool CR_SECTION gc_is_function_object(value_t obj, const char* signature);
 extern const void* CR_SECTION gc_function_object_ptr(value_t obj, int index);
+extern value_t CR_SECTION gc_function_captured_value(value_t obj, int index);
+
+extern value_t CR_SECTION gc_new_box(value_t value);
+extern value_t CR_SECTION gc_new_int_box(int32_t value);
+extern value_t CR_SECTION gc_new_float_box(float value);
 
 extern value_t  CR_SECTION gc_new_string(char* str);
 extern bool CR_SECTION gc_is_string_literal(value_t obj);
@@ -218,7 +230,9 @@ extern uint8_t* CR_SECTION gc_bytearray_get(value_t obj, int32_t index);
 extern value_t CR_SECTION safe_value_to_vector(value_t v);
 extern value_t CR_SECTION gc_new_vector(int32_t n, value_t init_value);
 extern int32_t CR_SECTION gc_vector_length(value_t obj); 
-extern value_t* CR_SECTION gc_vector_get(value_t obj, int32_t index);
+extern value_t CR_SECTION gc_vector_get(value_t obj, int32_t index);
+extern value_t CR_SECTION gc_vector_set(value_t obj, int32_t index, value_t new_value);
+extern value_t CR_SECTION gc_make_vector(int32_t n, ...);
 
 extern value_t CR_SECTION safe_value_to_array(value_t v);
 extern value_t CR_SECTION safe_value_to_anyarray(value_t v);

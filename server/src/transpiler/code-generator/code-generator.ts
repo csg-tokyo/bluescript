@@ -69,9 +69,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     this.signatures += cr.externClassDef(objectType)
     this.signatures += '\n'
-    const externalRoots: { [key: string]: boolean } = {}
-    env2.forEachExternalVariable((name, type) => {
+    const externalRoots: { [key: string]: number } = {}
+    env2.forEachExternalVariable((name, type, index) => {
       if (name === undefined) {
+        // a type name only
         if (type instanceof ObjectType) {
           this.signatures += cr.externClassDef(type)
           if (type instanceof InstanceType)
@@ -81,15 +82,21 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           throw this.errorLog.push('fatal: bad external type', node)
       }
       else if (type === undefined) {
-        if (externalRoots[name])
-          externalRoots[name] = true
-          this.signatures += `extern ${cr.declareRootSet(name, 1)}\n`
+        // a global variable stored in a golobal root set.
+        const root = externalRoots[name]
+        if (root === undefined)
+          externalRoots[name] = index === undefined ? 0 : index   // index must be >= 0
+        else if (index !== undefined && index > root)
+          externalRoots[name] = index
       }
       else if (type instanceof FunctionType)
         this.signatures += this.makeFunctionStruct(name, type)
       else
         this.signatures += `extern ${cr.typeToCType(type, name)};\n`
     })
+
+    for (const name in externalRoots)
+      this.signatures += `extern ${cr.declareRootSet(name, externalRoots[name] + 1)}\n`
 
     this.externalMethods.forEach((type, name, map) =>
       this.signatures += `${cr.funcTypeToCType(type, name)};\n`
@@ -150,8 +157,24 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   private makeUniqueName() { return `fn_${this.uniqueId}_${this.uniqueIdCounter++}`}
 
-  private makeFunctionObject(name: string) {
-    return `${cr.functionMaker}(${name}.${cr.functionPtr}, ${name}.${cr.functionSignature}, VALUE_UNDEF)`
+  private makeFunctionObject(name: string, fenv?: FunctionEnv) {
+    let obj = 'VALUE_UNDEF'
+    if (fenv !== undefined) {
+      let args = ''
+
+      const frees = fenv.getFreeVariables()
+      frees.forEach((info) => {
+        args += `, ${cr.rootSetVariable(info.original().index)}`
+      })
+
+      if (frees.length > 0) {
+        // all the arguments to gc_make_vector must be reachable
+        // from the garbage-collection root.
+        obj = `gc_make_vector(${frees.length}${args})`
+      }
+    }
+
+    return `${cr.functionMaker}(${name}.${cr.functionPtr}, ${name}.${cr.functionSignature}, ${obj})`
   }
 
   private identifierAsCallable(node: AST.Identifier, env: VariableEnv): void {
@@ -165,7 +188,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
             this.result.write(`((${ftype})${info.transpile(node.name)}.${cr.functionPtr})(0`)
         else {
           const fname = info.transpile(node.name)
-          this.result.write(`((${ftype})${cr.functionGet}(${fname}, 0))(${cr.getObjectProperty}(${fname}, 2)`)
+          this.result.write(`((${ftype})${cr.functionGet}(${fname}, 0))(${fname}`)
         }
 
       return
@@ -255,6 +278,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.visit(node.body, env2)
     else {
       this.result.right()
+      this.initializeCapturedVars(env2)
       this.visit(node.body, env2)
       this.result.left()
     }
@@ -275,6 +299,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const num = env2.allocateRootSet()
     this.result.write('{')
     this.result.right()
+    this.initializeCapturedVars(env2)
     this.endWithReturn = false
     for (const child of node.body)
       this.visit(child, env2);
@@ -283,6 +308,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result.nl()
     this.result.write('}')
     env2.deallocate(num)
+  }
+
+  private initializeCapturedVars(env: VariableEnv): void {
+      env.forEachBoxed((info, key) => {
+        this.result.nl().write(`${info.transpileAccess()} = ${cr.makeBoxedValue(info.type)};`)
+      })
   }
 
   returnStatement(node: AST.ReturnStatement, env: VariableEnv): void {
@@ -380,7 +411,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.result = this.declarations
     this.functionBody(node, fenv, funcType, funcName)
 
-    const sig = this.makeParameterList(funcType, node, fenv, this.result.copy(), true)
+    const sig = this.makeParameterList(funcType, node, fenv, undefined, true)
     let args = 'self'
     for (let i = 0; i < funcType.paramTypes.length; i++)
       args += `, p${i}`
@@ -428,26 +459,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (info !== undefined) {
         const typeName = cr.typeToCType(info.type)
         if (isFirst || sameType(thisType, info.type)) {
-          sig = this.varDeclarator(info, isFirst, varName, sig)
+          sig = this.varDeclarator(decl, env, info, isFirst, varName, sig)
           if (isFirst) {
             isFirst = false
             thisType = info.type
           }
-
-          if (decl.init) {
-            const initType = this.needsCoercion(decl.init)
-            if (initType) {
-              this.result.write(` = ${cr.typeConversion(initType, info.type, node)}`)
-              this.visit(decl.init, env)
-              this.result.write(')')
-            }
-            else {
-              this.result.write(' = ')
-              this.visit(decl.init, env)
-            }
-          }
-          else
-            this.result.write(' = 0')   // even when the type is float
         }
         else {
           // A declaration with more than one function-type variable is also an error.
@@ -461,12 +477,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.signatures += sig + ';\n'
 
     this.result.write(';')
+    this.initCapturedVars(node, thisType, env)
     this.endWithReturn = false
   }
 
   // If signature is not undefined, this is a top-level declaration.
   // A declaration is separated from its initialization.
-  private varDeclarator(info: VariableInfo, isFirst: boolean,
+  private varDeclarator(decl: AST.VariableDeclarator, env: VariableEnv,
+                        info: VariableInfo, isFirst: boolean,
                         varName: string, signature: string | undefined) {
     if (isPrimitiveType(info.type)) {
       const name = info.transpiledName(varName)
@@ -491,9 +509,55 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else
         this.result.write(', ')
 
-      this.result.write(info.transpile(varName))
+      if (info.isBoxed() && decl.init) {
+        this.result.write(`${cr.setObjectProperty}(${info.transpileAccess()}, 0, `)
+        this.declaratorInitializer(decl, false, info, env)
+        this.result.write(')')
+        return signature
+      }
+      else if (info.isGlobal() && decl.init) {
+        this.result.write(`${cr.setGlobalVariable}(&${info.transpile(varName)}, `)
+        this.declaratorInitializer(decl, false, info, env)
+        this.result.write(')')
+        return signature
+      }
+      else
+        this.result.write(info.transpile(varName))
     }
+
+    this.declaratorInitializer(decl, true, info, env)
+
     return signature
+  }
+
+  private declaratorInitializer(decl: AST.VariableDeclarator, withEq: boolean,
+                                 info: VariableInfo, env: VariableEnv) {
+    if (decl.init) {
+      const initType = this.needsCoercion(decl.init)
+      if (initType) {
+        const converter = cr.typeConversion(initType, info.type, decl)
+        this.result.write(` ${withEq ? '=' : ''} ${converter}`)
+        this.visit(decl.init, env)
+        this.result.write(')')
+      }
+      else {
+        if (withEq)
+          this.result.write(' = ')
+
+        this.visit(decl.init, env)
+      }
+    }
+    else
+      this.result.write(' = 0')   // even when the type is float
+  }
+
+  private initCapturedVars(node: AST.VariableDeclaration, type: StaticType, env: VariableEnv) {
+    for (const decl of node.declarations) {
+      const varName = (decl.id as AST.Identifier).name
+      const info = env.table.lookup(varName)
+      if (info !== undefined && info.captured && isPrimitiveType(info.type))
+        this.result.write(` ${info.transpile(varName)} = ${info.transpiledName(varName)};`)
+    }
   }
 
   private needsCoercion(node: AST.Node) {
@@ -535,7 +599,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         struct func_body _foo = { fbody_foo, "(i)i" };
   */
   functionBodyDeclaration(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
-                          funcName: string, env: VariableEnv): void {
+                          funcName: string, env: VariableEnv): FunctionEnv {
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
     fenv.allocateRootSet()
     const funcType = getStaticType(node) as FunctionType;
@@ -555,6 +619,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.signatures += this.makeFunctionStruct(fname, funcType)
       this.declarations.write(`${cr.funcStructInC} ${fname} = { ${bodyName}, "${encodeType(funcType)}" };`).nl()
     }
+
+    return fenv
   }
 
   /* For this function:
@@ -598,21 +664,57 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
-                            fenv: FunctionEnv, bodyResult: CodeWriter, simpleName: boolean = false) {
+                            fenv: FunctionEnv, bodyResult?: CodeWriter, simpleName: boolean = false) {
     let sig = `(${cr.anyTypeInC} self`
+    const bodyResult2 = bodyResult?.copy()
+
+    const thisInfo = fenv.table.lookupInThis('this')
+    if (thisInfo !== undefined && !fenv.isFreeVariable(thisInfo)) {  // when "this" is a free variable, the node is not a method or a constructor.
+      const transpiledParam = thisInfo.transpileAccess()
+      bodyResult?.nl().write(`${transpiledParam} = self;`)
+      if (thisInfo.isBoxed())
+        bodyResult2?.nl().write(`${transpiledParam} = ${cr.makeBoxedValue(thisInfo.type, transpiledParam)};`)
+    }
+    else {
+      const index = fenv.allocate()
+      const selfVar = cr.rootSetVariable(index)
+      bodyResult?.nl().write(`${selfVar} = self;`)
+    }
+
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       sig += ', '
 
       const paramName = (node.params[i] as AST.Identifier).name
       const paramType = funcType.paramTypes[i]
-      let info = fenv.table.lookup(paramName)
+      const info = fenv.table.lookup(paramName)
       if (info !== undefined) {
         const name = simpleName ? `p${i}` : info.transpiledName(paramName)
         sig += cr.typeToCType(paramType, name)
-        if (info.index !== undefined)
-          bodyResult.nl().write(info.transpile(paramName)).write(` = ${name};`)
+        if (info.index !== undefined) {
+          if (isPrimitiveType(info.type)) {
+            if (info.isBoxed())
+              bodyResult2?.write(`${info.transpileAccess()} = ${cr.makeBoxedValue(info.type, name)};`)
+          }
+          else {
+            // Sincee making a box may cause garbage collection, all references must be stored
+            // in a root set before making a box.
+            const transpiledParam = info.transpileAccess()
+            bodyResult?.nl().write(`${transpiledParam} = ${name};`)
+            if (info.isBoxed())
+              bodyResult2?.nl().write(`${transpiledParam} = ${cr.makeBoxedValue(info.type, transpiledParam)};`)
+          }
+        }
       }
     }
+
+    if (bodyResult2)
+      bodyResult?.write(bodyResult2.getCode())
+
+    const freeVars = fenv.getFreeVariables()
+    freeVars.forEach((info, index) => {
+      const value = `${cr.functionGetCapturedValue}(self, ${index})`
+      bodyResult?.nl().write(`${info.transpileAccess()} = ${value};`)
+    })
 
     return sig + ')'
   }
@@ -623,8 +725,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   arrowFunctionExpression(node: AST.ArrowFunctionExpression, env: VariableEnv): void {
     const name = this.makeUniqueName()
-    this.functionBodyDeclaration(node, name, env)
-    this.result.write(this.makeFunctionObject(name))
+    const fenv = this.functionBodyDeclaration(node, name, env)
+    this.result.write(this.makeFunctionObject(name, fenv))
   }
 
   unaryExpression(node: AST.UnaryExpression, env: VariableEnv): void {
@@ -659,20 +761,50 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   updateExpression(node: AST.UpdateExpression, env: VariableEnv): void {
-    const type = this.needsCoercion(node.argument)
-    if (type === Any) {
+    // This method assumes that a variable or a property holds a primitive value such as an integer even if
+    // its type is Any.  So this method does not insert a write barrier.
+    // Also see accumulateExpression().
+
+    const arg = node.argument
+    const argType = this.needsCoercion(arg)
+
+    if (AST.isMemberExpression(arg)) {
+      // if left is a member expression, left_type is not undefined.
+      if (argType && !isPrimitiveType(argType)) {
+        const op = cr.updateOperator(node.operator, node.prefix)
+        this.anyMemberAccumulateExpression(arg, undefined, undefined, op, env)
+        return
+      }
+    }
+    else {
+      const info = this.isAssignmentToVar(arg, env)
+      if (info !== undefined && info.isBoxed()) {
+        this.updateExpr(node, argType, env, () => {
+          this.result.write(info.transpileBoxed(false))
+        })
+        return
+      }
+    }
+
+    this.updateExpr(node, argType, env, () => this.visit(node.argument, env))
+  }
+
+  updateExpr(node: AST.UpdateExpression, argType: StaticType | undefined, env: VariableEnv,
+             writeLval: () => void) {
+    if (argType === Any) {
       this.result.write(`${cr.updateOpForAny(node.prefix, node.operator)}(&`)
-      this.visit(node.argument, env)
+      writeLval()
       this.result.write(')')
     }
     else
       if (node.prefix) {
         this.result.write(node.operator)
-        this.visit(node.argument, env)
+        writeLval()
       }
       else {
-        this.visit(node.argument, env)
-        this.result.write(node.operator)
+        this.result.write('(')
+        writeLval()
+        this.result.write(`)${node.operator}`)
       }
   }
 
@@ -757,57 +889,78 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   assignmentExpression(node: AST.AssignmentExpression, env: VariableEnv): void {
-    const left = node.left
-    const right = node.right
-    const left_type = this.needsCoercion(left)
-    const right_type = this.needsCoercion(right)
     if (node.extra?.parenthesized)
       this.result.write('(')
 
     const op = node.operator
-    if (op === '=') {
-      let func: string
-      if (left_type === Any)
-        func = cr.typeConversion(right_type, Any, right)
-      else if (right_type === Any)
-        func = cr.typeConversion(Any, left_type, left)
-      else
-        func = '('
-
-      if (AST.isMemberExpression(left)) {
-        // if left is a member expression, left_type is not undefined.
-        if (left_type && !isPrimitiveType(left_type)) {
-          this.anyMemberAssignmentExpression(node, left, func, env)
-          return
-        }
-        // Otherwise, a member/element is a primitive type.
-      }
-
-      this.visit(left, env)
-      if (func === '(') {
-        this.result.write(' = ')
-        this.visit(right, env)
-      }
-      else {
-        this.result.write(` = ${func}`)
-        this.visit(right, env)
-        this.result.write(')')
-      }
-    }
+    if (op === '=')
+      this.simpleAssignment(node, env)
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=')
-      this.accumulateExpression(left, left_type, op, right, right_type, env)
+      this.accumulateExpression(node, op, env)
     else if (op === '|=' || op === '^=' || op === '&=' || op === '%=' || op === '<<=' || op === '>>=') {
-      this.visit(left, env)
-      this.result.write(op)
-      this.visit(right, env)
+      // left and right operands are Integer.  See assignmentExpression() in TypeChecker<>.
+      this.accumulateExpression(node, op, env)
     }
 
     if (node.extra?.parenthesized)
       this.result.write('(')
   }
 
-  // Assign a value to a member of ANY type.
-  private anyMemberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, func: string, env: VariableEnv) {
+  private simpleAssignment(node: AST.AssignmentExpression, env: VariableEnv) {
+    const left = node.left
+    const right = node.right
+    const leftType = this.needsCoercion(left)
+    const rightType = this.needsCoercion(right)
+
+    if (AST.isMemberExpression(left)) {
+      // if left is a member expression, left_type is not undefined.
+      if (leftType && !isPrimitiveType(leftType)) {
+        this.anyMemberAssignmentExpression(left, leftType, right, rightType, env)
+        return
+      }
+    }
+    else {
+      const info = this.isAssignmentToVar(left, env)
+      if (info !== undefined)
+        if (info.isBoxed()) {
+          const lval = info.transpileBoxed(false, true)
+          if (isPrimitiveType(info.type)) {
+            this.result.write(`${lval} = `)
+            this.assignmentRight(leftType, right, rightType, env)
+          }
+          else {
+            this.result.write(lval)
+            this.assignmentRight(leftType, right, rightType, env)
+            this.result.write(')')
+          }
+          return
+        }
+        else if (info.isGlobal() && !isPrimitiveType(info.type)) {
+          this.result.write(`${cr.setGlobalVariable}(&`)
+          this.visit(left, env)
+          this.result.write(', ')
+          this.assignmentRight(leftType, right, rightType, env)
+          this.result.write(')')
+          return
+        }
+    }
+
+    this.visit(left, env)
+    this.result.write(' = ')
+    this.assignmentRight(leftType, right, rightType, env)
+  }
+
+  private isAssignmentToVar(left: AST.Node, env: VariableEnv) {
+    if (AST.isIdentifier(left))
+      return env.table.lookup(left.name)
+    else
+      return undefined
+  }
+
+  // Assign a value to a member of ANY or unknown type.
+  private anyMemberAssignmentExpression(leftNode: AST.MemberExpression, leftType: StaticType | undefined,
+                                        rightNode: AST.Node, rightType: StaticType | undefined,
+                                        env: VariableEnv) {
     let nvars = 0     // number of variables
     if (leftNode.computed) {
       // an array access like a[b]
@@ -819,12 +972,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     else {
       // a member access like a.b
       const propertyName = (leftNode.property as AST.Identifier).name
-      nvars = 0
       const objType = getStaticType(leftNode.object)
       if (objType instanceof InstanceType) {
-        const typeAndIndex  = objType.findProperty(propertyName)
-        if (!typeAndIndex)
-          throw this.errorLog.push('fatal: unknown member name', node)
+        const typeAndIndex = this.getPropertyIndex(objType, propertyName, leftNode)
 
         // the resulting type of assignment is always ANY
         this.result.write(`${cr.setObjectProperty}(`)
@@ -832,77 +982,136 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         this.result.write(`, ${typeAndIndex[1]}`)
       }
       else if (objType === Any || objType === undefined) {
-        const propertyCode = env.table.classTable().encodeName(propertyName)
-        if (propertyCode === undefined)
-          throw this.errorLog.push(`no class declares a member: ${propertyName}`, node)
-
+        const propertyCode = this.getPropertyCode(propertyName, leftNode, env)
         this.result.write(`${cr.setAnyObjectProperty}(`)
         this.visit(leftNode.object, env)
         this.result.write(`, ${propertyCode}`)
       }
       else
-        throw this.errorLog.push(`fatal: unknown member name: ${propertyName}`, node)
+        throw this.errorLog.push(`fatal: unknown member name: ${propertyName}`, leftNode)
     }
 
     this.result.write(', ')
-    if (func === '(')
-      this.visit(node.right, env)
-    else {
-      this.result.write(func)
-      this.visit(node.right, env)
-      this.result.write(')')
-    }
+    this.assignmentRight(leftType, rightNode, rightType, env)
     this.result.write(')')
     env.deallocate(nvars)
   }
 
-  private accumulateExpression(left: AST.Node, leftType: StaticType | undefined, op: string,
-                               right: AST.Expression, rightType: StaticType | undefined,
-                               env: VariableEnv): void {
-    // when string_array += string is supported, `gc_array_set` must be used for string accumulation.
-    if (AST.isMemberExpression(left) && getStaticType(left.object) === Any) {
-      if (left.computed) {
-        this.result.write(`${cr.accumulateInUnknownArray}(`)
-        this.visit(left.object, env)
-        this.result.write(', ')
-        const n = this.callExpressionArg(left.property, Integer, env)
-        this.result.write(`, '${op[0]}', ${cr.typeConversion(rightType, Any, right)}`)
-        this.visit(right, env)
-        this.result.write('))')
-        env.deallocate(n)   // n will be zero.
-      }
-      else {
-        const propertyName = (left.property as AST.Identifier).name
-        const propertyCode = env.table.classTable().encodeName(propertyName)
-        if (propertyCode === undefined)
-          throw this.errorLog.push(`no class declares such a member: ${propertyName}`, left.property)
+  private assignmentRight(left_type: StaticType | undefined,
+                          right: AST.Node, right_type: StaticType | undefined,
+                          env: VariableEnv) {
+    let func: string
+    if (left_type === Any || right_type === Any)
+      func = cr.typeConversion(right_type, left_type, right)
+    else
+      func = '('
 
-        this.result.write(`${cr.accmulateInUnknownMember}(`)
-        this.visit(left.object, env)
-        this.result.write(`, '${op[0]}', ${propertyCode}, ${cr.typeConversion(rightType, Any, right)}`)
-        this.visit(right, env)
-        this.result.write('))')
-      }
-    }
-    else if (leftType === Any) {
-      this.result.write(`${cr.arithmeticOpForAny(op)}(&(`)
-      this.visit(left, env)
-      this.result.write(`), ${cr.typeConversion(rightType, Any, right)}`)
+    if (func === '(')
       this.visit(right, env)
-      this.result.write('))')
-    }
-    else if (rightType === Any) {
-      this.visit(left, env)
-      this.result.write(op)
-      this.result.write(` ${cr.typeConversion(Any, leftType, left)}`)
+    else {
+      this.result.write(func)
       this.visit(right, env)
       this.result.write(')')
     }
-    else {
-      this.visit(left, env)
-      this.result.write(` ${op} `)
-      this.visit(right, env)
+  }
+
+  private accumulateExpression(node: AST.AssignmentExpression, op: string, env: VariableEnv) {
+    // This method assumes that a variable or a property holds a primitive value such as an integer even if
+    // its type is Any.  So this method does not insert a write barrier.
+    // When string_array += string is supported, `gc_array_set` must be used for string accumulation.
+    // Also see this.updateExpression().
+
+    const left = node.left
+    const right = node.right
+    const leftType = this.needsCoercion(left)
+    const rightType = this.needsCoercion(right)
+
+    if (AST.isMemberExpression(left)) {
+      // if left is a member expression, left_type is not undefined.
+      if (leftType && !isPrimitiveType(leftType)) {
+        this.anyMemberAccumulateExpression(left, right, rightType, op, env)
+        return
+      }
     }
+    else {
+      const info = this.isAssignmentToVar(left, env)
+      if (info !== undefined && info.isBoxed()) {
+        this.accumulateExpr(node, leftType, rightType, env, () => {
+          this.result.write(info.transpileBoxed(false))
+        })
+        return
+      }
+    }
+
+    this.accumulateExpr(node, leftType, rightType, env, () => this.visit(left, env))
+  }
+
+  private accumulateExpr(node: AST.AssignmentExpression, leftType: StaticType | undefined,
+                         rightType: StaticType | undefined, env: VariableEnv,
+                         writeLval: () => void) {
+    const op = node.operator
+    if (leftType === Any) {
+      this.result.write(`${cr.arithmeticOpForAny(op)}(&(`)
+      writeLval()
+      this.result.write(`), `)
+      this.assignmentRight(leftType, node.right, rightType, env)
+      this.result.write(')')
+    }
+    else {
+      writeLval()
+      this.result.write(` ${op} `)
+      this.assignmentRight(leftType, node.right, rightType, env)
+    }
+  }
+
+  // A member type is Any or unknown.
+  private anyMemberAccumulateExpression(leftNode: AST.MemberExpression,
+                                        rightNode: AST.Node | undefined, rightType: StaticType | undefined,
+                                        op: string, env: VariableEnv) {
+    let nvars = 0     // number of variables
+    if (leftNode.computed) {
+      // an array access like a[b]
+      this.result.write(`${cr.accumulateInUnknownArray}(`)
+      this.visit(leftNode.object, env)
+      this.result.write(', ')
+      nvars = this.callExpressionArg(leftNode.property, Integer, env)
+      this.result.write(`, '${op[0]}'`)
+    }
+    else {
+      // a member access like a.b
+      const propertyName = (leftNode.property as AST.Identifier).name
+      const objType = getStaticType(leftNode.object)
+      if (objType instanceof InstanceType) {
+        const typeAndIndex = this.getPropertyIndex(objType, propertyName, leftNode)
+
+        // the resulting type of assignment is always ANY
+        this.result.write(`${cr.arithmeticOpForAny(op)}(`)
+        this.result.write(`${cr.getObjectPropertyAddress}(`)
+        this.visit(leftNode.object, env)
+        this.result.write(`, ${typeAndIndex[1]})`)
+        if (rightNode === undefined) {
+          this.result.write(')')
+          return
+        }
+      }
+      else if (objType === Any || objType === undefined) {
+        const propertyCode = this.getPropertyCode(propertyName, leftNode, env)
+        this.result.write(`${cr.accmulateInUnknownMember}(`)
+        this.visit(leftNode.object, env)
+        this.result.write(`, '${op[0]}', ${propertyCode}`)
+      }
+      else
+        throw this.errorLog.push(`fatal: unknown member name: ${propertyName}`, leftNode)
+    }
+
+    if (rightNode === undefined)
+      this.result.write(', 0)')
+    else {
+      this.result.write(', ')
+      this.assignmentRight(Any, rightNode, rightType, env)
+      this.result.write(')')
+    }
+    env.deallocate(nvars)
   }
 
   logicalExpression(node: AST.LogicalExpression, env: VariableEnv): void {
@@ -964,7 +1173,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else {
         // the callee is an expression resulting in a function object.
         this.visit(node.callee, env)
-        this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${cr.getObjectProperty}(${func}, 2)`)
+        this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${func}`)
       }
     }
 
@@ -1102,10 +1311,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const objType = getStaticType(node.object)
       const propertyName = (node.property as AST.Identifier).name
       if (objType instanceof InstanceType) {
-        const typeAndIndex  = objType.findProperty(propertyName)
-        if (!typeAndIndex)
-          throw this.errorLog.push('fatal: unknown member name', node)
-
+        const typeAndIndex = this.getPropertyIndex(objType, propertyName, node)
         const unbox = objType.unboxedProperties()
         if (unbox && typeAndIndex[1] < unbox) {
           this.result.write(cr.getObjectPrimitiveProperty(typeAndIndex[0]))
@@ -1124,10 +1330,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         this.result.write(`, ${cr.getArrayLengthIndex(objType.elementType)})`)
       }
       else if (objType === Any) {
-        const propertyCode = env.table.classTable().encodeName(propertyName)
-        if (propertyCode === undefined)
-          throw this.errorLog.push(`no class declares such a member: ${propertyName}`, node)
-
+        const propertyCode = this.getPropertyCode(propertyName, node, env)
         this.result.write(`${cr.getAnyObjectProperty(propertyName)}(`)
         this.visit(node.object, env)
         this.result.write(`, ${propertyCode})`)
@@ -1156,6 +1359,23 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
 
     return undefined
+  }
+
+  private getPropertyIndex(objType: InstanceType, propertyName: string,
+                           node: AST.Node) {
+    const typeAndIndex  = objType.findProperty(propertyName)
+    if (typeAndIndex)
+      return typeAndIndex
+    else
+      throw this.errorLog.push('fatal: unknown member name', node)
+  }
+
+  private getPropertyCode(propertyName: string, node: AST.Node, env: VariableEnv) {
+    const propertyCode = env.table.classTable().encodeName(propertyName)
+    if (propertyCode === undefined)
+      throw this.errorLog.push(`no class declares such a member: ${propertyName}`, node)
+    else
+      return propertyCode
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {

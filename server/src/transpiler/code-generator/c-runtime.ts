@@ -176,6 +176,13 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
 // covert any, null, array, function type to a boolean value
 export const convertToCondition = 'value_to_truefalse'
 
+export function updateOperator(op: string, isPrefix: boolean) {
+  if (op === '++')
+    return isPrefix ? 'i' : 'p'
+  else // op === '--'
+    return isPrefix ? 'd' : 'q'
+}
+
 export function arithmeticOpForAny(op: string) {
   switch(op) {
     case '<':
@@ -202,6 +209,14 @@ export function arithmeticOpForAny(op: string) {
       return 'any_multiply_assign'
     case '/=':
       return 'any_divide_assign'
+    case 'i':    // ++v
+      return 'any_increment'
+    case 'p':   // v++
+      return 'any_post_increment'
+    case 'd':   // --v
+      return 'any_decrement'
+    case 'q':   // v--
+      return 'any_post_decrement'
     default:
       throw new Error(`bad operator ${op}`)
   }
@@ -260,6 +275,9 @@ export const getObjectProperty = 'get_obj_property'
 export const setObjectProperty = 'set_obj_property'
 export const setAnyObjectProperty = 'set_anyobj_property'
 export const accmulateInUnknownMember = 'acc_anyobj_property'
+export const getObjectPropertyAddress = 'get_obj_property_addr'
+
+export const setGlobalVariable = 'set_global_variable'
 
 export function getAnyObjectProperty(name: string) {
   if (name === ArrayType.lengthMethod)
@@ -273,6 +291,16 @@ export function getObjectPrimitiveProperty(t: StaticType) {
     return '*get_obj_float_property('
   else
     return '*get_obj_int_property('
+}
+
+export function makeBoxedValue(type: StaticType, value?: string) {
+  if (isPrimitiveType(type))
+    if (type === Float)
+      return `gc_new_float_box(${value || 0})`
+    else
+      return `gc_new_int_box(${value || 0})`
+  else
+    return  `gc_new_box(${value || 'VALUE_UNDEF'})`
 }
 
 // a getter/setter function for arrays
@@ -352,6 +380,7 @@ export const functionMaker = 'gc_new_function'
 export const functionPtr = 'fptr'
 export const functionSignature = 'signature'
 export const functionGet = 'gc_function_object_ptr'
+export const functionGetCapturedValue = 'gc_function_captured_value'
 
 export function functionBodyName(name: string) {
   return `fbody${name}`

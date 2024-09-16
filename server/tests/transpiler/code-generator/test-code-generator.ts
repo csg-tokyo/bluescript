@@ -99,7 +99,7 @@ export function compileAndRunWithSingleFile(src: string, usePrintI32 = false, de
     globalNames = result2.names
     fs.writeFileSync(destFile, prologCcode + result2.code + getEpilog(result2.main))
     // throw an Error when compilation fails.
-    execSync(`cc -DTEST64 -O2 ${destFile} ../microcontroller/core/src/c-runtime.c -o ./temp-files/bscript`)
+    execSync(`cc -g -DTEST64 -O2 ${destFile} ../microcontroller/core/src/c-runtime.c -o ./temp-files/bscript`)
     return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
@@ -115,7 +115,7 @@ export function compileAndRun(src: string, destFile = './temp-files/bscript') {
   fs.writeFileSync(secondFile, prologCcode + result2.code + getEpilog(result2.main))
   // throw an Error when compilation fails.
 
-  execSync(`cc -DTEST64 -O2 ${firstFile} ${secondFile} ../microcontroller/core/src/c-runtime.c -o ./temp-files/bscript`)
+  execSync(`cc -g -DTEST64 -O2 ${firstFile} ${secondFile} ../microcontroller/core/src/c-runtime.c -o ./temp-files/bscript`)
   return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
@@ -136,7 +136,7 @@ export function multiCompileAndRun(src: string, src2: string, destFile = './temp
   fs.writeFileSync(thirdFile, prologCcode + protoMain2 + result3.code + getEpilog2(result2.main, result3.main))
   // throw an Error when compilation fails.
 
-  execSync(`cc -DTEST64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../microcontroller/core/src/c-runtime.c -o ./temp-files/bscript`)
+  execSync(`cc -g -DTEST64 -O2 ${firstFile} ${secondFile} ${thirdFile} ../microcontroller/core/src/c-runtime.c -o ./temp-files/bscript`)
   return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 

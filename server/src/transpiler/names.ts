@@ -11,7 +11,7 @@ export class NameInfo {
   isTypeName: boolean
   isConst: boolean     // const or let
   isFunction: boolean  // top-level function
-  captured: boolean    // captured by a lambda function or from its enclosing function.
+  captured: boolean    // captured as a free variable by a lambda function etc.
 
   constructor(t: StaticType) {
     this.type = t
@@ -26,7 +26,7 @@ export class NameInfo {
     this.isTypeName = info.isTypeName
     this.isConst = info.isConst
     this.isFunction = info.isFunction
-    this.captured = info.captured
+    // this.captured = info.captured
   }
 
   setup(f: (obj: this) => void) {
@@ -35,7 +35,9 @@ export class NameInfo {
   }
 }
 
-// free-variable name
+// Free-variable name.
+// This class is instantiated only when BasicNameTableMaker is used.
+// see FreeVariableInfo.
 export class FreeNameInfo extends NameInfo {
   nameInfo: NameInfo
 
@@ -214,7 +216,6 @@ export abstract class FunctionNameTable<Info extends NameInfo> extends BlockName
       else {
         if (!this.parent.isGlobal())
           freeVariable.setup(_ => _.captured = true)
-
         const info = this.makeFreeInfo(freeVariable)
         this.elements[key] = info
         return info

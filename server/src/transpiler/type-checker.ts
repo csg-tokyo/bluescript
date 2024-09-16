@@ -418,6 +418,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.assert(!node.generator, 'generator functions are not supported', node)
     this.assert(!node.async, 'async functions are not supported', node)
     const funcEnv = this.maker.function(names)
+    if (AST.isClassMethod(node)) {    // method or constructor
+      const info = names.lookup('this')
+      if (info)
+        funcEnv.record('this', info.type, this.maker)
+    }
+
     const paramTypes = this.functionParameters(node, funcEnv)
     funcEnv.setReturnType(undefined)
     const typeAnno = node.returnType
@@ -459,6 +465,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   functionDeclarationPass2(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
                            names: NameTable<Info>): void {
     const funcEnv = this.maker.function(names)
+    if (AST.isClassMethod(node)) {    // method or constructor
+      const info = names.lookup('this')
+      if (info)
+        funcEnv.record('this', info.type, this.maker)
+    }
+
     this.functionParameters(node, funcEnv)
     const ftype = getStaticType(node)
     if (ftype === undefined || !(ftype instanceof FunctionType))
@@ -495,14 +507,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   arrowFunctionExpression(node: AST.ArrowFunctionExpression, names: NameTable<Info>): void {
     if (this.firstPass)
       this.functionDeclarationPass1(node, null, names)
-    else {
+    else
       this.functionDeclarationPass2(node, names)
-      const funcEnv = getNameTable(node)
-      funcEnv?.forEach((info, key) => {
-        if (info.captured)
-          this.assert(false, `${key} is not accessible within an arrow function`, node)
-      })
-    }
 
     const ftype = getStaticType(node)
     if (ftype === undefined || !(ftype instanceof FunctionType))
@@ -794,6 +800,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   newExpression(node: AST.NewExpression, names: NameTable<Info>): void {
     const className = node.callee
+    let name
     if (AST.isIdentifier(className)) {
       if (className.name === 'Array') {
         this.newArrayExpression(node, names)
@@ -806,9 +813,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           return
         }
       }
+      name = className.name
     }
+    else
+      name = '?'
 
-    this.assert(false, 'bad type name for new', node)
+    this.assert(false, `bad type name '${name}' for new`, node)
   }
 
   private newArrayExpression(node: AST.NewExpression, names: NameTable<Info>): void {
