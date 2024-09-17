@@ -187,7 +187,7 @@ inline float* get_obj_float_property(value_t obj, int index) {
 }
 
 inline value_t set_global_variable(value_t* ptr, value_t new_value) {
-    // write barrier
+    gc_write_barrier((pointer_t)0, new_value);
     return *ptr = new_value;
 }
 

@@ -337,6 +337,7 @@ value_t minus_any_value(value_t v) {
 // heap objects
 
 static bool gc_is_running = false;
+
 // An interrupt handler must count up this value at the beginning, and count down at the end.
 // Note that an interrupt handler may be nested.
 // When this value is 0, no interrupt handler is working.
@@ -1140,7 +1141,7 @@ static pointer_t allocate_heap_base(uint16_t word_size) {
 
 static pointer_t allocate_heap(uint16_t word_size) {
     if (nested_interrupt_handler > 0) {
-        runtime_memory_allocation_error("you cannot create objects in interrupt handler.");
+        runtime_memory_allocation_error("you cannot create objects in an interrupt handler.");
     }
 
     pointer_t ptr = allocate_heap_base(word_size);
@@ -1197,7 +1198,7 @@ void gc_write_barrier(pointer_t obj, value_t value) {
         if (is_ptr_value(value)) {
             uint32_t mark = current_no_mark ? 0 : 1;
             pointer_t ptr = value_to_ptr(value);
-            if (IS_BLACK(obj, mark) && IS_WHITE(ptr, mark)) {
+            if (IS_WHITE(ptr, mark) && (obj == NULL || IS_BLACK(obj, mark))) {
                 push_object_to_stack(ptr, mark);
             }
         }
