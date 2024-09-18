@@ -35,9 +35,9 @@ cd bluescript
 docker compose up -d
 ```
 
-3. Verify that the server has started successfully
-    Open [Google Chrome browser](https://www.google.com/chrome/) and access [http://localhost:3000/](http://localhost:3000/).  
-    You can see BlueScript REPL page on the browser.
+3. Verify that the server has started successfully.
+    - Open [Google Chrome browser](https://www.google.com/chrome/) and access [http://localhost:3000/](http://localhost:3000/).  
+    - You can see BlueScript REPL page on the browser.
 
 ### Build and Flash the BlueScript Runtime  
 
