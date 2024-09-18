@@ -93,6 +93,18 @@ pointer_t gc_heap_pointer(pointer_t ptr) {
 }
 #endif
 
+#ifdef TEST64
+
+#define ATOMIC_ENTER_CRITICAL
+#define ATOMIC_EXIT_CRITICAL
+
+#else
+
+#include <FreeRTOS.h>
+#include <atomic.h>
+
+#endif
+
 // runtime error handling
 
 static jmp_buf long_jump_buffer;
@@ -1178,11 +1190,14 @@ struct gc_root_set* gc_root_set_head = NULL;
 #define CLEAR_GRAY_BIT(ptr)                ((ptr)->header &= ~0b10)
 #define SET_GRAY_BIT(ptr)                  ((ptr)->header |= 0b10)
 
-
 #define STACK_SIZE      (HEAP_SIZE / 65)
 static pointer_t gc_stack[STACK_SIZE];
 static uint32_t gc_stack_top = 0;
 static bool gc_stack_overflowed = false;
+
+#define ISTACK_SIZE     (STACK_SIZE / 2)
+static pointer_t gc_intr_stack[ISTACK_SIZE];    // used by interrupt handlers
+static uint32_t gc_intr_stack_top = 0;
 
 static void push_object_to_stack(pointer_t obj, uint32_t mark) {
     WRITE_MARK_BIT(obj, mark);
@@ -1199,10 +1214,39 @@ void gc_write_barrier(pointer_t obj, value_t value) {
             uint32_t mark = current_no_mark ? 0 : 1;
             pointer_t ptr = value_to_ptr(value);
             if (IS_WHITE(ptr, mark) && (obj == NULL || IS_BLACK(obj, mark))) {
-                push_object_to_stack(ptr, mark);
+                ATOMIC_ENTER_CRITICAL
+                if (gc_intr_stack_top < ISTACK_SIZE) 
+                    gc_intr_stack[gc_intr_stack_top++] = ptr;
+                else {
+                    WRITE_MARK_BIT(ptr, mark);
+                    SET_GRAY_BIT(ptr);
+                    gc_stack_overflowed = true;
+                }
+                ATOMIC_EXIT_CRITICAL
             }
         }
     }
+}
+
+static void copy_from_intr_stack(uint32_t mark) {
+    uint32_t num = gc_intr_stack_top;
+    uint32_t i = 0;
+    int failure;
+    do {
+        while (i < num)
+            push_object_to_stack(gc_intr_stack[i++], mark);
+
+        ATOMIC_ENTER_CRITICAL
+        if (num == gc_intr_stack_top) {
+            failure = 0;
+            gc_intr_stack_top = 0;
+        }
+        else {
+            num = gc_intr_stack_top;
+            failure = 1;
+        }
+        ATOMIC_EXIT_CRITICAL
+    } while (failure);
 }
 
 static void trace_from_an_object(uint32_t mark) {
@@ -1240,6 +1284,9 @@ static void scan_and_mark_objects(uint32_t mark) {
             if (IS_GRAY(obj)) {
                 gc_stack[0] = obj;
                 gc_stack_top = 1;
+                if (gc_intr_stack_top > 0)
+                    copy_from_intr_stack(mark);
+
                 trace_from_an_object(mark);
             }
             start += real_objsize(size);
@@ -1268,6 +1315,9 @@ static void mark_objects(struct gc_root_set* root_set, uint32_t mark) {
                     SET_GRAY_BIT(rootp);
                     gc_stack[0] = rootp;
                     gc_stack_top = 1;
+                    if (gc_intr_stack_top > 0)
+                        copy_from_intr_stack(mark);
+
                     trace_from_an_object(mark);
                 }
             }
@@ -1276,10 +1326,18 @@ static void mark_objects(struct gc_root_set* root_set, uint32_t mark) {
         root_set = root_set->next;
     }
 
-    while (gc_stack_overflowed) {
-        gc_stack_overflowed = false;
-        scan_and_mark_objects(mark);
-    }
+    do {
+        while (gc_stack_overflowed) {
+            gc_stack_overflowed = false;
+            scan_and_mark_objects(mark);
+        }
+
+        if (gc_intr_stack_top > 0) {
+            gc_stack_top = 0;
+            copy_from_intr_stack(mark);
+            trace_from_an_object(mark);
+        }
+    } while (gc_stack_overflowed || gc_intr_stack_top > 0);
 }
 
 static void sweep_objects(uint32_t mark) {
@@ -1347,6 +1405,13 @@ void gc_run() {
     current_no_mark = mark;
     gc_is_running = false;
 }
+
+#ifdef TEST64
+uint32_t gc_test_run() {
+    gc_is_running = true;
+    return current_no_mark ? 0 : 1;
+}
+#endif
 
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
     set->next = gc_root_set_head;
