@@ -85,11 +85,12 @@ int main() {
 // all the code is saved in a single file bscript.c.  only print() and print_i32() are available.
 // print() must be called at least once in the given source code.
 export function compileAndRunWithSingleFile(src: string, usePrintI32 = false, destFile = './temp-files/bscript.c') {
+    const moduleId = -1
     const result1 = transpile(1, prolog)
     let globalNames = result1.names
     let result2
     try {
-      result2 = transpile(2, src, globalNames, 1, prologCcode2 + (usePrintI32 ? prologCode2b : prologCode2a))
+      result2 = transpile(2, src, globalNames, moduleId, 1, prologCcode2 + (usePrintI32 ? prologCode2b : prologCode2a))
     }
     catch (e) {
       if (e instanceof ErrorLog)
@@ -140,9 +141,9 @@ export function multiCompileAndRun(src: string, src2: string, destFile = './temp
   return execSync(`./temp-files/bscript`).toString()   // returns the printed text
 }
 
-function runTranspiler(id: number, src: string, names: GlobalVariableNameTable) {
+function runTranspiler(id: number, src: string, names: GlobalVariableNameTable, moduleId: number = -1) {
   try {
-    return transpile(id, src, names)
+    return transpile(id, src, names, moduleId)
   }
   catch (e) {
     if (e instanceof ErrorLog)

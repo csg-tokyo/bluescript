@@ -1,7 +1,7 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { Null, FunctionType, StaticType, isPrimitiveType } from '../types'
+import { Null, FunctionType, StaticType, ObjectType, isPrimitiveType } from '../types'
 import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../names'
@@ -21,7 +21,7 @@ export class VariableInfo extends NameInfo {
   // Name used for its declaration
   // the returned value should be the same as the value
   // returned by transpile() when this.index === undefined.
-  transpiledName(name: string) { return `_${name}` }
+  transpiledName(name: string) { return this.transpile0(name) }
 
   // The expression to obtian the value of this variable.
   transpile(name: string) {
@@ -119,12 +119,22 @@ class FreeGlobalVariableInfo extends FreeVariableInfo {
 
 class GlobalVariableInfo extends VariableInfo {
   private rootSetName?: string
+  private moduleId: string
+
+  constructor(t: StaticType, moduleId: string) {
+    super(t)
+    this.moduleId = moduleId
+  }
 
   override transpile(name: string) {
     if (this.rootSetName)
       return rootSetVariable(this.index, this.rootSetName)
     else
-      return super.transpile0(name)
+      return this.transpile0(name)
+  }
+
+  override transpile0(name: string) {
+    return `_${this.moduleId}${name}`
   }
 
   // set a rootset name and a rootset index
@@ -150,10 +160,23 @@ class GlobalVariableInfo extends VariableInfo {
 
 // to customize TypeChecker to use VariableInfo instead of NameInfo
 export class VariableNameTableMaker implements NameTableMaker<VariableInfo> {
+  private moduleId: string
+
+  constructor(moduleId: number) {
+    if (moduleId >= 0)
+      this.moduleId = `${moduleId}`
+    else
+      this.moduleId = ''
+  }
+
   block(parent: NameTable<VariableInfo>) { return new BlockNameTable<VariableInfo>(parent) }
   function(parent: NameTable<VariableInfo>) { return new FunctionVarNameTable(parent) }
   info(t: StaticType) { return new VariableInfo(t) }
-  globalInfo(t: StaticType) { return new GlobalVariableInfo(t) }
+  globalInfo(t: StaticType) { return new GlobalVariableInfo(t, this.moduleId) }
+
+  instanceType(name: string, superClass: ObjectType) {
+    return new InstanceType(`${this.moduleId}${name}`, name, superClass)
+  }
 }
 
 class FunctionVarNameTable extends FunctionNameTable<VariableInfo> {

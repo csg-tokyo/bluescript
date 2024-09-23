@@ -26,6 +26,7 @@ abstract class CompositeType {
   abstract isSubtypeOf(t: StaticType): boolean
   abstract sameType(t: StaticType): boolean
 
+  sourceName() { return this.name() }
   superType(): ObjectType | null { return null }
 }
 
@@ -117,7 +118,7 @@ export class ArrayType extends ObjectType {
 // type name used for error messages
 export function typeToString(type: StaticType): string {
   if (type instanceof CompositeType)
-    return type.name()
+    return type.sourceName()
   else
     return type
 }

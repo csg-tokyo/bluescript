@@ -13,11 +13,21 @@ import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMak
 import * as cr from './c-runtime'
 import { InstanceType } from '../classes'
 
-// codeId: an integer more than zero.  It is used for generating a unique name.
+/*
+  Transpile BlueScript code.
+
+  codeId: an integer more than zero.  It is used for generating a unique name.
+  src: the source code for transpilation.
+  gvnt: a name table for global variables.
+  moduleId: module identifier.  It must be >= 0 if this code is a module.  Otherwise, it must be -1.
+        It is used to generate a unique identifier.
+  startLine: the line number for the first line of the given source code.
+  header: the code inserted in the generated code by transpilation.  It should be #include directives.
+*/
 export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
-                          startLine: number = 1, header: string = '') {
+                          moduleId: number = -1, startLine: number = 1, header: string = '') {
   const ast = runBabelParser(src, startLine);
-  const maker = new VariableNameTableMaker()
+  const maker = new VariableNameTableMaker(moduleId)
   const nameTable = new GlobalVariableNameTable(gvnt)
   typecheck(ast, maker, nameTable)
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)

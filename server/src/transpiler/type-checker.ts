@@ -235,7 +235,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       else
         this.assertSyntax(false, superClassName)
 
-    const clazz = new InstanceType(className, superClass)
+    const clazz = this.maker.instanceType(className, superClass)
     const success = names.record(className, clazz, this.maker, _ => _.isTypeName = true)
     this.assert(success, `'${className}' class has already been declared`, node)
 
