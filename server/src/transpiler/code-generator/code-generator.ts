@@ -2,9 +2,8 @@
 
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
-import { Integer, Float, Boolean, String, Void, Null, Any,
-         ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType, isSubtype } from '../types'
+import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
+         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
@@ -856,7 +855,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if ((left_type === Boolean || right_type === Boolean)
+    if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
         || (left_type === Any || right_type === Any)) {
       this.result.write(`${cr.typeConversion(left_type, Any, left)}`)

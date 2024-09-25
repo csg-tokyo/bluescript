@@ -36,8 +36,8 @@ test('other literals', () => {
 
   const ast = tested.transpile(src)
   const table = names.getNameTable(ast.program)
-  expect(table?.lookup('a')?.type).toBe(types.Boolean)
-  expect(table?.lookup('b')?.type).toBe(types.String)
+  expect(table?.lookup('a')?.type).toBe(types.BooleanT)
+  expect(table?.lookup('b')?.type).toBe(types.StringT)
   expect(table?.lookup('c')?.type).toBe(types.Null)
 })
 
@@ -183,6 +183,6 @@ test('function type', () => {
   const table = names.getNameTable(ast.program)
   const a = table?.lookup('foo')?.type
   expect((a as types.FunctionType).paramTypes[0]).toBe(types.Float)
-  expect((a as types.FunctionType).paramTypes[1]).toBe(types.String)
+  expect((a as types.FunctionType).paramTypes[1]).toBe(types.StringT)
   expect((a as types.FunctionType).returnType).toBe(types.Integer)
 })

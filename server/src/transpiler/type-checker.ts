@@ -7,7 +7,7 @@ import * as visitor from './visitor'
 import { ArrayType, StaticType, isPrimitiveType } from './types'
 
 import {
-  Integer, Float, Boolean, String, Void, Null, Any,
+  Integer, Float, BooleanT, StringT, Void, Null, Any,
   ObjectType, FunctionType, objectType,
   typeToString, isSubtype, isConsistent, commonSuperType,
   isNumeric
@@ -16,7 +16,7 @@ import {
 import { actualElementType } from './code-generator/c-runtime'
 
 import {
-  NameTable, NameTableMaker, BasicGlobalNameTable, NameInfo,
+  NameTable, NameTableMaker, GlobalNameTable, BasicGlobalNameTable, NameInfo,
   addNameTable, addStaticType, getStaticType, BasicNameTableMaker,
   addCoercionFlag, getNameTable
 } from './names'
@@ -81,11 +81,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   stringLiteral(node: AST.StringLiteral, names: NameTable<Info>): void {
-    this.result = String
+    this.result = StringT
   }
 
   booleanLiteral(node: AST.BooleanLiteral, names: NameTable<Info>): void {
-    this.result = Boolean
+    this.result = BooleanT
   }
 
   numericLiteral(node: AST.NumericLiteral, names: NameTable<Info>): void {
@@ -527,7 +527,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.invalidOperandMessage(op, this.result), node);
     else if (op === '!') {
       this.addCoercionForBoolean(node.argument, this.result)
-      this.result = Boolean
+      this.result = BooleanT
     }
     else if (op === '~') {
       // this.result must be integer or any-type.
@@ -538,7 +538,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else if (op === 'typeof') {
       addStaticType(node.argument, this.result)
-      this.result = String
+      this.result = StringT
     }
     else  // 'void' | 'delete' | 'throw'
       this.assert(false, `not supported operator ${op}`, node)
@@ -567,7 +567,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const right_type = this.result
     const op = node.operator
     if (op === '==' || op === '!=' || op === '===' || op === '!==') {
-      if (left_type === Boolean || right_type === Boolean) {
+      if (left_type === BooleanT || right_type === BooleanT) {
         this.assert(left_type === right_type, 'a boolean must be compared with a boolean', node)
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
@@ -580,7 +580,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.assert(isSubtype(left_type, right_type) || isSubtype(right_type, left_type),
           this.invalidOperandsMessage(op, left_type, right_type), node)
 
-      this.result = Boolean
+      this.result = BooleanT
     }
     else if (op === '<' || op === '<=' || op === '>' || op === '>=') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
@@ -589,7 +589,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
-      this.result = Boolean
+      this.result = BooleanT
     }
     else if (op === '+' || op === '-' || op === '*' || op === '/') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
@@ -611,7 +611,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else { // 'in', '**', 'instanceof', '|>'
       this.assert(false, `not supported operator '${op}'`, node)
-      this.result = Boolean
+      this.result = BooleanT
     }
   }
 
@@ -717,7 +717,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (op === '||' || op === '&&') {
       this.addCoercionForBoolean(node.left, left_type)
       this.addCoercionForBoolean(node.right, right_type)
-      this.result = Boolean
+      this.result = BooleanT
     }
     else  // '??'
       this.assert(false, `not supported operator '${op}'`, node)
@@ -834,7 +834,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     const args = node.arguments
     if (this.assert(args.length === 2 || (args.length === 1 && (etype === Integer || etype === Float
-                                                                || etype === Boolean || etype === Any)),
+                                                                || etype === BooleanT || etype === Any)),
                     'wrong number of arguments', node)) {
       this.callExpressionArg(args[0], Integer, names)
       if (args.length === 2)
@@ -1099,11 +1099,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   tsBooleanKeyword(node: AST.TSBooleanKeyword, names: NameTable<Info>): void {
-    this.result = Boolean
+    this.result = BooleanT
   }
 
   tsStringKeyword(node: AST.TSStringKeyword, names: NameTable<Info>): void {
-    this.result = String
+    this.result = StringT
   }
 
   tsObjectKeyword(node: AST.TSObjectKeyword, names: NameTable<Info>): void {
