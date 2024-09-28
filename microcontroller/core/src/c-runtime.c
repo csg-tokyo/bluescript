@@ -100,8 +100,8 @@ pointer_t gc_heap_pointer(pointer_t ptr) {
 
 #else
 
-#include <FreeRTOS.h>
-#include <atomic.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/atomic.h>
 
 #endif
 
