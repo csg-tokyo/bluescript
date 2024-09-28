@@ -95,13 +95,15 @@ pointer_t gc_heap_pointer(pointer_t ptr) {
 
 #ifdef TEST64
 
-#define ATOMIC_ENTER_CRITICAL
-#define ATOMIC_EXIT_CRITICAL
+#define GC_ENTER_CRITICAL(m)
+#define GC_EXIT_CRITICAL(m)
 
 #else
 
 #include <freertos/FreeRTOS.h>
-#include <freertos/atomic.h>
+
+#define GC_ENTER_CRITICAL(m)       portENTER_CRITICAL(&(m))
+#define GC_EXIT_CRITICAL(m)        portEXIT_CRITICAL(&(m))
 
 #endif
 
@@ -1208,13 +1210,17 @@ static void push_object_to_stack(pointer_t obj, uint32_t mark) {
         gc_stack_overflowed = true;
 }
 
+#ifndef TEST64
+static portMUX_TYPE gc_mux = portMUX_INITIALIZER_UNLOCKED;
+#endif
+
 void gc_write_barrier(pointer_t obj, value_t value) {
     if (nested_interrupt_handler > 0 && gc_is_running) {
         if (is_ptr_value(value)) {
             uint32_t mark = current_no_mark ? 0 : 1;
             pointer_t ptr = value_to_ptr(value);
             if (IS_WHITE(ptr, mark) && (obj == NULL || IS_BLACK(obj, mark))) {
-                ATOMIC_ENTER_CRITICAL
+                GC_ENTER_CRITICAL(gc_mux)
                 if (gc_intr_stack_top < ISTACK_SIZE) 
                     gc_intr_stack[gc_intr_stack_top++] = ptr;
                 else {
@@ -1222,7 +1228,7 @@ void gc_write_barrier(pointer_t obj, value_t value) {
                     SET_GRAY_BIT(ptr);
                     gc_stack_overflowed = true;
                 }
-                ATOMIC_EXIT_CRITICAL
+                GC_EXIT_CRITICAL(gc_mux)
             }
         }
     }
@@ -1236,7 +1242,7 @@ static void copy_from_intr_stack(uint32_t mark) {
         while (i < num)
             push_object_to_stack(gc_intr_stack[i++], mark);
 
-        ATOMIC_ENTER_CRITICAL
+        GC_ENTER_CRITICAL(gc_mux)
         if (num == gc_intr_stack_top) {
             failure = 0;
             gc_intr_stack_top = 0;
@@ -1245,7 +1251,7 @@ static void copy_from_intr_stack(uint32_t mark) {
             num = gc_intr_stack_top;
             failure = 1;
         }
-        ATOMIC_EXIT_CRITICAL
+        GC_EXIT_CRITICAL(gc_mux)
     } while (failure);
 }
 
