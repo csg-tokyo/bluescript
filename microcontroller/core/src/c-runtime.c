@@ -1220,7 +1220,7 @@ void gc_write_barrier(pointer_t obj, value_t value) {
             uint32_t mark = current_no_mark ? 0 : 1;
             pointer_t ptr = value_to_ptr(value);
             if (IS_WHITE(ptr, mark) && (obj == NULL || IS_BLACK(obj, mark))) {
-                GC_ENTER_CRITICAL(gc_mux)
+                GC_ENTER_CRITICAL(gc_mux);
                 if (gc_intr_stack_top < ISTACK_SIZE) 
                     gc_intr_stack[gc_intr_stack_top++] = ptr;
                 else {
@@ -1228,7 +1228,7 @@ void gc_write_barrier(pointer_t obj, value_t value) {
                     SET_GRAY_BIT(ptr);
                     gc_stack_overflowed = true;
                 }
-                GC_EXIT_CRITICAL(gc_mux)
+                GC_EXIT_CRITICAL(gc_mux);
             }
         }
     }
@@ -1242,7 +1242,7 @@ static void copy_from_intr_stack(uint32_t mark) {
         while (i < num)
             push_object_to_stack(gc_intr_stack[i++], mark);
 
-        GC_ENTER_CRITICAL(gc_mux)
+        GC_ENTER_CRITICAL(gc_mux);
         if (num == gc_intr_stack_top) {
             failure = 0;
             gc_intr_stack_top = 0;
@@ -1251,7 +1251,7 @@ static void copy_from_intr_stack(uint32_t mark) {
             num = gc_intr_stack_top;
             failure = 1;
         }
-        GC_EXIT_CRITICAL(gc_mux)
+        GC_EXIT_CRITICAL(gc_mux);
     } while (failure);
 }
 
