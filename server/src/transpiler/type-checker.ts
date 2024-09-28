@@ -23,13 +23,18 @@ import {
 import { InstanceType } from './classes'
 
 // entry point for just running a type checker
-export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable) {
+export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable,
+                               importer?: (file: string) => NameTable<NameInfo>) {
   const maker = new BasicNameTableMaker()
-  return typecheck(ast, maker, names)
+  return typecheck(ast, maker, names, importer)
 }
 
-export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTableMaker<Info>, names: NameTable<Info>): NameTable<Info> {
-  const typeChecker = new TypeChecker(maker)
+export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTableMaker<Info>, names: NameTable<Info>,
+                                                 importer?: (file: string) => NameTable<Info>): NameTable<Info> {
+  // importer reads a given source file and returns a name table.
+  // If the source file is not found, importer throws an error message.  The type of the message must be string.
+  // importer may also throw an ErrorLog object.
+  const typeChecker = new TypeChecker(maker, importer)
   typeChecker.firstPass = true
   typeChecker.result = Any
   typeChecker.visit(ast, names)
@@ -47,13 +52,15 @@ export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTable
 
 export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisitor<NameTable<Info>> {
   maker: NameTableMaker<Info>
+  importer?: (file: string) => NameTable<Info>
   errorLog = new ErrorLog()
   result: StaticType = Any
   firstPass = true
 
-  constructor(maker: NameTableMaker<Info>) {
+  constructor(maker: NameTableMaker<Info>, importer?: (file: string) => NameTable<Info>) {
     super()
     this.maker = maker
+    this.importer = importer
   }
 
   copyTo(checker: TypeChecker<Info>) {
@@ -73,7 +80,61 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   importDeclaration(node: AST.ImportDeclaration, env: NameTable<Info>): void {
-    // ignore
+    if (!this.firstPass)
+      return
+
+    const imported = this.callImporter(node)
+    if (imported === undefined)
+      return
+
+    if (!(env instanceof GlobalNameTable)) {
+      this.assert(false, 'an import declaration must be at the top level', node)
+      return
+    }
+
+    for (const spec of node.specifiers)
+      if (AST.isImportSpecifier(spec) && AST.isIdentifier(spec.imported)) {
+        const name = spec.imported.name
+        const info = imported.lookup(name)
+        if (info === undefined) {
+          const sourceFile = node.source.value
+          this.assert(false, `${name} is not found in ${sourceFile}`, spec)
+        }
+        else
+          env.importInfo(name, info)
+      }
+      else
+        this.assert(false, 'unsupported import declaration', spec)
+  }
+
+  private callImporter(node: AST.ImportDeclaration) {
+    if (node.importKind === 'type')
+      return undefined     // ignore
+
+    if (!this.assert(node.importKind === 'value', 'unsupported import declaration', node))
+      return undefined
+
+    if (this.importer === undefined) {
+      this.assert(false, 'import declaration is not available', node)
+      return undefined
+    }
+
+    const sourceFile = node.source.value
+    try {
+      return this.importer(sourceFile)
+    }
+    catch (e) {
+      if (e instanceof ErrorLog) {
+        this.errorLog.add(e, sourceFile)
+        return undefined
+      }
+      else if (typeof e === 'string') {
+        this.errorLog.push(e, node)
+        return undefined
+      }
+      else
+        throw e
+    }
   }
 
   nullLiteral(node: AST.NullLiteral, names: NameTable<Info>): void {

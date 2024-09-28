@@ -18,20 +18,23 @@ import { InstanceType } from '../classes'
   codeId: an integer more than zero.  It is used for generating a unique name.
   src: the source code for transpilation.
   gvnt: a name table for global variables.
+  importer: a handler for processing an import declaration.  It takes a module name and returns
+        a name table.  It may throw an error message of string type or an ErrorLog object.
   moduleId: module identifier.  It must be >= 0 if this code is a module.  Otherwise, it must be -1.
         It is used to generate a unique identifier.
   startLine: the line number for the first line of the given source code.
   header: the code inserted in the generated code by transpilation.  It should be #include directives.
 */
 export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
-                          moduleId: number = -1, startLine: number = 1, header: string = '') {
+                          importer?: (name: string) => GlobalVariableNameTable, moduleId: number = -1,
+                          startLine: number = 1, header: string = '') {
   const ast = runBabelParser(src, startLine);
   const maker = new VariableNameTableMaker(moduleId)
   const nameTable = new GlobalVariableNameTable(gvnt)
-  typecheck(ast, maker, nameTable)
+  typecheck(ast, maker, nameTable, importer)
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
-  const mainFuncName = `${cr.mainFunctionName}${codeId}`
-  const generator = new CodeGenerator(mainFuncName, codeId)
+  const mainFuncName = `${cr.mainFunctionName}${codeId}_${moduleId < 0 ? '' : moduleId}`
+  const generator = new CodeGenerator(mainFuncName, codeId, moduleId)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   if (generator.errorLog.hasError())
     throw generator.errorLog
@@ -51,13 +54,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private externalMethods: Map<string, StaticType>
   private uniqueId = 0
   private uniqueIdCounter = 0
+  private moduleId = -1
 
-  constructor(initializerName: string, codeId: number) {
+  constructor(initializerName: string, codeId: number, moduleId: number) {
     super()
     this.initializerName = initializerName
-    this.globalRootSetName = `${cr.globalRootSetName}${codeId}`
+    this.globalRootSetName = moduleId < 0 ? `${cr.globalRootSetName}${codeId}` : `${cr.globalRootSetName}${codeId}_${moduleId}`
     this.externalMethods = new Map()
     this.uniqueId = codeId
+    this.moduleId = moduleId
   }
 
   getCode(header: string) {
@@ -164,7 +169,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     throw this.errorLog.push('fatal:  unknown identifier', node)
   }
 
-  private makeUniqueName() { return `fn_${this.uniqueId}_${this.uniqueIdCounter++}`}
+  private makeUniqueName() {
+    const mid = this.moduleId < 0 ? '' : this.moduleId
+    return `fn_${mid}_${this.uniqueId}_${this.uniqueIdCounter++}`
+  }
 
   private makeFunctionObject(name: string, fenv?: FunctionEnv) {
     let obj = 'VALUE_UNDEF'

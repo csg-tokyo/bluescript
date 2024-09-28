@@ -111,6 +111,11 @@ export abstract class GlobalNameTable<Info extends NameInfo> implements NameTabl
     return old === undefined
   }
 
+  importInfo(key: string, info: Info) {
+    const finfo = this.makeFreeInfo(info)
+    this.map.set(key, finfo)
+  }
+
   // When it finds a name in a parent NameTable,
   // it will add a FreeNameInfo object to its table.
   lookup(key: string): Info | undefined {

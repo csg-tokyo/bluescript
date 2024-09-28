@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { compileAndRun, compileAndRunWithSingleFile, multiCompileAndRun } from './test-code-generator'
+import { compileAndRun, multiCompileAndRun } from './test-code-generator'
 import { describe, expect, test, beforeAll } from '@jest/globals'
 
 beforeAll(() => {
