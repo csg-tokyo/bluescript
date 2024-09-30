@@ -448,6 +448,54 @@ void test_gc_sweep() {
     gc_run();
 }
 
+extern uint32_t gc_test_run();
+
+static void write_mark_bit(value_t obj, uint32_t mark) {
+    pointer_t ptr = value_to_ptr(obj);
+    if (mark)
+        ptr->header |= 1;
+    else
+        ptr->header &= ~1;
+}
+
+void test_gc_write_barrier() {
+    gc_initialize();
+    ROOT_SET(root_set, 5);
+    value_t obj, obj1, obj2;
+
+    obj = gc_new_string("test");
+    obj1 = gc_new_string("int");
+
+    uint32_t mark = gc_test_run();
+    interrupt_handler_start();
+
+    write_mark_bit(obj, mark);
+    write_mark_bit(obj1, !mark);
+    gc_write_barrier(value_to_ptr(obj), obj1);
+
+    interrupt_handler_end();
+
+    gc_new_string("test1");
+    root_set.values[0] = gc_new_string("test2");
+    root_set.values[1] = gc_new_string("test3");
+    root_set.values[2] = gc_new_string("test4");
+    gc_new_string("test5");
+    gc_new_vector2(2);
+    gc_new_vector2(3);
+    root_set.values[3] = obj = gc_new_vector2(4);
+    obj2 = gc_new_vector2(3);
+    gc_vector_setter(obj, 0, obj2);
+
+    gc_run();
+    Assert_true(is_live_object(obj1));
+    Assert_true(is_live_object(obj2));
+
+    gc_run();
+    Assert_true(!is_live_object(obj1));
+
+    DELETE_ROOT_SET(root_set);
+}
+
 void test_main() {
     test_converters();
     test_string();
@@ -461,6 +509,7 @@ void test_main() {
     test_gc_liveness();
     test_gc_liveness2();
     test_gc_sweep();
+    test_gc_write_barrier();
     puts("done");
 }
 

@@ -93,6 +93,20 @@ pointer_t gc_heap_pointer(pointer_t ptr) {
 }
 #endif
 
+#ifdef TEST64
+
+#define GC_ENTER_CRITICAL(m)
+#define GC_EXIT_CRITICAL(m)
+
+#else
+
+#include <freertos/FreeRTOS.h>
+
+#define GC_ENTER_CRITICAL(m)       portENTER_CRITICAL(&(m))
+#define GC_EXIT_CRITICAL(m)        portEXIT_CRITICAL(&(m))
+
+#endif
+
 // runtime error handling
 
 static jmp_buf long_jump_buffer;
@@ -337,6 +351,7 @@ value_t minus_any_value(value_t v) {
 // heap objects
 
 static bool gc_is_running = false;
+
 // An interrupt handler must count up this value at the beginning, and count down at the end.
 // Note that an interrupt handler may be nested.
 // When this value is 0, no interrupt handler is working.
@@ -1140,7 +1155,7 @@ static pointer_t allocate_heap_base(uint16_t word_size) {
 
 static pointer_t allocate_heap(uint16_t word_size) {
     if (nested_interrupt_handler > 0) {
-        runtime_memory_allocation_error("you cannot create objects in interrupt handler.");
+        runtime_memory_allocation_error("you cannot create objects in an interrupt handler.");
     }
 
     pointer_t ptr = allocate_heap_base(word_size);
@@ -1177,11 +1192,14 @@ struct gc_root_set* gc_root_set_head = NULL;
 #define CLEAR_GRAY_BIT(ptr)                ((ptr)->header &= ~0b10)
 #define SET_GRAY_BIT(ptr)                  ((ptr)->header |= 0b10)
 
-
 #define STACK_SIZE      (HEAP_SIZE / 65)
 static pointer_t gc_stack[STACK_SIZE];
 static uint32_t gc_stack_top = 0;
 static bool gc_stack_overflowed = false;
+
+#define ISTACK_SIZE     (STACK_SIZE / 2)
+static pointer_t gc_intr_stack[ISTACK_SIZE];    // used by interrupt handlers
+static uint32_t gc_intr_stack_top = 0;
 
 static void push_object_to_stack(pointer_t obj, uint32_t mark) {
     WRITE_MARK_BIT(obj, mark);
@@ -1192,16 +1210,49 @@ static void push_object_to_stack(pointer_t obj, uint32_t mark) {
         gc_stack_overflowed = true;
 }
 
+#ifndef TEST64
+static portMUX_TYPE gc_mux = portMUX_INITIALIZER_UNLOCKED;
+#endif
+
 void gc_write_barrier(pointer_t obj, value_t value) {
     if (nested_interrupt_handler > 0 && gc_is_running) {
         if (is_ptr_value(value)) {
             uint32_t mark = current_no_mark ? 0 : 1;
             pointer_t ptr = value_to_ptr(value);
-            if (IS_BLACK(obj, mark) && IS_WHITE(ptr, mark)) {
-                push_object_to_stack(ptr, mark);
+            if (IS_WHITE(ptr, mark) && (obj == NULL || IS_BLACK(obj, mark))) {
+                GC_ENTER_CRITICAL(gc_mux);
+                if (gc_intr_stack_top < ISTACK_SIZE) 
+                    gc_intr_stack[gc_intr_stack_top++] = ptr;
+                else {
+                    WRITE_MARK_BIT(ptr, mark);
+                    SET_GRAY_BIT(ptr);
+                    gc_stack_overflowed = true;
+                }
+                GC_EXIT_CRITICAL(gc_mux);
             }
         }
     }
+}
+
+static void copy_from_intr_stack(uint32_t mark) {
+    uint32_t num = gc_intr_stack_top;
+    uint32_t i = 0;
+    int failure;
+    do {
+        while (i < num)
+            push_object_to_stack(gc_intr_stack[i++], mark);
+
+        GC_ENTER_CRITICAL(gc_mux);
+        if (num == gc_intr_stack_top) {
+            failure = 0;
+            gc_intr_stack_top = 0;
+        }
+        else {
+            num = gc_intr_stack_top;
+            failure = 1;
+        }
+        GC_EXIT_CRITICAL(gc_mux);
+    } while (failure);
 }
 
 static void trace_from_an_object(uint32_t mark) {
@@ -1239,6 +1290,9 @@ static void scan_and_mark_objects(uint32_t mark) {
             if (IS_GRAY(obj)) {
                 gc_stack[0] = obj;
                 gc_stack_top = 1;
+                if (gc_intr_stack_top > 0)
+                    copy_from_intr_stack(mark);
+
                 trace_from_an_object(mark);
             }
             start += real_objsize(size);
@@ -1267,6 +1321,9 @@ static void mark_objects(struct gc_root_set* root_set, uint32_t mark) {
                     SET_GRAY_BIT(rootp);
                     gc_stack[0] = rootp;
                     gc_stack_top = 1;
+                    if (gc_intr_stack_top > 0)
+                        copy_from_intr_stack(mark);
+
                     trace_from_an_object(mark);
                 }
             }
@@ -1275,10 +1332,18 @@ static void mark_objects(struct gc_root_set* root_set, uint32_t mark) {
         root_set = root_set->next;
     }
 
-    while (gc_stack_overflowed) {
-        gc_stack_overflowed = false;
-        scan_and_mark_objects(mark);
-    }
+    do {
+        while (gc_stack_overflowed) {
+            gc_stack_overflowed = false;
+            scan_and_mark_objects(mark);
+        }
+
+        if (gc_intr_stack_top > 0) {
+            gc_stack_top = 0;
+            copy_from_intr_stack(mark);
+            trace_from_an_object(mark);
+        }
+    } while (gc_stack_overflowed || gc_intr_stack_top > 0);
 }
 
 static void sweep_objects(uint32_t mark) {
@@ -1346,6 +1411,13 @@ void gc_run() {
     current_no_mark = mark;
     gc_is_running = false;
 }
+
+#ifdef TEST64
+uint32_t gc_test_run() {
+    gc_is_running = true;
+    return current_no_mark ? 0 : 1;
+}
+#endif
 
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
     set->next = gc_root_set_head;
