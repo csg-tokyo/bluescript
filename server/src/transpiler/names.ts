@@ -11,6 +11,7 @@ export class NameInfo {
   isTypeName: boolean
   isConst: boolean     // const or let
   isFunction: boolean  // top-level function
+  isExported: boolean
   captured: boolean    // captured as a free variable by a lambda function etc.
 
   constructor(t: StaticType) {
@@ -18,6 +19,7 @@ export class NameInfo {
     this.isTypeName = false
     this.isConst = false
     this.isFunction = false
+    this.isExported = false
     this.captured = false
   }
 
@@ -26,6 +28,7 @@ export class NameInfo {
     this.isTypeName = info.isTypeName
     this.isConst = info.isConst
     this.isFunction = info.isFunction
+    this.isExported = info.isExported
     // this.captured = info.captured
   }
 

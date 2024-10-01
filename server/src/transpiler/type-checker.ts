@@ -56,6 +56,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   errorLog = new ErrorLog()
   result: StaticType = Any
   firstPass = true
+  inExport: boolean = false   // true when the context is in an export declaration.
 
   constructor(maker: NameTableMaker<Info>, importer?: (file: string) => NameTable<Info>) {
     super()
@@ -96,12 +97,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       if (AST.isImportSpecifier(spec) && AST.isIdentifier(spec.imported)) {
         const name = spec.imported.name
         const info = imported.lookup(name)
+        const sourceFile = node.source.value
         if (info === undefined) {
-          const sourceFile = node.source.value
-          this.assert(false, `${name} is not found in ${sourceFile}`, spec)
+          this.assert(false, `'${name}' is not found in ${sourceFile}`, spec)
         }
-        else
+        else {
+          this.assert(info.isExported, `'${name}' is declared but not exported in ${sourceFile}`, spec)
           env.importInfo(name, info)
+        }
       }
       else
         this.assert(false, 'unsupported import declaration', spec)
@@ -297,7 +300,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.assertSyntax(false, superClassName)
 
     const clazz = this.maker.instanceType(className, superClass)
-    const success = names.record(className, clazz, this.maker, _ => _.isTypeName = true)
+    const success = names.record(className, clazz, this.maker,
+                                 _ => { _.isTypeName = true; _.isExported = this.inExport })
     this.assert(success, `'${className}' class has already been declared`, node)
 
     this.result = clazz
@@ -437,7 +441,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       varType = Any
 
     if (!alreadyDeclared) {
-      const success = names.record(varName, varType, this.maker, _ => _.isConst = isConst)
+      const success = names.record(varName, varType, this.maker,
+                                   _ => { _.isConst = isConst; _.isExported = this.inExport })
       this.assert(success, `Identifier '${varName}' has already been declared`, node)
     }
   }
@@ -517,7 +522,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     addStaticType(node, ftype)
     if (nodeId != null)
       if (info === undefined)   // if new declaration
-        names.record(nodeId.name, ftype, this.maker, _ => { _.isFunction = true })
+        names.record(nodeId.name, ftype, this.maker, _ => { _.isFunction = true; _.isExported = this.inExport })
       else
         this.assert(isSubtype(ftype, info.type),
             `function '${nodeId.name}' is declared again with a different type`, node)
@@ -1190,8 +1195,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   exportNamedDeclaration(node: AST.ExportNamedDeclaration, env: NameTable<Info>): void {
-    if (node.declaration != undefined)
-      this.visit(node.declaration, env);
+    this.inExport = true
+    try {
+      if (node.declaration != undefined)
+        this.visit(node.declaration, env);
+    }
+    finally {
+      this.inExport = false
+    }
   }
 
   isConsistentOnFirstPass(t1: StaticType, t2: StaticType) {

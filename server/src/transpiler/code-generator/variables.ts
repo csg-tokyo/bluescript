@@ -351,16 +351,16 @@ export class GlobalEnv extends FunctionEnv {
     // any global variable does not hold a boxed value.
   }
 
-  // For a variable stored in a root set, f receives [c_name, undefined, index].
-  // For other variables, f receives [c_name, type, undefined].
-  // For a type name, f receives [undefined, type, undefined].
-  forEachExternalVariable(f: (name?: string, type?: StaticType, index?: number) => void) {
+  // For a variable stored in a root set, f receives [info, c_name, undefined, index].
+  // For other variables, f receives [info, c_name, type, undefined].
+  // For a type name, f receives [info, undefined, type, undefined].
+  forEachExternalVariable(f: (vinfo: VariableInfo, name?: string, type?: StaticType, index?: number) => void) {
     this.table.forEach((info, key) => {
       if (info instanceof FreeGlobalVariableInfo) {
         const origInfo = info.original()
         if (origInfo instanceof GlobalVariableInfo) {
           const nameAndType = origInfo.externName(key)
-          f(nameAndType[0], nameAndType[1], nameAndType[2])
+          f(origInfo, nameAndType[0], nameAndType[1], nameAndType[2])
         }
         else
           throw new Error(`bad external name info: ${key}, ${origInfo.constructor.name}`)

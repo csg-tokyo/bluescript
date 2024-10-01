@@ -84,7 +84,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.signatures += cr.externClassDef(objectType)
     this.signatures += '\n'
     const externalRoots: { [key: string]: number } = {}
-    env2.forEachExternalVariable((name, type, index) => {
+    env2.forEachExternalVariable((info, name, type, index) => {
       if (name === undefined) {
         // a type name only
         if (type instanceof ObjectType) {
@@ -104,7 +104,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           externalRoots[name] = index
       }
       else if (type instanceof FunctionType)
-        this.signatures += this.makeFunctionStruct(name, type)
+        this.signatures += this.makeFunctionStruct(name, type, info.isConst)
       else
         this.signatures += `extern ${cr.typeToCType(type, name)};\n`
     })
@@ -595,7 +595,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (decl.init && AST.isArrowFunctionExpression(decl.init)) {
         const func = decl.init
         const funcName = (decl.id as AST.Identifier).name
-        this.functionBodyDeclaration(func, funcName, env)
+        this.functionBodyDeclaration(func, funcName, env, false)
         return true
       }
     }
@@ -614,9 +614,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         extern struct func_body _foo;
         static int32_t fbody_foo(value_t self, int32_t _n) { ... function body ... }
         struct func_body _foo = { fbody_foo, "(i)i" };
+
+      fbody_foo() will be a non-static function if isStatic is false.
   */
   functionBodyDeclaration(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
-                          funcName: string, env: VariableEnv): FunctionEnv {
+                          funcName: string, env: VariableEnv, isStatic: boolean = true): FunctionEnv {
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
     fenv.allocateRootSet()
     const funcType = getStaticType(node) as FunctionType;
@@ -626,14 +628,18 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const prevResult = this.result
     this.result = this.declarations
-    this.functionBody(node, fenv, funcType, bodyName)
+    if (isStatic)
+      this.functionBody(node, fenv, funcType, bodyName)
+    else
+      this.functionBody(node, fenv, funcType, bodyName, '')   // not a static function
+
     this.result = prevResult
 
     const fname = transpiledFuncName
     if (fenv.isFreeVariable(funcInfo))
       this.result.nl().write(`${fname}.${cr.functionPtr} = ${bodyName};`).nl()
     else {
-      this.signatures += this.makeFunctionStruct(fname, funcType)
+      this.signatures += this.makeFunctionStruct(fname, funcType, false)
       this.declarations.write(`${cr.funcStructInC} ${fname} = { ${bodyName}, "${encodeType(funcType)}" };`).nl()
     }
 
@@ -736,8 +742,24 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return sig + ')'
   }
 
-  private makeFunctionStruct(name: string, type: StaticType) {
-    return `extern ${cr.funcStructInC} ${name};\n`
+  private makeSimpleParameterList(funcType: FunctionType) {
+    let sig = `(${cr.anyTypeInC} self`
+    for (let i = 0; i < funcType.paramTypes.length; i++) {
+      sig += `, ${cr.typeToCType(funcType.paramTypes[i], `p${i}`)}`
+    }
+
+    return sig + ')'
+  }
+
+  private makeFunctionStruct(name: string, type: FunctionType, isConst: boolean) {
+    let body: string = ''
+    if (isConst) {
+      const bodyName = cr.functionBodyName(name)
+      const sig = this.makeSimpleParameterList(type)
+      body = `extern ${cr.typeToCType(type.returnType, bodyName)}${sig};\n`
+    }
+
+    return `extern ${cr.funcStructInC} ${name};\n${body}`
   }
 
   arrowFunctionExpression(node: AST.ArrowFunctionExpression, env: VariableEnv): void {
