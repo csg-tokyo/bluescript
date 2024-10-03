@@ -36,7 +36,9 @@ export class ErrorLog {
     for (const m of this.messages) {
       const line = m.location?.start.line
       const column = m.location?.start.column
-      text += `${m.message} in line ${line ? line : '??'} ${column ? `(column ${column})` : ''}\n`
+      const file = m.location?.filename
+      const where = file ? ` in ${file}` : ''
+      text += `${m.message} in line ${line ? line : '??'} ${column ? `(column ${column})` : ''}${where}\n`
     }
     return text
   }
@@ -54,6 +56,17 @@ export class ErrorLog {
       identifierName: '??'
     }
     this.messages.push({message: msg, location: loc})
+    return this
+  }
+
+  add(log: ErrorLog, moduleName: string) {
+    for (const m of log.messages) {
+      if (m.location)
+        m.location.filename = moduleName
+
+      this.messages.push(m)
+    }
+
     return this
   }
 }

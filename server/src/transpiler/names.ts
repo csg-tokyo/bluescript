@@ -1,8 +1,8 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import { Node } from '@babel/types'
-import type { StaticType } from './types'
-import { ClassTable } from './classes'
+import type { StaticType, ObjectType } from './types'
+import { ClassTable, InstanceType } from './classes'
 
 // Elements of NameTable<T>
 
@@ -11,6 +11,7 @@ export class NameInfo {
   isTypeName: boolean
   isConst: boolean     // const or let
   isFunction: boolean  // top-level function
+  isExported: boolean
   captured: boolean    // captured as a free variable by a lambda function etc.
 
   constructor(t: StaticType) {
@@ -18,6 +19,7 @@ export class NameInfo {
     this.isTypeName = false
     this.isConst = false
     this.isFunction = false
+    this.isExported = false
     this.captured = false
   }
 
@@ -26,6 +28,7 @@ export class NameInfo {
     this.isTypeName = info.isTypeName
     this.isConst = info.isConst
     this.isFunction = info.isFunction
+    this.isExported = info.isExported
     // this.captured = info.captured
   }
 
@@ -59,6 +62,7 @@ export interface NameTableMaker<Info extends NameInfo> {
   function(parent: NameTable<Info>): FunctionNameTable<Info>
   info(t: StaticType): Info
   globalInfo(t: StaticType): Info
+  instanceType(name: string, superClass: ObjectType): InstanceType
 }
 
 export interface NameTable<Info extends NameInfo> {
@@ -108,6 +112,11 @@ export abstract class GlobalNameTable<Info extends NameInfo> implements NameTabl
 
     this.map.set(key, info)
     return old === undefined
+  }
+
+  importInfo(key: string, info: Info) {
+    const finfo = this.makeFreeInfo(info)
+    this.map.set(key, finfo)
   }
 
   // When it finds a name in a parent NameTable,
@@ -268,6 +277,7 @@ export class BasicNameTableMaker implements NameTableMaker<NameInfo> {
   function(parent: NameTable<NameInfo>) { return new BasicFunctionNameTable(parent) }
   info(t: StaticType) { return new NameInfo(t) }
   globalInfo(t: StaticType) { return new NameInfo(t) }
+  instanceType(name: string, superClass: ObjectType) { return new InstanceType(name, name, superClass) }
 }
 
 class BasicFunctionNameTable extends FunctionNameTable<NameInfo> {

@@ -3,6 +3,8 @@ import * as fs from 'fs'
 import { execSync, spawn } from 'child_process'
 import * as readline from 'node:readline/promises'
 import { ErrorLog } from './utils'
+import { GlobalVariableNameTable } from './code-generator/variables'
+import { ChildProcessWithoutNullStreams } from 'node:child_process'
 
 const dir = './temp-files'
 const cRuntimeH = "../microcontroller/core/include/c-runtime.h"
@@ -83,17 +85,88 @@ function loadSourceFile(line: string) {
   }
 }
 
+class Transpiler {
+  shell: ChildProcessWithoutNullStreams
+  baseGlobalNames: GlobalVariableNameTable
+  sessionId: number
+  moduleId: number
+  modules: Map<string, GlobalVariableNameTable>
+  shellCommands: string
+  libs: string
+  sources: string
+
+  constructor(shell: ChildProcessWithoutNullStreams) {
+    this.shell = shell
+    this.sessionId = 0
+    this.moduleId = 0
+    this.modules = new Map<string, GlobalVariableNameTable>()
+    this.shellCommands = ''
+    this.libs = `${dir}/c-runtime.so`
+    this.sources = ''
+
+    const result = transpile(++this.sessionId, prolog)
+    this.baseGlobalNames = result.names
+  }
+
+  transpile(src: string, globalNames: GlobalVariableNameTable) {
+    const compile = (src: string, fileName: string) => {
+      fs.writeFileSync(`${fileName}.c`, prologCcode + src)
+
+      // throw an Error when compilation fails.
+      execSync(`cc -shared -DTEST64 -O2 -o ${fileName}.so ${fileName}.c ${this.libs}`)
+      this.libs =`${this.libs} ${fileName}.so`
+      this.sources = `${this.sources} ${fileName}.c`
+    }
+
+    const fileReader = (fname: string) => {
+      try {
+        if (!fs.existsSync(fname))
+          fname += '.ts'
+
+        return fs.readFileSync(fname).toString('utf-8')
+      }
+      catch (e) {
+        throw `cannot find a module ${fname}`
+      }
+    }
+
+    const importer = (fname: string) => {
+      const mod = this.modules.get(fname)
+      if (mod)
+        return mod
+      else {
+        const program = fileReader(fname)
+        this.moduleId += 1
+        this.sessionId += 1
+        const fileName = `${dir}/bscript${this.sessionId}_${this.moduleId}`
+        const result = transpile(this.sessionId, program, this.baseGlobalNames, importer, this.moduleId)
+        this.modules.set(fname, result.names)
+        compile(result.code, fileName)
+        this.shellCommands += `${fileName}.so\n${result.main}\n`
+        return result.names
+      }
+    }
+
+    this.shellCommands = ''
+    this.sessionId += 1
+    const fileName = `${dir}/bscript${this.sessionId}`
+    const result = transpile(this.sessionId, src, globalNames, importer)
+    compile(result.code, fileName)
+    this.shell.stdin.cork()
+    this.shell.stdin.write(`${this.shellCommands}${fileName}.so\n${result.main}\n`)
+    process.nextTick(() => this.shell.stdin.uncork())
+    return result.names
+  }
+}
+
 export async function mainLoop() {
     const prompt = '\x1b[1;94m> \x1b[0m'
-    let sessionId = 1
-    const result1 = transpile(sessionId++, prolog)
-    let globalNames = result1.names
     const consoleDev = readline.createInterface(process.stdin, process.stdout, completer)
     let finished = -1
     const shell = makeShell(code => { finished = code ? code : 1 })
 
-    let libs = `${dir}/c-runtime.so`
-    let sources = ''
+    const transpiler = new Transpiler(shell)
+    let globalNames = transpiler.baseGlobalNames
     consoleDev.setPrompt(prompt)
     consoleDev.prompt()
 
@@ -120,21 +193,7 @@ export async function mainLoop() {
       }
 
       try {
-        const result = transpile(sessionId, line, globalNames)
-
-        const fileName = `${dir}/bscript${sessionId}`
-        fs.writeFileSync(`${fileName}.c`, prologCcode + result.code)
-
-        // throw an Error when compilation fails.
-        execSync(`cc -shared -DTEST64 -O2 -o ${fileName}.so ${fileName}.c ${libs}`)
-
-        libs =`${libs} ${fileName}.so`
-        sources = `${sources} ${fileName}.c`
-        globalNames = result.names
-        shell.stdin.cork()
-        shell.stdin.write(`${fileName}.so\n${result.main}\n`)
-        process.nextTick(() => shell.stdin.uncork())
-        sessionId += 1
+        globalNames = transpiler.transpile(line, globalNames)
         // don't call consoleDev.prompt() here.
         // the prompt is printed in shell.c.
       }
@@ -152,7 +211,7 @@ export async function mainLoop() {
     }
 
     shell.stdin.end();
-    (libs + sources).split(' ').forEach(name => fs.rmSync(name))
+    (transpiler.libs + transpiler.sources).split(' ').forEach(name => fs.rmSync(name))
 }
 
 buildShell()

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <dlfcn.h>
 #include "../../../microcontroller/core/include/c-runtime.h"
 
@@ -31,6 +32,14 @@ static char* getoneline(char* buffer, int size) {
     }
 }
 
+static int ends_with(char* filename, char c) {
+    int len = strlen(filename);
+    if (len == 0)
+        return 0;
+    else
+        return filename[len - 1] == c;
+}
+
 void do_logging(char* msg) {
     FILE* fptr = fopen("log.txt", "a");
     fputs(msg, fptr);
@@ -52,7 +61,9 @@ int main() {
         }
 
         load_and_run(libname, funcname);
-        fputs(prompt, stdout);
+        if (ends_with(funcname, '_'))   // when this is not an imported module
+            fputs(prompt, stdout);
+
         fflush(stdout);
         fflush(stderr);
     }

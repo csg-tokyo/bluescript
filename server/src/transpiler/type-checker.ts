@@ -7,7 +7,7 @@ import * as visitor from './visitor'
 import { ArrayType, StaticType, isPrimitiveType } from './types'
 
 import {
-  Integer, Float, Boolean, String, Void, Null, Any,
+  Integer, Float, BooleanT, StringT, Void, Null, Any,
   ObjectType, FunctionType, objectType,
   typeToString, isSubtype, isConsistent, commonSuperType,
   isNumeric
@@ -16,20 +16,25 @@ import {
 import { actualElementType } from './code-generator/c-runtime'
 
 import {
-  NameTable, NameTableMaker, BasicGlobalNameTable, NameInfo,
+  NameTable, NameTableMaker, GlobalNameTable, BasicGlobalNameTable, NameInfo,
   addNameTable, addStaticType, getStaticType, BasicNameTableMaker,
   addCoercionFlag, getNameTable
 } from './names'
 import { InstanceType } from './classes'
 
 // entry point for just running a type checker
-export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable) {
+export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable,
+                               importer?: (file: string) => NameTable<NameInfo>) {
   const maker = new BasicNameTableMaker()
-  return typecheck(ast, maker, names)
+  return typecheck(ast, maker, names, importer)
 }
 
-export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTableMaker<Info>, names: NameTable<Info>): NameTable<Info> {
-  const typeChecker = new TypeChecker(maker)
+export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTableMaker<Info>, names: NameTable<Info>,
+                                                 importer?: (file: string) => NameTable<Info>): NameTable<Info> {
+  // importer reads a given source file and returns a name table.
+  // If the source file is not found, importer throws an error message.  The type of the message must be string.
+  // importer may also throw an ErrorLog object.
+  const typeChecker = new TypeChecker(maker, importer)
   typeChecker.firstPass = true
   typeChecker.result = Any
   typeChecker.visit(ast, names)
@@ -47,13 +52,16 @@ export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTable
 
 export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisitor<NameTable<Info>> {
   maker: NameTableMaker<Info>
+  importer?: (file: string) => NameTable<Info>
   errorLog = new ErrorLog()
   result: StaticType = Any
   firstPass = true
+  inExport: boolean = false   // true when the context is in an export declaration.
 
-  constructor(maker: NameTableMaker<Info>) {
+  constructor(maker: NameTableMaker<Info>, importer?: (file: string) => NameTable<Info>) {
     super()
     this.maker = maker
+    this.importer = importer
   }
 
   copyTo(checker: TypeChecker<Info>) {
@@ -73,7 +81,63 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   importDeclaration(node: AST.ImportDeclaration, env: NameTable<Info>): void {
-    // ignore
+    if (!this.firstPass)
+      return
+
+    const imported = this.callImporter(node)
+    if (imported === undefined)
+      return
+
+    if (!(env instanceof GlobalNameTable)) {
+      this.assert(false, 'an import declaration must be at the top level', node)
+      return
+    }
+
+    for (const spec of node.specifiers)
+      if (AST.isImportSpecifier(spec) && AST.isIdentifier(spec.imported)) {
+        const name = spec.imported.name
+        const info = imported.lookup(name)
+        const sourceFile = node.source.value
+        if (info === undefined) {
+          this.assert(false, `'${name}' is not found in ${sourceFile}`, spec)
+        }
+        else {
+          this.assert(info.isExported, `'${name}' is declared but not exported in ${sourceFile}`, spec)
+          env.importInfo(name, info)
+        }
+      }
+      else
+        this.assert(false, 'unsupported import declaration', spec)
+  }
+
+  private callImporter(node: AST.ImportDeclaration) {
+    if (node.importKind === 'type')
+      return undefined     // ignore
+
+    if (!this.assert(node.importKind === 'value', 'unsupported import declaration', node))
+      return undefined
+
+    if (this.importer === undefined) {
+      this.assert(false, 'import declaration is not available', node)
+      return undefined
+    }
+
+    const sourceFile = node.source.value
+    try {
+      return this.importer(sourceFile)
+    }
+    catch (e) {
+      if (e instanceof ErrorLog) {
+        this.errorLog.add(e, sourceFile)
+        return undefined
+      }
+      else if (typeof e === 'string') {
+        this.errorLog.push(e, node)
+        return undefined
+      }
+      else
+        throw e
+    }
   }
 
   nullLiteral(node: AST.NullLiteral, names: NameTable<Info>): void {
@@ -81,11 +145,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   stringLiteral(node: AST.StringLiteral, names: NameTable<Info>): void {
-    this.result = String
+    this.result = StringT
   }
 
   booleanLiteral(node: AST.BooleanLiteral, names: NameTable<Info>): void {
-    this.result = Boolean
+    this.result = BooleanT
   }
 
   numericLiteral(node: AST.NumericLiteral, names: NameTable<Info>): void {
@@ -235,8 +299,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       else
         this.assertSyntax(false, superClassName)
 
-    const clazz = new InstanceType(className, superClass)
-    const success = names.record(className, clazz, this.maker, _ => _.isTypeName = true)
+    const clazz = this.maker.instanceType(className, superClass)
+    const success = names.record(className, clazz, this.maker,
+                                 _ => { _.isTypeName = true; _.isExported = this.inExport })
     this.assert(success, `'${className}' class has already been declared`, node)
 
     this.result = clazz
@@ -376,7 +441,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       varType = Any
 
     if (!alreadyDeclared) {
-      const success = names.record(varName, varType, this.maker, _ => _.isConst = isConst)
+      const success = names.record(varName, varType, this.maker,
+                                   _ => { _.isConst = isConst; _.isExported = this.inExport })
       this.assert(success, `Identifier '${varName}' has already been declared`, node)
     }
   }
@@ -456,7 +522,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     addStaticType(node, ftype)
     if (nodeId != null)
       if (info === undefined)   // if new declaration
-        names.record(nodeId.name, ftype, this.maker, _ => { _.isFunction = true })
+        names.record(nodeId.name, ftype, this.maker, _ => { _.isFunction = true; _.isExported = this.inExport })
       else
         this.assert(isSubtype(ftype, info.type),
             `function '${nodeId.name}' is declared again with a different type`, node)
@@ -527,7 +593,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.invalidOperandMessage(op, this.result), node);
     else if (op === '!') {
       this.addCoercionForBoolean(node.argument, this.result)
-      this.result = Boolean
+      this.result = BooleanT
     }
     else if (op === '~') {
       // this.result must be integer or any-type.
@@ -538,7 +604,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else if (op === 'typeof') {
       addStaticType(node.argument, this.result)
-      this.result = String
+      this.result = StringT
     }
     else  // 'void' | 'delete' | 'throw'
       this.assert(false, `not supported operator ${op}`, node)
@@ -567,7 +633,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const right_type = this.result
     const op = node.operator
     if (op === '==' || op === '!=' || op === '===' || op === '!==') {
-      if (left_type === Boolean || right_type === Boolean) {
+      if (left_type === BooleanT || right_type === BooleanT) {
         this.assert(left_type === right_type, 'a boolean must be compared with a boolean', node)
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
@@ -580,7 +646,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.assert(isSubtype(left_type, right_type) || isSubtype(right_type, left_type),
           this.invalidOperandsMessage(op, left_type, right_type), node)
 
-      this.result = Boolean
+      this.result = BooleanT
     }
     else if (op === '<' || op === '<=' || op === '>' || op === '>=') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
@@ -589,7 +655,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
-      this.result = Boolean
+      this.result = BooleanT
     }
     else if (op === '+' || op === '-' || op === '*' || op === '/') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
@@ -611,7 +677,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else { // 'in', '**', 'instanceof', '|>'
       this.assert(false, `not supported operator '${op}'`, node)
-      this.result = Boolean
+      this.result = BooleanT
     }
   }
 
@@ -717,7 +783,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (op === '||' || op === '&&') {
       this.addCoercionForBoolean(node.left, left_type)
       this.addCoercionForBoolean(node.right, right_type)
-      this.result = Boolean
+      this.result = BooleanT
     }
     else  // '??'
       this.assert(false, `not supported operator '${op}'`, node)
@@ -834,7 +900,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     const args = node.arguments
     if (this.assert(args.length === 2 || (args.length === 1 && (etype === Integer || etype === Float
-                                                                || etype === Boolean || etype === Any)),
+                                                                || etype === BooleanT || etype === Any)),
                     'wrong number of arguments', node)) {
       this.callExpressionArg(args[0], Integer, names)
       if (args.length === 2)
@@ -1099,11 +1165,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   tsBooleanKeyword(node: AST.TSBooleanKeyword, names: NameTable<Info>): void {
-    this.result = Boolean
+    this.result = BooleanT
   }
 
   tsStringKeyword(node: AST.TSStringKeyword, names: NameTable<Info>): void {
-    this.result = String
+    this.result = StringT
   }
 
   tsObjectKeyword(node: AST.TSObjectKeyword, names: NameTable<Info>): void {
@@ -1129,8 +1195,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   exportNamedDeclaration(node: AST.ExportNamedDeclaration, env: NameTable<Info>): void {
-    if (node.declaration != undefined)
-      this.visit(node.declaration, env);
+    this.inExport = true
+    try {
+      if (node.declaration != undefined)
+        this.visit(node.declaration, env);
+    }
+    finally {
+      this.inExport = false
+    }
   }
 
   isConsistentOnFirstPass(t1: StaticType, t2: StaticType) {
