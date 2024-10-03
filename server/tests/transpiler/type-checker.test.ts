@@ -36,8 +36,8 @@ test('other literals', () => {
 
   const ast = tested.transpile(src)
   const table = names.getNameTable(ast.program)
-  expect(table?.lookup('a')?.type).toBe(types.Boolean)
-  expect(table?.lookup('b')?.type).toBe(types.String)
+  expect(table?.lookup('a')?.type).toBe(types.BooleanT)
+  expect(table?.lookup('b')?.type).toBe(types.StringT)
   expect(table?.lookup('c')?.type).toBe(types.Null)
 })
 
@@ -183,6 +183,48 @@ test('function type', () => {
   const table = names.getNameTable(ast.program)
   const a = table?.lookup('foo')?.type
   expect((a as types.FunctionType).paramTypes[0]).toBe(types.Float)
-  expect((a as types.FunctionType).paramTypes[1]).toBe(types.String)
+  expect((a as types.FunctionType).paramTypes[1]).toBe(types.StringT)
   expect((a as types.FunctionType).returnType).toBe(types.Integer)
+})
+
+test('import', () => {
+  const src = `
+  function foo(): integer { return 1 }
+  function bar(): integer { return 2 }
+  `
+  const src2 = `
+  import type { integer, float } from 'bluescript.ts'
+  import { foo } from 'foo.ts'
+  function bar(): string { return 'bar' }
+  const a = foo()
+  const b = bar()
+  `
+
+  const src3 = `
+  import { foo } from 'bar.ts'
+  function bar(): string { return 'bar' }
+  const a = foo()
+  `
+
+  const src4 = `
+  function foo(): integer[] { return 1 }
+  function bar(): string { return 2 }
+  `
+
+  const src5 = `
+  import { foo } from 'foo.ts'
+  function bar(): string { return 'bar' }
+  const a = foo()
+  const b: integer = bar()
+  `
+
+  const ast = tested.transpile(src2, 1, 'foo.ts', src)
+  const table = names.getNameTable(ast.program)
+  const a = table?.lookup('a')?.type
+  const b = table?.lookup('b')?.type
+  expect(a).toBe(types.Integer)
+  expect(b).toBe(types.StringT)
+
+  expect(() => tested.transpile(src3, 1, 'foo.ts', src)).toThrow(/cannot find/)
+  expect(() => tested.transpile(src5, 1, 'foo.ts', src4)).toThrow(/line 2.*foo\.ts\n.*line 3.*foo\.ts\n.*line 5/)
 })

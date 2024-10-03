@@ -2,9 +2,8 @@
 
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
-import { Integer, Float, Boolean, String, Void, Null, Any,
-         ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType, isSubtype } from '../types'
+import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
+         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
@@ -13,16 +12,29 @@ import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMak
 import * as cr from './c-runtime'
 import { InstanceType } from '../classes'
 
-// codeId: an integer more than zero.  It is used for generating a unique name.
+/*
+  Transpile BlueScript code.
+
+  codeId: an integer more than zero.  It is used for generating a unique name.
+  src: the source code for transpilation.
+  gvnt: a name table for global variables.
+  importer: a handler for processing an import declaration.  It takes a module name and returns
+        a name table.  It may throw an error message of string type or an ErrorLog object.
+  moduleId: module identifier.  It must be >= 0 if this code is a module.  Otherwise, it must be -1.
+        It is used to generate a unique identifier.
+  startLine: the line number for the first line of the given source code.
+  header: the code inserted in the generated code by transpilation.  It should be #include directives.
+*/
 export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
+                          importer?: (name: string) => GlobalVariableNameTable, moduleId: number = -1,
                           startLine: number = 1, header: string = '') {
   const ast = runBabelParser(src, startLine);
-  const maker = new VariableNameTableMaker()
+  const maker = new VariableNameTableMaker(moduleId)
   const nameTable = new GlobalVariableNameTable(gvnt)
-  typecheck(ast, maker, nameTable)
+  typecheck(ast, maker, nameTable, importer)
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
-  const mainFuncName = `${cr.mainFunctionName}${codeId}`
-  const generator = new CodeGenerator(mainFuncName, codeId)
+  const mainFuncName = `${cr.mainFunctionName}${codeId}_${moduleId < 0 ? '' : moduleId}`
+  const generator = new CodeGenerator(mainFuncName, codeId, moduleId)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   if (generator.errorLog.hasError())
     throw generator.errorLog
@@ -42,13 +54,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private externalMethods: Map<string, StaticType>
   private uniqueId = 0
   private uniqueIdCounter = 0
+  private moduleId = -1
 
-  constructor(initializerName: string, codeId: number) {
+  constructor(initializerName: string, codeId: number, moduleId: number) {
     super()
     this.initializerName = initializerName
-    this.globalRootSetName = `${cr.globalRootSetName}${codeId}`
+    this.globalRootSetName = moduleId < 0 ? `${cr.globalRootSetName}${codeId}` : `${cr.globalRootSetName}${codeId}_${moduleId}`
     this.externalMethods = new Map()
     this.uniqueId = codeId
+    this.moduleId = moduleId
   }
 
   getCode(header: string) {
@@ -70,7 +84,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.signatures += cr.externClassDef(objectType)
     this.signatures += '\n'
     const externalRoots: { [key: string]: number } = {}
-    env2.forEachExternalVariable((name, type, index) => {
+    env2.forEachExternalVariable((info, name, type, index) => {
       if (name === undefined) {
         // a type name only
         if (type instanceof ObjectType) {
@@ -90,7 +104,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           externalRoots[name] = index
       }
       else if (type instanceof FunctionType)
-        this.signatures += this.makeFunctionStruct(name, type)
+        this.signatures += this.makeFunctionStruct(name, type, info.isConst)
       else
         this.signatures += `extern ${cr.typeToCType(type, name)};\n`
     })
@@ -155,7 +169,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     throw this.errorLog.push('fatal:  unknown identifier', node)
   }
 
-  private makeUniqueName() { return `fn_${this.uniqueId}_${this.uniqueIdCounter++}`}
+  private makeUniqueName() {
+    const mid = this.moduleId < 0 ? '' : this.moduleId
+    return `fn_${mid}_${this.uniqueId}_${this.uniqueIdCounter++}`
+  }
 
   private makeFunctionObject(name: string, fenv?: FunctionEnv) {
     let obj = 'VALUE_UNDEF'
@@ -578,7 +595,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (decl.init && AST.isArrowFunctionExpression(decl.init)) {
         const func = decl.init
         const funcName = (decl.id as AST.Identifier).name
-        this.functionBodyDeclaration(func, funcName, env)
+        this.functionBodyDeclaration(func, funcName, env, false)
         return true
       }
     }
@@ -597,9 +614,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         extern struct func_body _foo;
         static int32_t fbody_foo(value_t self, int32_t _n) { ... function body ... }
         struct func_body _foo = { fbody_foo, "(i)i" };
+
+      fbody_foo() will be a non-static function if isStatic is false.
   */
   functionBodyDeclaration(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
-                          funcName: string, env: VariableEnv): FunctionEnv {
+                          funcName: string, env: VariableEnv, isStatic: boolean = true): FunctionEnv {
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
     fenv.allocateRootSet()
     const funcType = getStaticType(node) as FunctionType;
@@ -609,14 +628,18 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const prevResult = this.result
     this.result = this.declarations
-    this.functionBody(node, fenv, funcType, bodyName)
+    if (isStatic)
+      this.functionBody(node, fenv, funcType, bodyName)
+    else
+      this.functionBody(node, fenv, funcType, bodyName, '')   // not a static function
+
     this.result = prevResult
 
     const fname = transpiledFuncName
     if (fenv.isFreeVariable(funcInfo))
       this.result.nl().write(`${fname}.${cr.functionPtr} = ${bodyName};`).nl()
     else {
-      this.signatures += this.makeFunctionStruct(fname, funcType)
+      this.signatures += this.makeFunctionStruct(fname, funcType, false)
       this.declarations.write(`${cr.funcStructInC} ${fname} = { ${bodyName}, "${encodeType(funcType)}" };`).nl()
     }
 
@@ -719,8 +742,24 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return sig + ')'
   }
 
-  private makeFunctionStruct(name: string, type: StaticType) {
-    return `extern ${cr.funcStructInC} ${name};\n`
+  private makeSimpleParameterList(funcType: FunctionType) {
+    let sig = `(${cr.anyTypeInC} self`
+    for (let i = 0; i < funcType.paramTypes.length; i++) {
+      sig += `, ${cr.typeToCType(funcType.paramTypes[i], `p${i}`)}`
+    }
+
+    return sig + ')'
+  }
+
+  private makeFunctionStruct(name: string, type: FunctionType, isConst: boolean) {
+    let body: string = ''
+    if (isConst) {
+      const bodyName = cr.functionBodyName(name)
+      const sig = this.makeSimpleParameterList(type)
+      body = `extern ${cr.typeToCType(type.returnType, bodyName)}${sig};\n`
+    }
+
+    return `extern ${cr.funcStructInC} ${name};\n${body}`
   }
 
   arrowFunctionExpression(node: AST.ArrowFunctionExpression, env: VariableEnv): void {
@@ -846,7 +885,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if ((left_type === Boolean || right_type === Boolean)
+    if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
         || (left_type === Any || right_type === Any)) {
       this.result.write(`${cr.typeConversion(left_type, Any, left)}`)

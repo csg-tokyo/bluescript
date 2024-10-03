@@ -2,8 +2,8 @@
 
 export const Integer = 'integer'
 export const Float = 'float'
-export const Boolean = 'boolean'
-export const String = 'string'
+export const BooleanT = 'boolean'
+export const StringT = 'string'
 export const Void = 'void'
 export const Null = 'null'
 export const Any = 'any'
@@ -13,7 +13,7 @@ export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | '
 
 export function isPrimitiveType(type: StaticType) {
   // unless String, Null, FunctionType, Any, or object type
-  return type === Integer || type === Float || type === Boolean || type === Void
+  return type === Integer || type === Float || type === BooleanT || type === Void
 }
 
 export function isNumeric(t: StaticType) {
@@ -26,6 +26,7 @@ abstract class CompositeType {
   abstract isSubtypeOf(t: StaticType): boolean
   abstract sameType(t: StaticType): boolean
 
+  sourceName() { return this.name() }
   superType(): ObjectType | null { return null }
 }
 
@@ -117,7 +118,7 @@ export class ArrayType extends ObjectType {
 // type name used for error messages
 export function typeToString(type: StaticType): string {
   if (type instanceof CompositeType)
-    return type.name()
+    return type.sourceName()
   else
     return type
 }
@@ -128,9 +129,9 @@ export function encodeType(type: StaticType): string {
     return 'i'
   case Float:
     return 'f'
-  case Boolean:
+  case BooleanT:
     return 'b'
-  case String:
+  case StringT:
     return 's'
   case Void:
     return 'v'
@@ -157,9 +158,9 @@ export function isSubtype(subtype: StaticType, type: StaticType): boolean {
   if (type === subtype)
     return true     // subclassing has not been implemented yet.
   else if (subtype === Integer && type === Float
-    || subtype === String && type === objectType)
+    || subtype === StringT && type === objectType)
     return true
-  else if (type === Boolean)
+  else if (type === BooleanT)
     return subtype !== Void && subtype !== Any
   else if (subtype instanceof CompositeType)
     return subtype.isSubtypeOf(type)

@@ -2,7 +2,7 @@
 
 import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
-import { Integer, Float, Boolean, String, Void, Null, Any,
+import { Integer, Float, BooleanT, StringT, Void, Null, Any,
     ObjectType, objectType, FunctionType,
     StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype, } from '../types'
 import { InstanceType, ClassTable } from '../classes'
@@ -49,11 +49,11 @@ function typeToCType2(type: StaticType): string {
       return 'int32_t'
     case Float:
       return 'float'
-    case Boolean:
+    case BooleanT:
       return 'int32_t'
     case Void:
       return 'void'
-    case String:
+    case StringT:
     case Null:
     case Any:
       return anyTypeInC
@@ -97,20 +97,20 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
     case Integer:
       if (from === Float)
         return '(int32_t)('
-      else if (from === Boolean)
+      else if (from === BooleanT)
         return '('
       else if (from === Any)
         return 'safe_value_to_int('
       else
         break
     case Float:
-      if (from === Integer || from === Boolean)
+      if (from === Integer || from === BooleanT)
         return '(float)('
       else if (from === Any)
         return 'safe_value_to_float('
       else
         break
-    case Boolean:
+    case BooleanT:
       if (from === Integer || from === Float)
         return '('
       else if (from === Any)
@@ -128,14 +128,14 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
           return 'int_to_value('
         case Float:
           return 'float_to_value('
-        case Boolean:
+        case BooleanT:
           return 'bool_to_value('
         default:
           return '('
       }
     default:    // "to" is either String, Object, or Array
       if (from === Any || from instanceof ObjectType) {
-        if (to === String)
+        if (to === StringT)
           return 'safe_value_to_string('
         else if (to instanceof ObjectType) {
           if (to === objectType)
@@ -145,7 +145,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
               return 'safe_value_to_intarray('
             else if (to.elementType === Float)
               return 'safe_value_to_floatarray('
-            else if (to.elementType === Boolean)
+            else if (to.elementType === BooleanT)
               return 'safe_value_to_bytearray('
             else if (to.elementType === Any)
               return 'safe_value_to_anyarray('
@@ -311,7 +311,7 @@ export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticT
     return '(*gc_intarray_get('
   else if (t === Float)
     return '(*gc_floatarray_get('
-  else if (t === Boolean)
+  else if (t === BooleanT)
     return '(*gc_bytearray_get('
   else
     return `(*gc_array_get(`
@@ -334,7 +334,7 @@ export function arrayFromElements(t: StaticType) {
     return 'gc_make_intarray('
   else if (t === Float)
     return 'gc_make_floatarray('
-  else if (t === Boolean)
+  else if (t === BooleanT)
     return 'gc_make_bytearray('
   else if (t === Any)
     return 'gc_make_array(1, '
@@ -347,7 +347,7 @@ export function arrayFromSize(t: StaticType) {
     return 'gc_new_intarray('
   else if (t === Float)
     return 'gc_new_floatarray('
-  else if (t === Boolean)
+  else if (t === BooleanT)
     return 'gc_new_bytearray('
   else if (t === Any)
     return 'gc_new_array(1, '
@@ -360,14 +360,14 @@ export function actualElementType(t: StaticType) {
     return Integer
   else if (t === Float)
     return Float
-  else if (t === Boolean)
-    return Boolean
+  else if (t === BooleanT)
+    return BooleanT
   else
     return Any
 }
 
 export function getArrayLengthIndex(t: StaticType) {
-  if (t === Boolean)
+  if (t === BooleanT)
     return 1
   else
     return 0

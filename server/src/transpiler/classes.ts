@@ -14,17 +14,24 @@ export class InstanceType extends ObjectType {
   private numOfMethods: number
   private superClass: ObjectType
   private className: string
+  private blueScriptName: string
 
-  constructor(name: string, superClass: ObjectType) {
+  constructor(name: string, bsName: string, superClass: ObjectType) {
     super()
     this.superClass = superClass
     this.className = name
+    this.blueScriptName = bsName
 
     this.numOfProperties = superClass instanceof InstanceType ? superClass.objectSize() : 0
     this.numOfMethods = superClass instanceof InstanceType ? superClass.methodCount() : 0
   }
 
+  // returns a globally-unique class name.  It may be different from the
+  // original name given in the source code.
   name() { return this.className }
+
+  // the name given in the source code.
+  override sourceName() { return this.blueScriptName }
 
   superType(): ObjectType | null { return this.superClass }
 
