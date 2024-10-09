@@ -23,8 +23,8 @@ static void fbody_print(value_t self, value_t m) {
     printf("%d\\n", value_to_int(m));
   else if (is_float_value(m))
     printf("%f\\n", value_to_float(m));
-  else if (m == VALUE_NULL)
-    puts("null");
+  else if (m == VALUE_NULL || m == VALUE_UNDEF)
+    puts("undefined");
   else if (gc_is_string_literal(m))
     puts(gc_string_literal_cstr(m));
   else

@@ -89,12 +89,12 @@ test('literals', () => {
   }
   foo(33)
   `
-  expect(compileAndRun(src)).toBe('null\n33\n7.400000\n1\n0\ntest\n')
+  expect(compileAndRun(src)).toBe('undefined\n33\n7.400000\n1\n0\ntest\n')
 })
 
 test('undefined', () => {
   const src = 'const k = undefined'
-  expect(() => { compileAndRun(src) }).toThrow(/unknown name: undefined/)
+  compileAndRun(src)
 })
 
 test('control structuers', () => {
@@ -658,9 +658,10 @@ test('typeof operator', () => {
   print(typeof('foo'))
   print(typeof([1, 2, 3]))
   print(typeof(null))
+  print(typeof(undefined))
   print(typeof(foo))
   `
-  expect(compileAndRun(src)).toBe('integer\ninteger\nstring\ninteger[]\nnull\n(any) => any\n')
+  expect(compileAndRun(src)).toBe('integer\ninteger\nstring\ninteger[]\nundefined\nundefined\n(any) => any\n')
 })
 
 test('++/-- operator', () => {
@@ -828,7 +829,7 @@ test('any to null', () => {
   print(foo(null))
   `
 
-  expect(compileAndRun(src)).toBe('null\n')
+  expect(compileAndRun(src)).toBe('undefined\n')
 })
 
 test('null to any or string', () => {
@@ -847,7 +848,7 @@ test('null to any or string', () => {
   }
   `
 
-  expect(compileAndRun(src)).toBe('null\n')
+  expect(compileAndRun(src)).toBe('undefined\n')
   expect(() => compileAndRun(src2)).toThrow(/not assignable.*line 3/)
 })
 
@@ -954,7 +955,7 @@ test('function call', () => {
   print(baz(null, [1, 2], 11, 'baz2'))
   `
 
-  expect(compileAndRun(src)).toBe([7, 3, '7.400000', 'null', 1, 'baz2', 11].join('\n') + '\n')
+  expect(compileAndRun(src)).toBe([7, 3, '7.400000', 'undefined', 1, 'baz2', 11].join('\n') + '\n')
 })
 
 test('array access', () => {

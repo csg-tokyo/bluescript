@@ -119,6 +119,8 @@ export class ArrayType extends ObjectType {
 export function typeToString(type: StaticType): string {
   if (type instanceof CompositeType)
     return type.sourceName()
+  else if (type === Null)
+    return 'undefined'
   else
     return type
 }
