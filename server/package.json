@@ -22,6 +22,7 @@
     "build:watch": "npx tsc -w",
     "dev": "npm run build:watch & npm start",
     "shell": "./node_modules/.bin/tsc && node ./dist/transpiler/shell.js",
+    "generatec": "./node_modules/.bin/tsc && node ./dist/tools/generatec.js",
     "test": "jest"
   }
 }
