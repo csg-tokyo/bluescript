@@ -39,6 +39,11 @@ docker compose up -d
     - Open [Google Chrome browser](https://www.google.com/chrome/) and access [http://localhost:3000/](http://localhost:3000/).  
     - You can see BlueScript REPL page on the browser.
 
+    - You can also run a REPL that executes a program on a PC.  You can use this REPL without a microcontroller connected to your PC.
+    ```
+    docker exec -it bluescript_server npm run shell
+    ```
+
 ### Build and Flash the BlueScript Runtime  
 
 1. Build the BlueScript runtime:
