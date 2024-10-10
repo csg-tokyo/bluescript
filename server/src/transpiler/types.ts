@@ -119,6 +119,8 @@ export class ArrayType extends ObjectType {
 export function typeToString(type: StaticType): string {
   if (type instanceof CompositeType)
     return type.sourceName()
+  else if (type === Null)
+    return 'undefined'
   else
     return type
 }
@@ -161,7 +163,7 @@ export function isSubtype(subtype: StaticType, type: StaticType): boolean {
     || subtype === StringT && type === objectType)
     return true
   else if (type === BooleanT)
-    return subtype !== Void && subtype !== Any
+    return subtype === BooleanT
   else if (subtype instanceof CompositeType)
     return subtype.isSubtypeOf(type)
   else

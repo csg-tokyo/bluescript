@@ -87,7 +87,7 @@ inline value_t ptr_to_value(pointer_t v) { return (value_t)(((uintptr_t)v & 0xff
 inline bool is_ptr_value(value_t v) { return (v & 3) == 3; }
 
 #define VALUE_NULL    3         // null pointer: 0000 ... 0011
-#define VALUE_UNDEF   0
+#define VALUE_UNDEF   3         // equivalent to VALUE_NULL
 #define VALUE_ZERO    0         // integer 0
 #define VALUE_FZERO   1         // float 0.0
 #define VALUE_FALSE   0         // 0000 ... 0000 (integer 0)

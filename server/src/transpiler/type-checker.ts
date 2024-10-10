@@ -165,6 +165,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   identifier(node: AST.Identifier, names: NameTable<Info>): void {
+    if (node.name === 'undefined') {
+      this.result = Null
+      return
+    }
+
     const nameInfo = names.lookup(node.name)
     if (nameInfo !== undefined) {
       const info = nameInfo as NameInfo
