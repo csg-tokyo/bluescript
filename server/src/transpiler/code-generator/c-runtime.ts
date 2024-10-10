@@ -111,8 +111,10 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
       else
         break
     case BooleanT:
-      if (from === Integer || from === Float)
+      if (from === Integer)
         return '('
+      else if (from === Float)
+        return '(int32_t)('
       else if (from === Any)
         return 'safe_value_to_bool('
       else

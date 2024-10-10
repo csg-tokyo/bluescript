@@ -36,7 +36,7 @@ test('boolean conditions', () => {
       let c: any = 3
       while (c)
         if (c-- < 0)
-          b = null
+          b = true
         else if (c < -10) {
           let str: any = null
           let k = str + 1
@@ -70,10 +70,33 @@ test('boolean conditions', () => {
   expect(compileAndRun(src)).toEqual('')
 })
 
+test('wrong assignment to boolean', () => {
+  const src = `
+  let b = true
+  b = null
+  `
+
+  expect(() => { compileAndRun(src) }).toThrow(/assignable to type 'boolean'/)
+
+  const src2 = `
+  let b = true
+  b = 3
+  `
+
+  expect(() => { compileAndRun(src2) }).toThrow(/assignable to type 'boolean'/)
+
+  const src3 = `
+  let b = true
+  b = 'foo'
+  `
+
+  expect(() => { compileAndRun(src2) }).toThrow(/assignable to type 'boolean'/)
+})
+
 test('literals', () => {
   const src = `
   function foo(n: integer) {
-    const empty = null
+    const empty = null // or undefined
     const i = n
     const f = 7.4
     const b1 = true

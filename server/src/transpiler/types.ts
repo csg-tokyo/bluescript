@@ -163,7 +163,7 @@ export function isSubtype(subtype: StaticType, type: StaticType): boolean {
     || subtype === StringT && type === objectType)
     return true
   else if (type === BooleanT)
-    return subtype !== Void && subtype !== Any
+    return subtype === BooleanT
   else if (subtype instanceof CompositeType)
     return subtype.isSubtypeOf(type)
   else
