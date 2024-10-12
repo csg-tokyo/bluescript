@@ -155,6 +155,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   identifier(node: AST.Identifier, env: VariableEnv): void {
+    if (node.name === 'undefined') {
+      this.result.write('VALUE_UNDEF')
+      return
+    }
+
     const info = env.table.lookup(node.name)
     if (info !== undefined) {
         if (info.isFunction) {

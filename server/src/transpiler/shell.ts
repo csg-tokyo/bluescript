@@ -22,7 +22,7 @@ export function buildShell() {
   const srcdir = 'src/transpiler'
   console.log(execSync("pwd").toString())
   execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeC} ${srcdir}/shell-builtins.c`)
-  execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${srcdir}/shell.c ${dir}/c-runtime.so`)
+  execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${srcdir}/shell.c ${dir}/c-runtime.so -ldl`)
 }
 
 function makeShell(closer: (code: number) => void) {
