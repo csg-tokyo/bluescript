@@ -131,6 +131,7 @@ extern value_t CR_SECTION any_add(value_t a, value_t b);
 extern value_t CR_SECTION any_subtract(value_t a, value_t b);
 extern value_t CR_SECTION any_multiply(value_t a, value_t b);
 extern value_t CR_SECTION any_divide(value_t a, value_t b);
+extern value_t CR_SECTION any_modulo(value_t a, value_t b);
 
 extern bool CR_SECTION any_less(value_t a, value_t b);
 extern bool CR_SECTION any_less_eq(value_t a, value_t b);
@@ -141,6 +142,7 @@ extern value_t CR_SECTION any_add_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_subtract_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_multiply_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_divide_assign(value_t* a, value_t b);
+extern value_t CR_SECTION any_modulo_assign(value_t* a, value_t b);
 
 extern value_t CR_SECTION any_increment(value_t* expr);
 extern value_t CR_SECTION any_decrement(value_t* expr);
