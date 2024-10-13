@@ -279,6 +279,14 @@ ANY_OP_FUNC(subtract,-)
 ANY_OP_FUNC(multiply,*)
 ANY_OP_FUNC(divide,/)
 
+value_t any_modulo(value_t a, value_t b) {
+    if (is_int_value(a))
+        if (is_int_value(b))
+            return int_to_value(value_to_int(a) % value_to_int(b));
+
+    return runtime_type_error("bad operand for %%");
+}
+
 #define ANY_CMP_FUNC(name, op) \
 bool any_##name(value_t a, value_t b) {\
     if (is_int_value(a)) {\
@@ -322,6 +330,14 @@ ANY_ASSIGN_OP_FUNC(add,+)
 ANY_ASSIGN_OP_FUNC(subtract,-)
 ANY_ASSIGN_OP_FUNC(multiply,*)
 ANY_ASSIGN_OP_FUNC(divide,/)
+
+value_t any_modulo_assign(value_t* a, value_t b) {
+    if (is_int_value(*a))
+        if (is_int_value(b))
+            return *a = int_to_value(value_to_int(*a) % value_to_int(b));
+
+    return runtime_type_error("bad operand for %%=");
+}
 
 #define ANY_UPDATE(name, op, code) \
 value_t any_##name(value_t* expr) {\

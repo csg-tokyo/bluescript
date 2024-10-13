@@ -237,3 +237,103 @@ print(barbar(7))
   const imp = new Importer(modules)
   expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('8\n')
 })
+
+test('/ and /= operators', () => {
+  const src = `
+  let a = 239
+  let b = a / 13
+  print(b)
+  a /= 4
+  print(a)
+`
+
+  expect(compileAndRun(src)).toBe('18\n59\n')
+
+  const src1 = `
+  let a = 239.3
+  let b = a / 13.2
+  print(b)
+  a /= 4.3
+  print(a)
+`
+
+  expect(compileAndRun(src1)).toBe('18.128788\n55.651165\n')
+
+  const src2 = `
+  let a: any = 239
+  let b = a / 13
+  print(b)
+  let c: any = 13
+  let d = a / c
+  print(d)
+  let e = 239 / c
+  print(e)
+  let f = a /= 4
+  print(a)
+  print(f)
+  print(typeof f)
+  let i: integer = 239
+  let j = i /= c
+  print(i)
+  print(j)
+  print(typeof j)
+  `
+
+  expect(compileAndRun(src2)).toBe('18\n18\n18\n59\n59\nany\n18\n18\ninteger\n')
+
+  const src3 = `
+  let a: any = 239.3
+  let b = a / 13.2
+  print(b)
+  let c: any = 13.2
+  let d = a / c
+  print(d)
+  let e = 239.3 / c
+  print(e)
+  let f = a /= 4.7
+  print(a)
+  print(f)
+  print(typeof f)
+  let i: float = 239.3
+  let j = i /= c
+  print(i)
+  print(j)
+  print(typeof j)
+  `
+
+  expect(compileAndRun(src3)).toBe('18.128788\n18.128788\n18.128788\n50.914898\n50.914898\nany\n18.128788\n18.128788\nfloat\n')
+})
+
+test('% and %= operators', () => {
+  const src = `
+  let a = 239
+  let b = a % 13
+  print(b)
+  a %= 4
+  print(a)
+`
+
+  expect(compileAndRun(src)).toBe('5\n3\n')
+
+  const src2 = `
+  let a: any = 239
+  let b = a % 13
+  print(b)
+  let c: any = 13
+  let d = a % c
+  print(d)
+  let e = 239 % c
+  print(e)
+  let f = a %= 4
+  print(a)
+  print(f)
+  print(typeof f)
+  let i: integer = 239
+  let j = i %= c
+  print(i)
+  print(j)
+  print(typeof j)
+  `
+
+  expect(compileAndRun(src2)).toBe('5\n5\n5\n3\n3\nany\n5\n5\ninteger\n')
+})
