@@ -54,7 +54,7 @@ export default class Session {
   public dummyExecute() {
     const start = performance.now();
     // Compile
-    execSync(`xtensa-esp32-elf-gcc -c -O2 ./temp-files/code.c -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
+    execSync(`xtensa-esp32-elf-gcc -c -O2 ./temp-files/dummy-code.c -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
     const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
 
     // Link
