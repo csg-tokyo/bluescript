@@ -1,6 +1,7 @@
 import { transpile } from '../transpiler/code-generator/code-generator'
 import * as fs from 'fs'
 import { GlobalVariableNameTable } from '../transpiler/code-generator/variables'
+import { FILE_PATH } from '../constants'
 
 const dir = './temp-files'
 
@@ -24,15 +25,23 @@ class Transpiler {
         this.baseGlobalNames = result.names
     }
 
-    transpile(src: string, globalNames: GlobalVariableNameTable) {
+    private convertFname(fname: string):number {
+        let result = "";
+        for (let i = 0; i < fname.length; i++) {
+            result += fname.charCodeAt(i);
+        }
+        return parseInt(result) ?? 0;
+    }
+
+    transpile(fname: string, globalNames: GlobalVariableNameTable) {
 
         const importer = (fname: string) => {
             const mod = this.modules.get(fname)
             if (mod)
                 return mod
             else {
-                const program = fs.readFileSync(`./src/tools/${fname}.ts`).toString();
-                const moduleId = 0;
+                const program = fs.readFileSync(`${FILE_PATH.MODULES_FFI}/${fname}.ts`).toString();
+                const moduleId = this.convertFname(fname);
                 this.sessionId += 1;
                 const fileName = `${dir}/bscript${this.sessionId}_${moduleId}`;
                 const result = transpile(this.sessionId, program, this.baseGlobalNames, importer, moduleId);
@@ -43,8 +52,10 @@ class Transpiler {
         }
 
         this.sessionId += 1
-        const fileName = `${dir}/bscript${this.sessionId}`
-        const result = transpile(this.sessionId, src, globalNames, importer, 0)
+        const moduleId = this.convertFname(fname);
+        const program = fs.readFileSync(`${FILE_PATH.MODULES_FFI}/${fname}.ts`).toString();
+        const fileName = `${dir}/${fname}_${moduleId}`;
+        const result = transpile(0, program, globalNames, importer, moduleId)
         fs.writeFileSync(`${fileName}.c`, prologCcode + result.code);
         return result.names
     }
@@ -53,9 +64,8 @@ class Transpiler {
 
 function main() {
     const transpiler = new Transpiler();
-    const src = fs.readFileSync(`./src/tools/test.ts`).toString();
     let globalNames = transpiler.baseGlobalNames
-    transpiler.transpile(src, globalNames);
+    transpiler.transpile("test", globalNames);
 }
 
 main();

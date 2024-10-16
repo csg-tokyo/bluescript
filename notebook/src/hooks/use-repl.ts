@@ -61,10 +61,13 @@ export default function useRepl() {
         try {
             const compileResult = await network.compile(currentCell.code);
             const bufferGenerator = new BytecodeGenerator(MAX_MTU);
-            bufferGenerator.loadToRAM(compileResult.iram.address, Buffer.from(compileResult.iram.data, "hex"));
-            bufferGenerator.loadToRAM(compileResult.dram.address, Buffer.from(compileResult.dram.data, "hex"));
-            bufferGenerator.loadToFlash(compileResult.flash.address, Buffer.from(compileResult.flash.data, "hex"));
-            bufferGenerator.jump(compileResult.entryPoint);
+            console.log(compileResult)
+            for (const update of compileResult.result) {
+                bufferGenerator.loadToRAM(update.iram.address, Buffer.from(update.iram.data, "hex"));
+                bufferGenerator.loadToRAM(update.dram.address, Buffer.from(update.dram.data, "hex"));
+                bufferGenerator.loadToFlash(update.flash.address, Buffer.from(update.flash.data, "hex"));
+                bufferGenerator.jump(update.entryPoint);
+            }
             const bluetoothTime = await bluetooth.current.sendBuffers(bufferGenerator.generate());
             updatedCurrentCell = {...currentCell, bluetoothTime, compileTime:compileResult.compileTime}
             setCurrentCell(updatedCurrentCell);

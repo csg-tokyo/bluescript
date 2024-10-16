@@ -6,6 +6,7 @@ export class LinkerScript {
   public readonly DRAM_SECTION: string = ".dram";
   public readonly FLASH_SECTION: string = ".flash";
 
+  public objFilePath: string;
   public iramAddress: number;
   public dramAddress: number;
   public flashAddress: number;
@@ -14,7 +15,8 @@ export class LinkerScript {
   public sectionNamesInFlash: string[] = [];
   public externalSymbols: {name: string, address: number}[] = [];
 
-  constructor(iramAddress:number, dramAddress:number, flashAddress:number) {
+  constructor(objFilePath: string, iramAddress:number, dramAddress:number, flashAddress:number) {
+    this.objFilePath = objFilePath;
     this.iramAddress = iramAddress;
     this.dramAddress = dramAddress;
     this.flashAddress = flashAddress;
@@ -37,17 +39,17 @@ MEMORY {
 SECTIONS {
     ${this.IRAM_SECTION} : {
         . = 0x00000000;
-        ${this.sectionNamesInIram.length > 0 ? `*/code.o (${this.sectionNamesInIram.join(" ")})` : ""}
+        ${this.sectionNamesInIram.length > 0 ? `${this.objFilePath} (${this.sectionNamesInIram.join(" ")})` : ""}
     } > IRAM
     
     ${this.DRAM_SECTION} : {
         . = 0x00000000;
-        ${this.sectionNamesInDram.length > 0 ? `*/code.o (${this.sectionNamesInDram.join(" ")})` : ""}
+        ${this.sectionNamesInDram.length > 0 ? `${this.objFilePath} (${this.sectionNamesInDram.join(" ")})` : ""}
     } > DRAM
     
     ${this.FLASH_SECTION} : {
         . = 0x00000000;
-        ${this.sectionNamesInFlash.length > 0 ? `*/code.o (${this.sectionNamesInFlash.join(" ")})` : ""}
+        ${this.sectionNamesInFlash.length > 0 ? `${this.objFilePath} (${this.sectionNamesInFlash.join(" ")})` : ""}
     } > FLASH
 
     .external_symbols : {

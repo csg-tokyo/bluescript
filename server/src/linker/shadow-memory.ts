@@ -10,11 +10,17 @@ export type MemoryInfo = {
   useFlash: boolean
 }
 
-
 type MemoryUnit = {
   address: number,
   size: number,
   used: number
+}
+
+type MemoryUpdate = {
+  iram: {address: number, data: string},
+  dram: {address: number, data: string},
+  flash: {address: number, data: string},
+  entryPoint: number|undefined
 }
 
 export class ShadowMemory {
@@ -23,6 +29,7 @@ export class ShadowMemory {
   private flash: MemoryUnit;
   private symbols:Map<string, Symbol> = new Map<string, Symbol>();
   private useFlash: boolean;
+  private updates: MemoryUpdate[] = [];
 
   constructor(bsRuntimePath: string, memoryInfo: MemoryInfo) {
     const bsRuntime = new ExecutableElfReader(bsRuntimePath);
@@ -44,6 +51,7 @@ export class ShadowMemory {
 
     // create linker script
     const linkerScript = new LinkerScript(
+      objFilePath,
       this.iram.address + this.iram.used,
       this.dram.address + this.dram.used,
       this.flash.address + this.flash.used);
@@ -62,7 +70,7 @@ export class ShadowMemory {
     linkerScript.save(FILE_PATH.LINKER_SCRIPT);
 
     // link
-    execSync(`xtensa-esp32-elf-ld -o ${FILE_PATH.LINKED_ELF} -T ${FILE_PATH.LINKER_SCRIPT} ${FILE_PATH.OBJ_FILE}`)
+    execSync(`xtensa-esp32-elf-ld -o ${FILE_PATH.LINKED_ELF} -T ${FILE_PATH.LINKER_SCRIPT} ${objFilePath}`)
 
     // get linked elf32.
     const executableElf = new ExecutableElfReader(FILE_PATH.LINKED_ELF);
@@ -71,6 +79,7 @@ export class ShadowMemory {
     const dramSection = executableElf.readSection(linkerScript.DRAM_SECTION) ?? {address:this.dram.address+this.dram.used, ...emptySection};
     const flashSection = executableElf.readSection(linkerScript.FLASH_SECTION) ?? {address:this.flash.address+this.flash.used, ...emptySection};
 
+    console.log("FOO",iramSection)
     this.iram.used += iramSection.size;
     this.dram.used += dramSection.size;
     this.flash.used += flashSection.size;
@@ -81,12 +90,18 @@ export class ShadowMemory {
 
     const entryPoint = this.symbols.get(entryPointName)?.address;
 
-    return {
+    this.updates.push( {
       iram: {address: iramSection.address, data: iramSection.value.toString("hex")},
       dram: {address: dramSection.address, data: dramSection.value.toString("hex")},
       flash: {address: flashSection.address, data: flashSection.value.toString("hex")},
       entryPoint
-    }
+    })
+  }
+
+  public getUpdates() {
+    const updates = this.updates;
+    this.updates = [];
+    return updates;
   }
 }
 

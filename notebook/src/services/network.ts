@@ -2,12 +2,15 @@ import axios from "axios";
 import { CompileError } from "../utils/error";
 import { MemInfo } from "../utils/type";
 
-
-export type CompileResult = {
-    iram: {address: number, data: string},
+export type MemoryUpdate = {
+  iram: {address: number, data: string},
     dram: {address: number, data: string},
     flash: {address: number, data: string},
     entryPoint: number,
+}
+
+export type CompileResult = {
+    result: MemoryUpdate[],
     compileTime: number
 }
 
