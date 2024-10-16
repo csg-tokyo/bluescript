@@ -1,4 +1,4 @@
-import { integer } from "../../base";
+// import { integer } from "../../base";
 
 export const print = (value: any) => {
     

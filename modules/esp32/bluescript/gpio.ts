@@ -1,4 +1,4 @@
-import { integer, code } from "../../base";
+// import { integer, code } from "../../base";
 
 class GPIO {
     pinNum:integer;

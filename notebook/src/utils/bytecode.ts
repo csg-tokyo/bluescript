@@ -10,7 +10,8 @@ export enum BYTECODE {
     RESULT_LOG,
     RESULT_ERROR,
     RESULT_MEMINFO,
-    RESULT_EXECTIME
+    RESULT_EXECTIME,
+    RESULT_PROFILE
 }
 
 const LOAD_HEADER_SIZE = 9;
@@ -111,14 +112,15 @@ export class BytecodeGenerator {
     }
 }
 
-type parseResult = 
+type ParseResult = 
     {bytecode:BYTECODE.RESULT_LOG, log:string} | 
     {bytecode:BYTECODE.RESULT_ERROR, log:string} |
     {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemInfo} |
     {bytecode:BYTECODE.RESULT_EXECTIME, exectime:number} |
+    {bytecode:BYTECODE.RESULT_PROFILE, profile:number[]} |
     {bytecode:BYTECODE.NONE}
 
-export function bytecodeParser(data: DataView):parseResult {
+export function bytecodeParser(data: DataView):ParseResult {
     const bytecode = data.getUint8(0);
     switch (bytecode) {
       case BYTECODE.RESULT_LOG:
@@ -137,6 +139,9 @@ export function bytecodeParser(data: DataView):parseResult {
           return {bytecode, meminfo};
       case BYTECODE.RESULT_EXECTIME:
         return {bytecode, exectime:data.getFloat32(1, true)};
+      case BYTECODE.RESULT_PROFILE:
+        let uint8arr = new Uint8Array(data.buffer, 1);
+        return {bytecode:BYTECODE.RESULT_PROFILE, profile: Array.from(uint8arr)};
       default:
         return {bytecode:BYTECODE.NONE}
     }

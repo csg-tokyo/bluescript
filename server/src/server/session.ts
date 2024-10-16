@@ -50,4 +50,16 @@ export default class Session {
     const end = performance.now();
     return {...lResult, compileTime:end-start}
   }
+
+  public dummyExecute() {
+    const start = performance.now();
+    // Compile
+    execSync(`xtensa-esp32-elf-gcc -c -O2 ./temp-files/code.c -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
+    const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
+
+    // Link
+    const lResult = this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, "bluescript_main6_");
+    const end = performance.now();
+    return {...lResult, compileTime:end-start}
+  }
 }

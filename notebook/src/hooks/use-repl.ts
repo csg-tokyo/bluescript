@@ -98,6 +98,9 @@ export default function useRepl() {
                 break;
             case BYTECODE.RESULT_EXECTIME:
                 onReceiveExectime.current(parseResult.exectime);
+                break;
+            case BYTECODE.RESULT_PROFILE:
+                console.log("receive profile", parseResult.profile);
                 break;            
         }
     }

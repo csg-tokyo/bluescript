@@ -12,7 +12,7 @@ export type CompileResult = {
 }
 
 export async function compile(src: string): Promise<CompileResult> {
-  return post("compile", {src});
+  return post("dummy-compile", {src});
 }
 
 export async function reset(memInfo:MemInfo, useFlash:boolean) {

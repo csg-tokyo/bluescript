@@ -7,6 +7,7 @@
 #include "include/logger.h"
 #include "include/event.h"
 #include "include/ble.h"
+#include "include/profiler.h"
 
 
 void app_main(void) {
@@ -17,4 +18,5 @@ void app_main(void) {
     xTaskCreatePinnedToCore(bs_shell_task, "bs_shell_task", 4096, NULL, 1, NULL, 0);
     xTaskCreatePinnedToCore(bs_logger_task, "bs_logger_task", 4096, NULL, 1, NULL, 0);
     xTaskCreatePinnedToCore(bs_event_handler_task, "bs_event_handler_task", 4096, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(bs_profiler_task, "bs_profiler_task", 4096, NULL, 0, NULL, 0);
 }

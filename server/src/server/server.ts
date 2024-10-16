@@ -72,11 +72,20 @@ export default class HttpServer {
           responseBody = {};
           statusCode = 200;
           break;
-          case "/check":
-            const cmd_result = execSync("ls ../microcontroller/ports/esp32/build/").toString();
-            responseBody = {cmd_result};
-            statusCode = 200;
+        case "/dummy-compile":
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
             break;
+          }
+          responseBody = this.session.dummyExecute();
+          statusCode = 200;
+          break;
+        case "/check":
+          const cmd_result = execSync("ls ../microcontroller/ports/esp32/build/").toString();
+          responseBody = {cmd_result};
+          statusCode = 200;
+          break;
         default:
           responseBody = {message: "Page not found."};
           statusCode = 404;

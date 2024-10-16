@@ -15,6 +15,7 @@ typedef enum {
     BS_CMD_RESULT_ERROR,
     BS_CMD_RESULT_MEMINFO,
     BS_CMD_RESULT_EXECTIME,
+    BS_CMD_RESULT_PROFILE,
 
     // Sentinel
     BS_CMD_END
