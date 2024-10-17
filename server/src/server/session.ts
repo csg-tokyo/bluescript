@@ -19,25 +19,19 @@ export default class Session {
   shadowMemory: ShadowMemory;
 
   constructor(memoryInfo: MemoryInfo) {
-    // Read module files.
-    // fs.readdirSync(FILE_PATH.MODULES).forEach(file => {
-    //   if (/.*\.ts$/.test(file)) {
-    //     const tsString = fs.readFileSync(`${FILE_PATH.MODULES}/${file}`).toString()
-    //     const result = transpile(++this.sessionId, tsString, this.baseGlobalNames);
-    //     this.baseGlobalNames = result.names;
-    //   }
-    // });
+    const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULES}`).toString()
+    const result = transpile(++this.sessionId, bsString, this.baseGlobalNames);
+    this.baseGlobalNames = result.names;
     this.modules = new Map<string, GlobalVariableNameTable>()
     this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, memoryInfo);
   }
 
-  public execute(tsString: string) {
+  public execute(bsString: string) {
     this.sessionId += 1;
 
     const start = performance.now();
     // Transpile
-    // const tResult = transpile(this.sessionId, tsString, this.baseGlobalNames);
-    const tResult = this.transpile(tsString);
+    const tResult = this.transpile(bsString);
     const cString = cProlog + tResult.code;
     this.baseGlobalNames = tResult.names;
 

@@ -1,0 +1,9 @@
+import type {integer} from "../../bs-utils";
+
+export const print = (value: any) => {
+    
+}
+
+export const randInt = (min: integer, max: integer):integer => {
+    return 2;
+}

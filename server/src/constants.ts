@@ -4,7 +4,7 @@ export const FILE_PATH = {
   OBJ_FILE: "./temp-files/code.o",
   LINKER_SCRIPT: "./temp-files/linkerscript.ld",
   LINKED_ELF: "./temp-files/code",
-  MODULES: "../modules/esp32/bluescript",
+  STD_MODULES: "../modules/std/std.bs",
   MODULES_FFI: "../modules/ffi",
   MODULES_O: "../modules/esp32/build",
   MCU_ELF: "../microcontroller/ports/esp32/build/bluescript.elf",
