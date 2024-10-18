@@ -33,7 +33,7 @@ class Transpiler {
         return parseInt(result) ?? 0;
     }
 
-    transpile(fname: string, globalNames: GlobalVariableNameTable) {
+    transpile(moduleName: string, globalNames: GlobalVariableNameTable) {
 
         const importer = (fname: string) => {
             const mod = this.modules.get(fname)
@@ -52,9 +52,9 @@ class Transpiler {
         }
 
         this.sessionId += 1
-        const moduleId = this.convertFname(fname);
-        const program = fs.readFileSync(`${FILE_PATH.MODULES_FFI}/${fname}.ts`).toString();
-        const fileName = `${dir}/${fname}_${moduleId}`;
+        const moduleId = this.convertFname(moduleName);
+        const program = fs.readFileSync(`${FILE_PATH.MODULES}/${moduleName}/${moduleName}.bs`).toString();
+        const fileName = `${dir}/${moduleName}_${moduleId}`;
         const result = transpile(0, program, globalNames, importer, moduleId)
         fs.writeFileSync(`${fileName}.c`, prologCcode + result.code);
         return result.names
@@ -65,7 +65,7 @@ class Transpiler {
 function main() {
     const transpiler = new Transpiler();
     let globalNames = transpiler.baseGlobalNames
-    transpiler.transpile("test", globalNames);
+    transpiler.transpile("gpio", globalNames);
 }
 
 main();

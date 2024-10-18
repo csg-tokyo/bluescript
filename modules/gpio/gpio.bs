@@ -1,1 +1,4 @@
+import type {integer} from "../../bs-utils"
 
+
+export function gpioOn(pin: integer) {}
