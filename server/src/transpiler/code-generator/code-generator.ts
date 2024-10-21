@@ -871,8 +871,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (op === '==' || op === '!=' || op === '===' || op === '!==')
       this.equalityExpression(op, left, right, env)
     else if (op === '<' || op === '<=' || op === '>' || op === '>='
-             || op === '+' || op === '-' || op === '*' || op === '/' || op === '%')
-      this.basicBinaryExpression(op, left, right, env)
+             || op === '+' || op === '-' || op === '*' || op === '/' || op === '%' || op === '**')
+      this.basicBinaryExpression(op, node, left, right, env)
     else if (op === '|' || op === '^' || op === '&' || op === '<<' || op === '>>') {
       // both left and right are integer or float.
       this.numericBinaryExprssion(op, left, right, env)
@@ -913,7 +913,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   // +, -, *, /, %, <, <=, ... for integer, float, or any-type values
-  private basicBinaryExpression(op: string, left: AST.Node, right: AST.Node, env: VariableEnv): void {
+  private basicBinaryExpression(op: string, node: AST.BinaryExpression, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
     if (left_type === Any || right_type === Any) {
@@ -924,7 +924,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.result.write('))')
     }
     else
-      this.numericBinaryExprssion(op, left, right, env)
+      if (op === '**') {
+        this.result.write(cr.power(getStaticType(node)))
+        this.visit(left, env)
+        this.result.write(', ')
+        this.visit(right, env)
+        this.result.write(')')
+      }
+      else
+        this.numericBinaryExprssion(op, left, right, env)
   }
 
   // binary expression for numeric (integer or float) values

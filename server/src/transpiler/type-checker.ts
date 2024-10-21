@@ -661,7 +661,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
       this.result = BooleanT
     }
-    else if (op === '+' || op === '-' || op === '*' || op === '/') {
+    else if (op === '+' || op === '-' || op === '*' || op === '/' || op === '**') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
         this.invalidOperandsMessage(op, left_type, right_type), node)
       if (left_type === Any || right_type === Any) {
@@ -669,10 +669,18 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           this.addCoercion(node.right, right_type)
           this.result = Any
       }
-      else if (left_type === Float || right_type === Float)
+      else if (left_type === Float || right_type === Float) {
+        if (op === '**')
+          this.addStaticType(node, Float)
+
         this.result = Float
-      else
+      }
+      else {
+        if (op === '**')
+          this.addStaticType(node, Integer)
+
         this.result = Integer
+      }
     }
     else if (op === '%') {
       this.assert((left_type === Integer || left_type === Any) && (right_type === Integer || right_type === Any),

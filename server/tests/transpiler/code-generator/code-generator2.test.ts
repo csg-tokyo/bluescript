@@ -337,6 +337,34 @@ test('% and %= operators', () => {
   expect(compileAndRun(src2)).toBe('5\n5\n5\n3\n3\nany\n5\n5\ninteger\n')
 })
 
+test('** operator', () => {
+  const src = `
+  let a = 3
+  let b = 2
+  let c = 3.0
+  let d = 2.0
+  print(a ** b)
+  print(c ** d)
+  print(a ** d)
+  print(c ** b)
+`
+
+  expect(compileAndRun(src)).toBe('9\n9.000000\n9.000000\n9.000000\n')
+
+  const src2 = `
+  let a: any = 3
+  let b: any = 2
+  print(a ** b)
+  a = 3.0
+  print(a ** b)
+  print(b ** a)
+  b = 2.0
+  print(a ** b)
+`
+
+  expect(compileAndRun(src2)).toBe('9\n9.000000\n8.000000\n9.000000\n')
+})
+
 test('issue #15.  Cannot access a property of class type when a class declaration or an object creation is not in the same file.', () => {
   const src = `
   class Foo {

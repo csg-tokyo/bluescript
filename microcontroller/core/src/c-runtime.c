@@ -287,6 +287,36 @@ value_t any_modulo(value_t a, value_t b) {
     return runtime_type_error("bad operand for %%");
 }
 
+value_t any_power(value_t a, value_t b) {
+    double x, y;
+    int int_type = 1;
+    if (is_int_value(a))
+        x = value_to_int(a);
+    else if (is_float_value(a)) {
+        x = value_to_float(a);
+        int_type = 0;
+    }
+    else
+        return runtime_type_error("bad operand for **");
+
+    if (is_int_value(b))
+        y = value_to_int(b);
+    else if (is_float_value(b)) {
+        y = value_to_float(b);
+        int_type = 0;
+    }
+    else
+        return runtime_type_error("bad operand for **");
+
+    double z = pow(x, y);
+    if (int_type)
+        return int_to_value((int32_t)z);
+    else
+        return float_to_value((float)z);
+}
+
+double double_power(double a, double b) { return pow(a, b); }
+
 #define ANY_CMP_FUNC(name, op) \
 bool any_##name(value_t a, value_t b) {\
     if (is_int_value(a)) {\
