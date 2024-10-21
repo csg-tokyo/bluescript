@@ -4,7 +4,7 @@
   To run on a 64bit machine (for testing/debugging purpose only),
   compile with -DTEST64.  To include test code, compile with -DTEST.
   So,
-    cc -DTEST -DTEST64 gc.c
+    cc -DTEST -DTEST64 gc.c -lm
   will produce ./a.out that runs test code on a 64bit machine.
 
   Typical usecase:

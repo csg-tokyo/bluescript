@@ -22,7 +22,7 @@ export function buildShell() {
   const srcdir = 'src/transpiler'
   console.log(execSync("pwd").toString())
   execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeC} ${srcdir}/shell-builtins.c`)
-  execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${srcdir}/shell.c ${dir}/c-runtime.so -ldl`)
+  execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${srcdir}/shell.c ${dir}/c-runtime.so -lm -ldl`)
 }
 
 function makeShell(closer: (code: number) => void) {
@@ -113,7 +113,7 @@ class Transpiler {
       fs.writeFileSync(`${fileName}.c`, prologCcode + src)
 
       // throw an Error when compilation fails.
-      execSync(`cc -shared -DTEST64 -O2 -o ${fileName}.so ${fileName}.c ${this.libs}`)
+      execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${fileName}.so ${fileName}.c ${this.libs}`)
       this.libs =`${this.libs} ${fileName}.so`
       this.sources = `${this.sources} ${fileName}.c`
     }
