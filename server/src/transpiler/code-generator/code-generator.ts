@@ -166,8 +166,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           const vname = info.transpile(node.name)
           this.result.write(this.makeFunctionObject(vname))
         }
-        else
+        else {
+          if (info.isGlobal() && info.type instanceof InstanceType
+              && env.table.lookup(info.type.name()) === undefined) {
+            // force to declare the class name as an external type if it is not declared
+            // in this module.
+            throw this.errorLog.push(`fatal: unknown class name: ${info.type.name()}`, node)
+          }
+
           this.result.write(info.transpile(node.name))
+        }
+
         return
     }
 

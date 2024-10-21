@@ -27,8 +27,13 @@ static void fbody_print(value_t self, value_t m) {
     puts("undefined");
   else if (gc_is_string_literal(m))
     puts(gc_string_literal_cstr(m));
-  else
-    puts("??");
+  else {
+    class_object* cls = gc_get_class_of(m);
+    if (cls == NULL)
+      puts("??");
+    else
+      printf("<class %s>\\n", cls->name);
+  }
 }
 
 static void fbody_print_i32(value_t self, int32_t i) {

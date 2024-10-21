@@ -1690,7 +1690,7 @@ test('class with a default super constructor', () => {
   print(obj)
   `
 
-  expect(compileAndRun(src)).toBe('??\n')
+  expect(compileAndRun(src)).toBe('<class Pos3>\n')
 })
 
 

@@ -2,7 +2,6 @@ import { execSync } from 'child_process'
 import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, transpileAndWrite } from './test-code-generator'
 import { describe, expect, test, beforeAll } from '@jest/globals'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
-import exp from 'constants'
 
 beforeAll(() => {
   execSync('mkdir -p ./temp-files')
@@ -336,4 +335,25 @@ test('% and %= operators', () => {
   `
 
   expect(compileAndRun(src2)).toBe('5\n5\n5\n3\n3\nany\n5\n5\ninteger\n')
+})
+
+test('issue #15.  Cannot access a property of class type when a class declaration or an object creation is not in the same file.', () => {
+  const src = `
+  class Foo {
+    value: Foo
+    constructor(i: integer) { this.value = this }
+  }
+  let obj = new Foo(17)
+  `
+
+  const src2 = `
+  print(obj.value)
+  `
+
+  const src3 = `
+  print(obj.value instanceof Foo)
+  `
+
+  expect(multiCompileAndRun(src, src2)).toBe('<class Foo>\n')
+  // expect(multiCompileAndRun(src, src3)).toBe('1\n')
 })
