@@ -165,6 +165,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   identifier(node: AST.Identifier, names: NameTable<Info>): void {
+    if (node.name === 'undefined') {
+      this.result = Null
+      return
+    }
+
     const nameInfo = names.lookup(node.name)
     if (nameInfo !== undefined) {
       const info = nameInfo as NameInfo
@@ -670,7 +675,18 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       else
         this.result = Integer
     }
-    else if (op === '|' || op === '^' || op === '&' || op === '%' || op === '<<' || op === '>>' || op === '>>>') {
+    else if (op === '%') {
+      this.assert((left_type === Integer || left_type === Any) && (right_type === Integer || right_type === Any),
+                  'invalid operands to %.  They must be integer or any', node)
+      if (left_type === Any || right_type === Any) {
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
+        this.result = Any
+      }
+      else
+        this.result = Integer
+    }
+    else if (op === '|' || op === '^' || op === '&' || op === '<<' || op === '>>' || op === '>>>') {
       this.assert(left_type === Integer && right_type === Integer,
         this.invalidOperandsMessage(op, left_type, right_type), node)
       this.result = Integer
@@ -717,9 +733,17 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addCoercion(node.right, right_type)
       }
     }
+    else if (op === '%=') {
+      this.assert((left_type === Integer || left_type === Any) && (right_type === Integer || right_type === Any),
+                  'invalid operands to %=.  They must be integer or any', node)
+      if (left_type === Any || right_type === Any) {
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
+      }
+    }
     else if (op === '|=' || op === '^=' || op === '&=' || op === '%=' || op === '<<=' || op === '>>=')
       this.assert(left_type === Integer && right_type === Integer,
-        this.invalidOperandsMessage(op, left_type, right_type), node)
+                  this.invalidOperandsMessage(op, left_type, right_type), node)
     else  // '||=', '&&=', '>>>=', '**=', op === '??='
       this.assert(false, `not supported operator '${op}'`, node)
 

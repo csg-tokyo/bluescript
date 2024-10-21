@@ -111,8 +111,10 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
       else
         break
     case BooleanT:
-      if (from === Integer || from === Float)
+      if (from === Integer)
         return '('
+      else if (from === Float)
+        return '(int32_t)('
       else if (from === Any)
         return 'safe_value_to_bool('
       else
@@ -201,6 +203,8 @@ export function arithmeticOpForAny(op: string) {
       return 'any_multiply'
     case '/':
       return 'any_divide'
+    case '%':
+      return 'any_modulo'
     case '+=':
       return 'any_add_assign'
     case '-=':
@@ -209,6 +213,8 @@ export function arithmeticOpForAny(op: string) {
       return 'any_multiply_assign'
     case '/=':
       return 'any_divide_assign'
+    case '%=':
+      return 'any_modulo_assign'
     case 'i':    // ++v
       return 'any_increment'
     case 'p':   // v++
