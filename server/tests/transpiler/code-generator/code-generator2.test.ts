@@ -1,6 +1,6 @@
 import { execSync } from 'child_process'
 import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, transpileAndWrite } from './test-code-generator'
-import { describe, expect, test, beforeAll } from '@jest/globals'
+import { expect, test, beforeAll } from '@jest/globals'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
 
 beforeAll(() => {
@@ -365,6 +365,62 @@ test('** operator', () => {
   expect(compileAndRun(src2)).toBe('9\n9.000000\n8.000000\n9.000000\n')
 })
 
+test('instanceof', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  class Bar extends Foo{
+    value: string
+    constructor(s: string) { super(3); this.value = s }
+  }
+
+  let obj = new Foo(17)
+  print(obj instanceof Foo)
+  print(!(obj instanceof Foo))
+
+  print('foo' instanceof string)
+  print(!('foo' instanceof String))
+
+  let obj2 = new Bar('foo')
+  print(obj2 instanceof Bar)
+  print(obj2 instanceof Foo)
+  print(null instanceof Foo)
+  print(undefined instanceof Foo)
+  `
+
+  expect(compileAndRun(src)).toBe('1\n0\n1\n0\n1\n1\n0\n0\n')
+
+  const src2 = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+
+  let obj3: any = 3
+  print(obj3 instanceof Foo)
+  print(obj3 instanceof string)
+  obj3 = 'foo'
+  print(obj3 instanceof Foo)
+  print(obj3 instanceof string)
+  obj3 = null
+  print(obj3 instanceof Foo)
+  print(obj3 instanceof string)
+  obj3 = [1, 2, 3]
+  print(obj3 instanceof Foo)
+  print(obj3 instanceof string)
+  `
+
+  expect(compileAndRun(src2)).toBe('0\n0\n0\n1\n0\n0\n0\n0\n')
+
+  const src3 = `
+  print((1 + 2) instanceof string)
+  `
+
+  expect(() => compileAndRun(src3)).toThrow(/instanceof/)
+})
+
 test('issue #15.  Cannot access a property of class type when a class declaration or an object creation is not in the same file.', () => {
   const src = `
   class Foo {
@@ -383,5 +439,5 @@ test('issue #15.  Cannot access a property of class type when a class declaratio
   `
 
   expect(multiCompileAndRun(src, src2)).toBe('<class Foo>\n')
-  // expect(multiCompileAndRun(src, src3)).toBe('1\n')
+  expect(multiCompileAndRun(src, src3)).toBe('1\n')
 })

@@ -391,7 +391,9 @@ export function getArrayLengthIndex(t: StaticType) {
 }
 
 export const runtimeTypeArray = 'array_object'
-export const arrayMaker = 'gc_new_string'
+
+export const stringMaker = 'gc_new_string'
+export const isStringType = 'gc_is_string_object('
 
 export const functionMaker = 'gc_new_function'
 export const functionPtr = 'fptr'
@@ -488,4 +490,8 @@ export function makeInstance(clazz: InstanceType) {
 
 export function methodLookup(method: [StaticType, number, InstanceType], func: string) {
   return `((${funcTypeToCType(method[0])})method_lookup(${func}, ${method[1]}))`
+}
+
+export function isInstanceOf(t: InstanceType) {
+  return `gc_is_instance_of(&${classObjectNameInC(t.name())}, `
 }

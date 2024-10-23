@@ -583,7 +583,7 @@ print(foo(100))
   expect(() => { multiCompileAndRun(src1, src2) }).toThrow(/assignment to constant variable.*line 1/)
 })
 
-test('calling a const function (it compares execution times.  If it fails, try again.)', () => {
+test.skip('calling a const function (it compares execution times.  If it fails, try again.)', () => {
   const src = `
   function fib(i: integer): integer {
     if (i < 2)

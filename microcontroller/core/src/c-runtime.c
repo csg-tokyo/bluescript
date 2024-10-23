@@ -232,7 +232,7 @@ value_t safe_value_to_func(const char* signature, value_t func) {
 }
 
 value_t safe_value_to_string(value_t v) {
-    if (!gc_is_string_literal(v))
+    if (!gc_is_string_object(v))
         runtime_type_error("value_to_string");
 
     return v;
@@ -240,7 +240,7 @@ value_t safe_value_to_string(value_t v) {
 
 value_t safe_value_to_object(value_t v) {
     // note: String is not a subtype of Object
-    if (!is_ptr_value(v) || gc_is_string_literal(v))
+    if (!is_ptr_value(v) || gc_is_string_object(v))
         runtime_type_error("value_to_object");
 
     return v;
@@ -460,6 +460,15 @@ class_object* gc_get_class_of(value_t value) {
     }
     else
         return NULL;
+}
+
+bool gc_is_instance_of(const class_object* clazz, value_t obj) {
+    const class_object* obj_class = gc_get_class_of(obj);
+    do {
+        if (obj_class == clazz)
+            return true;
+    } while (obj_class != NULL && (obj_class = obj_class->superclass));
+    return false;
 }
 
 void* method_lookup(value_t obj, uint32_t index) {
@@ -698,14 +707,19 @@ value_t gc_new_string(char* str) {
 }
 
 // true if this is a string literal object.
-bool gc_is_string_literal(value_t obj) {
+static bool gc_is_string_literal(value_t obj) {
     return gc_get_class_of(obj) == &string_literal.clazz;
 }
 
 // returns a pointer to a char array in the C language.
+// this function is only used in test-code-generator.ts.
 const char* gc_string_literal_cstr(value_t obj) {
     pointer_t str = value_to_ptr(obj);
     return (const char*)raw_value_to_ptr(str->body[0]);
+}
+
+bool gc_is_string_object(value_t obj) {
+    return gc_is_string_literal(obj);
 }
 
 // An int32_t array

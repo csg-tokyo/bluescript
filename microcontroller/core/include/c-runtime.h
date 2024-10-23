@@ -161,6 +161,7 @@ extern void CR_SECTION interrupt_handler_end();
 
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
+extern bool gc_is_instance_of(const class_object* clazz, value_t obj);
 extern void* CR_SECTION method_lookup(value_t obj, uint32_t index);
 
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
@@ -210,8 +211,8 @@ extern value_t CR_SECTION gc_new_int_box(int32_t value);
 extern value_t CR_SECTION gc_new_float_box(float value);
 
 extern value_t  CR_SECTION gc_new_string(char* str);
-extern bool CR_SECTION gc_is_string_literal(value_t obj);
 extern const char* CR_SECTION gc_string_literal_cstr(value_t obj);
+extern bool CR_SECTION gc_is_string_object(value_t obj);
 
 extern value_t CR_SECTION safe_value_to_intarray(value_t v);
 extern value_t CR_SECTION gc_new_intarray(int32_t n, int32_t init_value);

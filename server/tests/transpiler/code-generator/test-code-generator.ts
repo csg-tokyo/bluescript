@@ -25,7 +25,7 @@ static void fbody_print(value_t self, value_t m) {
     printf("%f\\n", value_to_float(m));
   else if (m == VALUE_NULL || m == VALUE_UNDEF)
     puts("undefined");
-  else if (gc_is_string_literal(m))
+  else if (gc_is_string_object(m))
     puts(gc_string_literal_cstr(m));
   else {
     class_object* cls = gc_get_class_of(m);

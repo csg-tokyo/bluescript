@@ -3,7 +3,8 @@
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType } from '../types'
+         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
+         StringT } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
@@ -142,7 +143,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   private makeStringLiteral(value: string) {
-    this.result.write(`${cr.arrayMaker}(${JSON.stringify(value)})`)
+    this.result.write(`${cr.stringMaker}(${JSON.stringify(value)})`)
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: VariableEnv): void {
@@ -881,6 +882,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       // both left and right are integer or float.
       this.unsignedRightShift(left, right, env)
     }
+    else if (op === 'instanceof')
+      this.instanceOfExpression(left, right, env)
     else
       throw this.errorLog.push(`bad binary operator ${op}`, node)
 
@@ -947,6 +950,19 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.visit(left, env)
     this.result.write(') >> ')
     this.visit(right, env)
+  }
+
+  private instanceOfExpression(left: AST.Node, right: AST.Node, env: VariableEnv) {
+    const type = getStaticType(right)
+    if (type === StringT)
+      this.result.write(cr.isStringType)
+    else if (type instanceof InstanceType)
+      this.result.write(cr.isInstanceOf(type))
+    else
+      throw this.errorLog.push('fatal: bad instanceof', right)
+
+    this.visit(left, env)
+    this.result.write(')')
   }
 
   assignmentExpression(node: AST.AssignmentExpression, env: VariableEnv): void {
