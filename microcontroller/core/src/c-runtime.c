@@ -1345,7 +1345,7 @@ static void scan_and_mark_objects(uint32_t mark) {
         while (start < end) {
             pointer_t obj = (pointer_t)&heap_memory[start];
             class_object* clazz = get_objects_class(obj);
-            int32_t j = class_has_pointers(clazz);
+            // int32_t j = class_has_pointers(clazz);
             uint32_t size = object_size(obj, clazz);
             if (IS_GRAY(obj)) {
                 gc_stack[0] = obj;
