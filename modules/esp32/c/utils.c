@@ -12,7 +12,7 @@ void fbody_print(value_t self, value_t _value) {
     sprintf(message, "%f\n", value_to_float(_value));
   else if (_value == VALUE_NULL)
     sprintf(message, "null\n");
-  else if (gc_is_string_literal(_value))
+  else if (gc_is_string_object(_value))
     sprintf(message, "%s\n", gc_string_literal_cstr(_value));
   else
     sprintf(message, "??\n");
