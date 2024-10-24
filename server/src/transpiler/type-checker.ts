@@ -295,10 +295,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (superClassName)
       if (AST.isIdentifier(superClassName)) {
         const info = names.lookup(superClassName.name)
-        if (info && info.isTypeName && info.type instanceof ObjectType)
+        if (info && info.isTypeName && info.type instanceof InstanceType)
           superClass = info.type
         else
-          this.assert(false, 'invalid super class', node)
+          this.assert(false, `invalid super class: ${superClassName.name}`, node)
       }
       else
         this.assertSyntax(false, superClassName)
