@@ -7,6 +7,8 @@ beforeAll(() => {
   execSync('mkdir -p ./temp-files')
 })
 
+const destFile = './temp-files/bscript2_'
+
 class Importer {
   moduleId: number
   modules: { name: string, source: string }[]
@@ -18,7 +20,7 @@ class Importer {
     this.modules = mods
     this.moduleId = 0
     this.fileNames = []
-    this.path =  './temp-files/bscript'
+    this.path =  destFile
   }
 
   init() {
@@ -246,7 +248,7 @@ test('/ and /= operators', () => {
   print(a)
 `
 
-  expect(compileAndRun(src)).toBe('18\n59\n')
+  expect(compileAndRun(src, destFile)).toBe('18\n59\n')
 
   const src1 = `
   let a = 239.3
@@ -256,7 +258,7 @@ test('/ and /= operators', () => {
   print(a)
 `
 
-  expect(compileAndRun(src1)).toBe('18.128788\n55.651165\n')
+  expect(compileAndRun(src1, destFile)).toBe('18.128788\n55.651165\n')
 
   const src2 = `
   let a: any = 239
@@ -278,7 +280,7 @@ test('/ and /= operators', () => {
   print(typeof j)
   `
 
-  expect(compileAndRun(src2)).toBe('18\n18\n18\n59\n59\nany\n18\n18\ninteger\n')
+  expect(compileAndRun(src2, destFile)).toBe('18\n18\n18\n59\n59\nany\n18\n18\ninteger\n')
 
   const src3 = `
   let a: any = 239.3
@@ -300,7 +302,7 @@ test('/ and /= operators', () => {
   print(typeof j)
   `
 
-  expect(compileAndRun(src3)).toBe('18.128788\n18.128788\n18.128788\n50.914898\n50.914898\nany\n18.128788\n18.128788\nfloat\n')
+  expect(compileAndRun(src3, destFile)).toBe('18.128788\n18.128788\n18.128788\n50.914898\n50.914898\nany\n18.128788\n18.128788\nfloat\n')
 })
 
 test('% and %= operators', () => {
@@ -312,7 +314,7 @@ test('% and %= operators', () => {
   print(a)
 `
 
-  expect(compileAndRun(src)).toBe('5\n3\n')
+  expect(compileAndRun(src, destFile)).toBe('5\n3\n')
 
   const src2 = `
   let a: any = 239
@@ -334,7 +336,7 @@ test('% and %= operators', () => {
   print(typeof j)
   `
 
-  expect(compileAndRun(src2)).toBe('5\n5\n5\n3\n3\nany\n5\n5\ninteger\n')
+  expect(compileAndRun(src2, destFile)).toBe('5\n5\n5\n3\n3\nany\n5\n5\ninteger\n')
 })
 
 test('** operator', () => {
@@ -349,7 +351,7 @@ test('** operator', () => {
   print(c ** b)
 `
 
-  expect(compileAndRun(src)).toBe('9\n9.000000\n9.000000\n9.000000\n')
+  expect(compileAndRun(src, destFile)).toBe('9\n9.000000\n9.000000\n9.000000\n')
 
   const src2 = `
   let a: any = 3
@@ -362,7 +364,7 @@ test('** operator', () => {
   print(a ** b)
 `
 
-  expect(compileAndRun(src2)).toBe('9\n9.000000\n8.000000\n9.000000\n')
+  expect(compileAndRun(src2, destFile)).toBe('9\n9.000000\n8.000000\n9.000000\n')
 })
 
 test('instanceof', () => {
@@ -374,6 +376,11 @@ test('instanceof', () => {
   class Bar extends Foo{
     value: string
     constructor(s: string) { super(3); this.value = s }
+  }
+
+  class Baz extends Bar {
+    fvalue: float
+    constructor() { super('baz'); this.fvalue = 0.3 }
   }
 
   let obj = new Foo(17)
@@ -388,9 +395,16 @@ test('instanceof', () => {
   print(obj2 instanceof Foo)
   print(null instanceof Foo)
   print(undefined instanceof Foo)
+
+  print(' ')
+  let obj3 = new Baz()
+  print(obj3 instanceof Foo)
+  print(obj3 instanceof Bar)
+  print(obj3 instanceof Baz)
+  print(obj2 instanceof Baz)
   `
 
-  expect(compileAndRun(src)).toBe('1\n0\n1\n0\n1\n1\n0\n0\n')
+  expect(compileAndRun(src, destFile)).toBe('1\n0\n1\n0\n1\n1\n0\n0\n \n1\n1\n1\n0\n')
 
   const src2 = `
   class Foo {
@@ -412,13 +426,13 @@ test('instanceof', () => {
   print(obj3 instanceof string)
   `
 
-  expect(compileAndRun(src2)).toBe('0\n0\n0\n1\n0\n0\n0\n0\n')
+  expect(compileAndRun(src2, destFile)).toBe('0\n0\n0\n1\n0\n0\n0\n0\n')
 
   const src3 = `
   print((1 + 2) instanceof string)
   `
 
-  expect(() => compileAndRun(src3)).toThrow(/instanceof/)
+  expect(() => compileAndRun(src3, destFile)).toThrow(/instanceof/)
 })
 
 test('issue #15.  Cannot access a property of class type when a class declaration or an object creation is not in the same file.', () => {
@@ -438,6 +452,6 @@ test('issue #15.  Cannot access a property of class type when a class declaratio
   print(obj.value instanceof Foo)
   `
 
-  expect(multiCompileAndRun(src, src2)).toBe('<class Foo>\n')
-  expect(multiCompileAndRun(src, src3)).toBe('1\n')
+  expect(multiCompileAndRun(src, src2, destFile)).toBe('<class Foo>\n')
+  expect(multiCompileAndRun(src, src3, destFile)).toBe('1\n')
 })
