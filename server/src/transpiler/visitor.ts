@@ -72,6 +72,7 @@ export abstract class NodeVisitor<Environment> {
     ])
 
     visit(node: Node, env: Environment): void {
+        // console.log(node)
         const handler = NodeVisitor.handlers.get(node.type)
         if (handler)
             handler(this, node, env)

@@ -813,6 +813,11 @@ value_t safe_value_to_bytearray(value_t v) {
     return safe_value_to_value(&bytearray_object.clazz, v);
 }
 
+bool gc_is_bytearray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &bytearray_object;
+}
+
 /*
   A byte (or unsigned 8 bit) array.  It cannot contain a pointer.
   n: the size of the array in bytes.

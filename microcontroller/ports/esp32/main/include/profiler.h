@@ -12,7 +12,7 @@ void bs_profiler_reset();
 /**
  * Increment the number specified by id.
  */
-void bs_profiler_countup(int32_t id);
+bool bs_profiler_countup(int32_t id);
 
 
 /**

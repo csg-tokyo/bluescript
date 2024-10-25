@@ -228,6 +228,7 @@ extern value_t CR_SECTION gc_new_bytearray(int32_t n, int32_t init_value);
 extern value_t CR_SECTION gc_make_bytearray(int32_t n, ...);
 extern int32_t CR_SECTION gc_bytearray_length(value_t obj);
 extern uint8_t* CR_SECTION gc_bytearray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_bytearray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_vector(value_t v);
 extern value_t CR_SECTION gc_new_vector(int32_t n, value_t init_value);

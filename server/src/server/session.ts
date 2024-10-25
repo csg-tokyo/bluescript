@@ -62,4 +62,26 @@ export default class Session {
     const end = performance.now();
     return {...lResult, compileTime:end-start}
   }
+
+  public jitExecute(tsString: string) {
+    this.currentCodeId += 1;
+
+    const start = performance.now();
+    // Transpile
+    const tResult = transpile(this.currentCodeId, tsString, this.nameTable, undefined, -1);
+    const entryPointName = tResult.main;
+    const cString = cProlog + tResult.code;
+    fs.writeFileSync(FILE_PATH.C_FILE, cString);
+
+    // // Compile
+    // fs.writeFileSync(FILE_PATH.C_FILE, cString);
+    // execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
+    // const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
+    // this.nameTable = tResult.names;
+    //
+    // // Link
+    // const lResult = this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName);
+    // const end = performance.now();
+    // return {...lResult, compileTime:end-start}
+  }
 }

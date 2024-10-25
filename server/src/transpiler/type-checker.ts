@@ -235,8 +235,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.returnStatementArg(node, node.argument, names)
   }
 
-  private returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined,
-                             names: NameTable<Info>): void {
+  protected returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined,
+                               names: NameTable<Info>): void {
     const rtype = names.returnType()
     this.assert(rtype !== null, 'return must be in a function body', node)
     if (argument) {
@@ -312,7 +312,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.result = clazz
     this.visit(node.body, names)
     clazz.sortProperties()
-  
+
     if (!clazz.findConstructor()) {
       // this class has a default constructor.
       this.assert(clazz.declaredProperties() === 0, 'a constructor is missing', node)
@@ -1133,7 +1133,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   tsTypeReference(node: AST.TSTypeReference, names: NameTable<Info>): void {
     this.assertSyntax(AST.isIdentifier(node.typeName), node)
-    this.assertSyntax(node.typeParameters === undefined, node)
+    this.assertSyntax(node.typeParameters === undefined || node.typeParameters === null, node)
     const name = (node.typeName as AST.Identifier).name
     if (name === Float)
       this.result = Float

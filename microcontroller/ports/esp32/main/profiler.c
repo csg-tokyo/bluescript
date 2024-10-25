@@ -24,10 +24,12 @@ void PR_SECTION bs_profiler_reset() {
 }
 
 
-void PR_SECTION bs_profiler_countup(int32_t id) {
+bool PR_SECTION bs_profiler_countup(int32_t id) {
     if (profile_buffer[id] < UINT8_MAX) {
         profile_buffer[id] += 1;
+        return false;
     }
+    return true;
 }
 
 
