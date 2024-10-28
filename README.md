@@ -20,7 +20,7 @@ To start using BlueScript, you'll need the following:
 First, clone the BlueScript repository using Git:
 
 ```bash
-git clone git@github.com:csg-tokyo/bluescript.git
+git clone https://github.com/csg-tokyo/bluescript.git
 ```
 
 ### Build and Start the BlueScript Server
