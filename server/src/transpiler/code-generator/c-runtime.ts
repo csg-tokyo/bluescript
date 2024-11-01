@@ -260,14 +260,20 @@ export const minusAnyValue = 'minus_any_value'
 export const globalRootSetName = 'global_rootset'
 
 export function makeRootSet(n: number) {
-  if (n > 0)
-    return `ROOT_SET(func_rootset, ${n})`
-  else
+  if (n < 1)
     return ''
+  else if (n == 1)
+    return 'ROOT_SET_N(func_rootset,1,VALUE_UNDEF)'
+  else if (n == 2)
+    return 'ROOT_SET_N(func_rootset,2,VALUE_UNDEF_2)'
+  else if (n == 3)
+    return 'ROOT_SET_N(func_rootset,3,VALUE_UNDEF_3)'
+  else
+    return `ROOT_SET(func_rootset,${n})`
 }
 
 export function declareRootSet(name: string, n: number) {
-  return `ROOT_SET_DECL(${name}, ${n})`
+  return `ROOT_SET_DECL(${name}, ${n});`
 }
 
 export function initRootSet(name: string, n: number) {
