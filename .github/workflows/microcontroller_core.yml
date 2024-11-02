@@ -21,19 +21,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build c-runtime-test
-        run: gcc -DTEST64 c-runtime-test.c -o c-runtime-test
+        run: gcc -DTEST64 c-runtime-test.c -o c-runtime-test -lm
 
       - name: Run c-runtime-test
         run: ./c-runtime-test
 
       - name: Build c-runtime-test2
-        run: gcc -DTEST64 c-runtime-test2.c -o c-runtime-test2
+        run: gcc -DTEST64 c-runtime-test2.c -o c-runtime-test2 -lm
 
       - name: Run c-runtime-test2
         run: ./c-runtime-test2
 
       - name: Build float-test
-        run: gcc -DTEST64 float-test.c -o float-test
+        run: gcc -DTEST64 float-test.c -o float-test -lm
 
       - name: Run float-test
         run: ./float-test

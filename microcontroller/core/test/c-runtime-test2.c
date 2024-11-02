@@ -1,6 +1,6 @@
 // Test code for c-runtime.c
 // To compile,
-// cc -DTEST64 c-runtime-test2.c
+// cc -DTEST64 c-runtime-test2.c -lm
 
 #include <stdio.h>
 #include "../src/c-runtime.c"

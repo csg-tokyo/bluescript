@@ -4,7 +4,7 @@
   To run on a 64bit machine (for testing/debugging purpose only),
   compile with -DTEST64.  To include test code, compile with -DTEST.
   So,
-    cc -DTEST -DTEST64 gc.c
+    cc -DTEST -DTEST64 gc.c -lm
   will produce ./a.out that runs test code on a 64bit machine.
 
   Typical usecase:
@@ -232,7 +232,7 @@ value_t safe_value_to_func(const char* signature, value_t func) {
 }
 
 value_t safe_value_to_string(value_t v) {
-    if (!gc_is_string_literal(v))
+    if (!gc_is_string_object(v))
         runtime_type_error("value_to_string");
 
     return v;
@@ -240,7 +240,7 @@ value_t safe_value_to_string(value_t v) {
 
 value_t safe_value_to_object(value_t v) {
     // note: String is not a subtype of Object
-    if (!is_ptr_value(v) || gc_is_string_literal(v))
+    if (!is_ptr_value(v) || gc_is_string_object(v))
         runtime_type_error("value_to_object");
 
     return v;
@@ -286,6 +286,36 @@ value_t any_modulo(value_t a, value_t b) {
 
     return runtime_type_error("bad operand for %%");
 }
+
+value_t any_power(value_t a, value_t b) {
+    double x, y;
+    int int_type = 1;
+    if (is_int_value(a))
+        x = value_to_int(a);
+    else if (is_float_value(a)) {
+        x = value_to_float(a);
+        int_type = 0;
+    }
+    else
+        return runtime_type_error("bad operand for **");
+
+    if (is_int_value(b))
+        y = value_to_int(b);
+    else if (is_float_value(b)) {
+        y = value_to_float(b);
+        int_type = 0;
+    }
+    else
+        return runtime_type_error("bad operand for **");
+
+    double z = pow(x, y);
+    if (int_type)
+        return int_to_value((int32_t)z);
+    else
+        return float_to_value((float)z);
+}
+
+double double_power(double a, double b) { return pow(a, b); }
 
 #define ANY_CMP_FUNC(name, op) \
 bool any_##name(value_t a, value_t b) {\
@@ -430,6 +460,15 @@ class_object* gc_get_class_of(value_t value) {
     }
     else
         return NULL;
+}
+
+bool gc_is_instance_of(const class_object* clazz, value_t obj) {
+    const class_object* obj_class = gc_get_class_of(obj);
+    do {
+        if (obj_class == clazz)
+            return true;
+    } while (obj_class != NULL && (obj_class = obj_class->superclass));
+    return false;
 }
 
 void* method_lookup(value_t obj, uint32_t index) {
@@ -668,14 +707,19 @@ value_t gc_new_string(char* str) {
 }
 
 // true if this is a string literal object.
-bool gc_is_string_literal(value_t obj) {
+static bool gc_is_string_literal(value_t obj) {
     return gc_get_class_of(obj) == &string_literal.clazz;
 }
 
 // returns a pointer to a char array in the C language.
+// this function is only used in test-code-generator.ts.
 const char* gc_string_literal_cstr(value_t obj) {
     pointer_t str = value_to_ptr(obj);
     return (const char*)raw_value_to_ptr(str->body[0]);
+}
+
+bool gc_is_string_object(value_t obj) {
+    return gc_is_string_literal(obj);
 }
 
 // An int32_t array
@@ -1301,7 +1345,7 @@ static void scan_and_mark_objects(uint32_t mark) {
         while (start < end) {
             pointer_t obj = (pointer_t)&heap_memory[start];
             class_object* clazz = get_objects_class(obj);
-            int32_t j = class_has_pointers(clazz);
+            // int32_t j = class_has_pointers(clazz);
             uint32_t size = object_size(obj, clazz);
             if (IS_GRAY(obj)) {
                 gc_stack[0] = obj;

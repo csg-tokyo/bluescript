@@ -205,6 +205,8 @@ export function arithmeticOpForAny(op: string) {
       return 'any_divide'
     case '%':
       return 'any_modulo'
+    case '**':
+      return 'any_power'
     case '+=':
       return 'any_add_assign'
     case '-=':
@@ -226,6 +228,15 @@ export function arithmeticOpForAny(op: string) {
     default:
       throw new Error(`bad operator ${op}`)
   }
+}
+
+export function power(type: StaticType | undefined) {
+  if (type === Float)
+    return '(float)double_power('
+  else if (type === Integer)
+    return '(int32_t)double_power('
+  else
+    throw new Error('bad operand types for **')
 }
 
 export function updateOpForAny(prefix: boolean, op: string) {
@@ -380,7 +391,9 @@ export function getArrayLengthIndex(t: StaticType) {
 }
 
 export const runtimeTypeArray = 'array_object'
-export const arrayMaker = 'gc_new_string'
+
+export const stringMaker = 'gc_new_string'
+export const isStringType = 'gc_is_string_object('
 
 export const functionMaker = 'gc_new_function'
 export const functionPtr = 'fptr'
@@ -477,4 +490,8 @@ export function makeInstance(clazz: InstanceType) {
 
 export function methodLookup(method: [StaticType, number, InstanceType], func: string) {
   return `((${funcTypeToCType(method[0])})method_lookup(${func}, ${method[1]}))`
+}
+
+export function isInstanceOf(t: InstanceType) {
+  return `gc_is_instance_of(&${classObjectNameInC(t.name())}, `
 }
