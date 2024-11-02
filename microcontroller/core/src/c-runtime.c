@@ -2,10 +2,7 @@
 
 /*
   To run on a 64bit machine (for testing/debugging purpose only),
-  compile with -DTEST64.  To include test code, compile with -DTEST.
-  So,
-    cc -DTEST -DTEST64 gc.c -lm
-  will produce ./a.out that runs test code on a 64bit machine.
+  compile with -DTEST64.
 
   Typical usecase:
 
@@ -1479,6 +1476,7 @@ uint32_t gc_test_run() {
 }
 #endif
 
+// when you modify this function, also modify ROOT_SET_N macro.
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
     set->next = gc_root_set_head;
     if (length > 0) {

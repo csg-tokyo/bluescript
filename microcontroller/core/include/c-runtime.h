@@ -109,13 +109,17 @@ struct gc_root_set {
     value_t values[1];
 };
 
-#define ROOT_SET(name,n)     struct { struct gc_root_set* next; uint32_t length; value_t values[n]; } name;\
-gc_init_rootset((struct gc_root_set*)&name, n);
-
-#define ROOT_SET_DECL(name,n)     struct { struct gc_root_set* next; uint32_t length; value_t values[n]; } name;
+#define ROOT_SET_DECL(name,n)     struct { struct gc_root_set* next; uint32_t length; value_t values[n]; } name
 #define ROOT_SET_INIT(name,n)     gc_init_rootset((struct gc_root_set*)&name, n);
 
 #define DELETE_ROOT_SET(name)     { gc_root_set_head = name.next; }
+
+#define ROOT_SET(name,n)    ROOT_SET_DECL(name,n); ROOT_SET_INIT(name,n)
+
+#define VALUE_UNDEF_2       VALUE_UNDEF, VALUE_UNDEF
+#define VALUE_UNDEF_3       VALUE_UNDEF, VALUE_UNDEF, VALUE_UNDEF
+#define ROOT_SET_N(name,n,initv)     ROOT_SET_DECL(name,n) \
+  = { .next = gc_root_set_head, .length = n, .values = { initv }}; gc_root_set_head = (struct gc_root_set*)&name;
 
 extern int32_t CR_SECTION try_and_catch(void (*main_function)());
 
