@@ -388,7 +388,7 @@ test('instanceof', () => {
   print(!(obj instanceof Foo))
 
   print('foo' instanceof string)
-  print(!('foo' instanceof String))
+  print(!('foo' instanceof string))
 
   let obj2 = new Bar('foo')
   print(obj2 instanceof Bar)

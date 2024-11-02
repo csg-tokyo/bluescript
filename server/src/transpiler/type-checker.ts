@@ -726,7 +726,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       const info = names.lookup(typeName)
       if (info?.isTypeName && info.type instanceof InstanceType)
         type = info.type
-      else if (typeName === 'string' || typeName === 'String')
+      else if (typeName === 'string')
         type = StringT
       else
         this.assert(false, `invalid type name: ${typeName}`, node.right)
