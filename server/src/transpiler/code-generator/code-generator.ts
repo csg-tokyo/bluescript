@@ -147,7 +147,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: VariableEnv): void {
-    this.result.write(node.value ? 'VALUE_TRUE' : 'VALUE_FALSE')
+    this.result.write(node.value ? '!0' : '0')
   }
 
   numericLiteral(node: AST.NumericLiteral, env: VariableEnv): void {
