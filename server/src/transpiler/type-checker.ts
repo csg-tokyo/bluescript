@@ -663,12 +663,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.result = BooleanT
     }
     else if (op === '<' || op === '<=' || op === '>' || op === '>=') {
-      this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
-        this.invalidOperandsMessage(op, left_type, right_type), node)
-      if (left_type === Any || right_type === Any) {
+      if ((left_type === Any || right_type === Any) || (left_type === StringT && right_type === StringT)) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
+      else
+        this.assert(isNumeric(left_type) && isNumeric(right_type), this.invalidOperandsMessage(op, left_type, right_type), node)
+
       this.result = BooleanT
     }
     else if (op === '+' || op === '-' || op === '*' || op === '/' || op === '**') {

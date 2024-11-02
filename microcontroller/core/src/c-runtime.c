@@ -336,6 +336,8 @@ bool any_##name(value_t a, value_t b) {\
         else if (is_float_value(b))\
             return value_to_float(a) op value_to_float(b);\
     }\
+    else if (gc_is_string_object(a) && gc_is_string_object(b))\
+        return strcmp(gc_string_literal_cstr(a), gc_string_literal_cstr(b)) op 0;\
     return runtime_type_error("bad operand for " #op);\
 }
 

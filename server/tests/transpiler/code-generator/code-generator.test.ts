@@ -853,6 +853,25 @@ test('int % float is not valid', () => {
   expect(() => { compileAndRun(src) }).toThrow(/invalid operands.*line 3/)
 })
 
+test('string comparison', () => {
+  const src = `
+  function foo(m: string, n: string) {
+    print(m < n)
+    print(m <= n)
+    print(m > n)
+    print(m >= n)
+  }
+  function bar(m: any, n: string) {
+    print(m < n)
+    print(n < m)
+  }
+  foo('foo', 'bar')
+  foo('foo', 'foo')
+  bar('foo', 'bar')
+`
+  expect(compileAndRun(src)).toBe([0, 0, 1, 1, 0, 1, 0, 1, 0, 1].join('\n') + '\n')
+})
+
 test('assignment', () => {
   const src = `
   function foo(x: integer, s: string) {
