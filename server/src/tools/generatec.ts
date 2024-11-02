@@ -11,6 +11,7 @@ import {convertAst} from "../jit/ast-converter";
 const cProlog = `
 #include <stdint.h>
 #include "../../microcontroller/core/include/c-runtime.h"
+#include "../../microcontroller/core/include/profiler.h"
 
 `
 
@@ -31,11 +32,11 @@ function transpile1(profiler: Profiler) {
 }
 
 function transpile2(profiler: Profiler, gvnt: GlobalVariableNameTable) {
-  const func = profiler.getFunc(0);
+  const func = profiler.getFunctionProfileById(0);
   if (func === undefined)
     return;
 
-  profiler.setFuncSpecializedType(0, [Integer, new ArrayType(Integer)])
+  profiler.setFuncSpecializedType(0, Profiler.profiledData2Type([0x20, 0x20, 0x20, 0x21]))
 
   const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
     return new JITSpecializingCodeGenerator(initializerName, codeId, moduleId, profiler);
@@ -43,8 +44,9 @@ function transpile2(profiler: Profiler, gvnt: GlobalVariableNameTable) {
 
   // Transpile
   const ast = runBabelParser(func.src, 1);
-  convertAst(ast, func.name, [Integer, Integer], Any);
-  fs.writeFileSync("./temp-files/code.json", JSON.stringify(ast))
+  if (func.specializedType === undefined)
+    throw new Error()
+  convertAst(ast, func.name, func.specializedType.paramTypes, func.specializedType.returnType);
   const tResult = transpile(0, func.src, gvnt, undefined, -1, ast, codeGenerator);
   tResult.names.forEach((v, k) => console.log(v, k))
   const cString = cProlog + tResult.code;

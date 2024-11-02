@@ -216,12 +216,14 @@ extern value_t CR_SECTION gc_new_intarray(int32_t n, int32_t init_value);
 extern value_t CR_SECTION gc_make_intarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_intarray_length(value_t obj);
 extern int32_t* CR_SECTION gc_intarray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_intarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_floatarray(value_t v);
 extern value_t CR_SECTION gc_new_floatarray(int32_t n, float init_value);
 extern value_t CR_SECTION gc_make_floatarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_floatarray_length(value_t obj);
 extern float* CR_SECTION gc_floatarray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_floatarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_bytearray(value_t v);
 extern value_t CR_SECTION gc_new_bytearray(int32_t n, int32_t init_value);

@@ -1,48 +1,89 @@
-import * as AST from "@babel/types";
-import {FunctionEnv} from "../transpiler/code-generator/variables";
-import {FunctionType, StaticType} from "../transpiler/types";
+import {Any, ArrayType, BooleanT, Float, FunctionType, Integer, ObjectType, StaticType} from "../transpiler/types";
 
 
-type FuncInfo = {
+export type FunctionProfile = {
   id: number,
   name: string,
   src: string,
   type: FunctionType,
+  specializingDone: boolean,
   specializedType?: FunctionType,
   profilingData?: number[]
 }
 
-export const typeCounterName = "bs_profiler_count_type"
-export const callCountName =  "call_count";
-export const callCountBorder = "5";
-
-export const originalFuncPrefix = "original";
-
+export const typeCounterName = "type_count";
+export const typeCountFunctionName = "bs_profiler_typecount";
+export const callCounterName =  "call_count";
+export const callCountThreshold = "BS_PROFILER_COUNT_THRESHOLD";
+export const maxParamNum = 4;
 
 export class Profiler {
   private nextFuncId: number = 0;
-  private funcs: Map<string, FuncInfo> = new Map();
+  private profiles: Map<string, FunctionProfile> = new Map();
   private id2Name: Map<number, string> = new Map();
 
-  setFunc(name: string, src: string, type: FunctionType) {
+  setFunctionProfile(name: string, src: string, type: FunctionType) {
     const id = this.nextFuncId++;
-    this.funcs.set(name, {id, name, src, type});
+    this.profiles.set(name, {id, name, src, type, specializingDone:false});
     this.id2Name.set(id, name);
     return id;
   }
 
-  getFunc(id: number) {
+  getFunctionProfileById(id: number) {
     const funcName = this.id2Name.get(id);
-    return funcName ? this.funcs.get(funcName) : undefined;
+    return funcName ? this.profiles.get(funcName) : undefined;
+  }
+
+  getFunctionProfileByName(name: string) {
+    return this.profiles.get(name);
   }
 
   setFuncSpecializedType(id: number, paramTypes: StaticType[]) {
     const funcName = this.id2Name.get(id);
     if (funcName === undefined)
       throw new Error(`Cannot not find the target function. id: ${id}`);
-    const func = this.funcs.get(funcName);
+    const func = this.profiles.get(funcName);
     if (func === undefined)
       throw new Error(`Cannot not find the target function. name: ${funcName}`);
-    func.specializedType = new FunctionType(func.type.returnType, paramTypes);
+    const specializedParamTypes: StaticType[] = [];
+    let s = 0;
+    for (const ofpt of func.type.paramTypes) {
+      if (ofpt !== Any)
+        specializedParamTypes.push(ofpt)
+      else
+        specializedParamTypes.push(paramTypes[s++]);
+    }
+    func.specializedType = new FunctionType(func.type.returnType, specializedParamTypes);
+  }
+
+  // TODO: 一つに定まらない時はundefinedを返す
+  static profiledData2Type(profiled: number[]):StaticType[] {
+    const counts:{[t: number]: number} = {}
+    profiled.forEach(t => {
+      counts[t] = counts[t] ? counts[t]+1 : 1;
+    });
+    const maxT = Object.entries(counts).reduce((pre, cur) => cur[1] > pre[1] ? cur : pre, ["-1", -1]);
+    const maxTNum = Number(maxT[0]);
+    if (isNaN(maxTNum))
+      throw new Error(`fatal: Unexpected type value: ${maxT[0]}`);
+    return  [Profiler.int2Type(maxTNum & 0xf), Profiler.int2Type((maxTNum & 0xf0) >> 4),
+      Profiler.int2Type((maxTNum & 0xf00) >> 8), Profiler.int2Type((maxTNum & 0xf000) >> 12)]
+  }
+
+  private static int2Type(int: number): StaticType {
+    switch (int) {
+      case 0:
+        return Integer
+      case 1:
+        return Float
+      case 2:
+        return new ArrayType(Integer)
+      case 3:
+        return new ArrayType(Float)
+      case 4:
+        return new ArrayType(BooleanT)
+      default:
+        return Any
+    }
   }
 }

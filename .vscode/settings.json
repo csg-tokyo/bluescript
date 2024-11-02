@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.bs": "typescript",
+        "c-runtime.h": "c"
+    }
+}

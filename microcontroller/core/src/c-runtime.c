@@ -741,6 +741,11 @@ int32_t* gc_intarray_get(value_t obj, int32_t index) {
     }
 }
 
+bool gc_is_intarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &intarray_object;
+}
+
 // A float array
 
 static CLASS_OBJECT(floatarray_object, 1) = {
@@ -801,6 +806,11 @@ float* gc_floatarray_get(value_t obj, int32_t index) {
         runtime_index_error(index, len, "Array<float>.get/set");
         return 0;
     }
+}
+
+bool gc_is_floatarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &floatarray_object;
 }
 
 // A byte array

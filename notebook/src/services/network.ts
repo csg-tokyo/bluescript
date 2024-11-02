@@ -12,7 +12,15 @@ export type CompileResult = {
 }
 
 export async function compile(src: string): Promise<CompileResult> {
-  return post("dummy-compile", {src});
+  return post("compile", {src});
+}
+
+export async function compileWithProfiling(src: string): Promise<CompileResult> {
+  return post("compile-with-profiling", {src}); 
+}
+
+export async function jitCompile(funcId: number, paramTypes: number[]): Promise<CompileResult> {
+  return post("jit-compile", {funcId, paramTypes});
 }
 
 export async function reset(memInfo:MemInfo, useFlash:boolean) {

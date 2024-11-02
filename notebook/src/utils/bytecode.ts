@@ -117,7 +117,7 @@ type ParseResult =
     {bytecode:BYTECODE.RESULT_ERROR, log:string} |
     {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemInfo} |
     {bytecode:BYTECODE.RESULT_EXECTIME, exectime:number} |
-    {bytecode:BYTECODE.RESULT_PROFILE, profile:number[]} |
+    {bytecode:BYTECODE.RESULT_PROFILE, fid:number, paramtypes:number[]} |
     {bytecode:BYTECODE.NONE}
 
 export function bytecodeParser(data: DataView):ParseResult {
@@ -140,8 +140,8 @@ export function bytecodeParser(data: DataView):ParseResult {
       case BYTECODE.RESULT_EXECTIME:
         return {bytecode, exectime:data.getFloat32(1, true)};
       case BYTECODE.RESULT_PROFILE:
-        let uint8arr = new Uint8Array(data.buffer, 1);
-        return {bytecode:BYTECODE.RESULT_PROFILE, profile: Array.from(uint8arr)};
+        let uint16arr = new Uint16Array(data.buffer, 2);
+        return {bytecode:BYTECODE.RESULT_PROFILE, fid: data.getUint8(1), paramtypes:Array.from(uint16arr)};
       default:
         return {bytecode:BYTECODE.NONE}
     }

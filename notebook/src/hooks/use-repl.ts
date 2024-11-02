@@ -99,9 +99,20 @@ export default function useRepl() {
             case BYTECODE.RESULT_EXECTIME:
                 onReceiveExectime.current(parseResult.exectime);
                 break;
-            case BYTECODE.RESULT_PROFILE:
-                console.log("receive profile", parseResult.profile);
-                break;            
+            case BYTECODE.RESULT_PROFILE: {
+                console.log("receive profile", parseResult.fid, parseResult.paramtypes);
+                network.jitCompile(parseResult.fid, parseResult.paramtypes).then((compileResult) => {
+                    console.log(compileResult)
+                    const bufferGenerator = new BytecodeGenerator(MAX_MTU);
+                    bufferGenerator.loadToRAM(compileResult.iram.address, Buffer.from(compileResult.iram.data, "hex"));
+                    bufferGenerator.loadToRAM(compileResult.dram.address, Buffer.from(compileResult.dram.data, "hex"));
+                    bufferGenerator.loadToFlash(compileResult.flash.address, Buffer.from(compileResult.flash.data, "hex"));
+                    bufferGenerator.jump(compileResult.entryPoint);
+                    bluetooth.current.sendBuffers(bufferGenerator.generate()).then(() => console.log("JIT finish!"))
+                })
+                break; 
+            }
+                           
         }
     }
 
