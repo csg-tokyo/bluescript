@@ -904,12 +904,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const right_type = this.needsCoercion(right)
     if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
+        || (left_type === StringT || right_type === StringT)
         || (left_type === Any || right_type === Any)) {
-      this.result.write(`${cr.typeConversion(left_type, Any, left)}`)
+      this.result.write(`${cr.arithmeticOpForAny(op2)}(${cr.typeConversion(left_type, Any, left)}`)
       this.visit(left, env)
-      this.result.write(`) ${op2} ${cr.typeConversion(right_type, Any, right)}`)
+      this.result.write(`), ${cr.typeConversion(right_type, Any, right)}`)
       this.visit(right, env)
-      this.result.write(')')
+      this.result.write('))')
     }
     else
       this.numericBinaryExprssion(op2, left, right, env)

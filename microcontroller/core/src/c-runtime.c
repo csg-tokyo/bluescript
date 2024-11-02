@@ -314,6 +314,14 @@ value_t any_power(value_t a, value_t b) {
 
 double double_power(double a, double b) { return pow(a, b); }
 
+bool any_eq(value_t a, value_t b) {
+    if (gc_is_string_object(a))
+        return gc_is_string_object(b)
+            && strcmp(gc_string_literal_cstr(a), gc_string_literal_cstr(b)) == 0;
+    else
+        return a == b;
+}
+
 #define ANY_CMP_FUNC(name, op) \
 bool any_##name(value_t a, value_t b) {\
     if (is_int_value(a)) {\

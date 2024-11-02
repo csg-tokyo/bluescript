@@ -139,6 +139,7 @@ extern value_t CR_SECTION any_modulo(value_t a, value_t b);
 extern value_t CR_SECTION any_power(value_t a, value_t b);
 extern double CR_SECTION double_power(double a, double b);
 
+extern bool CR_SECTION any_eq(value_t a, value_t b);
 extern bool CR_SECTION any_less(value_t a, value_t b);
 extern bool CR_SECTION any_less_eq(value_t a, value_t b);
 extern bool CR_SECTION any_greater(value_t a, value_t b);

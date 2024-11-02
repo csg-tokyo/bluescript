@@ -642,12 +642,17 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.visit(node.right, names)
     const right_type = this.result
     if (op === '==' || op === '!=' || op === '===' || op === '!==') {
-      if (left_type === BooleanT || right_type === BooleanT) {
-        this.assert(left_type === right_type, 'a boolean must be compared with a boolean', node)
+      if (left_type === Any || right_type === Any) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
-      else if (left_type === Any || right_type === Any) {
+      else if (left_type === BooleanT || right_type === BooleanT
+               || left_type === StringT || right_type === StringT) {
+        if (left_type !== right_type) {
+          const typename = (left_type === BooleanT || right_type === BooleanT) ? BooleanT : StringT
+          this.assert(false, `a ${typename} must be compared with a ${typename}`, node)
+        }
+
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }

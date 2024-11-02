@@ -583,7 +583,7 @@ print(foo(100))
   expect(() => { multiCompileAndRun(src1, src2) }).toThrow(/assignment to constant variable.*line 1/)
 })
 
-test.skip('calling a const function (it compares execution times.  If it fails, try again.)', () => {
+test('calling a const function (it compares execution times.  If it fails, try again.)', () => {
   const src = `
   function fib(i: integer): integer {
     if (i < 2)
@@ -599,13 +599,33 @@ test.skip('calling a const function (it compares execution times.  If it fails, 
       return fib_fast(i - 1) + fib_fast(i - 2)
   }
 
+  code\`
+  int32_t c_fib(int32_t i) {
+    if (i < 2)
+      return 1;
+    else
+      return c_fib(i - 1) + c_fib(i - 2);
+  }
+  \`
+
+  function fib_native(i: integer): integer {
+    const t1 = performance_now()
+    code\`c_fib(40);\`
+    const t2 = performance_now()
+    return t2 - t1
+  }
+
   const t0 = performance_now()
   fib(40)
   const t1 = performance_now()
   fib_fast(40)
   const t2 = performance_now()
+
+  const t3 = fib_native(40)
+
   print(t1 - t0)
   print(t2 - t1)
+  print(t3)
   print('result')
   print(t1 - t0 + 100 > t2 - t1)`
 
@@ -761,6 +781,27 @@ test('boolean equality', () => {
   foo(5, 7)
 `
   expect(compileAndRun(src)).toBe([1, 0, 0, 1, 0].join('\n') + '\n')
+})
+
+test('string equality', () => {
+  const src = `
+  function foo(m: string, n: string) {
+    print(m == n)
+    print(m != n)
+  }
+  function bar(m: any, n: string) {
+    print(m == n)
+    print(n == m)
+    print(m != n)
+    print(n != m)
+  }
+  foo('foo', 'foo')
+  foo('foo', 'bar')
+  bar('foo', 'foo')
+  bar('foo', 'bar')
+`
+  expect(compileAndRun(src)).toBe([1, 0, 0, 1,
+              1, 1, 0, 0, 0, 0, 1, 1].join('\n') + '\n')
 })
 
 test('basic binary operators', () => {
