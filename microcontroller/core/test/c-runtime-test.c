@@ -1,6 +1,6 @@
 // Test code
 // To cmpile,
-// cc -DTEST64 c-runtime-test.c
+// cc -DTEST64 c-runtime-test.c -lm
 
 #include <string.h>
 #include "../src/c-runtime.c"

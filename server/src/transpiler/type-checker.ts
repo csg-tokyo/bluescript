@@ -172,9 +172,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     const nameInfo = names.lookup(node.name)
     if (nameInfo !== undefined) {
-      const info = nameInfo as NameInfo
-      if (this.assert(!info.isTypeName, `bad use of type name: ${node.name}`, node)) {
-        this.result = info.type
+      if (this.assert(!nameInfo.isTypeName, `bad use of type name: ${node.name}`, node)) {
+        this.result = nameInfo.type
         return
       }
     }
@@ -296,10 +295,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (superClassName)
       if (AST.isIdentifier(superClassName)) {
         const info = names.lookup(superClassName.name)
-        if (info && info.isTypeName && info.type instanceof ObjectType)
+        if (info && info.isTypeName && info.type instanceof InstanceType)
           superClass = info.type
         else
-          this.assert(false, 'invalid super class', node)
+          this.assert(false, `invalid super class: ${superClassName.name}`, node)
       }
       else
         this.assertSyntax(false, superClassName)
@@ -632,11 +631,16 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   binaryExpression(node: AST.BinaryExpression, names: NameTable<Info>): void {
+    const op = node.operator
+    if (op === 'instanceof') {
+      this.instanceofExpression(node, names)
+      return
+    }
+
     this.visit(node.left, names)
     const left_type = this.result
     this.visit(node.right, names)
     const right_type = this.result
-    const op = node.operator
     if (op === '==' || op === '!=' || op === '===' || op === '!==') {
       if (left_type === BooleanT || right_type === BooleanT) {
         this.assert(left_type === right_type, 'a boolean must be compared with a boolean', node)
@@ -662,7 +666,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
       this.result = BooleanT
     }
-    else if (op === '+' || op === '-' || op === '*' || op === '/') {
+    else if (op === '+' || op === '-' || op === '*' || op === '/' || op === '**') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
         this.invalidOperandsMessage(op, left_type, right_type), node)
       if (left_type === Any || right_type === Any) {
@@ -670,10 +674,18 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           this.addCoercion(node.right, right_type)
           this.result = Any
       }
-      else if (left_type === Float || right_type === Float)
+      else if (left_type === Float || right_type === Float) {
+        if (op === '**')
+          this.addStaticType(node, Float)
+
         this.result = Float
-      else
+      }
+      else {
+        if (op === '**')
+          this.addStaticType(node, Integer)
+
         this.result = Integer
+      }
     }
     else if (op === '%') {
       this.assert((left_type === Integer || left_type === Any) && (right_type === Integer || right_type === Any),
@@ -688,13 +700,37 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else if (op === '|' || op === '^' || op === '&' || op === '<<' || op === '>>' || op === '>>>') {
       this.assert(left_type === Integer && right_type === Integer,
-        this.invalidOperandsMessage(op, left_type, right_type), node)
+                  this.invalidOperandsMessage(op, left_type, right_type), node)
       this.result = Integer
     }
-    else { // 'in', '**', 'instanceof', '|>'
+    else { // 'in', '|>'
       this.assert(false, `not supported operator '${op}'`, node)
       this.result = BooleanT
     }
+  }
+
+  instanceofExpression(node: AST.BinaryExpression, names: NameTable<Info>): void {
+    this.visit(node.left, names)
+    const leftType = this.result
+    if (isPrimitiveType(leftType))
+      this.assert(false, 'primitive types cannot be used in instanceof', node.left)
+
+    if (AST.isIdentifier(node.right)) {
+      const typeName = node.right.name
+      let type: StaticType = Any
+      const info = names.lookup(typeName)
+      if (info?.isTypeName && info.type instanceof InstanceType)
+        type = info.type
+      else if (typeName === 'string' || typeName === 'String')
+        type = StringT
+      else
+        this.assert(false, `invalid type name: ${typeName}`, node.right)
+
+      this.addStaticType(node.right, type)
+      this.result = BooleanT
+    }
+    else
+      this.assertSyntax(false, node.right)
   }
 
   invalidOperandsMessage(op: string, t1: StaticType, t2: StaticType) {

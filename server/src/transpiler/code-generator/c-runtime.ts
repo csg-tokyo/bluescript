@@ -205,6 +205,8 @@ export function arithmeticOpForAny(op: string) {
       return 'any_divide'
     case '%':
       return 'any_modulo'
+    case '**':
+      return 'any_power'
     case '+=':
       return 'any_add_assign'
     case '-=':
@@ -228,6 +230,15 @@ export function arithmeticOpForAny(op: string) {
   }
 }
 
+export function power(type: StaticType | undefined) {
+  if (type === Float)
+    return '(float)double_power('
+  else if (type === Integer)
+    return '(int32_t)double_power('
+  else
+    throw new Error('bad operand types for **')
+}
+
 export function updateOpForAny(prefix: boolean, op: string) {
   if (prefix)
     if (op === '++')
@@ -249,14 +260,20 @@ export const minusAnyValue = 'minus_any_value'
 export const globalRootSetName = 'global_rootset'
 
 export function makeRootSet(n: number) {
-  if (n > 0)
-    return `ROOT_SET(func_rootset, ${n})`
-  else
+  if (n < 1)
     return ''
+  else if (n == 1)
+    return 'ROOT_SET_N(func_rootset,1,VALUE_UNDEF)'
+  else if (n == 2)
+    return 'ROOT_SET_N(func_rootset,2,VALUE_UNDEF_2)'
+  else if (n == 3)
+    return 'ROOT_SET_N(func_rootset,3,VALUE_UNDEF_3)'
+  else
+    return `ROOT_SET(func_rootset,${n})`
 }
 
 export function declareRootSet(name: string, n: number) {
-  return `ROOT_SET_DECL(${name}, ${n})`
+  return `ROOT_SET_DECL(${name}, ${n});`
 }
 
 export function initRootSet(name: string, n: number) {
@@ -380,7 +397,9 @@ export function getArrayLengthIndex(t: StaticType) {
 }
 
 export const runtimeTypeArray = 'array_object'
-export const arrayMaker = 'gc_new_string'
+
+export const stringMaker = 'gc_new_string'
+export const isStringType = 'gc_is_string_object('
 
 export const functionMaker = 'gc_new_function'
 export const functionPtr = 'fptr'
@@ -477,4 +496,8 @@ export function makeInstance(clazz: InstanceType) {
 
 export function methodLookup(method: [StaticType, number, InstanceType], func: string) {
   return `((${funcTypeToCType(method[0])})method_lookup(${func}, ${method[1]}))`
+}
+
+export function isInstanceOf(t: InstanceType) {
+  return `gc_is_instance_of(&${classObjectNameInC(t.name())}, `
 }

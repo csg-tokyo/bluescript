@@ -3,6 +3,7 @@ import { expect, test } from '@jest/globals'
 import * as tested from './test-typechecker'
 import * as types from '../../src/transpiler/types'
 import * as names from '../../src/transpiler/names'
+import * as clazz from '../../src/transpiler/classes'
 
 test('syntax error', () => {
   const src = `function foo(x: float) : number {
@@ -189,8 +190,8 @@ test('function type', () => {
 
 test('import', () => {
   const src = `
-  function foo(): integer { return 1 }
-  function bar(): integer { return 2 }
+  export function foo(): integer { return 1 }
+  export function bar(): integer { return 2 }
   `
   const src2 = `
   import type { integer, float } from 'bluescript.ts'
@@ -227,4 +228,26 @@ test('import', () => {
 
   expect(() => tested.transpile(src3, 1, 'foo.ts', src)).toThrow(/cannot find/)
   expect(() => tested.transpile(src5, 1, 'foo.ts', src4)).toThrow(/line 2.*foo\.ts\n.*line 3.*foo\.ts\n.*line 5/)
+})
+
+test('InstanceType.subclasses() and ClassTable.roots()', () => {
+  const src = `
+  class Foo {}
+  class Bar extends Foo {}
+  class Baz extends Foo {}
+  class Foo2 {}
+`
+  const ast = tested.transpile(src)
+  const table = names.getNameTable(ast.program)
+  const t = table?.lookup('Foo')?.type
+
+  const subs = (t as clazz.InstanceType).subclasses()
+  expect(subs.length).toBe(2)
+  expect(subs[0].name()).toBe('Bar')
+  expect(subs[1].name()).toBe('Baz')
+
+  const roots = table?.classTable()?.roots()
+  expect(roots !== undefined && roots.length).toBe(2)
+  expect(roots !== undefined && roots[0].name()).toBe('Foo')
+  expect(roots !== undefined && roots[1].name()).toBe('Foo2')
 })

@@ -3,7 +3,8 @@
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType } from '../types'
+         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
+         StringT } from '../types'
 import * as visitor from '../visitor'
 import {getCoercionFlag, getStaticType, NameInfo, NameTable, NameTableMaker} from '../names'
 import TypeChecker, { typecheck } from '../type-checker'
@@ -145,7 +146,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   private makeStringLiteral(value: string) {
-    this.result.write(`${cr.arrayMaker}(${JSON.stringify(value)})`)
+    this.result.write(`${cr.stringMaker}(${JSON.stringify(value)})`)
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: VariableEnv): void {
@@ -169,8 +170,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           const vname = info.transpile(node.name)
           this.result.write(this.makeFunctionObject(vname))
         }
-        else
+        else {
+          if (info.isGlobal() && info.type instanceof InstanceType
+              && env.table.lookup(info.type.name()) === undefined) {
+            // force to declare the class name as an external type if it is not declared
+            // in this module.
+            throw this.errorLog.push(`fatal: unknown class name: ${info.type.name()}`, node)
+          }
+
           this.result.write(info.transpile(node.name))
+        }
+
         return
     }
 
@@ -865,8 +875,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (op === '==' || op === '!=' || op === '===' || op === '!==')
       this.equalityExpression(op, left, right, env)
     else if (op === '<' || op === '<=' || op === '>' || op === '>='
-             || op === '+' || op === '-' || op === '*' || op === '/' || op === '%')
-      this.basicBinaryExpression(op, left, right, env)
+             || op === '+' || op === '-' || op === '*' || op === '/' || op === '%' || op === '**')
+      this.basicBinaryExpression(op, node, left, right, env)
     else if (op === '|' || op === '^' || op === '&' || op === '<<' || op === '>>') {
       // both left and right are integer or float.
       this.numericBinaryExprssion(op, left, right, env)
@@ -875,6 +885,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       // both left and right are integer or float.
       this.unsignedRightShift(left, right, env)
     }
+    else if (op === 'instanceof')
+      this.instanceOfExpression(left, right, env)
     else
       throw this.errorLog.push(`bad binary operator ${op}`, node)
 
@@ -907,7 +919,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   // +, -, *, /, %, <, <=, ... for integer, float, or any-type values
-  private basicBinaryExpression(op: string, left: AST.Node, right: AST.Node, env: VariableEnv): void {
+  private basicBinaryExpression(op: string, node: AST.BinaryExpression, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
     if (left_type === Any || right_type === Any) {
@@ -918,7 +930,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.result.write('))')
     }
     else
-      this.numericBinaryExprssion(op, left, right, env)
+      if (op === '**') {
+        this.result.write(cr.power(getStaticType(node)))
+        this.visit(left, env)
+        this.result.write(', ')
+        this.visit(right, env)
+        this.result.write(')')
+      }
+      else
+        this.numericBinaryExprssion(op, left, right, env)
   }
 
   // binary expression for numeric (integer or float) values
@@ -933,6 +953,19 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.visit(left, env)
     this.result.write(') >> ')
     this.visit(right, env)
+  }
+
+  private instanceOfExpression(left: AST.Node, right: AST.Node, env: VariableEnv) {
+    const type = getStaticType(right)
+    if (type === StringT)
+      this.result.write(cr.isStringType)
+    else if (type instanceof InstanceType)
+      this.result.write(cr.isInstanceOf(type))
+    else
+      throw this.errorLog.push('fatal: bad instanceof', right)
+
+    this.visit(left, env)
+    this.result.write(')')
   }
 
   assignmentExpression(node: AST.AssignmentExpression, env: VariableEnv): void {
