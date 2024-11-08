@@ -41,9 +41,7 @@ bool CR_SECTION bs_profiler_typecount(uint8_t id, uint8_t count, value_t p1, val
         return true;
     } else if (count == TYPECOUNT_THRESHOLD) {
         int32_t len = TYPECOUNT_THRESHOLD*sizeof(uint16_t);
-#ifndef TEST64
         bs_logger_push_profile(id, (uint8_t*)(typecounter+(id*TYPECOUNT_THRESHOLD)), len);
-#endif
         memset(typecounter+(id*TYPECOUNT_THRESHOLD), 0, len);
         return true;
     } else {

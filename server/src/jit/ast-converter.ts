@@ -10,6 +10,7 @@ import {
 import {Any, ArrayType, BooleanT, Float, Integer, StaticType, Void} from "../transpiler/types";
 import * as AST from '@babel/types'
 import traverse from "@babel/traverse";
+import {Profiler} from "./profiler";
 
 export const specializedFuncPrefix = "0";
 
@@ -30,22 +31,36 @@ function type2Node(type: StaticType) {
   return tsTypeAnnotation(tsAnyKeyword());
 }
 
+function addSpecializedNode(node: AST.FunctionDeclaration, specializedNode: AST.FunctionDeclaration) {
+  ((node as unknown) as { specialized: AST.FunctionDeclaration }).specialized = specializedNode
+}
 
-export function convertAst(ast: AST.Node, funcName: string, paramTypes: StaticType[], returnType: StaticType) {
+export function getSpecializedNode(node: AST.FunctionDeclaration) {
+  return ((node as unknown) as { specialized?: AST.FunctionDeclaration }).specialized
+}
+
+
+export function convertAst(ast: AST.Node, profiler: Profiler) {
   traverse(ast, {
     Program: (path) => {
-      const originalFunc = path.node.body[0]
-      if(isFunctionDeclaration(originalFunc)   && originalFunc.id?.name === funcName) {
-        const clone = structuredClone(originalFunc)
-        if (clone.id === null || clone.id === undefined)
+      path.node.body.forEach(statement => {
+        if (!isFunctionDeclaration(statement))
           return
-        clone.id.name = specializedFuncPrefix + funcName
+        const name = statement.id?.name
+        const profile = name ? profiler.getFunctionProfileByName(name) : undefined;
+        if (profile === undefined || (profile.state.state !== 'specializing' && profile.state.state !== 'specialized'))
+          return;
+        const specializedType = profile.state.type
+        const clone = structuredClone(statement)
+        if (clone.id === null || clone.id === undefined)
+          return;
+        clone.id.name = specializedFuncPrefix + name
         clone.params.forEach((p, i) => {
-          p.typeAnnotation = type2Node(paramTypes[i])
+          p.typeAnnotation = type2Node(specializedType.paramTypes[i])
         })
-        clone.returnType = type2Node(returnType);
-        path.node.body.unshift(clone)
-      }
+        clone.returnType = type2Node(specializedType.returnType)
+        addSpecializedNode(statement, clone)
+      })
     }
   })
 }

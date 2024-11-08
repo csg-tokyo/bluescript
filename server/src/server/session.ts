@@ -5,9 +5,11 @@ import {transpile} from "../transpiler/code-generator/code-generator";
 import {execSync} from "child_process";
 import {MemoryInfo, ShadowMemory} from "../linker/shadow-memory";
 import {Profiler} from "../jit/profiler";
-import {JITProfilingCodeGenerator, JITSpecializingCodeGenerator} from "../jit/jit-code-generator";
 import {runBabelParser} from "../transpiler/utils";
 import {convertAst} from "../jit/ast-converter";
+import {JitCodeGenerator, jitTranspile} from "../jit/jit-code-generator";
+import {NameInfo, NameTableMaker} from "../transpiler/names";
+import {JitTypeChecker} from "../jit/jit-type-checker";
 
 
 const cProlog = `
@@ -59,14 +61,19 @@ export default class Session {
 
   public executeWithProfiling(tsString: string) {
     this.currentCodeId += 1;
+    const ast = runBabelParser(tsString, 1)
 
     const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
-      return new JITProfilingCodeGenerator(initializerName, codeId, moduleId, this.profiler, tsString);
+      return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, tsString);
+    }
+
+    const typeChecker = (maker: NameTableMaker<NameInfo>) => {
+      return new JitTypeChecker(maker, undefined);
     }
 
     const start = performance.now();
     // Transpile
-    const tResult = transpile(this.currentCodeId, tsString, this.nameTable, undefined, -1, undefined, codeGenerator);
+    const tResult = jitTranspile(this.currentCodeId, ast, typeChecker, codeGenerator, this.nameTable, undefined)
     const entryPointName = tResult.main;
     const cString = cProlog + tResult.code;
 
@@ -90,17 +97,20 @@ export default class Session {
     this.profiler.setFuncSpecializedType(profile.funcId, Profiler.profiledData2Type(profile.paramTypes))
 
     const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
-      return new JITSpecializingCodeGenerator(initializerName, codeId, moduleId, this.profiler);
+      return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, func.src);
+    }
+
+    const typeChecker = (maker: NameTableMaker<NameInfo>) => {
+      return new JitTypeChecker(maker, undefined);
     }
 
     // Transpile
     const ast = runBabelParser(func.src, 1);
-    if (func.specializedType === undefined)
-      throw new Error()
     const start = performance.now();
 
-    convertAst(ast, func.name, func.specializedType.paramTypes, func.specializedType.returnType);
-    const tResult = transpile(0, func.src, this.nameTable, undefined, -1, ast, codeGenerator);
+    convertAst(ast, this.profiler);
+    // const tResult = transpile(0, func.src, this.nameTable, undefined, -1, ast, codeGenerator);
+    const tResult = jitTranspile(this.currentCodeId, ast, typeChecker, codeGenerator, this.nameTable, undefined)
     const entryPointName = tResult.main;
     const cString = cProlog + tResult.code;
 

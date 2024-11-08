@@ -29,22 +29,20 @@ import * as fs from 'fs'
 */
 export function transpile(codeId: number, src: string, gvnt?: GlobalVariableNameTable,
                           importer?: (name: string) => GlobalVariableNameTable, moduleId: number = -1,
-                          ast_?: AST.Node,
-                          codeGenerator?: (initializerName: string, codeId: number, moduleId: number) => CodeGenerator,
                           startLine: number = 1, header: string = '') {
-  const ast = ast_ ?? runBabelParser(src, startLine);
+  const ast = runBabelParser(src, startLine);
   const maker = new VariableNameTableMaker(moduleId)
   const nameTable = new GlobalVariableNameTable(gvnt)
   typecheck(ast, maker, nameTable, importer)
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
   const mainFuncName = `${cr.mainFunctionName}${codeId}_${moduleId < 0 ? '' : moduleId}`
-  const generator = codeGenerator ? codeGenerator(mainFuncName, codeId, moduleId) : new CodeGenerator(mainFuncName, codeId, moduleId)
+  const generator = new CodeGenerator(mainFuncName, codeId, moduleId)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   if (generator.errorLog.hasError())
     throw generator.errorLog
   else
     return { code: generator.getCode(header),
-             main: mainFuncName, names: nameTable }
+      main: mainFuncName, names: nameTable }
 }
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
@@ -760,7 +758,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return sig + ')'
   }
 
-  private makeSimpleParameterList(funcType: FunctionType) {
+  protected makeSimpleParameterList(funcType: FunctionType) {
     let sig = `(${cr.anyTypeInC} self`
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       sig += `, ${cr.typeToCType(funcType.paramTypes[i], `p${i}`)}`

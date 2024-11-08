@@ -1,20 +1,25 @@
 import {Any, ArrayType, BooleanT, Float, FunctionType, Integer, ObjectType, StaticType} from "../transpiler/types";
 
 
+export type FunctionState =
+  {state: 'profiling'} |
+  {state: 'specializing', type: FunctionType} |
+  {state: 'undoing'} |
+  {state: 'specialized', type: FunctionType} |
+  {state: 'unspecialized'}
+
 export type FunctionProfile = {
   id: number,
   name: string,
   src: string,
   type: FunctionType,
-  specializingDone: boolean,
-  specializedType?: FunctionType,
-  profilingData?: number[]
+  state: FunctionState,
 }
 
 export const typeCounterName = "type_count";
 export const typeCountFunctionName = "bs_profiler_typecount";
 export const callCounterName =  "call_count";
-export const callCountThreshold = "BS_PROFILER_COUNT_THRESHOLD";
+export const callCountThreshold = 5;
 export const maxParamNum = 4;
 
 export class Profiler {
@@ -24,9 +29,10 @@ export class Profiler {
 
   setFunctionProfile(name: string, src: string, type: FunctionType) {
     const id = this.nextFuncId++;
-    this.profiles.set(name, {id, name, src, type, specializingDone:false});
+    const profile:FunctionProfile = {id, name, src, type, state: {state: "profiling"}}
+    this.profiles.set(name, profile);
     this.id2Name.set(id, name);
-    return id;
+    return profile;
   }
 
   getFunctionProfileById(id: number) {
@@ -38,6 +44,12 @@ export class Profiler {
     return this.profiles.get(name);
   }
 
+  setFunctionState(name: string, state: FunctionState) {
+    const func = this.profiles.get(name);
+    if (func !== undefined)
+      func.state = state;
+  }
+
   setFuncSpecializedType(id: number, paramTypes: StaticType[]) {
     const funcName = this.id2Name.get(id);
     if (funcName === undefined)
@@ -45,6 +57,11 @@ export class Profiler {
     const func = this.profiles.get(funcName);
     if (func === undefined)
       throw new Error(`Cannot not find the target function. name: ${funcName}`);
+    if (paramTypes.slice(0, func.type.paramTypes.length).every(t => t === Any)) {
+      func.state = {state: 'undoing'}
+      return;
+    }
+
     const specializedParamTypes: StaticType[] = [];
     let s = 0;
     for (const ofpt of func.type.paramTypes) {
@@ -53,7 +70,7 @@ export class Profiler {
       else
         specializedParamTypes.push(paramTypes[s++]);
     }
-    func.specializedType = new FunctionType(func.type.returnType, specializedParamTypes);
+    func.state = {state: 'specializing', type: new FunctionType(func.type.returnType, specializedParamTypes)};
   }
 
   // TODO: 一つに定まらない時はundefinedを返す

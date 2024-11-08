@@ -1,20 +1,48 @@
 import {CodeGenerator} from "../transpiler/code-generator/code-generator";
-import * as AST from "@babel/types";
-import {FunctionEnv, getVariableNameTable, VariableEnv, VariableInfo} from "../transpiler/code-generator/variables";
-import {Any, ArrayType, BooleanT, encodeType, Float, FunctionType, Integer, StaticType} from "../transpiler/types";
-import * as cr from "../transpiler/code-generator/c-runtime";
-import {FunctionDeclaration} from "@babel/types";
 import {
-  callCountThreshold,
   callCounterName,
-  FunctionProfile,
+  callCountThreshold,
+  FunctionProfile, maxParamNum,
   Profiler,
   typeCounterName,
-  typeCountFunctionName, maxParamNum
+  typeCountFunctionName
 } from "./profiler";
-import {specializedFuncPrefix} from "./ast-converter";
-import {getStaticType} from "../transpiler/names";
-import {typeConversion} from "../transpiler/code-generator/c-runtime";
+import {
+  FunctionEnv,
+  getVariableNameTable, GlobalEnv,
+  GlobalVariableNameTable,
+  VariableEnv,
+  VariableNameTableMaker
+} from "../transpiler/code-generator/variables";
+import * as AST from "@babel/types";
+import {Any, ArrayType, BooleanT, encodeType, Float, FunctionType, Integer, StaticType} from "../transpiler/types";
+import {FunctionDeclaration} from "@babel/types";
+import * as cr from "../transpiler/code-generator/c-runtime";
+import {getStaticType, NameInfo, NameTableMaker} from "../transpiler/names";
+import {jitTypecheck, JitTypeChecker} from "./jit-type-checker";
+import {getSpecializedNode} from "./ast-converter";
+
+
+export function jitTranspile(codeId: number, ast: AST.Node,
+                             typeChecker: (maker: NameTableMaker<NameInfo>) => JitTypeChecker<NameInfo>,
+                             codeGenerator: (initializerName: string, codeId: number, moduleId: number) => JitCodeGenerator,
+                             gvnt?: GlobalVariableNameTable,
+                             importer?: (name: string) => GlobalVariableNameTable,
+                             moduleId: number = -1,
+                             startLine: number = 1, header: string = '') {
+  const maker = new VariableNameTableMaker(moduleId)
+  const nameTable = new GlobalVariableNameTable(gvnt)
+  jitTypecheck(ast, maker, nameTable, typeChecker(maker), importer)
+  const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
+  const mainFuncName = `${cr.mainFunctionName}${codeId}_${moduleId < 0 ? '' : moduleId}`
+  const generator = codeGenerator(mainFuncName, codeId, moduleId)
+  generator.visit(ast, nullEnv)   // nullEnv will not be used.
+  if (generator.errorLog.hasError())
+    throw generator.errorLog
+  else
+    return { code: generator.getCode(header),
+      main: mainFuncName, names: nameTable }
+}
 
 function originalFunctionName(name: string) {
   return `original${name}`;
@@ -31,6 +59,7 @@ function specializedFunctionName(name: string) {
 function specializedFunctionBodyName(name: string) {
   return `specialized_${cr.functionBodyName(name)}`;
 }
+
 
 // returns '(' or '<type check function>('
 // '(' is returned if the type cannot be checked.
@@ -58,108 +87,166 @@ function checkType(type?: StaticType) {
   }
 }
 
-export class JITProfilingCodeGenerator extends CodeGenerator {
+
+export class JitCodeGenerator extends CodeGenerator{
   private profiler: Profiler;
-  private tsSrc: string[];
+  private bsSrc: string[];
 
 
   constructor(initializerName: string, codeId: number, moduleId: number, profiler: Profiler, src: string) {
     super(initializerName, codeId, moduleId);
     this.profiler = profiler;
-    this.tsSrc = src.split('\n');
+    this.bsSrc = src.split('\n');
   }
 
-  // 引数が違うだけ
-  functionBodyDeclaration2(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
-                          funcName: string, bodyName: string, env: VariableEnv,
-                           funcInfo?: VariableInfo, isStatic: boolean = true): FunctionEnv {
+  functionDeclaration(node: AST.FunctionDeclaration, env: VariableEnv) {
+    const name = (node.id as AST.Identifier).name
+    const funcInfo = env.table.lookup(name)
+    const funcType = getStaticType(node) as FunctionType;
+    const funcName = funcInfo ? funcInfo.transpiledName(name) : name
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
+
+    if (!funcType.paramTypes.includes(Any) || funcType.paramTypes.filter(t=> t === Any).length > maxParamNum) {
+      super.functionDeclaration(node, env);
+      return;
+    }
+    
+    let funcProfile = this.profiler.getFunctionProfileByName(name);
+    if (funcProfile === undefined) {
+      const src = this.bsSrc.slice((node.loc?.start.line ?? 0) - 1, node.loc?.end.line).join('\n');
+      funcProfile = this.profiler.setFunctionProfile(name, src, funcType)
+    }
+    const originalFuncName = originalFunctionName(funcName)
+    const originalFuncBodyName = originalFunctionBodyName(funcName)
+    const specializedFuncName = specializedFunctionName(funcName);
+    const specializedFuncBodyName = specializedFunctionBodyName(funcName);
+
+    switch (funcProfile.state.state) {
+      case 'profiling':
+        const isFreeVariable = fenv.isFreeVariable(funcInfo)
+        this.functionBodyDeclaration2(node, originalFuncName, originalFuncBodyName, fenv, isFreeVariable)
+        if (!isFreeVariable)
+          this.wrapperFunctionDeclaration(node, funcName, false, funcProfile, fenv)
+        break
+      case 'specializing': {
+        const specializedNode = getSpecializedNode(node);
+        if (specializedNode === undefined)
+          throw new Error('Fatal: cannot find specialized node.')
+        const specializedFenv = new FunctionEnv(getVariableNameTable(specializedNode), env)
+        this.functionBodyDeclaration2(specializedNode, specializedFuncName, specializedFuncBodyName, specializedFenv, false)
+        this.wrapperFunctionDeclaration(node, funcName, true, funcProfile, fenv)
+        this.profiler.setFunctionState(name, {state: 'specialized', type: funcProfile.state.type})
+        break
+      }
+      case 'undoing':
+        this.signatures += this.makeFunctionStruct(funcName, funcType, false)
+        this.signatures += `extern ${cr.typeToCType(funcType.returnType, originalFuncBodyName)}${super.makeSimpleParameterList(funcType)};\n`
+        this.result.nl().write(`${funcName}.${cr.functionPtr} = ${originalFuncBodyName};`).nl()
+        this.profiler.setFunctionState(name, {state: 'unspecialized'})
+        break
+      case 'specialized': {
+        const specializedNode = getSpecializedNode(node);
+        if (specializedNode === undefined)
+          throw new Error('Fatal: cannot find specialized node.')
+        const specializedFenv = new FunctionEnv(getVariableNameTable(specializedNode), env)
+        this.functionBodyDeclaration2(specializedNode, specializedFuncName, specializedFuncBodyName, specializedFenv, true)
+        this.functionBodyDeclaration2(node, originalFuncName, originalFuncBodyName, fenv, true)
+        break
+      }
+      case 'unspecialized':
+        this.functionBodyDeclaration2(node, funcName, cr.functionBodyName(funcName), fenv, true)
+        break
+    }
+  }
+
+  private functionBodyDeclaration2(node: AST.FunctionDeclaration, funcName: string, bodyName: string, fenv: FunctionEnv,
+                           isFreeVariable: boolean) {
     fenv.allocateRootSet()
     const funcType = getStaticType(node) as FunctionType;
 
     const prevResult = this.result
     this.result = this.declarations
-    if (isStatic)
-      this.functionBody(node, fenv, funcType, bodyName)
-    else
-      this.functionBody(node, fenv, funcType, bodyName, '')   // not a static function
-
+    this.functionBody(node, fenv, funcType, bodyName)
     this.result = prevResult
 
-    if (fenv.isFreeVariable(funcInfo))
+    this.signatures += this.makeFunctionStruct(funcName, funcType, false)
+    if (isFreeVariable) {
       this.result.nl().write(`${funcName}.${cr.functionPtr} = ${bodyName};`).nl()
-    else {
-      this.signatures += this.makeFunctionStruct(funcName, funcType, false)
+    } else {
       this.declarations.write(`${cr.funcStructInC} ${funcName} = { ${bodyName}, "${encodeType(funcType)}" };`).nl()
     }
-
-    return fenv
   }
 
-  // TODO: original funcを再定義する場合にも対応
-  functionDeclaration(node: FunctionDeclaration, env: VariableEnv) {
-    const fname = (node.id as AST.Identifier).name
-    const funcInfo = env.table.lookup(fname)
+  private wrapperFunctionDeclaration(node: AST.FunctionDeclaration, funcName: string, isFreeVariable: boolean,
+                                     funcProfile: FunctionProfile, fenv: FunctionEnv) {
     const funcType = getStaticType(node) as FunctionType;
-    const transpiledFuncName = funcInfo ? funcInfo.transpiledName(fname) : fname
+    const wrapperFuncName = funcName
+    const wrapperBodyName = cr.functionBodyName(funcName)
 
-    if (!funcType.paramTypes.includes(Any) || funcType.paramTypes.filter(t=> t === Any).length > maxParamNum)
-      return super.functionDeclaration(node, env);
-
-    const src = this.tsSrc.slice((node.loc?.start.line ?? 0) - 1, node.loc?.end.line).join('\n');
-    const profilerId = this.profiler.setFunctionProfile(fname, src, funcType);
-
-    const originalFuncName = originalFunctionName(transpiledFuncName)
-    const originalBodyName = originalFunctionBodyName(transpiledFuncName)
-    this.functionBodyDeclaration2(node, originalFuncName, originalBodyName, env, funcInfo)
-
-    const wrapperFuncName = transpiledFuncName
-    const wrapperBodyName = cr.functionBodyName(transpiledFuncName)
-    this.wrapperFunctionDeclaration(node, wrapperFuncName, wrapperBodyName, originalFuncName, profilerId, env)
-  }
-
-  private wrapperFunctionDeclaration(node: AST.FunctionDeclaration,
-                                     wrapperFuncName: string, wrapperBodyName: string, originalFuncName: string,
-                                     profilerId: number, env: VariableEnv, isStatic: boolean = true): FunctionEnv {
-    const fenv = new FunctionEnv(getVariableNameTable(node), env)
-    const funcType = getStaticType(node) as FunctionType;
     const prevResult = this.result
     this.result = this.declarations
-    if (isStatic)
-      this.wrapperFunctionBody(node, originalFuncName, fenv, funcType, wrapperBodyName, profilerId)
-    else
-      this.wrapperFunctionBody(node, originalFuncName, fenv, funcType, wrapperBodyName, profilerId, '')
+    if (funcProfile.state.state === 'profiling')
+      this.wrapperFunctionBodyForProfiling(node, fenv, funcType, funcName, funcProfile.id)
+    else if (funcProfile.state.state === 'specializing')
+      this.wrapperFunctionBodyForSpecializing(node, fenv, funcType, funcName, funcProfile.state.type)
     this.result = prevResult
 
     this.signatures += this.makeFunctionStruct(wrapperFuncName, funcType, false)
-    this.declarations.write(`${cr.funcStructInC} ${wrapperFuncName} = { ${wrapperBodyName}, "${encodeType(funcType)}" };`).nl()
-    return fenv
+    if (isFreeVariable) {
+      this.result.nl().write(`${funcName}.${cr.functionPtr} = ${wrapperBodyName};`).nl()
+    } else {
+      this.declarations.write(`${cr.funcStructInC} ${wrapperFuncName} = { ${wrapperBodyName}, "${encodeType(funcType)}" };`).nl()
+    }
   }
 
-
-  private wrapperFunctionBody(node: AST.FunctionDeclaration, originalFuncName: string,
-                              fenv: FunctionEnv, funcType: FunctionType, bodyName: string, profilerId: number,
-                         modifier: string = 'static ') {
+  private wrapperFunctionBodyForProfiling(node: AST.FunctionDeclaration, fenv: FunctionEnv,
+                                          funcType: FunctionType, funcName: string, funcProfileId: number,
+                                          modifier: string = 'static ') {
+    const wrapperBodyName = cr.functionBodyName(funcName)
+    const originalFuncName = originalFunctionName(funcName)
     const bodyResult = this.result.copy()
     const sig = this.makeParameterList(funcType, node, fenv, bodyResult)
-    this.result.write(`${modifier}${cr.typeToCType(funcType.returnType, bodyName)}${sig}`).write(' {')
+    this.result.write(`${modifier}${cr.typeToCType(funcType.returnType, wrapperBodyName)}${sig}`).write(' {')
     this.result.right().nl();
 
-    this.functionProfiling(node, fenv, funcType, profilerId);
+    this.functionProfiling(node, fenv, funcType, funcProfileId);
 
     this.result.write('return ');
-    const ftype = cr.funcTypeToCType(funcType)
-    this.result.write(`((${ftype})${originalFuncName}.${cr.functionPtr})(`)
-    let paramSig = ['self']
-    for (let i = 0; i < funcType.paramTypes.length; i++) {
-      const paramName = (node.params[i] as AST.Identifier).name
-      const info = fenv.table.lookup(paramName)
-      if (info !== undefined) {
-        const name = info.transpiledName(paramName)
-        paramSig.push(name);
-      }
-    }
-    this.result.write(paramSig.join(', ')).write(');');
+    this.functionCall(node, fenv, originalFuncName, funcType, funcType.paramTypes, 'self')
+    this.result.left().nl();
+    this.result.write('}').nl();
+  }
+
+  private wrapperFunctionBodyForSpecializing(node: AST.FunctionDeclaration, fenv: FunctionEnv,
+                                             funcType: FunctionType, funcName: string, specializedType: FunctionType,
+                                             modifier: string = 'static ') {
+    const wrapperBodyName = cr.functionBodyName(funcName)
+    const originalFuncName = originalFunctionName(funcName)
+    const specializedFuncName = specializedFunctionName(funcName)
+    const bodyResult = this.result.copy()
+    const sig = this.makeParameterList(funcType, node, fenv, bodyResult)
+    this.result.write(`${modifier}${cr.typeToCType(funcType.returnType, wrapperBodyName)}${sig}`).write(' {')
+    this.result.right().nl();
+
+    this.result.write('if (')
+    this.parameterCheck(node, fenv, funcType.paramTypes, specializedType.paramTypes)
+    this.result.write(') {')
+    this.result.right().nl()
+
+    this.result.write('return ');
+    this.functionCall(node, fenv, specializedFuncName, specializedType, funcType.paramTypes, 'self')
+
+    this.result.left().nl()
+    this.result.write('} else {')
+    this.result.right().nl()
+
+    this.result.write('return ');
+    this.functionCall(node, fenv, originalFuncName, funcType, funcType.paramTypes, 'self')
+    this.signatures += this.makeFunctionStruct(originalFuncName, funcType, false)
+
+    this.result.left().nl()
+    this.result.write('}')
+
     this.result.left().nl();
     this.result.write('}').nl();
   }
@@ -168,7 +255,7 @@ export class JITProfilingCodeGenerator extends CodeGenerator {
     this.result.write(`static uint8_t ${callCounterName} = 0;`).nl();
     this.result.write(`static uint8_t ${typeCounterName} = 0;`).nl();
     this.result.write(`${callCounterName} < ${callCountThreshold} ? ${callCounterName}++ : ${typeCountFunctionName}(`)
-    let profSig = `${funcProfilerId}, ${typeCounterName}++`;
+    let profSig = `${funcProfilerId}, (${typeCounterName} < UINT8_MAX) ? ${typeCounterName}++ : ${typeCounterName}`;
     let c = 0;
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       const paramName = (node.params[i] as AST.Identifier).name
@@ -183,157 +270,36 @@ export class JITProfilingCodeGenerator extends CodeGenerator {
     profSig += ', 0'.repeat(maxParamNum - c);
     this.result.write(profSig).write(');').nl();
   }
-}
 
-export class JITSpecializingCodeGenerator extends CodeGenerator {
-  private profiler: Profiler;
-
-  constructor(initializerName: string, codeId: number, moduleId: number, profiler: Profiler) {
-    super(initializerName, codeId, moduleId);
-    this.profiler = profiler;
-  }
-
-  // 引数が違うだけ、要削除
-  functionBodyDeclaration2(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression,
-                           funcName: string, bodyName: string, env: VariableEnv,
-                           funcInfo?: VariableInfo, isStatic: boolean = true): FunctionEnv {
-    const fenv = new FunctionEnv(getVariableNameTable(node), env)
-    fenv.allocateRootSet()
-    const funcType = getStaticType(node) as FunctionType;
-
-    const prevResult = this.result
-    this.result = this.declarations
-    if (isStatic)
-      this.functionBody(node, fenv, funcType, bodyName)
-    else
-      this.functionBody(node, fenv, funcType, bodyName, '')   // not a static function
-
-    this.result = prevResult
-
-    if (fenv.isFreeVariable(funcInfo))
-      this.result.nl().write(`${funcName}.${cr.functionPtr} = ${bodyName};`).nl()
-    else {
-      this.signatures += this.makeFunctionStruct(funcName, funcType, false)
-      this.declarations.write(`${cr.funcStructInC} ${funcName} = { ${bodyName}, "${encodeType(funcType)}" };`).nl()
-    }
-
-    return fenv
-  }
-
-  functionDeclaration(node: FunctionDeclaration, env: VariableEnv) {
-    const fname = (node.id as AST.Identifier).name
-    const funcInfo = env.table.lookup(fname)
-    if (fname.startsWith(specializedFuncPrefix)) {
-      const _fname = fname.slice(specializedFuncPrefix.length);
-      const transpiledFuncName = funcInfo ? funcInfo.transpiledName(_fname) : _fname;
-      const specializedFuncName = specializedFunctionName(transpiledFuncName);
-      const specializedFuncBodyName = specializedFunctionBodyName(transpiledFuncName);
-      this.functionBodyDeclaration2(node, specializedFuncName, specializedFuncBodyName, env, funcInfo);
-      return
-    } else {
-      const transpiledFuncName = funcInfo ? funcInfo.transpiledName(fname) : fname;
-      const wrapperFuncName = transpiledFuncName
-      const wrapperBodyName = cr.functionBodyName(transpiledFuncName)
-      const specializedFuncName = specializedFunctionName(transpiledFuncName);
-      const originalFuncName = originalFunctionName(transpiledFuncName);
-      const funcProfile = this.profiler.getFunctionProfileByName(fname);
-      if (funcProfile === undefined)
-        throw new Error('Fatal: function profile does not exist.')
-      this.wrapperFunctionDeclaration(node, wrapperFuncName, wrapperBodyName, originalFuncName, specializedFuncName, funcProfile, env)
-    }
-  }
-
-  private wrapperFunctionDeclaration(node: AST.FunctionDeclaration,
-                                     wrapperFuncName: string, wrapperBodyName: string, originalFuncName: string, specializedFuncName: string,
-                                     funcProfile: FunctionProfile, env: VariableEnv, isStatic: boolean = true): FunctionEnv {
-    const fenv = new FunctionEnv(getVariableNameTable(node), env)
-    const funcType = getStaticType(node) as FunctionType;
-    const prevResult = this.result
-    this.result = this.declarations
-    if (isStatic)
-      this.wrapperFunctionBody(node, originalFuncName, specializedFuncName, fenv, funcType, wrapperBodyName, funcProfile)
-    else
-      this.wrapperFunctionBody(node, originalFuncName, specializedFuncName, fenv, funcType, wrapperBodyName, funcProfile, '')
-    this.result = prevResult
-
-    this.result.nl().write(`${wrapperFuncName}.${cr.functionPtr} = ${wrapperBodyName};`).nl()
-    this.signatures += this.makeFunctionStruct(originalFuncName, funcType, false);
-    return fenv
-  }
-
-
-  private wrapperFunctionBody(node: AST.FunctionDeclaration, originalFuncName: string, specializedFuncName: string,
-                              fenv: FunctionEnv, funcType: FunctionType, bodyName: string, funcProfile: FunctionProfile,
-                              modifier: string = 'static ') {
-    const bodyResult = this.result.copy()
-    const sig = this.makeParameterList(funcType, node, fenv, bodyResult)
-    this.result.write(`${modifier}${cr.typeToCType(funcType.returnType, bodyName)}${sig}`).write(' {')
-    this.result.right().nl();
-
-    if (funcProfile.specializedType === undefined)
-      throw new Error('fatal there is no specialized type');
-
-    this.result.write('if (')
-    {
-      let paramSig:string[] = [];
-      for (let i = 0; i < funcType.paramTypes.length; i++) {
-        const paramName = (node.params[i] as AST.Identifier).name
-        const info = fenv.table.lookup(paramName)
-        if (info !== undefined) {
-          const check = checkType(funcProfile.specializedType.paramTypes[i]);
-          if (check) {
-            const name = info.transpiledName(paramName)
-            paramSig.push(`${check}${name})`);
-          }
-        }
+  private functionCall(node: AST.FunctionDeclaration, fenv: FunctionEnv, funcName: string, funcType: FunctionType,
+                       argTypes: StaticType[], firstArg?: string) {
+    const ftype = cr.funcTypeToCType(funcType)
+    this.result.write(`((${ftype})${funcName}.${cr.functionPtr})(`)
+    let paramSig = firstArg ? [firstArg] : [];
+    for (let i = 0; i < funcType.paramTypes.length; i++) {
+      const paramName = (node.params[i] as AST.Identifier).name
+      const info = fenv.table.lookup(paramName)
+      if (info !== undefined) {
+        const name = info.transpiledName(paramName)
+        paramSig.push(`${cr.typeConversion(argTypes[i], funcType.paramTypes[i], node)}${name})`);
       }
-      this.result.write(paramSig.join(' && '))
     }
-    this.result.write(') {')
-    this.result.right().nl()
+    this.result.write(paramSig.join(', ')).write(');');
+  }
 
-    // call specialized
-    {
-      this.result.write('return ');
-      const ftype = cr.funcTypeToCType(funcProfile.specializedType)
-      this.result.write(`((${ftype})${specializedFuncName}.${cr.functionPtr})(`)
-      let paramSig = ['self']
-      for (let i = 0; i < funcType.paramTypes.length; i++) {
-        const paramName = (node.params[i] as AST.Identifier).name
-        const info = fenv.table.lookup(paramName)
-        if (info !== undefined) {
+  private parameterCheck(node: AST.FunctionDeclaration, fenv: FunctionEnv, srcParamTypes: StaticType[], targetParamTypes: StaticType[]) {
+    let paramSig:string[] = [];
+    for (let i = 0; i < srcParamTypes.length; i++) {
+      const paramName = (node.params[i] as AST.Identifier).name
+      const info = fenv.table.lookup(paramName)
+      if (info !== undefined) {
+        const check = checkType(targetParamTypes[i]);
+        if (check) {
           const name = info.transpiledName(paramName)
-          paramSig.push(`${typeConversion(funcProfile.type.paramTypes[i], funcProfile.specializedType.paramTypes[i], node)}${name})`);
+          paramSig.push(`${check}${name})`);
         }
       }
-      this.result.write(paramSig.join(', ')).write(');');
     }
-
-    this.result.left().nl()
-    this.result.write('} else {')
-    this.result.right().nl()
-
-    {
-      // call original
-      this.result.write('return ');
-      const ftype = cr.funcTypeToCType(funcType)
-      this.result.write(`((${ftype})${originalFuncName}.${cr.functionPtr})(`)
-      let paramSig = ['self']
-      for (let i = 0; i < funcType.paramTypes.length; i++) {
-        const paramName = (node.params[i] as AST.Identifier).name
-        const info = fenv.table.lookup(paramName)
-        if (info !== undefined) {
-          const name = info.transpiledName(paramName)
-          paramSig.push(name)
-        }
-      }
-      this.result.write(paramSig.join(', ')).write(');');
-    }
-
-    this.result.left().nl()
-    this.result.write('}')
-
-    this.result.left().nl();
-    this.result.write('}').nl();
+    this.result.write(paramSig.join(' && '))
   }
 }

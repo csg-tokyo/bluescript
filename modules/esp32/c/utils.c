@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "include/utils.h"
 #include "logger.h"
+#include "assert.h"
 
 char message[256];
 
@@ -24,6 +26,32 @@ int32_t fbody_randInt(value_t self, int32_t _min, int32_t _max) {
   return rand() % (_max - _min + 1) + _min;
 }
 
+void fbody_assert(value_t self, int32_t _test) {
+    assert(_test);
+}
+
+int32_t fbody_abs(value_t self, int32_t _i) {
+    int32_t _result = 0;
+    _result = abs(_i);
+    { int32_t ret_value_ = (_result); return ret_value_; }
+}
+
+float fbody_fabs(value_t self, float _f) {
+    float _result = 0.0;
+    _result = fabsf(_f);;
+    { float ret_value_ = (_result); ; return ret_value_; }
+}
+
+float fbody_sqrt(value_t self, float _f) {
+    float _result = 0.0;
+    _result = sqrt(_f);;
+    { float ret_value_ = (_result); ; return ret_value_; }
+}
+
+struct func_body _assert = { fbody_assert, "(b)v" };
+struct func_body _abs = { fbody_abs, "(i)i" };
+struct func_body _fabs = { fbody_fabs, "(f)f" };
+struct func_body _sqrt = { fbody_sqrt, "(f)f" };
 
 struct func_body _print = { fbody_print, "(a)v" };
 struct func_body _randInt = {fbody_randInt, "(ii)i"};
