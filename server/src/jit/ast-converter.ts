@@ -19,6 +19,9 @@ function type2Node(type: StaticType) {
   if (type === Integer || type === Float)
     return tsTypeAnnotation(tsTypeReference(identifier(type)));
 
+  if (type === BooleanT)
+    return tsTypeAnnotation(tsBooleanKeyword());
+
   if (type === Void)
     return tsTypeAnnotation(tsVoidKeyword());
 
