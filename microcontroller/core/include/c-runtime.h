@@ -97,6 +97,7 @@ extern bool CR_SECTION value_to_truefalse(value_t v);
 
 inline value_t bool_to_value(bool b) { return b ? VALUE_TRUE : VALUE_FALSE; }
 inline bool value_to_bool(value_t v) { return value_to_truefalse(v); }
+inline bool is_bool_value(value_t v) { return (v & 3) == 2; }
 
 inline bool safe_value_to_bool(value_t v) {
     // any value can be a boolean value.

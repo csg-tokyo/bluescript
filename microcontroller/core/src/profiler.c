@@ -13,10 +13,11 @@
 
 #define TYPE_INT         0
 #define TYPE_FLOAT       1
-#define TYPE_INT_ARRAY   2
-#define TYPE_FLOAT_ARRAY 3
-#define TYPE_BYTE_ARRAY  4
-#define TYPE_OTHERS      5
+#define TYPE_BOOL        2
+#define TYPE_INT_ARRAY   3
+#define TYPE_FLOAT_ARRAY 4
+#define TYPE_BYTE_ARRAY  5
+#define TYPE_OTHERS      6
 
 
 static uint16_t typecounter[TYPECOUNT_THRESHOLD * TYPECOUNTER_LENGTH] = {0};
@@ -27,6 +28,8 @@ static uint8_t type2int(value_t v) {
         return TYPE_INT;
     if (last2bit == 1) 
         return TYPE_FLOAT;
+    if (last2bit == 2)
+        return TYPE_BOOL;
     if (gc_is_intarray(v))
         return TYPE_INT_ARRAY;
     if (gc_is_floatarray(v))
