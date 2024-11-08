@@ -94,10 +94,12 @@ export class Profiler {
       case 1:
         return Float
       case 2:
-        return new ArrayType(Integer)
+        return BooleanT
       case 3:
-        return new ArrayType(Float)
+        return new ArrayType(Integer)
       case 4:
+        return new ArrayType(Float)
+      case 5:
         return new ArrayType(BooleanT)
       default:
         return Any

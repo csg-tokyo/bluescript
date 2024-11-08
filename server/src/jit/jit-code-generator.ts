@@ -81,7 +81,7 @@ function checkType(type?: StaticType) {
     case Float:
       return 'is_float_value(';
     case BooleanT:
-      return 'is_int_value(';
+      return 'is_bool_value(';
     default:
       return undefined;
   }
