@@ -110,7 +110,7 @@ export class JitCodeGenerator extends CodeGenerator{
       super.functionDeclaration(node, env);
       return;
     }
-    
+
     let funcProfile = this.profiler.getFunctionProfileByName(name);
     if (funcProfile === undefined) {
       const src = this.bsSrc.slice((node.loc?.start.line ?? 0) - 1, node.loc?.end.line).join('\n');
@@ -126,7 +126,7 @@ export class JitCodeGenerator extends CodeGenerator{
         const isFreeVariable = fenv.isFreeVariable(funcInfo)
         this.functionBodyDeclaration2(node, originalFuncName, originalFuncBodyName, fenv, isFreeVariable)
         if (!isFreeVariable)
-          this.wrapperFunctionDeclaration(node, funcName, false, funcProfile, fenv)
+          this.wrapperFunctionBodyDeclaration(node, funcName, false, funcProfile, fenv)
         break
       case 'specializing': {
         const specializedNode = getSpecializedNode(node);
@@ -134,7 +134,7 @@ export class JitCodeGenerator extends CodeGenerator{
           throw new Error('Fatal: cannot find specialized node.')
         const specializedFenv = new FunctionEnv(getVariableNameTable(specializedNode), env)
         this.functionBodyDeclaration2(specializedNode, specializedFuncName, specializedFuncBodyName, specializedFenv, false)
-        this.wrapperFunctionDeclaration(node, funcName, true, funcProfile, fenv)
+        this.wrapperFunctionBodyDeclaration(node, funcName, true, funcProfile, fenv)
         this.profiler.setFunctionState(name, {state: 'specialized', type: funcProfile.state.type})
         break
       }
@@ -177,7 +177,7 @@ export class JitCodeGenerator extends CodeGenerator{
     }
   }
 
-  private wrapperFunctionDeclaration(node: AST.FunctionDeclaration, funcName: string, isFreeVariable: boolean,
+  private wrapperFunctionBodyDeclaration(node: AST.FunctionDeclaration, funcName: string, isFreeVariable: boolean,
                                      funcProfile: FunctionProfile, fenv: FunctionEnv) {
     const funcType = getStaticType(node) as FunctionType;
     const wrapperFuncName = funcName
