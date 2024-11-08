@@ -11,22 +11,45 @@
 
 // builtin functions
 
-static void fbody_print(value_t self, value_t m) {
+static void print_value(value_t m) {
   if (is_int_value(m))
-    printf("%d\n", value_to_int(m));
+    printf("%d", value_to_int(m));
   else if (is_float_value(m))
-    printf("%f\n", value_to_float(m));
+    printf("%f", value_to_float(m));
   else if (m == VALUE_NULL || m == VALUE_UNDEF)
-    puts("undefined");
+    printf("undefined");
+  else if (m == VALUE_TRUE)
+    printf("true");
+  else if (m == VALUE_FALSE)
+    printf("false");
   else if (gc_is_string_object(m))
-    puts(gc_string_literal_cstr(m));
+    printf("'%s'", gc_string_literal_cstr(m));
   else {
     class_object* cls = gc_get_class_of(m);
     if (cls == NULL)
-      puts("??");
-    else
-      printf("<class %s>\n", cls->name);
+      printf("??");
+    else {
+      printf("<class %s>", cls->name);
+      int32_t n = get_all_array_length(m);
+      if (n >= 0) {
+        putchar('[');
+        for (int32_t i = 0; i < n && i < 10; i++) {
+          if (i > 0)
+            printf(", ");
+          print_value(gc_safe_array_get(m, i));
+        }
+        if (n > 10)
+          printf(", ... (len=%d)", n);
+
+        putchar(']');
+      }
+    }
   }
+}
+
+static void fbody_print(value_t self, value_t m) {
+  print_value(m);
+  putchar('\n');
 }
 
 static void fbody_print_i32(value_t self, int32_t i) {

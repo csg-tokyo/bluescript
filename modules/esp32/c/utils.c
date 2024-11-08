@@ -12,12 +12,21 @@ void fbody_print(value_t self, value_t _value) {
     sprintf(message, "%d\n", (int) value_to_int(_value));
   else if (is_float_value(_value))
     sprintf(message, "%f\n", value_to_float(_value));
-  else if (_value == VALUE_NULL)
-    sprintf(message, "null\n");
+  else if (_value == VALUE_NULL || _value == VALUE_UNDEF)
+    sprintf(message, "undefined\n");
+  else if (_value == VALUE_TRUE)
+    sprintf(message, "true\n");
+  else if (_value == VALUE_FALSE)
+    sprintf(message, "false\n");
   else if (gc_is_string_object(_value))
-    sprintf(message, "%s\n", gc_string_literal_cstr(_value));
-  else
-    sprintf(message, "??\n");
+    snprintf(message, sizeof(message), "%s\n", gc_string_literal_cstr(_value));
+  else {
+    class_object* cls = gc_get_class_of(_value);
+    if (cls == NULL)
+      sprintf(message, "??\n");
+    else
+      snprintf(message, sizeof(message), "<class %s>\n", cls->name);
+  }
   bs_logger_push_log(message);
 }
 

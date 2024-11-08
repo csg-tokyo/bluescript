@@ -148,7 +148,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: VariableEnv): void {
-    this.result.write(node.value ? 'VALUE_TRUE' : 'VALUE_FALSE')
+    this.result.write(node.value ? '!0' : '0')
   }
 
   numericLiteral(node: AST.NumericLiteral, env: VariableEnv): void {
@@ -905,12 +905,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const right_type = this.needsCoercion(right)
     if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
+        || (left_type === StringT || right_type === StringT)
         || (left_type === Any || right_type === Any)) {
-      this.result.write(`${cr.typeConversion(left_type, Any, left)}`)
+      this.result.write(`${cr.arithmeticOpForAny(op2)}(${cr.typeConversion(left_type, Any, left)}`)
       this.visit(left, env)
-      this.result.write(`) ${op2} ${cr.typeConversion(right_type, Any, right)}`)
+      this.result.write(`), ${cr.typeConversion(right_type, Any, right)}`)
       this.visit(right, env)
-      this.result.write(')')
+      this.result.write('))')
     }
     else
       this.numericBinaryExprssion(op2, left, right, env)
@@ -920,7 +921,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private basicBinaryExpression(op: string, node: AST.BinaryExpression, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if (left_type === Any || right_type === Any) {
+    if (left_type === Any || right_type === Any || left_type === StringT) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(${cr.typeConversion(left_type, Any, left)}`)
       this.visit(left, env)
       this.result.write(`), ${cr.typeConversion(right_type, Any, right)}`)

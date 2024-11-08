@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, transpileAndWrite } from './test-code-generator'
+import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, transpileAndWrite, toBoolean } from './test-code-generator'
 import { expect, test, beforeAll } from '@jest/globals'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
 
@@ -388,7 +388,7 @@ test('instanceof', () => {
   print(!(obj instanceof Foo))
 
   print('foo' instanceof string)
-  print(!('foo' instanceof String))
+  print(!('foo' instanceof string))
 
   let obj2 = new Bar('foo')
   print(obj2 instanceof Bar)
@@ -396,7 +396,6 @@ test('instanceof', () => {
   print(null instanceof Foo)
   print(undefined instanceof Foo)
 
-  print(' ')
   let obj3 = new Baz()
   print(obj3 instanceof Foo)
   print(obj3 instanceof Bar)
@@ -404,7 +403,7 @@ test('instanceof', () => {
   print(obj2 instanceof Baz)
   `
 
-  expect(compileAndRun(src, destFile)).toBe('1\n0\n1\n0\n1\n1\n0\n0\n \n1\n1\n1\n0\n')
+  expect(compileAndRun(src, destFile)).toBe(toBoolean([1, 0, 1, 0, 1, 1, 0, 0,  1, 1, 1, 0]).join('\n') + '\n')
 
   const src2 = `
   class Foo {
@@ -426,7 +425,7 @@ test('instanceof', () => {
   print(obj3 instanceof string)
   `
 
-  expect(compileAndRun(src2, destFile)).toBe('0\n0\n0\n1\n0\n0\n0\n0\n')
+  expect(compileAndRun(src2, destFile)).toBe(toBoolean([0, 0, 0, 1, 0, 0, 0, 0]).join('\n') + '\n')
 
   const src3 = `
   print((1 + 2) instanceof string)
@@ -453,5 +452,5 @@ test('issue #15.  Cannot access a property of class type when a class declaratio
   `
 
   expect(multiCompileAndRun(src, src2, destFile)).toBe('<class Foo>\n')
-  expect(multiCompileAndRun(src, src3, destFile)).toBe('1\n')
+  expect(multiCompileAndRun(src, src3, destFile)).toBe('true\n')
 })
