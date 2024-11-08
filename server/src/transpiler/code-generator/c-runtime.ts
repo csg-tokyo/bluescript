@@ -187,6 +187,10 @@ export function updateOperator(op: string, isPrefix: boolean) {
 
 export function arithmeticOpForAny(op: string) {
   switch(op) {
+    case '==':
+      return 'any_eq'
+    case '!=':
+      return '!any_eq'
     case '<':
       return 'any_less'     // returns boolean
     case '<=':

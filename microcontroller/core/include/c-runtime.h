@@ -12,7 +12,7 @@
     xxxx ... xxxx xx00          30 bit integer
     xxxx ... xxxx xx01          IEEE 754 binary32 but 21 bit (not 23 bit) fraction
     xxxx ... xxxx xx11          32 bit address (4 byte aligned)
-    xxxx ... xxxx xx10          not used
+    xxxx ... xxxx xx10          symbols (true and false)
 
     A 32bit address points to a structure of object_type type.
 */
@@ -90,8 +90,8 @@ inline bool is_ptr_value(value_t v) { return (v & 3) == 3; }
 #define VALUE_UNDEF   3         // equivalent to VALUE_NULL
 #define VALUE_ZERO    0         // integer 0
 #define VALUE_FZERO   1         // float 0.0
-#define VALUE_FALSE   0         // 0000 ... 0000 (integer 0)
-#define VALUE_TRUE    4         // 0000 ... 0100 (integer 1)
+#define VALUE_FALSE   2         // 0000 ... 0010
+#define VALUE_TRUE    6         // 0000 ... 0110
 
 extern bool CR_SECTION value_to_truefalse(value_t v);
 
@@ -139,6 +139,7 @@ extern value_t CR_SECTION any_modulo(value_t a, value_t b);
 extern value_t CR_SECTION any_power(value_t a, value_t b);
 extern double CR_SECTION double_power(double a, double b);
 
+extern bool CR_SECTION any_eq(value_t a, value_t b);
 extern bool CR_SECTION any_less(value_t a, value_t b);
 extern bool CR_SECTION any_less_eq(value_t a, value_t b);
 extern bool CR_SECTION any_greater(value_t a, value_t b);
@@ -251,6 +252,7 @@ extern int32_t CR_SECTION gc_array_length(value_t obj);
 extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);
 extern value_t CR_SECTION gc_array_set(value_t obj, int32_t index, value_t new_value);
 
+extern int32_t CR_SECTION get_all_array_length(value_t obj);
 extern value_t CR_SECTION get_anyobj_length_property(value_t obj, int property);
 extern value_t CR_SECTION gc_safe_array_get(value_t obj, int32_t idx);
 extern value_t CR_SECTION gc_safe_array_set(value_t obj, int32_t idx, value_t new_value);

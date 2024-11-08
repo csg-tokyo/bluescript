@@ -24,13 +24,13 @@
   }
 */
 
-#include <stdio.h>
+#include <stddef.h>     // for NULL
+#include <stdio.h>      // for fputs(), sprintf()
 #include <stdarg.h>
 #include <setjmp.h>
-#include <string.h>
+#include <string.h>     // for strlen(), strcmp()
+#include <math.h>       // for isnan(), pow()
 #include "../include/c-runtime.h"
-#include <inttypes.h>
-#include <math.h>
 
 #ifdef TEST64
 
@@ -314,6 +314,14 @@ value_t any_power(value_t a, value_t b) {
 
 double double_power(double a, double b) { return pow(a, b); }
 
+bool any_eq(value_t a, value_t b) {
+    if (gc_is_string_object(a))
+        return gc_is_string_object(b)
+            && strcmp(gc_string_literal_cstr(a), gc_string_literal_cstr(b)) == 0;
+    else
+        return a == b;
+}
+
 #define ANY_CMP_FUNC(name, op) \
 bool any_##name(value_t a, value_t b) {\
     if (is_int_value(a)) {\
@@ -328,6 +336,8 @@ bool any_##name(value_t a, value_t b) {\
         else if (is_float_value(b))\
             return value_to_float(a) op value_to_float(b);\
     }\
+    else if (gc_is_string_object(a) && gc_is_string_object(b))\
+        return strcmp(gc_string_literal_cstr(a), gc_string_literal_cstr(b)) op 0;\
     return runtime_type_error("bad operand for " #op);\
 }
 
@@ -1085,13 +1095,20 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
     }
 }
 
-value_t get_anyobj_length_property(value_t obj, int property) {
+int32_t get_all_array_length(value_t obj) {
     class_object* clazz = gc_get_class_of(obj);
     if (clazz == &intarray_object.clazz || clazz == &floatarray_object.clazz || clazz == &bytearray_object.clazz
-        || clazz == &vector_object.clazz || clazz == &array_object.clazz || clazz == &anyarray_object.clazz) {
-        int32_t len = *get_obj_int_property(obj, clazz == &bytearray_object.clazz ? 1 : 0);
+        || clazz == &vector_object.clazz || clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
+        return value_to_ptr(obj)->body[clazz == &bytearray_object.clazz ? 1 : 0];
+    else
+        return -1;
+}
+
+// get the length if the object is an array.  Otherwise, get the value of the length property.
+value_t get_anyobj_length_property(value_t obj, int property) {
+    int32_t len = get_all_array_length(obj);
+    if (len >= 0)
         return int_to_value(len);
-    }
     else
         return get_anyobj_property(obj, property);
 }
@@ -1165,7 +1182,7 @@ static uint16_t real_objsize(uint16_t length) {
 }
 
 static pointer_t no_more_memory() {
-    puts("** memory exhausted **");
+    fputs("** memory exhausted **", stderr);
 #ifdef TEST64
     exit(1);
 #else
