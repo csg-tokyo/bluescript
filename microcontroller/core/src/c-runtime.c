@@ -1147,8 +1147,10 @@ value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
         return float_to_value(*gc_floatarray_get(obj, idx) = safe_value_to_float(new_value));
     else if (clazz == &class_Uint8Array.clazz)
         return int_to_value(*gc_bytearray_get(obj, idx) = safe_value_to_int(new_value));
-    else if (clazz == &boolarray_object.clazz)
-        return bool_to_value(*gc_bytearray_get(obj, idx) = safe_value_to_bool(new_value));
+    else if (clazz == &boolarray_object.clazz) {
+        uint8_t v = *gc_bytearray_get(obj, idx) = safe_value_to_bool(new_value);
+        return bool_to_value(v);
+    }
     else if (clazz == &vector_object.clazz)
         return gc_vector_set(obj, idx, new_value);
     else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
