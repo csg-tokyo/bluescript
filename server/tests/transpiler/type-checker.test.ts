@@ -247,7 +247,8 @@ test('InstanceType.subclasses() and ClassTable.roots()', () => {
   expect(subs[1].name()).toBe('Baz')
 
   const roots = table?.classTable()?.roots()
-  expect(roots !== undefined && roots.length).toBe(2)
-  expect(roots !== undefined && roots[0].name()).toBe('Foo')
-  expect(roots !== undefined && roots[1].name()).toBe('Foo2')
+  expect(roots !== undefined && roots.length).toBe(3)
+  expect(roots !== undefined && roots[0].name()).toBe('Uint8Array')
+  expect(roots !== undefined && roots[1].name()).toBe('Foo')
+  expect(roots !== undefined && roots[2].name()).toBe('Foo2')
 })
