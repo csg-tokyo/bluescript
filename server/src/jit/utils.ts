@@ -28,14 +28,16 @@ export function typeStringToStaticType(typeString: string, gvnt?: GlobalVariable
     return new ArrayType('integer')
   } else if (typeString === 'Array<float>') {
     return new ArrayType('float')
-  } else if (typeString === 'ByteArray') {
+  } else if (typeString === 'Array<boolean>') {
     return new ArrayType('boolean')
+  } else if (typeString === 'Array') {
+    return 'any'
   } else if (typeString === 'Function') {
     return 'any'
   } else {
     const clazz = gvnt === undefined ? undefined : gvnt.classTable().findClass(typeString)
     if (clazz === undefined)
-      throw new Error("Cannot find class");
+      throw new ProfileError(`Cannot find the profiled class: ${typeString}`)
     return clazz
   }
 }
@@ -113,3 +115,15 @@ export function convertAst(ast: AST.Node, profiler: Profiler) {
   })
 }
 
+
+export class ProfileError extends Error {
+  public constructor(message?: string) {
+    super(`Profile Error: ${message}`);
+  }
+}
+
+export class JITCompileError extends Error {
+  public constructor(message?: string) {
+    super(`JIT Compile Error: ${message}`);
+  }
+}

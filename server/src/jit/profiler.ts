@@ -1,4 +1,5 @@
-import {Any, FunctionType, StaticType} from "../transpiler/types";
+import {Any, ArrayType, FunctionType, StaticType} from "../transpiler/types";
+import {ProfileError} from "./utils";
 
 
 export type FunctionState =
@@ -24,18 +25,30 @@ export const maxParamNum = 4;
 export class Profiler {
   private nextFuncId: number = 0;
   private profiles: Map<string, FunctionProfile> = new Map();
-  private id2Name: Map<number, string> = new Map();
+  private idToName: Map<number, string> = new Map();
 
   setFunctionProfile(name: string, src: string, type: FunctionType) {
     const id = this.nextFuncId++;
     const profile:FunctionProfile = {id, name, src, type, state: {state: "profiling"}}
     this.profiles.set(name, profile);
-    this.id2Name.set(id, name);
+    this.idToName.set(id, name);
     return profile;
   }
 
+  static funcIsSpecializeable(funcType: FunctionType) {
+    const returnType = funcType.returnType;
+    if (!funcType.paramTypes.includes(Any) || funcType.paramTypes.filter(t=> t === Any).length > maxParamNum)
+      return false;
+    if (returnType instanceof FunctionType)
+      return false;
+    const acceptableElementTypes: StaticType[] = ['integer', 'float', 'boolean', 'any']
+    if (returnType instanceof ArrayType && !acceptableElementTypes.includes(returnType.elementType))
+      return false;
+    return true;
+  }
+
   getFunctionProfileById(id: number) {
-    const funcName = this.id2Name.get(id);
+    const funcName = this.idToName.get(id);
     return funcName ? this.profiles.get(funcName) : undefined;
   }
 
@@ -50,12 +63,12 @@ export class Profiler {
   }
 
   setFuncSpecializedType(id: number, paramTypes: StaticType[]) {
-    const funcName = this.id2Name.get(id);
+    const funcName = this.idToName.get(id);
     if (funcName === undefined)
-      throw new Error(`Cannot not find the target function. id: ${id}`);
+      throw new ProfileError(`Cannot find the target function. id: ${id}`);
     const func = this.profiles.get(funcName);
     if (func === undefined)
-      throw new Error(`Cannot not find the target function. name: ${funcName}`);
+      throw new ProfileError(`Cannot not find the target function. name: ${funcName}`);
     if (paramTypes.slice(0, func.type.paramTypes.length).every(t => t === Any)) {
       func.state = {state: 'undoing'}
       return;

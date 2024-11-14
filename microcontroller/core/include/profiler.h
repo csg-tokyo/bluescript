@@ -6,6 +6,8 @@
 
 #ifdef TEST64
 typedef uint64_t typeint_t;
+#define CORE_TEXT_SECTION 
+#define CORE_DATA_SECTION 
 #else
 typedef uint32_t typeint_t;
 #define CORE_TEXT_SECTION __attribute__((section(".core_text")))

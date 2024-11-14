@@ -1,5 +1,5 @@
 import axios from "axios";
-import { CompileError } from "../utils/error";
+import { CompileError, InternalError } from "../utils/error";
 import { MemInfo } from "../utils/type";
 
 
@@ -44,6 +44,9 @@ async function post(path: string, body: object) {
     if (e instanceof axios.AxiosError) {
       if (e.response?.status === CompileError.errorCode) {
         throw new CompileError(JSON.parse(e.response?.data).message.messages)
+      }
+      if (e.response?.status === InternalError.errorCode) {
+        throw new InternalError(JSON.parse(e.response?.data).message.message)
       }
     }
     throw e;

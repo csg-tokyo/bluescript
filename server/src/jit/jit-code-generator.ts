@@ -27,7 +27,7 @@ import {FunctionDeclaration} from "@babel/types";
 import * as cr from "../transpiler/code-generator/c-runtime";
 import {getStaticType, NameInfo, NameTableMaker} from "../transpiler/names";
 import {jitTypecheck, JitTypeChecker} from "./jit-type-checker";
-import {getSpecializedNode} from "./utils";
+import {getSpecializedNode, JITCompileError, ProfileError} from "./utils";
 import {InstanceType} from "../transpiler/classes";
 import {classNameInC} from "../transpiler/code-generator/c-runtime";
 
@@ -73,16 +73,17 @@ function specializedFunctionBodyName(name: string) {
 // returns '(' or '<type check function>('
 // '(' is returned if the type cannot be checked.
 function checkType(type?: StaticType) {
-
   if (type instanceof ArrayType) {
     if (type.elementType === Integer)
       return 'gc_is_intarray(';
     if (type.elementType === Float)
       return 'gc_is_floatarray(';
     if (type.elementType === BooleanT)
-      return 'gc_is_bytearray(';
+      return 'gc_is_boolarray(';
+    if (type.elementType === Any)
+      return 'gc_is_anyarray(';
     else
-      return undefined
+      throw new JITCompileError('Unknown array type.');
   }
 
   if (type instanceof InstanceType) {
@@ -122,7 +123,7 @@ export class JitCodeGenerator extends CodeGenerator{
     const funcName = funcInfo ? funcInfo.transpiledName(name) : name
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
 
-    if (!funcType.paramTypes.includes(Any) || funcType.paramTypes.filter(t=> t === Any).length > maxParamNum) {
+    if (!Profiler.funcIsSpecializeable(funcType)) {
       super.functionDeclaration(node, env);
       return;
     }
@@ -147,7 +148,7 @@ export class JitCodeGenerator extends CodeGenerator{
       case 'specializing': {
         const specializedNode = getSpecializedNode(node);
         if (specializedNode === undefined)
-          throw new Error('Fatal: cannot find specialized node.')
+          throw new ProfileError(`Cannot find specialized node. Node: ${node}`)
         const specializedFenv = new FunctionEnv(getVariableNameTable(specializedNode), env)
         this.functionBodyDeclaration2(specializedNode, specializedFuncName, specializedFuncBodyName, specializedFenv, false)
         this.wrapperFunctionBodyDeclaration(node, funcName, true, funcProfile, fenv)
@@ -163,7 +164,7 @@ export class JitCodeGenerator extends CodeGenerator{
       case 'specialized': {
         const specializedNode = getSpecializedNode(node);
         if (specializedNode === undefined)
-          throw new Error('Fatal: cannot find specialized node.')
+          throw new ProfileError(`Cannot find specialized node. Node: ${node}`)
         const specializedFenv = new FunctionEnv(getVariableNameTable(specializedNode), env)
         this.functionBodyDeclaration2(specializedNode, specializedFuncName, specializedFuncBodyName, specializedFenv, true)
         this.functionBodyDeclaration2(node, originalFuncName, originalFuncBodyName, fenv, true)
