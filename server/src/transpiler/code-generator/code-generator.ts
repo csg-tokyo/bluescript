@@ -6,13 +6,12 @@ import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
          StringT } from '../types'
 import * as visitor from '../visitor'
-import {getCoercionFlag, getStaticType, NameInfo, NameTable, NameTableMaker} from '../names'
-import TypeChecker, { typecheck } from '../type-checker'
+import { getCoercionFlag, getStaticType } from '../names'
+import { typecheck } from '../type-checker'
 import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
 import { InstanceType } from '../classes'
-import * as fs from 'fs'
 
 /*
   Transpile BlueScript code.
@@ -42,7 +41,7 @@ export function transpile(codeId: number, src: string, gvnt?: GlobalVariableName
     throw generator.errorLog
   else
     return { code: generator.getCode(header),
-      main: mainFuncName, names: nameTable }
+             main: mainFuncName, names: nameTable }
 }
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
@@ -50,7 +49,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   protected result =  new CodeWriter()
   protected signatures = ''                   // function prototypes etc.
   protected declarations = new CodeWriter()   // function declarations etc.
-  protected endWithReturn = false
+  private endWithReturn = false
   private initializerName: string           // the name of an initializer function
   private globalRootSetName: string         // the rootset name for global variables
   private externalMethods: Map<string, StaticType>
@@ -210,7 +209,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return `${cr.functionMaker}(${name}.${cr.functionPtr}, ${name}.${cr.functionSignature}, ${obj})`
   }
 
-  protected identifierAsCallable(node: AST.Identifier, env: VariableEnv): void {
+  private identifierAsCallable(node: AST.Identifier, env: VariableEnv): void {
     const info = env.table.lookup(node.name)
     if (info !== undefined) {
         const ftype = cr.funcTypeToCType(info.type)
@@ -353,7 +352,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.returnStatementArg(node, node.argument, env)
   }
 
-  protected returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined, env: VariableEnv): void {
+  private returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined, env: VariableEnv): void {
     this.result.nl()
     if (argument) {
       const retType = env.returnType()
@@ -667,7 +666,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
      this method generates the following C code:
         static int32_t ${bodyName}(value_t self, int32_t _n) { ... function body ... }
   */
-  protected functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+  private functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
                        fenv: FunctionEnv, funcType: FunctionType, bodyName: string,
                        modifier: string = 'static ') {
     const bodyResult = this.result.copy()

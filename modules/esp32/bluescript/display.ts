@@ -1,4 +1,4 @@
-// import { integer, code } from "../../base";
+import type { integer, code } from "../../base";
 
 class Display {
     ICON_HEART: integer;

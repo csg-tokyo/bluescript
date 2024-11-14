@@ -248,7 +248,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.returnStatementArg(node, node.argument, names)
   }
 
-  protected returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined,
+  private returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined,
                                names: NameTable<Info>): void {
     const rtype = names.returnType()
     this.assert(rtype !== null, 'return must be in a function body', node)
