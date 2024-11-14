@@ -19,7 +19,7 @@ export async function compileWithProfiling(src: string): Promise<CompileResult> 
   return post("compile-with-profiling", {src}); 
 }
 
-export async function jitCompile(funcId: number, paramTypes: number[]): Promise<CompileResult> {
+export async function jitCompile(funcId: number, paramTypes: string[]): Promise<CompileResult> {
   return post("jit-compile", {funcId, paramTypes});
 }
 

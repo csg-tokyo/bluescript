@@ -6,7 +6,7 @@ import {execSync} from "child_process";
 import {MemoryInfo, ShadowMemory} from "../linker/shadow-memory";
 import {Profiler} from "../jit/profiler";
 import {runBabelParser} from "../transpiler/utils";
-import {convertAst} from "../jit/ast-converter";
+import {convertAst, typeStringToStaticType} from "../jit/utils";
 import {JitCodeGenerator, jitTranspile} from "../jit/jit-code-generator";
 import {NameInfo, NameTableMaker} from "../transpiler/names";
 import {JitTypeChecker} from "../jit/jit-type-checker";
@@ -88,13 +88,13 @@ export default class Session {
     return {...lResult, compileTime:end-start}
   }
 
-  public jitExecute(profile: {funcId: number, paramTypes: number[]}) {
+  public jitExecute(profile: {funcId: number, paramTypes: string[]}) {
     console.log(profile)
     const func = this.profiler.getFunctionProfileById(profile.funcId);
     if (func === undefined)
       return {};
 
-    this.profiler.setFuncSpecializedType(profile.funcId, Profiler.profiledData2Type(profile.paramTypes))
+    this.profiler.setFuncSpecializedType(profile.funcId, profile.paramTypes.map(t => typeStringToStaticType(t, this.nameTable)))
 
     const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
       return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, func.src);

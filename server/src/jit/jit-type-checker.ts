@@ -1,7 +1,7 @@
 import TypeChecker from "../transpiler/type-checker";
 import {NameInfo, NameTable, NameTableMaker} from "../transpiler/names";
 import * as AST from "@babel/types";
-import {getSpecializedNode} from "./ast-converter";
+import {getSpecializedNode} from "./utils";
 import {Any} from "../transpiler/types";
 
 

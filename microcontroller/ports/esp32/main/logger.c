@@ -46,13 +46,14 @@ void bs_logger_push_error(char *str) {
     xQueueSend(log_queue, &log, portMAX_DELAY);
 }
 
-void bs_logger_push_profile(uint8_t fid, uint8_t *profile_buffer, int32_t len) {
+void bs_logger_push_profile(uint8_t fid, char *profile_str) {
+    uint32_t str_len = strlen(profile_str);
     log_t log;
-    log.str = (uint8_t*)malloc(len + 2); // contain cmd and fid
+    log.str = (uint8_t*)malloc(str_len + 3); // contain cmd, fid and null
     log.str[0] = BS_CMD_RESULT_PROFILE;
     log.str[1] = fid;
-    memcpy(log.str+2, profile_buffer, len);
-    log.str_len = len + 2;
+    strcpy((char*)(log.str+2), profile_str);
+    log.str_len = str_len + 2;
     xQueueSend(log_queue, &log, portMAX_DELAY);
 }
 

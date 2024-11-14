@@ -1,11 +1,8 @@
 import {CodeGenerator} from "../transpiler/code-generator/code-generator";
 import {
   callCounterName,
-  callCountThreshold,
-  FunctionProfile, maxParamNum,
-  Profiler,
-  typeCounterName,
-  typeCountFunctionName
+  FunctionProfile, maxParamNum, profileFunctionName,
+  Profiler, typeProfilerName
 } from "./profiler";
 import {
   FunctionEnv,
@@ -15,12 +12,24 @@ import {
   VariableNameTableMaker
 } from "../transpiler/code-generator/variables";
 import * as AST from "@babel/types";
-import {Any, ArrayType, BooleanT, encodeType, Float, FunctionType, Integer, StaticType} from "../transpiler/types";
+import {
+  Any,
+  ArrayType,
+  BooleanT,
+  encodeType,
+  Float,
+  FunctionType,
+  Integer,
+  StaticType,
+  StringT
+} from "../transpiler/types";
 import {FunctionDeclaration} from "@babel/types";
 import * as cr from "../transpiler/code-generator/c-runtime";
 import {getStaticType, NameInfo, NameTableMaker} from "../transpiler/names";
 import {jitTypecheck, JitTypeChecker} from "./jit-type-checker";
-import {getSpecializedNode} from "./ast-converter";
+import {getSpecializedNode} from "./utils";
+import {InstanceType} from "../transpiler/classes";
+import {classNameInC} from "../transpiler/code-generator/c-runtime";
 
 
 export function jitTranspile(codeId: number, ast: AST.Node,
@@ -64,15 +73,20 @@ function specializedFunctionBodyName(name: string) {
 // returns '(' or '<type check function>('
 // '(' is returned if the type cannot be checked.
 function checkType(type?: StaticType) {
+
   if (type instanceof ArrayType) {
     if (type.elementType === Integer)
       return 'gc_is_intarray(';
     if (type.elementType === Float)
       return 'gc_is_floatarray(';
-    if (type.elementType === BooleanT) // TODO: 要チェック
+    if (type.elementType === BooleanT)
       return 'gc_is_bytearray(';
     else
       return undefined
+  }
+
+  if (type instanceof InstanceType) {
+    return `gc_is_instance_of(&${classNameInC(type.name())}.clazz, `;
   }
 
   switch (type) {
@@ -82,6 +96,8 @@ function checkType(type?: StaticType) {
       return 'is_float_value(';
     case BooleanT:
       return 'is_bool_value(';
+    case StringT:
+      return `gc_is_string_object(`;
     default:
       return undefined;
   }
@@ -253,9 +269,9 @@ export class JitCodeGenerator extends CodeGenerator{
 
   private functionProfiling(node: FunctionDeclaration, fenv: FunctionEnv, funcType: FunctionType, funcProfilerId:number) {
     this.result.write(`static uint8_t ${callCounterName} = 0;`).nl();
-    this.result.write(`static uint8_t ${typeCounterName} = 0;`).nl();
-    this.result.write(`${callCounterName} < ${callCountThreshold} ? ${callCounterName}++ : ${typeCountFunctionName}(`)
-    let profSig = `${funcProfilerId}, (${typeCounterName} < UINT8_MAX) ? ${typeCounterName}++ : ${typeCounterName}`;
+    this.result.write(`static typeint_t* ${typeProfilerName} = 0;`).nl();
+    this.result.write(`${profileFunctionName}(`)
+    let profSig = `${funcProfilerId}, &${callCounterName}, &${typeProfilerName}`;
     let c = 0;
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       const paramName = (node.params[i] as AST.Identifier).name
@@ -267,7 +283,7 @@ export class JitCodeGenerator extends CodeGenerator{
         profSig += name
       }
     }
-    profSig += ', 0'.repeat(maxParamNum - c);
+    profSig += `, VALUE_UNDEF`.repeat(maxParamNum - c);
     this.result.write(profSig).write(');').nl();
   }
 

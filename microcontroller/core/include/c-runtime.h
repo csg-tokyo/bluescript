@@ -167,7 +167,7 @@ extern void CR_SECTION interrupt_handler_end();
 
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
-extern bool gc_is_instance_of(const class_object* clazz, value_t obj);
+extern bool CR_SECTION gc_is_instance_of(const class_object* clazz, value_t obj);
 extern void* CR_SECTION method_lookup(value_t obj, uint32_t index);
 
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);

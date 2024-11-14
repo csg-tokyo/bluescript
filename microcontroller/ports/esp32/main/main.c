@@ -18,7 +18,4 @@ void app_main(void) {
     xTaskCreatePinnedToCore(bs_shell_task, "bs_shell_task", 4096 * 16, NULL, 1, NULL, 0);
     xTaskCreatePinnedToCore(bs_logger_task, "bs_logger_task", 4096, NULL, 1, NULL, 0);
     xTaskCreatePinnedToCore(bs_event_handler_task, "bs_event_handler_task", 4096, NULL, 1, NULL, 0);
-
-    // should be deleted
-    bs_profiler_typecount(0, 0, 0, 0, 0, 0);
 }

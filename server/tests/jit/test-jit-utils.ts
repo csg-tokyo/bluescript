@@ -7,35 +7,7 @@ import {JitTypeChecker} from "../../src/jit/jit-type-checker";
 import {Profiler} from "../../src/jit/profiler";
 import {runBabelParser} from "../../src/transpiler/utils";
 import {GlobalVariableNameTable} from "../../src/transpiler/code-generator/variables";
-import {convertAst} from "../../src/jit/ast-converter";
-
-
-export const profilerStub = `
-#include <stdint.h>
-#include <stdio.h>
-#include "../../microcontroller/core/include/profiler.h"
-
-bool bs_profiler_typecount(uint8_t id, uint8_t count, value_t p1, value_t p2, value_t p3, value_t p4) {
-  printf("fid: %d, p1: %d, p2: %d, p3: %d, p4: %d\\n", id, p1, p2, p3, p4);
-  return false;
-}
-`
-
-export const profilerStub2 = `
-#include <stdint.h>
-#include <stdio.h>
-#include "../../microcontroller/core/include/profiler.h"
-
-bool bs_profiler_typecount(uint8_t id, uint8_t count, value_t p1, value_t p2, value_t p3, value_t p4) {
-  return false;
-}
-`
-
-const profilerStubPath = './temp-files/profiler-stub.c'
-
-export const writeProfilerStub = () => {
-  fs.writeFileSync(profilerStubPath, profilerStub)
-}
+import {convertAst} from "../../src/jit/utils";
 
 
 const prolog = `// predefined native functions
@@ -43,8 +15,6 @@ function print(m: any) {}
 function print_i32(m: integer) {}
 function performance_now(): integer { return 0 }
 `
-
-
 
 
 const prologCcode = `/* To compile, cc -DTEST64 this_file.c c-runtime.c */
@@ -96,19 +66,6 @@ struct _performance_now { int32_t (*fptr)(value_t); const char* sig; } _performa
 `
 
 
-function getEpilog2(initName: string, initName2: string) {
-  return `
-int main() {
-  gc_initialize();
-  int r = try_and_catch(${initName});
-  if (r > 0)
-    return r;
-  else
-    return try_and_catch(${initName2});
-}
-`
-}
-
 export function tempCFilePath(fname: string) {
   return `./temp-files/${fname}.c`;
 }
@@ -139,9 +96,7 @@ export function compile(id: number, src: string, profiler: Profiler, destFile: s
   return result;
 }
 
-export function execute(inputFiles: string[], mainFuncNames: string[], lastCFile: string, outputFile: string, profilerStubCode = profilerStub): string {
-  fs.writeFileSync(profilerStubPath, profilerStubCode);
-
+export function execute(inputFiles: string[], mainFuncNames: string[], lastCFile: string, outputFile: string): string {
   const lastCode = `
 ${prologCcode}
 ${mainFuncNames.map(mainFunc => `extern void ${mainFunc}();`).join('\n')}
@@ -152,7 +107,7 @@ int main() {
 }  
   `
   fs.writeFileSync(lastCFile, lastCode)
-  execSync(`cc -g -DTEST64 -O2 ${inputFiles.map(f => `${f}`).join(' ')} ${lastCFile} ../microcontroller/core/src/c-runtime.c ${profilerStubPath} -o ${outputFile}`)
+  execSync(`cc -g -DTEST64 -O2 ${inputFiles.map(f => `${f}`).join(' ')} ${lastCFile} ../microcontroller/core/src/c-runtime.c ../microcontroller/core/src/profiler.c -o ${outputFile}`)
   return execSync(outputFile).toString()
 }
 

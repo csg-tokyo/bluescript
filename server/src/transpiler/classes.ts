@@ -264,4 +264,15 @@ export class ClassTable {
     return { offset: offset, unboxed: unboxed,
              props: props, unboxedTypes: unboxedTypes.join('')}
   }
+
+  findClass(name: string, classes: InstanceType[] = this.rootClasses): InstanceType|undefined {
+    for (const clazz of classes) {
+      if (clazz.name() === name)
+        return clazz
+      const resultClass = this.findClass(name, clazz.subclasses())
+      if (resultClass !== undefined)
+        return resultClass
+    }
+    return undefined
+  }
 }

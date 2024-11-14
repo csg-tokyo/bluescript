@@ -1,0 +1,24 @@
+[sections:core_text]
+entries:
+    .core_text
+
+[sections:core_data]
+entries:
+    .core_data
+
+[scheme:core_text_default]
+entries:
+    core_text -> flash_text
+
+[scheme:core_data_default]
+entries:
+    core_data -> flash_rodata
+
+
+[mapping:core_text]
+archive: *
+entries:
+    * (core_text_default);
+        core_text -> flash_text KEEP()
+    * (core_data_default);
+        core_data -> flash_rodata KEEP()

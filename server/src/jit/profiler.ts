@@ -1,4 +1,4 @@
-import {Any, ArrayType, BooleanT, Float, FunctionType, Integer, ObjectType, StaticType} from "../transpiler/types";
+import {Any, FunctionType, StaticType} from "../transpiler/types";
 
 
 export type FunctionState =
@@ -16,10 +16,9 @@ export type FunctionProfile = {
   state: FunctionState,
 }
 
-export const typeCounterName = "type_count";
-export const typeCountFunctionName = "bs_profiler_typecount";
 export const callCounterName =  "call_count";
-export const callCountThreshold = 5;
+export const typeProfilerName = "type_profile";
+export const profileFunctionName = "bs_profiler_profile";
 export const maxParamNum = 4;
 
 export class Profiler {
@@ -71,38 +70,5 @@ export class Profiler {
         specializedParamTypes.push(paramTypes[s++]);
     }
     func.state = {state: 'specializing', type: new FunctionType(func.type.returnType, specializedParamTypes)};
-  }
-
-  // TODO: 一つに定まらない時はundefinedを返す
-  static profiledData2Type(profiled: number[]):StaticType[] {
-    const counts:{[t: number]: number} = {}
-    profiled.forEach(t => {
-      counts[t] = counts[t] ? counts[t]+1 : 1;
-    });
-    const maxT = Object.entries(counts).reduce((pre, cur) => cur[1] > pre[1] ? cur : pre, ["-1", -1]);
-    const maxTNum = Number(maxT[0]);
-    if (isNaN(maxTNum))
-      throw new Error(`fatal: Unexpected type value: ${maxT[0]}`);
-    return  [Profiler.int2Type(maxTNum & 0xf), Profiler.int2Type((maxTNum & 0xf0) >> 4),
-      Profiler.int2Type((maxTNum & 0xf00) >> 8), Profiler.int2Type((maxTNum & 0xf000) >> 12)]
-  }
-
-  private static int2Type(int: number): StaticType {
-    switch (int) {
-      case 0:
-        return Integer
-      case 1:
-        return Float
-      case 2:
-        return BooleanT
-      case 3:
-        return new ArrayType(Integer)
-      case 4:
-        return new ArrayType(Float)
-      case 5:
-        return new ArrayType(BooleanT)
-      default:
-        return Any
-    }
   }
 }

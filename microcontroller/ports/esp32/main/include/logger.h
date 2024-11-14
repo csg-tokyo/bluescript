@@ -25,7 +25,7 @@ void bs_logger_push_error(char *str);
 /**
  * Push the profiling data to the log queue.
  */
-void bs_logger_push_profile(uint8_t fid, uint8_t *profile_buffer, int32_t len);
+void bs_logger_push_profile(uint8_t fid, char *profile_str);
 
 /**
  * Reset log queue.
