@@ -666,9 +666,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
      this method generates the following C code:
         static int32_t ${bodyName}(value_t self, int32_t _n) { ... function body ... }
   */
-  private functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
-                       fenv: FunctionEnv, funcType: FunctionType, bodyName: string,
-                       modifier: string = 'static ') {
+  protected functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+                         fenv: FunctionEnv, funcType: FunctionType, bodyName: string,
+                         modifier: string = 'static ') {
     const bodyResult = this.result.copy()
     bodyResult.right()
     const sig = this.makeParameterList(funcType, node, fenv, bodyResult)
