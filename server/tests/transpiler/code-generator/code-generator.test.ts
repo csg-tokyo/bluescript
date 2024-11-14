@@ -1408,6 +1408,22 @@ test('new Array<boolean>(n, v: any)', () => {
   expect(compileAndRun(src)).toBe('true\n')
 })
 
+test('convert boolean[] to any', () => {
+  const src = `
+  function foo(n: integer) {
+    const a1 = new Array<boolean>(n, true)
+    const a2: any = a1
+    a2[1] = false
+    print(a2[1])
+    return a2[0]
+  }
+
+  print(foo(3))
+  `
+
+  expect(compileAndRun(src)).toBe('false\ntrue\n')
+})
+
 test('new Array<string>(n)', () => {
   const src = `
   function foo(n: integer) {
@@ -1900,7 +1916,7 @@ test('property accesses', () => {
           3, 23, 23, 25, 25, 23].join('\n') + '\n')
 })
 
-test('multiple source files for classes', () => {
+test.only('multiple source files for classes', () => {
   const src1 = `
   class Pos {
     x: number

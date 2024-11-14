@@ -16,6 +16,7 @@ export class InstanceType extends ObjectType {
   private subClasses: InstanceType[] = []
   private className: string
   private blueScriptName: string
+  public leafType = false      // true if this class is a leaf class.
 
   constructor(name: string, bsName: string, superClass: ObjectType) {
     super()

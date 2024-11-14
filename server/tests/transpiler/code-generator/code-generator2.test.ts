@@ -454,3 +454,33 @@ test('issue #15.  Cannot access a property of class type when a class declaratio
   expect(multiCompileAndRun(src, src2, destFile)).toBe('<class Foo>\n')
   expect(multiCompileAndRun(src, src3, destFile)).toBe('true\n')
 })
+
+test('Uint8Array', () => {
+  const src = `
+  function foo() {
+    const a = new Uint8Array(3, 7)
+    print(a.length)
+    a[0] = 13
+    a[1] = 9
+    print(a[0])
+    const b: any = a
+    print(b.length)
+    b[1] = 73
+    print(b[1])
+    print((b as Uint8Array)[2])
+    const c: Uint8Array = b
+    print(c[0])
+  }
+  foo()
+  `
+
+  expect(compileAndRun(src, destFile)).toBe([3, 13, 3, 73, 7, 13].join('\n') + '\n')
+})
+
+test('Uint8Array is a leaf class', () => {
+  const src = `
+  class Foo extends Uint8Array {}
+  `
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/invalid super class/)
+})

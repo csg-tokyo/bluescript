@@ -244,11 +244,7 @@ value_t safe_value_to_object(value_t v) {
 }
 
 value_t safe_value_to_value(const class_object* const clazz, value_t v) {
-    const class_object* type = gc_get_class_of(v);
-    while (type != clazz && type != NULL)
-        type = type->superclass;
-
-    if (type == NULL)
+    if (!gc_is_instance_of(clazz, v))
         runtime_type_error(clazz->name);
 
     return v;
@@ -470,12 +466,13 @@ class_object* gc_get_class_of(value_t value) {
 }
 
 bool gc_is_instance_of(const class_object* clazz, value_t obj) {
-    const class_object* obj_class = gc_get_class_of(obj);
-    do {
-        if (obj_class == clazz)
-            return true;
-    } while (obj_class != NULL && (obj_class = obj_class->superclass));
-    return false;
+    const class_object* type = gc_get_class_of(obj);
+    while (type != clazz)
+        if (type == NULL)
+            return false;
+        else
+            type = type->superclass;
+    return true;
 }
 
 void* method_lookup(value_t obj, uint32_t index) {
@@ -854,14 +851,18 @@ float* gc_floatarray_get(value_t obj, int32_t index) {
     }
 }
 
-// A byte array
+// A byte array and a boolean array
 
-static CLASS_OBJECT(bytearray_object, 1) = {
-    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "ByteArray",
+CLASS_OBJECT(class_Uint8Array, 1) = {
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Uint8Array",
                .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
-value_t safe_value_to_bytearray(value_t v) {
-    return safe_value_to_value(&bytearray_object.clazz, v);
+static CLASS_OBJECT(boolarray_object, 1) = {
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<boolean>",
+               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+
+value_t safe_value_to_boolarray(value_t v) {
+    return safe_value_to_value(&boolarray_object.clazz, v);
 }
 
 /*
@@ -874,20 +875,20 @@ value_t safe_value_to_bytearray(value_t v) {
   2nd word is the number of elements.
   3rd, 4th, ... words hold elements.
 */
-static pointer_t gc_new_bytearray_base(int32_t n) {
+static pointer_t gc_new_bytearray_base(int32_t n, const struct class_object* clazz) {
     if (n < 0)
         n = 0;
 
     int32_t m =(n + 3) / 4 + 1;
     pointer_t obj = allocate_heap(m + 1);
-    set_object_header(obj, &bytearray_object.clazz);
+    set_object_header(obj, clazz);
     obj->body[0] = m;
     obj->body[1] = n;
     return obj;
 }
 
-value_t gc_new_bytearray(int32_t n, int32_t init_value) {
-    pointer_t obj = gc_new_bytearray_base(n);
+value_t gc_new_bytearray(bool is_boolean, int32_t n, int32_t init_value) {
+    pointer_t obj = gc_new_bytearray_base(n, is_boolean ? &boolarray_object.clazz : &class_Uint8Array.clazz);
     uint32_t v = init_value & 0xff;
     uint8_t* elements = (uint8_t*)&obj->body[2];
     for (int i = 0; i < n; i++)
@@ -896,9 +897,9 @@ value_t gc_new_bytearray(int32_t n, int32_t init_value) {
     return ptr_to_value(obj);
 }
 
-value_t gc_make_bytearray(int32_t n, ...) {
+value_t gc_make_bytearray(bool is_boolean, int32_t n, ...) {
     va_list args;
-    pointer_t arrayp = gc_new_bytearray_base(n);
+    pointer_t arrayp = gc_new_bytearray_base(n, is_boolean ? &boolarray_object.clazz : &class_Uint8Array.clazz);
     va_start(args, n);
 
     uint8_t* elements = (uint8_t*)&arrayp->body[2];
@@ -925,7 +926,10 @@ uint8_t* gc_bytearray_get(value_t obj, int32_t idx) {
     if (0 <= idx && idx < len)
         return (uint8_t*)&objp->body[2] + idx;
     else {
-        runtime_index_error(idx, len, "ByteArray.get/set");
+        if (gc_is_instance_of(&boolarray_object.clazz, obj))
+            runtime_index_error(idx, len, "Array<boolean>.get/set");
+        else
+            runtime_index_error(idx, len, "Uint8Array.get/set");
         return 0;
     }
 }
@@ -1097,9 +1101,11 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
 
 int32_t get_all_array_length(value_t obj) {
     class_object* clazz = gc_get_class_of(obj);
-    if (clazz == &intarray_object.clazz || clazz == &floatarray_object.clazz || clazz == &bytearray_object.clazz
+    if (clazz == &intarray_object.clazz || clazz == &floatarray_object.clazz
         || clazz == &vector_object.clazz || clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
-        return value_to_ptr(obj)->body[clazz == &bytearray_object.clazz ? 1 : 0];
+        return value_to_ptr(obj)->body[0];
+    else if (clazz == &class_Uint8Array.clazz || clazz == &boolarray_object.clazz)
+        return value_to_ptr(obj)->body[1];
     else
         return -1;
 }
@@ -1119,8 +1125,10 @@ value_t gc_safe_array_get(value_t obj, int32_t idx) {
         return int_to_value(*gc_intarray_get(obj, idx));
     else if (clazz == &floatarray_object.clazz)
         return float_to_value(*gc_floatarray_get(obj, idx));
-    else if (clazz == &bytearray_object.clazz)
+    else if (clazz == &class_Uint8Array.clazz)
         return int_to_value(*gc_bytearray_get(obj, idx));
+    else if (clazz == &boolarray_object.clazz)
+        return bool_to_value(*gc_bytearray_get(obj, idx));
     else if (clazz == &vector_object.clazz)
         return gc_vector_get(obj, idx);
     else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
@@ -1137,8 +1145,12 @@ value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
         return int_to_value(*gc_intarray_get(obj, idx) = safe_value_to_int(new_value));
     else if (clazz == &floatarray_object.clazz)
         return float_to_value(*gc_floatarray_get(obj, idx) = safe_value_to_float(new_value));
-    else if (clazz == &bytearray_object.clazz)
+    else if (clazz == &class_Uint8Array.clazz)
         return int_to_value(*gc_bytearray_get(obj, idx) = safe_value_to_int(new_value));
+    else if (clazz == &boolarray_object.clazz) {
+        uint8_t v = *gc_bytearray_get(obj, idx) = safe_value_to_bool(new_value);
+        return bool_to_value(v);
+    }
     else if (clazz == &vector_object.clazz)
         return gc_vector_set(obj, idx, new_value);
     else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)

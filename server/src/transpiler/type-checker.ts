@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from './utils'
 import * as visitor from './visitor'
 
-import { ArrayType, StaticType, isPrimitiveType } from './types'
+import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType } from './types'
 
 import {
   Integer, Float, BooleanT, StringT, Void, Null, Any,
@@ -35,6 +35,10 @@ export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTable
   // If the source file is not found, importer throws an error message.  The type of the message must be string.
   // importer may also throw an ErrorLog object.
   const typeChecker = new TypeChecker(maker, importer)
+
+  if (!names.hasParent())
+    typeChecker.addBuiltinTypes(ast, names)
+
   typeChecker.firstPass = true
   typeChecker.result = Any
   typeChecker.visit(ast, names)
@@ -69,6 +73,16 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     checker.errorLog = this.errorLog
     checker.result = this.result
     checker.firstPass = this.firstPass
+  }
+
+  addBuiltinTypes(node: AST.Node, names: NameTable<Info>) {
+    const clazz = this.maker.instanceType(ByteArrayClass, objectType)
+    clazz.addMethod('constructor', new FunctionType(Void, [Integer, Integer]))
+    clazz.leafType = true
+    const success = names.record(ByteArrayClass, clazz, this.maker,
+                                 _ => { _.isTypeName = true; _.isExported = true })
+    this.assert(success, `internal error: cannot record ${ByteArrayClass} class`, node)
+    names.classTable().addClass(ByteArrayClass, clazz)
   }
 
   file(node: AST.File, names: NameTable<Info>): void {
@@ -295,7 +309,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (superClassName)
       if (AST.isIdentifier(superClassName)) {
         const info = names.lookup(superClassName.name)
-        if (info && info.isTypeName && info.type instanceof InstanceType)
+        if (info && info.isTypeName && info.type instanceof InstanceType && !info.type.leafType)
           superClass = info.type
         else
           this.assert(false, `invalid super class: ${superClassName.name}`, node)
@@ -1067,6 +1081,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.result = this.result.elementType
         this.addStaticType(node, this.result)
       }
+      else if (this.result instanceof InstanceType && this.result.name() === ByteArrayClass) {
+        this.addStaticType(node.object, this.result)
+        this.addStaticType(node, Integer)
+        this.result = Integer
+      }
       else {
         this.assert(this.firstPass || this.result === Any, 'an element access to a non-array', node.object)
         this.result = Any
@@ -1088,6 +1107,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             this.result = typeAndIndex[0]
             const unboxed = type.unboxedProperties()
             return unboxed === undefined || unboxed <= typeAndIndex[1]
+          }
+          else if (propertyName === ArrayType.lengthMethod && type.name() === ByteArrayClass) {
+            this.assert(readonly, 'cannot change .length', node.property)
+            this.result = Integer
+            return false  // an uboxed value.
           }
           else if (this.firstPass) {
             // forward reference
