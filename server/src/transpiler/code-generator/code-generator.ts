@@ -3,7 +3,7 @@
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
+         StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
          StringT } from '../types'
 import * as visitor from '../visitor'
 import {getCoercionFlag, getStaticType, NameInfo, NameTable, NameTableMaker} from '../names'
@@ -1390,17 +1390,24 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const objType = getStaticType(node.object)
       const propertyName = (node.property as AST.Identifier).name
       if (objType instanceof InstanceType) {
-        const typeAndIndex = this.getPropertyIndex(objType, propertyName, node)
-        const unbox = objType.unboxedProperties()
-        if (unbox && typeAndIndex[1] < unbox) {
-          this.result.write(cr.getObjectPrimitiveProperty(typeAndIndex[0]))
+        if (propertyName === ArrayType.lengthMethod && objType.name() === ByteArrayClass) {
+          this.result.write(cr.getObjectPrimitiveProperty(Integer))
           this.visit(node.object, env)
-          this.result.write(`, ${typeAndIndex[1]})`)
+          this.result.write(`, ${cr.getArrayLengthIndex(BooleanT)})`)
         }
         else {
-          this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
-          this.visit(node.object, env)
-          this.result.write(`, ${typeAndIndex[1]}))`)
+          const typeAndIndex = this.getPropertyIndex(objType, propertyName, node)
+          const unbox = objType.unboxedProperties()
+          if (unbox && typeAndIndex[1] < unbox) {
+            this.result.write(cr.getObjectPrimitiveProperty(typeAndIndex[0]))
+            this.visit(node.object, env)
+            this.result.write(`, ${typeAndIndex[1]})`)
+          }
+          else {
+            this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
+            this.visit(node.object, env)
+            this.result.write(`, ${typeAndIndex[1]}))`)
+          }
         }
       }
       else if (objType instanceof ArrayType && propertyName === ArrayType.lengthMethod) {
