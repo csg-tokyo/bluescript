@@ -35,10 +35,10 @@ export function typeStringToStaticType(typeString: string, gvnt?: GlobalVariable
   } else if (typeString === 'Function') {
     return 'any'
   } else {
-    const clazz = gvnt === undefined ? undefined : gvnt.classTable().findClass(typeString)
-    if (clazz === undefined)
+    const type = gvnt === undefined ? undefined : gvnt.lookup(typeString)?.type
+    if (type === undefined || !(type instanceof InstanceType))
       throw new ProfileError(`Cannot find the profiled class: ${typeString}`)
-    return clazz
+    return type
   }
 }
 
