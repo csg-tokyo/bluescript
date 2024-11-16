@@ -123,7 +123,7 @@ export class JitCodeGenerator extends CodeGenerator{
     const funcName = funcInfo ? funcInfo.transpiledName(name) : name
     const fenv = new FunctionEnv(getVariableNameTable(node), env)
 
-    if (!Profiler.funcIsSpecializeable(funcType)) {
+    if (!Profiler.funcNeedsProfiling(funcType)) {
       super.functionDeclaration(node, env);
       return;
     }

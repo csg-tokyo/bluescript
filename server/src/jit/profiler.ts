@@ -35,18 +35,6 @@ export class Profiler {
     return profile;
   }
 
-  static funcIsSpecializeable(funcType: FunctionType) {
-    const returnType = funcType.returnType;
-    if (!funcType.paramTypes.includes(Any) || funcType.paramTypes.filter(t=> t === Any).length > maxParamNum)
-      return false;
-    if (returnType instanceof FunctionType)
-      return false;
-    const acceptableElementTypes: StaticType[] = ['integer', 'float', 'boolean', 'any']
-    if (returnType instanceof ArrayType && !acceptableElementTypes.includes(returnType.elementType))
-      return false;
-    return true;
-  }
-
   getFunctionProfileById(id: number) {
     const funcName = this.idToName.get(id);
     return funcName ? this.profiles.get(funcName) : undefined;
@@ -69,7 +57,7 @@ export class Profiler {
     const func = this.profiles.get(funcName);
     if (func === undefined)
       throw new ProfileError(`Cannot not find the target function. name: ${funcName}`);
-    if (paramTypes.slice(0, func.type.paramTypes.length).every(t => t === Any)) {
+    if (!Profiler.funcIsSpecializable(func, paramTypes)) {
       func.state = {state: 'undoing'}
       return;
     }
@@ -83,5 +71,21 @@ export class Profiler {
         specializedParamTypes.push(paramTypes[s++]);
     }
     func.state = {state: 'specializing', type: new FunctionType(func.type.returnType, specializedParamTypes)};
+  }
+
+  static funcNeedsProfiling(funcType: FunctionType) {
+    const returnType = funcType.returnType;
+    if (!funcType.paramTypes.includes(Any) || funcType.paramTypes.filter(t=> t === Any).length > maxParamNum)
+      return false;
+    if (returnType instanceof FunctionType)
+      return false;
+    const acceptableElementTypes: StaticType[] = ['integer', 'float', 'boolean', 'any']
+    if (returnType instanceof ArrayType && !acceptableElementTypes.includes(returnType.elementType))
+      return false;
+    return true;
+  }
+
+  static funcIsSpecializable(func: FunctionProfile, paramTypes: StaticType[]) {
+    return !paramTypes.slice(0, func.type.paramTypes.length).every(t => t === Any);
   }
 }
