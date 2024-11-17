@@ -174,7 +174,7 @@ export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
     for (const k in this.elements)
       f(this.elements[k], k)
   }
- 
+
   record(key: string, t: StaticType, maker: NameTableMaker<Info>,
          init?: (i: Info) => void): boolean {
     const old = this.elements[key]

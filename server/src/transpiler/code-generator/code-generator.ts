@@ -46,9 +46,9 @@ export function transpile(codeId: number, src: string, gvnt?: GlobalVariableName
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   errorLog = new ErrorLog()
-  private result =  new CodeWriter()
-  private signatures = ''                   // function prototypes etc.
-  private declarations = new CodeWriter()   // function declarations etc.
+  protected result =  new CodeWriter()
+  protected signatures = ''                   // function prototypes etc.
+  protected declarations = new CodeWriter()   // function declarations etc.
   private endWithReturn = false
   private initializerName: string           // the name of an initializer function
   private globalRootSetName: string         // the rootset name for global variables
@@ -666,9 +666,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
      this method generates the following C code:
         static int32_t ${bodyName}(value_t self, int32_t _n) { ... function body ... }
   */
-  private functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
-                       fenv: FunctionEnv, funcType: FunctionType, bodyName: string,
-                       modifier: string = 'static ') {
+  protected functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+                         fenv: FunctionEnv, funcType: FunctionType, bodyName: string,
+                         modifier: string = 'static ') {
     const bodyResult = this.result.copy()
     bodyResult.right()
     const sig = this.makeParameterList(funcType, node, fenv, bodyResult)
@@ -701,8 +701,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return funcHeader
   }
 
-  private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
-                            fenv: FunctionEnv, bodyResult?: CodeWriter, simpleName: boolean = false) {
+  protected makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+                              fenv: FunctionEnv, bodyResult?: CodeWriter, simpleName: boolean = false) {
     let sig = `(${cr.anyTypeInC} self`
     const bodyResult2 = bodyResult?.copy()
 
@@ -757,7 +757,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return sig + ')'
   }
 
-  private makeSimpleParameterList(funcType: FunctionType) {
+  protected makeSimpleParameterList(funcType: FunctionType) {
     let sig = `(${cr.anyTypeInC} self`
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       sig += `, ${cr.typeToCType(funcType.paramTypes[i], `p${i}`)}`
@@ -766,7 +766,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return sig + ')'
   }
 
-  private makeFunctionStruct(name: string, type: FunctionType, isConst: boolean) {
+  protected makeFunctionStruct(name: string, type: FunctionType, isConst: boolean) {
     let body: string = ''
     if (isConst) {
       const bodyName = cr.functionBodyName(name)

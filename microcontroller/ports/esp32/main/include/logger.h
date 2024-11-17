@@ -23,6 +23,11 @@ void bs_logger_push_log(char *str);
 void bs_logger_push_error(char *str);
 
 /**
+ * Push the profiling data to the log queue.
+ */
+void bs_logger_push_profile(uint8_t fid, char *profile_str);
+
+/**
  * Reset log queue.
  */
 void bs_logger_reset();

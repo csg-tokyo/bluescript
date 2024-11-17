@@ -97,6 +97,7 @@ extern bool CR_SECTION value_to_truefalse(value_t v);
 
 inline value_t bool_to_value(bool b) { return b ? VALUE_TRUE : VALUE_FALSE; }
 inline bool value_to_bool(value_t v) { return value_to_truefalse(v); }
+inline bool is_bool_value(value_t v) { return (v & 3) == 2; }
 
 inline bool safe_value_to_bool(value_t v) {
     // any value can be a boolean value.
@@ -166,7 +167,7 @@ extern void CR_SECTION interrupt_handler_end();
 
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
-extern bool gc_is_instance_of(const class_object* clazz, value_t obj);
+extern bool CR_SECTION gc_is_instance_of(const class_object* clazz, value_t obj);
 extern void* CR_SECTION method_lookup(value_t obj, uint32_t index);
 
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
@@ -224,18 +225,21 @@ extern value_t CR_SECTION gc_new_intarray(int32_t n, int32_t init_value);
 extern value_t CR_SECTION gc_make_intarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_intarray_length(value_t obj);
 extern int32_t* CR_SECTION gc_intarray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_intarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_floatarray(value_t v);
 extern value_t CR_SECTION gc_new_floatarray(int32_t n, float init_value);
 extern value_t CR_SECTION gc_make_floatarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_floatarray_length(value_t obj);
 extern float* CR_SECTION gc_floatarray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_floatarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_boolarray(value_t v);
 extern value_t CR_SECTION gc_new_bytearray(bool is_boolean, int32_t n, int32_t init_value);
 extern value_t CR_SECTION gc_make_bytearray(bool is_boolean, int32_t n, ...);
 extern int32_t CR_SECTION gc_bytearray_length(value_t obj);
 extern uint8_t* CR_SECTION gc_bytearray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_boolarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_vector(value_t v);
 extern value_t CR_SECTION gc_new_vector(int32_t n, value_t init_value);
@@ -251,6 +255,7 @@ extern value_t CR_SECTION gc_make_array(int32_t is_any, int32_t n, ...);
 extern int32_t CR_SECTION gc_array_length(value_t obj);
 extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);
 extern value_t CR_SECTION gc_array_set(value_t obj, int32_t index, value_t new_value);
+extern bool CR_SECTION gc_is_anyarray(value_t v);
 
 extern int32_t CR_SECTION get_all_array_length(value_t obj);
 extern value_t CR_SECTION get_anyobj_length_property(value_t obj, int property);

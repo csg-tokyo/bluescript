@@ -789,6 +789,11 @@ int32_t* gc_intarray_get(value_t obj, int32_t index) {
     }
 }
 
+bool gc_is_intarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &intarray_object.clazz;
+}
+
 // A float array
 
 static CLASS_OBJECT(floatarray_object, 1) = {
@@ -849,6 +854,11 @@ float* gc_floatarray_get(value_t obj, int32_t index) {
         runtime_index_error(index, len, "Array<float>.get/set");
         return 0;
     }
+}
+
+bool gc_is_floatarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &floatarray_object.clazz;
 }
 
 // A byte array and a boolean array
@@ -932,6 +942,11 @@ uint8_t* gc_bytearray_get(value_t obj, int32_t idx) {
             runtime_index_error(idx, len, "Uint8Array.get/set");
         return 0;
     }
+}
+
+bool gc_is_boolarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &boolarray_object.clazz;
 }
 
 // A fixed-length array
@@ -1182,6 +1197,11 @@ value_t gc_safe_array_acc(value_t obj, int32_t index, char op, value_t value) {
         default: runtime_type_error("gc_safe_array_acc");
     }
     return gc_safe_array_set(obj, index, new_value);
+}
+
+bool gc_is_anyarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &anyarray_object.clazz;
 }
 
 // Compute an object size.   It is always an even number.

@@ -37,3 +37,9 @@ jobs:
 
       - name: Run float-test
         run: ./float-test
+
+      - name: Build profiler-test
+        run: gcc -DTEST64 profiler-test.c -o profiler-test -lm
+
+      - name: Run profiler-test
+        run: ./profiler-test
