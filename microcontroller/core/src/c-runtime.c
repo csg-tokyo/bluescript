@@ -2,10 +2,7 @@
 
 /*
   To run on a 64bit machine (for testing/debugging purpose only),
-  compile with -DTEST64.  To include test code, compile with -DTEST.
-  So,
-    cc -DTEST -DTEST64 gc.c -lm
-  will produce ./a.out that runs test code on a 64bit machine.
+  compile with -DTEST64.
 
   Typical usecase:
 
@@ -27,13 +24,13 @@
   }
 */
 
-#include <stdio.h>
+#include <stddef.h>     // for NULL
+#include <stdio.h>      // for fputs(), sprintf()
 #include <stdarg.h>
 #include <setjmp.h>
-#include <string.h>
+#include <string.h>     // for strlen(), strcmp()
+#include <math.h>       // for isnan(), pow()
 #include "../include/c-runtime.h"
-#include <inttypes.h>
-#include <math.h>
 
 #ifdef TEST64
 
@@ -247,11 +244,7 @@ value_t safe_value_to_object(value_t v) {
 }
 
 value_t safe_value_to_value(const class_object* const clazz, value_t v) {
-    const class_object* type = gc_get_class_of(v);
-    while (type != clazz && type != NULL)
-        type = type->superclass;
-
-    if (type == NULL)
+    if (!gc_is_instance_of(clazz, v))
         runtime_type_error(clazz->name);
 
     return v;
@@ -317,6 +310,14 @@ value_t any_power(value_t a, value_t b) {
 
 double double_power(double a, double b) { return pow(a, b); }
 
+bool any_eq(value_t a, value_t b) {
+    if (gc_is_string_object(a))
+        return gc_is_string_object(b)
+            && strcmp(gc_string_literal_cstr(a), gc_string_literal_cstr(b)) == 0;
+    else
+        return a == b;
+}
+
 #define ANY_CMP_FUNC(name, op) \
 bool any_##name(value_t a, value_t b) {\
     if (is_int_value(a)) {\
@@ -331,6 +332,8 @@ bool any_##name(value_t a, value_t b) {\
         else if (is_float_value(b))\
             return value_to_float(a) op value_to_float(b);\
     }\
+    else if (gc_is_string_object(a) && gc_is_string_object(b))\
+        return strcmp(gc_string_literal_cstr(a), gc_string_literal_cstr(b)) op 0;\
     return runtime_type_error("bad operand for " #op);\
 }
 
@@ -463,12 +466,13 @@ class_object* gc_get_class_of(value_t value) {
 }
 
 bool gc_is_instance_of(const class_object* clazz, value_t obj) {
-    const class_object* obj_class = gc_get_class_of(obj);
-    do {
-        if (obj_class == clazz)
-            return true;
-    } while (obj_class != NULL && (obj_class = obj_class->superclass));
-    return false;
+    const class_object* type = gc_get_class_of(obj);
+    while (type != clazz)
+        if (type == NULL)
+            return false;
+        else
+            type = type->superclass;
+    return true;
 }
 
 void* method_lookup(value_t obj, uint32_t index) {
@@ -785,6 +789,11 @@ int32_t* gc_intarray_get(value_t obj, int32_t index) {
     }
 }
 
+bool gc_is_intarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &intarray_object.clazz;
+}
+
 // A float array
 
 static CLASS_OBJECT(floatarray_object, 1) = {
@@ -847,14 +856,23 @@ float* gc_floatarray_get(value_t obj, int32_t index) {
     }
 }
 
-// A byte array
+bool gc_is_floatarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &floatarray_object.clazz;
+}
 
-static CLASS_OBJECT(bytearray_object, 1) = {
-    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "ByteArray",
+// A byte array and a boolean array
+
+CLASS_OBJECT(class_Uint8Array, 1) = {
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Uint8Array",
                .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
 
-value_t safe_value_to_bytearray(value_t v) {
-    return safe_value_to_value(&bytearray_object.clazz, v);
+static CLASS_OBJECT(boolarray_object, 1) = {
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<boolean>",
+               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+
+value_t safe_value_to_boolarray(value_t v) {
+    return safe_value_to_value(&boolarray_object.clazz, v);
 }
 
 /*
@@ -867,20 +885,20 @@ value_t safe_value_to_bytearray(value_t v) {
   2nd word is the number of elements.
   3rd, 4th, ... words hold elements.
 */
-static pointer_t gc_new_bytearray_base(int32_t n) {
+static pointer_t gc_new_bytearray_base(int32_t n, const struct class_object* clazz) {
     if (n < 0)
         n = 0;
 
     int32_t m =(n + 3) / 4 + 1;
     pointer_t obj = allocate_heap(m + 1);
-    set_object_header(obj, &bytearray_object.clazz);
+    set_object_header(obj, clazz);
     obj->body[0] = m;
     obj->body[1] = n;
     return obj;
 }
 
-value_t gc_new_bytearray(int32_t n, int32_t init_value) {
-    pointer_t obj = gc_new_bytearray_base(n);
+value_t gc_new_bytearray(bool is_boolean, int32_t n, int32_t init_value) {
+    pointer_t obj = gc_new_bytearray_base(n, is_boolean ? &boolarray_object.clazz : &class_Uint8Array.clazz);
     uint32_t v = init_value & 0xff;
     uint8_t* elements = (uint8_t*)&obj->body[2];
     for (int i = 0; i < n; i++)
@@ -889,9 +907,9 @@ value_t gc_new_bytearray(int32_t n, int32_t init_value) {
     return ptr_to_value(obj);
 }
 
-value_t gc_make_bytearray(int32_t n, ...) {
+value_t gc_make_bytearray(bool is_boolean, int32_t n, ...) {
     va_list args;
-    pointer_t arrayp = gc_new_bytearray_base(n);
+    pointer_t arrayp = gc_new_bytearray_base(n, is_boolean ? &boolarray_object.clazz : &class_Uint8Array.clazz);
     va_start(args, n);
 
     uint8_t* elements = (uint8_t*)&arrayp->body[2];
@@ -918,9 +936,17 @@ uint8_t* gc_bytearray_get(value_t obj, int32_t idx) {
     if (0 <= idx && idx < len)
         return (uint8_t*)&objp->body[2] + idx;
     else {
-        runtime_index_error(idx, len, "ByteArray.get/set");
+        if (gc_is_instance_of(&boolarray_object.clazz, obj))
+            runtime_index_error(idx, len, "Array<boolean>.get/set");
+        else
+            runtime_index_error(idx, len, "Uint8Array.get/set");
         return 0;
     }
+}
+
+bool gc_is_boolarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &boolarray_object.clazz;
 }
 
 // A fixed-length array
@@ -1088,13 +1114,22 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
     }
 }
 
-value_t get_anyobj_length_property(value_t obj, int property) {
+int32_t get_all_array_length(value_t obj) {
     class_object* clazz = gc_get_class_of(obj);
-    if (clazz == &intarray_object.clazz || clazz == &floatarray_object.clazz || clazz == &bytearray_object.clazz
-        || clazz == &vector_object.clazz || clazz == &array_object.clazz || clazz == &anyarray_object.clazz) {
-        int32_t len = *get_obj_int_property(obj, clazz == &bytearray_object.clazz ? 1 : 0);
+    if (clazz == &intarray_object.clazz || clazz == &floatarray_object.clazz
+        || clazz == &vector_object.clazz || clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
+        return value_to_ptr(obj)->body[0];
+    else if (clazz == &class_Uint8Array.clazz || clazz == &boolarray_object.clazz)
+        return value_to_ptr(obj)->body[1];
+    else
+        return -1;
+}
+
+// get the length if the object is an array.  Otherwise, get the value of the length property.
+value_t get_anyobj_length_property(value_t obj, int property) {
+    int32_t len = get_all_array_length(obj);
+    if (len >= 0)
         return int_to_value(len);
-    }
     else
         return get_anyobj_property(obj, property);
 }
@@ -1105,8 +1140,10 @@ value_t gc_safe_array_get(value_t obj, int32_t idx) {
         return int_to_value(*gc_intarray_get(obj, idx));
     else if (clazz == &floatarray_object.clazz)
         return float_to_value(*gc_floatarray_get(obj, idx));
-    else if (clazz == &bytearray_object.clazz)
+    else if (clazz == &class_Uint8Array.clazz)
         return int_to_value(*gc_bytearray_get(obj, idx));
+    else if (clazz == &boolarray_object.clazz)
+        return bool_to_value(*gc_bytearray_get(obj, idx));
     else if (clazz == &vector_object.clazz)
         return gc_vector_get(obj, idx);
     else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
@@ -1123,8 +1160,12 @@ value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
         return int_to_value(*gc_intarray_get(obj, idx) = safe_value_to_int(new_value));
     else if (clazz == &floatarray_object.clazz)
         return float_to_value(*gc_floatarray_get(obj, idx) = safe_value_to_float(new_value));
-    else if (clazz == &bytearray_object.clazz)
+    else if (clazz == &class_Uint8Array.clazz)
         return int_to_value(*gc_bytearray_get(obj, idx) = safe_value_to_int(new_value));
+    else if (clazz == &boolarray_object.clazz) {
+        uint8_t v = *gc_bytearray_get(obj, idx) = safe_value_to_bool(new_value);
+        return bool_to_value(v);
+    }
     else if (clazz == &vector_object.clazz)
         return gc_vector_set(obj, idx, new_value);
     else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
@@ -1158,6 +1199,11 @@ value_t gc_safe_array_acc(value_t obj, int32_t index, char op, value_t value) {
     return gc_safe_array_set(obj, index, new_value);
 }
 
+bool gc_is_anyarray(value_t v) {
+    const class_object* type = gc_get_class_of(v);
+    return type == &anyarray_object.clazz;
+}
+
 // Compute an object size.   It is always an even number.
 //
 // length: length of object_type.body[]
@@ -1168,7 +1214,7 @@ static uint16_t real_objsize(uint16_t length) {
 }
 
 static pointer_t no_more_memory() {
-    puts("** memory exhausted **");
+    fputs("** memory exhausted **", stderr);
 #ifdef TEST64
     exit(1);
 #else
@@ -1479,6 +1525,7 @@ uint32_t gc_test_run() {
 }
 #endif
 
+// when you modify this function, also modify ROOT_SET_N macro.
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
     set->next = gc_root_set_head;
     if (length > 0) {

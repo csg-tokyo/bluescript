@@ -55,11 +55,11 @@ export default function useRepl() {
         }
     }
 
-    const execute = async () => {
+    const execute = async (useJIT: boolean = true) => {
         setCompileError("");
         let updatedCurrentCell:Cell;
         try {
-            const compileResult = await network.compile(currentCell.code);
+            const compileResult = useJIT ? await network.compileWithProfiling(currentCell.code) : await network.compile(currentCell.code);
             const bufferGenerator = new BytecodeGenerator(MAX_MTU);
             bufferGenerator.loadToRAM(compileResult.iram.address, Buffer.from(compileResult.iram.data, "hex"));
             bufferGenerator.loadToRAM(compileResult.dram.address, Buffer.from(compileResult.dram.data, "hex"));
@@ -77,8 +77,11 @@ export default function useRepl() {
             }
         }
         onReceiveExectime.current = (exectime:number) => {
-            setExecutedCells([...executedCells, {...updatedCurrentCell, executionTime:exectime}]);
-            setCurrentCell({code:""});
+            if (updatedCurrentCell.executionTime === undefined) {
+                updatedCurrentCell.executionTime = exectime
+                setExecutedCells([...executedCells, updatedCurrentCell]);
+                setCurrentCell({code:""});
+            }
         }
     }
 
@@ -96,9 +99,23 @@ export default function useRepl() {
             case BYTECODE.RESULT_MEMINFO:
                 onReceiveMeminfo.current(parseResult.meminfo);
                 break;
-            case BYTECODE.RESULT_EXECTIME:
+            case BYTECODE.RESULT_EXECTIME: 
                 onReceiveExectime.current(parseResult.exectime);
-                break;            
+                break;
+            case BYTECODE.RESULT_PROFILE: {
+                console.log("receive profile", parseResult.fid, parseResult.paramtypes);
+                network.jitCompile(parseResult.fid, parseResult.paramtypes).then((compileResult) => {
+                    console.log(compileResult)
+                    const bufferGenerator = new BytecodeGenerator(MAX_MTU);
+                    bufferGenerator.loadToRAM(compileResult.iram.address, Buffer.from(compileResult.iram.data, "hex"));
+                    bufferGenerator.loadToRAM(compileResult.dram.address, Buffer.from(compileResult.dram.data, "hex"));
+                    bufferGenerator.loadToFlash(compileResult.flash.address, Buffer.from(compileResult.flash.data, "hex"));
+                    bufferGenerator.jump(compileResult.entryPoint);
+                    bluetooth.current.sendBuffers(bufferGenerator.generate()).then(() => console.log("JIT finish!"))
+                })
+                break; 
+            }
+                           
         }
     }
 

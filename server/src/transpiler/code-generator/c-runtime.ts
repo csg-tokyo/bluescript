@@ -4,7 +4,8 @@ import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
 import { Integer, Float, BooleanT, StringT, Void, Null, Any,
     ObjectType, objectType, FunctionType,
-    StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype, } from '../types'
+    StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype,
+    ByteArrayClass, } from '../types'
 import { InstanceType, ClassTable } from '../classes'
 
 export const anyTypeInC = 'value_t'
@@ -66,7 +67,7 @@ function typeConversionError(from: StaticType | undefined, to: StaticType | unde
                              node: AST.Node) {
   const fromType = from === undefined ? '?' : typeToString(from)
   const toType = to === undefined ? '?' : typeToString(to)
-  return new ErrorLog().push(`internal error: cannot convert ${fromType} to ${toType}`, node)
+  return new ErrorLog().push(`internal error: the current runtime cannot convert ${fromType} to ${toType}`, node)
 }
 
 // returns '(' or '<conversion function>('
@@ -148,7 +149,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
             else if (to.elementType === Float)
               return 'safe_value_to_floatarray('
             else if (to.elementType === BooleanT)
-              return 'safe_value_to_bytearray('
+              return 'safe_value_to_boolarray('
             else if (to.elementType === Any)
               return 'safe_value_to_anyarray('
             else
@@ -187,6 +188,10 @@ export function updateOperator(op: string, isPrefix: boolean) {
 
 export function arithmeticOpForAny(op: string) {
   switch(op) {
+    case '==':
+      return 'any_eq'
+    case '!=':
+      return '!any_eq'
     case '<':
       return 'any_less'     // returns boolean
     case '<=':
@@ -260,14 +265,20 @@ export const minusAnyValue = 'minus_any_value'
 export const globalRootSetName = 'global_rootset'
 
 export function makeRootSet(n: number) {
-  if (n > 0)
-    return `ROOT_SET(func_rootset, ${n})`
-  else
+  if (n < 1)
     return ''
+  else if (n == 1)
+    return 'ROOT_SET_N(func_rootset,1,VALUE_UNDEF)'
+  else if (n == 2)
+    return 'ROOT_SET_N(func_rootset,2,VALUE_UNDEF_2)'
+  else if (n == 3)
+    return 'ROOT_SET_N(func_rootset,3,VALUE_UNDEF_3)'
+  else
+    return `ROOT_SET(func_rootset,${n})`
 }
 
 export function declareRootSet(name: string, n: number) {
-  return `ROOT_SET_DECL(${name}, ${n})`
+  return `ROOT_SET_DECL(${name}, ${n});`
 }
 
 export function initRootSet(name: string, n: number) {
@@ -322,7 +333,9 @@ export function makeBoxedValue(type: StaticType, value?: string) {
 
 // a getter/setter function for arrays
 export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticType | undefined, node: AST.Node) {
-  if (arrayType === Any)
+  if (arrayType instanceof InstanceType && arrayType.name() === ByteArrayClass)
+    return `(*gc_bytearray_get(`
+  else if (arrayType === Any)
     return '(gc_safe_array_get('
   else if (t === Integer)
     return '(*gc_intarray_get('
@@ -352,7 +365,7 @@ export function arrayFromElements(t: StaticType) {
   else if (t === Float)
     return 'gc_make_floatarray('
   else if (t === BooleanT)
-    return 'gc_make_bytearray('
+    return 'gc_make_bytearray(true, '
   else if (t === Any)
     return 'gc_make_array(1, '
   else
@@ -365,7 +378,7 @@ export function arrayFromSize(t: StaticType) {
   else if (t === Float)
     return 'gc_new_floatarray('
   else if (t === BooleanT)
-    return 'gc_new_bytearray('
+    return 'gc_new_bytearray(true, '
   else if (t === Any)
     return 'gc_new_array(1, '
   else
@@ -485,7 +498,10 @@ export function classDeclaration(clazz: InstanceType, classTable: ClassTable) {
 
 export function makeInstance(clazz: InstanceType) {
   const name = clazz.name()
-  return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
+  if (name === ByteArrayClass)
+    return 'gc_new_bytearray(false'
+  else
+    return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
 }
 
 export function methodLookup(method: [StaticType, number, InstanceType], func: string) {

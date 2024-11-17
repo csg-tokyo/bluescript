@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from './utils'
 import * as visitor from './visitor'
 
-import { ArrayType, StaticType, isPrimitiveType } from './types'
+import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType } from './types'
 
 import {
   Integer, Float, BooleanT, StringT, Void, Null, Any,
@@ -35,6 +35,10 @@ export function typecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTable
   // If the source file is not found, importer throws an error message.  The type of the message must be string.
   // importer may also throw an ErrorLog object.
   const typeChecker = new TypeChecker(maker, importer)
+
+  if (!names.hasParent())
+    typeChecker.addBuiltinTypes(ast, names)
+
   typeChecker.firstPass = true
   typeChecker.result = Any
   typeChecker.visit(ast, names)
@@ -69,6 +73,16 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     checker.errorLog = this.errorLog
     checker.result = this.result
     checker.firstPass = this.firstPass
+  }
+
+  addBuiltinTypes(node: AST.Node, names: NameTable<Info>) {
+    const clazz = this.maker.instanceType(ByteArrayClass, objectType)
+    clazz.addMethod('constructor', new FunctionType(Void, [Integer, Integer]))
+    clazz.leafType = true
+    const success = names.record(ByteArrayClass, clazz, this.maker,
+                                 _ => { _.isTypeName = true; _.isExported = true })
+    this.assert(success, `internal error: cannot record ${ByteArrayClass} class`, node)
+    names.classTable().addClass(ByteArrayClass, clazz)
   }
 
   file(node: AST.File, names: NameTable<Info>): void {
@@ -235,7 +249,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   private returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined,
-                             names: NameTable<Info>): void {
+                               names: NameTable<Info>): void {
     const rtype = names.returnType()
     this.assert(rtype !== null, 'return must be in a function body', node)
     if (argument) {
@@ -295,7 +309,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (superClassName)
       if (AST.isIdentifier(superClassName)) {
         const info = names.lookup(superClassName.name)
-        if (info && info.isTypeName && info.type instanceof InstanceType)
+        if (info && info.isTypeName && info.type instanceof InstanceType && !info.type.leafType)
           superClass = info.type
         else
           this.assert(false, `invalid super class: ${superClassName.name}`, node)
@@ -311,7 +325,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.result = clazz
     this.visit(node.body, names)
     clazz.sortProperties()
-  
+
     if (!clazz.findConstructor()) {
       // this class has a default constructor.
       this.assert(clazz.declaredProperties() === 0, 'a constructor is missing', node)
@@ -642,12 +656,17 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.visit(node.right, names)
     const right_type = this.result
     if (op === '==' || op === '!=' || op === '===' || op === '!==') {
-      if (left_type === BooleanT || right_type === BooleanT) {
-        this.assert(left_type === right_type, 'a boolean must be compared with a boolean', node)
+      if (left_type === Any || right_type === Any) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
-      else if (left_type === Any || right_type === Any) {
+      else if (left_type === BooleanT || right_type === BooleanT
+               || left_type === StringT || right_type === StringT) {
+        if (left_type !== right_type) {
+          const typename = (left_type === BooleanT || right_type === BooleanT) ? BooleanT : StringT
+          this.assert(false, `a ${typename} must be compared with a ${typename}`, node)
+        }
+
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
@@ -658,12 +677,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.result = BooleanT
     }
     else if (op === '<' || op === '<=' || op === '>' || op === '>=') {
-      this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
-        this.invalidOperandsMessage(op, left_type, right_type), node)
-      if (left_type === Any || right_type === Any) {
+      if ((left_type === Any || right_type === Any) || (left_type === StringT && right_type === StringT)) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
+      else
+        this.assert(isNumeric(left_type) && isNumeric(right_type), this.invalidOperandsMessage(op, left_type, right_type), node)
+
       this.result = BooleanT
     }
     else if (op === '+' || op === '-' || op === '*' || op === '/' || op === '**') {
@@ -721,7 +741,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       const info = names.lookup(typeName)
       if (info?.isTypeName && info.type instanceof InstanceType)
         type = info.type
-      else if (typeName === 'string' || typeName === 'String')
+      else if (typeName === 'string')
         type = StringT
       else
         this.assert(false, `invalid type name: ${typeName}`, node.right)
@@ -1061,6 +1081,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.result = this.result.elementType
         this.addStaticType(node, this.result)
       }
+      else if (this.result instanceof InstanceType && this.result.name() === ByteArrayClass) {
+        this.addStaticType(node.object, this.result)
+        this.addStaticType(node, Integer)
+        this.result = Integer
+      }
       else {
         this.assert(this.firstPass || this.result === Any, 'an element access to a non-array', node.object)
         this.result = Any
@@ -1082,6 +1107,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             this.result = typeAndIndex[0]
             const unboxed = type.unboxedProperties()
             return unboxed === undefined || unboxed <= typeAndIndex[1]
+          }
+          else if (propertyName === ArrayType.lengthMethod && type.name() === ByteArrayClass) {
+            this.assert(readonly, 'cannot change .length', node.property)
+            this.result = Integer
+            return false  // an uboxed value.
           }
           else if (this.firstPass) {
             // forward reference
@@ -1169,7 +1199,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   tsTypeReference(node: AST.TSTypeReference, names: NameTable<Info>): void {
     this.assertSyntax(AST.isIdentifier(node.typeName), node)
-    this.assertSyntax(node.typeParameters === undefined, node)
+    this.assertSyntax(node.typeParameters === undefined || node.typeParameters === null, node)
     const name = (node.typeName as AST.Identifier).name
     if (name === Float)
       this.result = Float

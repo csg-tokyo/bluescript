@@ -8,6 +8,8 @@ export const Void = 'void'
 export const Null = 'null'
 export const Any = 'any'
 
+export const ByteArrayClass = 'Uint8Array'
+
 export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' |
   ObjectType | FunctionType
 

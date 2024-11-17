@@ -3,7 +3,7 @@
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
-         StaticType, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
+         StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
          StringT } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
@@ -46,9 +46,9 @@ export function transpile(codeId: number, src: string, gvnt?: GlobalVariableName
 
 export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   errorLog = new ErrorLog()
-  private result =  new CodeWriter()
-  private signatures = ''                   // function prototypes etc.
-  private declarations = new CodeWriter()   // function declarations etc.
+  protected result =  new CodeWriter()
+  protected signatures = ''                   // function prototypes etc.
+  protected declarations = new CodeWriter()   // function declarations etc.
   private endWithReturn = false
   private initializerName: string           // the name of an initializer function
   private globalRootSetName: string         // the rootset name for global variables
@@ -147,7 +147,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   booleanLiteral(node: AST.BooleanLiteral, env: VariableEnv): void {
-    this.result.write(node.value ? 'VALUE_TRUE' : 'VALUE_FALSE')
+    this.result.write(node.value ? '!0' : '0')
   }
 
   numericLiteral(node: AST.NumericLiteral, env: VariableEnv): void {
@@ -666,9 +666,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
      this method generates the following C code:
         static int32_t ${bodyName}(value_t self, int32_t _n) { ... function body ... }
   */
-  private functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
-                       fenv: FunctionEnv, funcType: FunctionType, bodyName: string,
-                       modifier: string = 'static ') {
+  protected functionBody(node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+                         fenv: FunctionEnv, funcType: FunctionType, bodyName: string,
+                         modifier: string = 'static ') {
     const bodyResult = this.result.copy()
     bodyResult.right()
     const sig = this.makeParameterList(funcType, node, fenv, bodyResult)
@@ -701,8 +701,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return funcHeader
   }
 
-  private makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
-                            fenv: FunctionEnv, bodyResult?: CodeWriter, simpleName: boolean = false) {
+  protected makeParameterList(funcType: FunctionType, node: AST.FunctionDeclaration | AST.ArrowFunctionExpression | AST.ClassMethod,
+                              fenv: FunctionEnv, bodyResult?: CodeWriter, simpleName: boolean = false) {
     let sig = `(${cr.anyTypeInC} self`
     const bodyResult2 = bodyResult?.copy()
 
@@ -757,7 +757,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return sig + ')'
   }
 
-  private makeSimpleParameterList(funcType: FunctionType) {
+  protected makeSimpleParameterList(funcType: FunctionType) {
     let sig = `(${cr.anyTypeInC} self`
     for (let i = 0; i < funcType.paramTypes.length; i++) {
       sig += `, ${cr.typeToCType(funcType.paramTypes[i], `p${i}`)}`
@@ -766,7 +766,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return sig + ')'
   }
 
-  private makeFunctionStruct(name: string, type: FunctionType, isConst: boolean) {
+  protected makeFunctionStruct(name: string, type: FunctionType, isConst: boolean) {
     let body: string = ''
     if (isConst) {
       const bodyName = cr.functionBodyName(name)
@@ -904,12 +904,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const right_type = this.needsCoercion(right)
     if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
+        || (left_type === StringT || right_type === StringT)
         || (left_type === Any || right_type === Any)) {
-      this.result.write(`${cr.typeConversion(left_type, Any, left)}`)
+      this.result.write(`${cr.arithmeticOpForAny(op2)}(${cr.typeConversion(left_type, Any, left)}`)
       this.visit(left, env)
-      this.result.write(`) ${op2} ${cr.typeConversion(right_type, Any, right)}`)
+      this.result.write(`), ${cr.typeConversion(right_type, Any, right)}`)
       this.visit(right, env)
-      this.result.write(')')
+      this.result.write('))')
     }
     else
       this.numericBinaryExprssion(op2, left, right, env)
@@ -919,7 +920,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private basicBinaryExpression(op: string, node: AST.BinaryExpression, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if (left_type === Any || right_type === Any) {
+    if (left_type === Any || right_type === Any || left_type === StringT) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(${cr.typeConversion(left_type, Any, left)}`)
       this.visit(left, env)
       this.result.write(`), ${cr.typeConversion(right_type, Any, right)}`)
@@ -1388,17 +1389,24 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const objType = getStaticType(node.object)
       const propertyName = (node.property as AST.Identifier).name
       if (objType instanceof InstanceType) {
-        const typeAndIndex = this.getPropertyIndex(objType, propertyName, node)
-        const unbox = objType.unboxedProperties()
-        if (unbox && typeAndIndex[1] < unbox) {
-          this.result.write(cr.getObjectPrimitiveProperty(typeAndIndex[0]))
+        if (propertyName === ArrayType.lengthMethod && objType.name() === ByteArrayClass) {
+          this.result.write(cr.getObjectPrimitiveProperty(Integer))
           this.visit(node.object, env)
-          this.result.write(`, ${typeAndIndex[1]})`)
+          this.result.write(`, ${cr.getArrayLengthIndex(BooleanT)})`)
         }
         else {
-          this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
-          this.visit(node.object, env)
-          this.result.write(`, ${typeAndIndex[1]}))`)
+          const typeAndIndex = this.getPropertyIndex(objType, propertyName, node)
+          const unbox = objType.unboxedProperties()
+          if (unbox && typeAndIndex[1] < unbox) {
+            this.result.write(cr.getObjectPrimitiveProperty(typeAndIndex[0]))
+            this.visit(node.object, env)
+            this.result.write(`, ${typeAndIndex[1]})`)
+          }
+          else {
+            this.result.write(`${cr.typeConversion(Any, typeAndIndex[0], node)}${cr.getObjectProperty}(`)
+            this.visit(node.object, env)
+            this.result.write(`, ${typeAndIndex[1]}))`)
+          }
         }
       }
       else if (objType instanceof ArrayType && propertyName === ArrayType.lengthMethod) {

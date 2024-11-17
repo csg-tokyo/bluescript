@@ -4,6 +4,10 @@ import { execSync } from 'child_process'
 import { ErrorLog } from '../../../src/transpiler/utils'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
 
+export function toBoolean(array: number[]) {
+  return array.map(x => x === 0 ? "false" : "true")
+}
+
 const prolog = `// predefined native functions
 function print(m: any) {}
 function print_i32(m: integer) {}
@@ -25,6 +29,10 @@ static void fbody_print(value_t self, value_t m) {
     printf("%f\\n", value_to_float(m));
   else if (m == VALUE_NULL || m == VALUE_UNDEF)
     puts("undefined");
+  else if (m == VALUE_TRUE)
+    puts("true");
+  else if (m == VALUE_FALSE)
+    puts("false");
   else if (gc_is_string_object(m))
     puts(gc_string_literal_cstr(m));
   else {

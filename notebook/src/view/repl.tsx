@@ -17,6 +17,7 @@ import useRepl, {Cell} from '../hooks/use-repl';
 export default function Repl() {
   const {replParams, replActions} = useRepl();
   const [useFlash, setUseFlash] = useState(false);
+  const [useJIT, setUseJIT] = useState(true);
 
   const onUseFlashChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
       setUseFlash(event.target.checked);
@@ -41,11 +42,19 @@ export default function Repl() {
           <Grid2 style={{height: 50, textAlign: "end"}} xs={12}>
           <FormControlLabel
             value="start"
-            style={{marginRight: 20}}
             control={
               <Switch checked={useFlash} onChange={onUseFlashChange} inputProps={{ 'aria-label': 'controlled' }}/>
             }
             label="Use Flash"
+            labelPlacement="start"
+          />
+          <FormControlLabel
+            value="start"
+            style={{marginRight: 20}}
+            control={
+              <Switch checked={useJIT} onChange={(v) => setUseJIT(v.target.checked)} inputProps={{ 'aria-label': 'controlled' }}/>
+            }
+            label="Use JIT"
             labelPlacement="start"
           />
             <ButtonGroup variant="contained" color={"success"}>
@@ -58,7 +67,7 @@ export default function Repl() {
                 code={cell.code} executionLog={executionLogStr(cell)} key={index}/>
             })}
             <BSCodeEditorCell code={replParams.currentCell.code} 
-              onExecuteClick={() => replActions.execute()} setCode={(code)=>replActions.setCurrentCell({...replParams.currentCell, code})}/>
+              onExecuteClick={() => replActions.execute(useJIT)} setCode={(code)=>replActions.setCurrentCell({...replParams.currentCell, code})}/>
             <div style={style.compileErrorBox}>{replParams.compileError}</div>
           </Grid2>
           <Grid2 xs={5}>
