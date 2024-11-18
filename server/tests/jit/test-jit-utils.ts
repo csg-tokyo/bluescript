@@ -71,7 +71,7 @@ export function tempCFilePath(fname: string) {
 }
 
 export function tempExecutableFilePath(fname: string) {
-  return `./temp-files/${fname}`;
+  return `./temp-files/${fname}-jit`;
 }
 
 export function initialCompile(destFile: string) {
