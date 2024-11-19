@@ -1916,11 +1916,11 @@ test('property accesses', () => {
           3, 23, 23, 25, 25, 23].join('\n') + '\n')
 })
 
-test.only('multiple source files for classes', () => {
+test('multiple source files for classes', () => {
   const src1 = `
   class Pos {
     x: number
-    constructor(x: number) { this.x = 3 }
+    constructor(x: number) { this.x = x + 3 }
   }
 `
 
@@ -1929,11 +1929,11 @@ test.only('multiple source files for classes', () => {
     constructor(x: number, y: number) { super(x); this.y = y }
   }
 
-  const obj = new Pos3(3, 11)
+  const obj = new Pos3(7, 11)
   print(obj.x)
 `
 
-  expect(multiCompileAndRun(src1, src2)).toEqual('3\n')
+  expect(multiCompileAndRun(src1, src2)).toEqual('10\n')
 })
 
 test('access a class in another source file', () => {
