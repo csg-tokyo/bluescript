@@ -1,24 +1,23 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AppBar, Toolbar, Typography } from '@mui/material';
-
-import Repl from "./view/repl";
+import { Layout } from 'antd';
+import Home from "./view2/home";
+import { Typography } from 'antd';
+import { gray } from '@ant-design/colors';
 
 function App() {
   return (
-    <div>
-      <AppBar>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            BlueScript
-          </Typography>
-        </Toolbar>
-      </AppBar>
-      <BrowserRouter>
-        <Routes>
-          <Route path={`/`} element={<Repl />} />
-        </Routes>
-      </BrowserRouter>
-    </div>
+      <Layout style={{minHeight: "100vh"}}>
+        <Layout.Header style={{ display: 'flex', alignItems: 'center', height: 40, backgroundColor: gray[6], paddingLeft:10}} >
+            <Typography.Title level={5} style={{margin:0, fontSize:16, color: 'white'}}>BlueScript</Typography.Title>
+        </Layout.Header>
+        <Layout.Content style={{ display: 'flex', alignItems: 'center', height: 48, background:'white'}}>
+          <BrowserRouter>
+            <Routes>
+              <Route path={`/`} element={<Home />} />
+            </Routes>
+          </BrowserRouter>
+        </Layout.Content>
+      </Layout>
   );
 }
 
