@@ -106,7 +106,7 @@ print(aarr0(aarr, arr));
   const file1 = tempCFilePath('file1')
   const result1 = compile(0, src, profiler, file1, result0.names)
   expect(execute([file0, file1], [result1.main], tempCFilePath('file2'), tempExecutableFilePath('bscript')))
-    .toEqual("Array<any>, Array, undefined, undefined\n1\n")
+    .toEqual("Array<any>, string[], undefined, undefined\n1\n")
 })
 
 test('profile: class', () => {

@@ -479,10 +479,11 @@ void* method_lookup(value_t obj, uint32_t index) {
     return get_objects_class(value_to_ptr(obj))->vtbl[index];
 }
 
+#define IS_ARRAY_TYPE(clazz)    (clazz != NULL && (clazz)->flags & 1)
 #define DEFAULT_PTABLE      { .size = 0, .offset = 0, .unboxed = 0, .prop_names = NULL, .unboxed_types = NULL }
 
 CLASS_OBJECT(object_class, 1) = {
-    .clazz = { .size = 0, .start_index = 0, .name = "Object", .superclass = NULL, .table = DEFAULT_PTABLE }};
+    .clazz = { .size = 0, .start_index = 0, .name = "Object", .superclass = NULL, .flags = 0, .table = DEFAULT_PTABLE }};
 
 static pointer_t allocate_heap(uint16_t word_size);
 
@@ -630,7 +631,7 @@ value_t acc_anyobj_property(value_t obj, char op, int property, value_t value) {
 
 static CLASS_OBJECT(function_object, 0) = {
      .clazz = { .size = 3, .start_index = 2, .name = "Function",
-                .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+                .superclass = &object_class.clazz, .flags = 0, .table = DEFAULT_PTABLE }};
 
 // this_object may be VALUE_UNDEF.
 value_t gc_new_function(void* fptr, const char* signature, value_t captured_values) {
@@ -668,10 +669,10 @@ value_t gc_function_captured_value(value_t obj, int index) {
 // or one primitive value.  They are used for implementing a free variable.
 
 static CLASS_OBJECT(boxed_value, 0) = { .clazz.size = 1, .clazz.start_index = 0,
-                                        .clazz.name = "boxed_value", .clazz.superclass = NULL, .clazz.table = DEFAULT_PTABLE };
+                                        .clazz.name = "boxed_value", .clazz.superclass = NULL, .clazz.flags = 0, .clazz.table = DEFAULT_PTABLE };
 
 static CLASS_OBJECT(boxed_raw_value, 0) = { .clazz.size = 1, .clazz.start_index = SIZE_NO_POINTER,
-                                            .clazz.name = "boxed_raw_value", .clazz.superclass = NULL, .clazz.table = DEFAULT_PTABLE };
+                                            .clazz.name = "boxed_raw_value", .clazz.superclass = NULL, .clazz.flags = 0, .clazz.table = DEFAULT_PTABLE };
 
 value_t gc_new_box(value_t value) {
     ROOT_SET(rootset, 1)
@@ -698,7 +699,7 @@ value_t gc_new_float_box(float value) {
 // This C string is not allocated in the heap memory managed by the garbage collector.
 
 static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.start_index = SIZE_NO_POINTER,
-                                           .clazz.name = "string", .clazz.superclass = NULL, .clazz.table = DEFAULT_PTABLE };
+                                           .clazz.name = "string", .clazz.superclass = NULL, .clazz.flags = 0, .clazz.table = DEFAULT_PTABLE };
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
@@ -730,7 +731,7 @@ bool gc_is_string_object(value_t obj) {
 
 static CLASS_OBJECT(intarray_object, 1) = {
     .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<integer>",
-               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_intarray(value_t v) {
     return safe_value_to_value(&intarray_object.clazz, v);
@@ -798,7 +799,7 @@ bool gc_is_intarray(value_t v) {
 
 static CLASS_OBJECT(floatarray_object, 1) = {
     .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<float>",
-               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_floatarray(value_t v) {
     return safe_value_to_value(&floatarray_object.clazz, v);
@@ -865,11 +866,11 @@ bool gc_is_floatarray(value_t v) {
 
 CLASS_OBJECT(class_Uint8Array, 1) = {
     .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Uint8Array",
-               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
 static CLASS_OBJECT(boolarray_object, 1) = {
     .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<boolean>",
-               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_boolarray(value_t v) {
     return safe_value_to_value(&boolarray_object.clazz, v);
@@ -953,7 +954,7 @@ bool gc_is_boolarray(value_t v) {
 
 static CLASS_OBJECT(vector_object, 1) = {
     .clazz = { .size = -1, .start_index = 1, .name = "Vector",
-               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_vector(value_t v) {
     return safe_value_to_value(&vector_object.clazz, v);
@@ -1036,29 +1037,26 @@ value_t gc_make_vector(int32_t n, ...) {
     return array;
 }
 
-// An any-type array
+// any-type and other arrays
 
-/* this may be Array<string> etc. */
-static CLASS_OBJECT(array_object, 1) = {
-    .clazz = { .size = 2, .start_index = 1, .name = "Array",
-               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
+// Returns true when obj is an array of any kind of type.
+bool gc_is_instance_of_array(value_t obj) {
+    class_object* clazz = gc_get_class_of(obj);
+    return IS_ARRAY_TYPE(clazz);
+}
 
 static CLASS_OBJECT(anyarray_object, 1) = {
     .clazz = { .size = 2, .start_index = 1, .name = "Array<any>",
-               .superclass = &object_class.clazz, .table = DEFAULT_PTABLE }};
-
-value_t safe_value_to_array(value_t v) {
-    return safe_value_to_value(&array_object.clazz, v);
-}
+               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
 value_t safe_value_to_anyarray(value_t v) {
     return safe_value_to_value(&anyarray_object.clazz, v);
 }
 
-value_t gc_new_array(int32_t is_any, int32_t n, value_t init_value) {
+value_t gc_new_array(const class_object* clazz, int32_t n, value_t init_value) {
     ROOT_SET(rootset, 2)
     rootset.values[0] = init_value;
-    pointer_t obj = gc_allocate_object(is_any ? &anyarray_object.clazz : &array_object.clazz);
+    pointer_t obj = gc_allocate_object(clazz == NULL ? &anyarray_object.clazz : clazz);
     rootset.values[1] = ptr_to_value(obj);
     value_t vec = gc_new_vector(n, init_value);
     obj->body[1] = vec;
@@ -1072,9 +1070,9 @@ value_t gc_new_array(int32_t is_any, int32_t n, value_t init_value) {
    A caller function must guarantee that they are reachable
    from the root.
 */
-value_t gc_make_array(int32_t is_any, int32_t n, ...) {
+value_t gc_make_array(const class_object* clazz, int32_t n, ...) {
     va_list args;
-    value_t array = gc_new_array(is_any, n, VALUE_UNDEF);
+    value_t array = gc_new_array(clazz, n, VALUE_UNDEF);
     pointer_t arrayp = value_to_ptr(array);
     va_start(args, n);
 
@@ -1116,11 +1114,11 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
 
 int32_t get_all_array_length(value_t obj) {
     class_object* clazz = gc_get_class_of(obj);
-    if (clazz == &intarray_object.clazz || clazz == &floatarray_object.clazz
-        || clazz == &vector_object.clazz || clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
-        return value_to_ptr(obj)->body[0];
-    else if (clazz == &class_Uint8Array.clazz || clazz == &boolarray_object.clazz)
-        return value_to_ptr(obj)->body[1];
+    if (IS_ARRAY_TYPE(clazz))
+        if (clazz == &class_Uint8Array.clazz || clazz == &boolarray_object.clazz)
+            return value_to_ptr(obj)->body[1];
+        else
+            return value_to_ptr(obj)->body[0];
     else
         return -1;
 }
@@ -1146,7 +1144,7 @@ value_t gc_safe_array_get(value_t obj, int32_t idx) {
         return bool_to_value(*gc_bytearray_get(obj, idx));
     else if (clazz == &vector_object.clazz)
         return gc_vector_get(obj, idx);
-    else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
+    else if (IS_ARRAY_TYPE(clazz))   // for arrays of value_t
         return *gc_array_get(obj, idx);
     else {
         runtime_type_error("reading a non array");
@@ -1168,7 +1166,7 @@ value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
     }
     else if (clazz == &vector_object.clazz)
         return gc_vector_set(obj, idx, new_value);
-    else if (clazz == &array_object.clazz || clazz == &anyarray_object.clazz)
+    else if (IS_ARRAY_TYPE(clazz))  // for arrays of value_t
         return gc_array_set(obj, idx, new_value);
     else {
         runtime_type_error("assignment to a non array");

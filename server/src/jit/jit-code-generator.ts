@@ -298,7 +298,7 @@ export class JitCodeGenerator extends CodeGenerator{
       const info = fenv.table.lookup(paramName)
       if (info !== undefined) {
         const name = info.transpiledName(paramName)
-        paramSig.push(`${cr.typeConversion(argTypes[i], funcType.paramTypes[i], node)}${name})`);
+        paramSig.push(`${cr.typeConversion(argTypes[i], funcType.paramTypes[i], fenv, node)}${name})`);
       }
     }
     this.result.write(paramSig.join(', ')).write(');');

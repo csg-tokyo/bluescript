@@ -743,6 +743,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         type = info.type
       else if (typeName === 'string')
         type = StringT
+      else if (typeName === 'Array')
+        type = new ArrayType(Any)   // set type to Array<any> when the expression is "_ instanceof Array".
       else
         this.assert(false, `invalid type name: ${typeName}`, node.right)
 
