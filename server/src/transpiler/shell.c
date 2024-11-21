@@ -1,3 +1,5 @@
+// Copyright (C) 2024- Shigeru Chiba.  All rights reserved.
+
 #include <stdio.h>
 #include <string.h>
 #include <dlfcn.h>

@@ -1,3 +1,5 @@
+// Copyright (C) 2024- Shigeru Chiba.  All rights reserved.
+
 import { transpile } from './code-generator/code-generator'
 import * as fs from 'fs'
 import { execSync, spawn } from 'child_process'
