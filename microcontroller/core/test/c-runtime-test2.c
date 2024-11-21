@@ -167,7 +167,7 @@ void test_array2() {
 }
 
 void test_array() {
-    value_t arr = gc_make_array(1, 3, int_to_value(1), int_to_value(2), int_to_value(3));
+    value_t arr = gc_make_array(NULL, 3, int_to_value(1), int_to_value(2), int_to_value(3));
     Assert_equals(gc_array_length(arr), 3);
     *gc_array_get(arr, 2) = int_to_value(4);
     Assert_equals(*gc_array_get(arr, 2), int_to_value(4));
@@ -180,7 +180,7 @@ void test_string_literal() {
     value_t str = gc_new_string("foo");
     root_set.values[0] = str;
     value_t i = int_to_value(3);
-    value_t a = gc_make_array(1, 2, VALUE_FALSE, VALUE_NULL);
+    value_t a = gc_make_array(NULL, 2, VALUE_FALSE, VALUE_NULL);
     root_set.values[1] = a;
     Assert_true(gc_is_string_literal(str));
     Assert_true(!gc_is_string_literal(i));

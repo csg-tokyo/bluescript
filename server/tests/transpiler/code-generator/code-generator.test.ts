@@ -1487,17 +1487,19 @@ test('convert an any-type value to an array', () => {
     const arr3a: any = new Array<boolean>(n)
     const arr4a: any = new Array<string>(n, 'foo')
     const arr5a: any = new Array(n)
+    const arr6a: any = new Array<any>(n)
     const arr1: integer[] = arr1a
     const arr2: float[] = arr2a
     const arr3: boolean[] = arr3a
-    typeof arr4a
-    const arr5: any[] = arr5a
+    print(typeof arr4a)
     const arr4: string[] = arr4a
+    const arr5: any[] = arr5a
+    const arr6: any[] = arr6a
     print(arr1[0])
   }
   foo(3)
   `
-  expect(() => compileAndRun(src)).toThrow(/cannot convert any to string\[\]/)
+  expect(compileAndRun(src)).toBe('any\n0\n')
 })
 
 test('array length', () => {
@@ -2343,7 +2345,7 @@ test('accumulation in properties of any-type objects', () => {
   expect(() => { compileAndRun(src + src5)}).toThrow(/no such property/)
 })
 
-test('an array object bound to a any-type variable', () => {
+test('an array object bound to an any-type variable', () => {
   const maker = (init: string, v1: string, v2: string, v3: string) => `
   const a1 = ${init}
   print(typeof a1)
