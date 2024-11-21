@@ -1,7 +1,7 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { Null, FunctionType, StaticType, ObjectType, isPrimitiveType, ArrayType } from '../types'
+import { FunctionType, StaticType, ObjectType, isPrimitiveType, ArrayType } from '../types'
 import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../names'
