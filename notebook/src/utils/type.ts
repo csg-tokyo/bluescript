@@ -5,6 +5,8 @@ export type MemInfo = {
     flash:{address:number, size:number},
 }
 
+export type ReplStateT = 'initial' | 'loading' | 'activated'
+
 export type CellStateT = 'user-writing' | 'compiling' | 'sending' | 'executing' | 'done'
 
 export type CellTimeT = {
@@ -14,9 +16,10 @@ export type CellTimeT = {
 }
 
 export type CellT = {
+    id: number,
     code: string,
     state: CellStateT,
-    compileError: string,
-    time: CellTimeT
+    compileError?: string,
+    time?: CellTimeT
 }
 
