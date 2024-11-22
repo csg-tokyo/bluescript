@@ -72,7 +72,7 @@ function specializedFunctionBodyName(name: string) {
 
 // returns '(' or '<type check function>('
 // '(' is returned if the type cannot be checked.
-function checkType(type?: StaticType) {
+function checkType(env: VariableEnv, type?: StaticType): string|undefined {
   if (type instanceof ArrayType) {
     if (type.elementType === Integer)
       return 'gc_is_intarray(';
@@ -83,7 +83,7 @@ function checkType(type?: StaticType) {
     if (type.elementType === Any)
       return 'gc_is_anyarray(';
     else
-      throw new JITCompileError('Unknown array type.');
+      return `gc_is_instance_of(&${env.useArrayType(type)[0]}.clazz, `;
   }
 
   if (type instanceof InstanceType) {
@@ -98,12 +98,11 @@ function checkType(type?: StaticType) {
     case BooleanT:
       return 'is_bool_value(';
     case StringT:
-      return `gc_is_string_object(`;
+      return 'gc_is_string_object(';
     default:
       return undefined;
   }
 }
-
 
 export class JitCodeGenerator extends CodeGenerator{
   private profiler: Profiler;
@@ -250,12 +249,18 @@ export class JitCodeGenerator extends CodeGenerator{
     this.result.write(') {')
     this.result.right().nl()
 
+    // For test
+    this.result.write(`#ifdef TEST64`).nl().write('puts("Execute specialized function");').nl().write('#endif').nl()
+
     this.result.write('return ');
     this.functionCall(node, fenv, specializedFuncName, specializedType, funcType.paramTypes, 'self')
 
     this.result.left().nl()
     this.result.write('} else {')
     this.result.right().nl()
+
+    // For test
+    this.result.write(`#ifdef TEST64`).nl().write('puts("Execute original function");').nl().write('#endif').nl()
 
     this.result.write('return ');
     this.functionCall(node, fenv, originalFuncName, funcType, funcType.paramTypes, 'self')
@@ -310,7 +315,7 @@ export class JitCodeGenerator extends CodeGenerator{
       const paramName = (node.params[i] as AST.Identifier).name
       const info = fenv.table.lookup(paramName)
       if (info !== undefined) {
-        const check = checkType(targetParamTypes[i]);
+        const check = checkType(fenv, targetParamTypes[i]);
         if (check) {
           const name = info.transpiledName(paramName)
           paramSig.push(`${check}${name})`);

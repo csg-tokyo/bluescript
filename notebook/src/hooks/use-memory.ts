@@ -21,11 +21,11 @@ export const MemoryDummry = {
         name: '',
         size: 0, 
         usedSize: 0,
-        buffer: [],
+        buffer: [false],
         unitSize: UNIT_SIZE
     },
     actions: {
-        reset: (size: number) => {},
+        reset: (size: number, address: number) => {},
         setUsedSegment: (start: number, size: number) => {},
     }
 }
