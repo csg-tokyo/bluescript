@@ -140,6 +140,41 @@ print(area(rect));
     .toEqual("Rectangle, undefined, undefined, undefined\n44\n")
 })
 
+test('profile: class array', () => {
+  const src = `
+class Rectangle {
+  x: integer
+  y: integer
+  
+  constructor(x:integer, y:integer) {
+    this.x = x;
+    this.y = y;
+  }
+}
+  
+function areas(rects) {
+  let sum = 0
+  for (let i = 0; i < rects.length; i++) {
+    sum += rects[i].x * rects[i].y
+  }
+  return sum
+}
+
+let rects = [new Rectangle(11, 4), new Rectangle(11, 4), new Rectangle(11, 4)]
+for(let i = 0; i < 15; i++) {
+  areas(rects);
+}
+print(areas(rects));
+  `
+  const profiler = new Profiler()
+  const file0 = tempCFilePath('file0')
+  const result0 = initialCompile(file0);
+  const file1 = tempCFilePath('file1')
+  const result1 = compile(0, src, profiler, file1, result0.names)
+  expect(execute([file0, file1], [result1.main], tempCFilePath('file2'), tempExecutableFilePath('bscript')))
+    .toEqual("Rectangle[], undefined, undefined, undefined\n132\n")
+})
+
 test('profile: not profile function with function return type', () => {
   const src = `
 function func(a:()=>integer) {
@@ -355,7 +390,7 @@ print(aarr0(aarr, arr));
   const func = profiler.getFunctionProfileById(0);
   if (func === undefined)
     throw new Error(`Cannot fined func.`)
-  profiler.setFuncSpecializedType(0, ["Array<any>", "Array", "undefined", "undefined"].map(t => typeStringToStaticType(t, result1.names)))
+  profiler.setFuncSpecializedType(0, ["Array<any>", "string[]", "undefined", "undefined"].map(t => typeStringToStaticType(t, result1.names)))
 
   const file2 = tempCFilePath('file2')
   const result2 = compile(1, func.src, profiler, file2, result1.names)
@@ -408,6 +443,54 @@ print(area(new Rectangle(3, 4)))
   const result3 = compile(2, src3, profiler, file3, result2.names)
   expect(execute([file0, file1, file2, file3], [result1.main, result2.main, result3.main], tempCFilePath('file4'), tempExecutableFilePath('bscript')))
     .toEqual(`12\n12\n`)
+})
+
+test('jit compile: class array', () => {
+  const src1 = `
+  
+class Rectangle {
+  x: integer
+  y: integer
+  
+  constructor(x:integer, y:integer) {
+    this.x = x;
+    this.y = y;
+  }
+}
+  
+function areas(rects) {
+  let sum = 0
+  for (let i = 0; i < rects.length; i++) {
+    sum += rects[i].x * rects[i].y
+  }
+  return sum
+}
+
+print(areas([new Rectangle(11, 4), new Rectangle(11, 4), new Rectangle(11, 4)]))
+  `
+
+  const src3 = `
+print(areas([new Rectangle(11, 4), new Rectangle(11, 4), new Rectangle(11, 4)]))
+  `
+
+  const profiler = new Profiler()
+  const file0 = tempCFilePath('file0')
+  const result0 = initialCompile(file0);
+  const file1 = tempCFilePath('file1')
+  const result1 = compile(0, src1, profiler, file1, result0.names)
+
+  const func = profiler.getFunctionProfileById(0);
+  if (func === undefined)
+    throw new Error(`Cannot fined func.`)
+  profiler.setFuncSpecializedType(0, ["Rectangle[]", "undefined", "undefined", "undefined"].map(t => typeStringToStaticType(t, result1.names)))
+
+  const file2 = tempCFilePath('file2')
+  const result2 = compile(1, func.src, profiler, file2, result1.names)
+
+  const file3 = tempCFilePath('file3')
+  const result3 = compile(2, src3, profiler, file3, result2.names)
+  expect(execute([file0, file1, file2, file3], [result1.main, result2.main, result3.main], tempCFilePath('file4'), tempExecutableFilePath('bscript')))
+    .toEqual(`132\n132\n`)
 })
 
 test('jit compile: function redefinition after jit compile', () => {

@@ -30,8 +30,8 @@ export function typeStringToStaticType(typeString: string, gvnt?: GlobalVariable
     return new ArrayType('float')
   } else if (typeString === 'Array<boolean>') {
     return new ArrayType('boolean')
-  } else if (typeString === 'Array') {
-    return 'any'
+  } else if (isArray(typeString)) {
+    return getArrayType(typeString, gvnt)
   } else if (typeString === 'Function') {
     return 'any'
   } else {
@@ -40,6 +40,30 @@ export function typeStringToStaticType(typeString: string, gvnt?: GlobalVariable
       throw new ProfileError(`Cannot find the profiled class: ${typeString}`)
     return type
   }
+}
+
+function isArray(typeString: string) {
+  return /\[\]$/.test(typeString)
+}
+
+function getArrayType(typeString: string, gvnt?: GlobalVariableNameTable):StaticType {
+  const matches = typeString.match(/(\[\])+$/);
+  let ndim = matches ? matches[0].length / 2 : 0;
+  const className = typeString.replace(/(\[\])+$/, "");
+  let arr: StaticType|undefined;
+  if (className === 'string')
+      arr = 'string'
+  else {
+    arr = gvnt === undefined ? undefined : gvnt.lookup(className)?.type
+    if (arr === undefined || !(arr instanceof InstanceType))
+      throw new ProfileError(`Cannot find the profiled class: ${className}`)
+  }
+
+  while (ndim > 0) {
+    arr = new ArrayType(arr)
+    ndim -= 1
+  }
+  return arr
 }
 
 function staticTypeToTSType(type: StaticType): AST.TSType {
@@ -75,7 +99,6 @@ function staticTypeToTSType(type: StaticType): AST.TSType {
 
   return tsAnyKeyword();
 }
-
 
 function staticTypeToNode(type: StaticType):AST.TSTypeAnnotation {
   return tsTypeAnnotation(staticTypeToTSType(type));

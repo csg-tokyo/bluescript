@@ -72,38 +72,37 @@ function specializedFunctionBodyName(name: string) {
 
 // returns '(' or '<type check function>('
 // '(' is returned if the type cannot be checked.
-function checkType(type?: StaticType) {
+function checkType(name: string, type?: StaticType): string|undefined {
   if (type instanceof ArrayType) {
     if (type.elementType === Integer)
-      return 'gc_is_intarray(';
+      return `gc_is_intarray(${name})`;
     if (type.elementType === Float)
-      return 'gc_is_floatarray(';
+      return `gc_is_floatarray(${name})`;
     if (type.elementType === BooleanT)
-      return 'gc_is_boolarray(';
+      return `gc_is_boolarray(${name})`;
     if (type.elementType === Any)
-      return 'gc_is_anyarray(';
+      return `gc_is_anyarray(${name})`;
     else
-      throw new JITCompileError('Unknown array type.');
+      return `gc_is_instance_of_array(${name}) && ${checkType(name, type.elementType)}`
   }
 
   if (type instanceof InstanceType) {
-    return `gc_is_instance_of(&${classNameInC(type.name())}.clazz, `;
+    return `gc_is_instance_of(&${classNameInC(type.name())}.clazz, ${name})`;
   }
 
   switch (type) {
     case Integer:
-      return 'is_int_value(';
+      return `is_int_value(${name})`;
     case Float:
-      return 'is_float_value(';
+      return `is_float_value(${name})`;
     case BooleanT:
-      return 'is_bool_value(';
+      return `is_bool_value(${name})`;
     case StringT:
-      return `gc_is_string_object(`;
+      return `gc_is_string_object(${name})`;
     default:
       return undefined;
   }
 }
-
 
 export class JitCodeGenerator extends CodeGenerator{
   private profiler: Profiler;
@@ -310,10 +309,10 @@ export class JitCodeGenerator extends CodeGenerator{
       const paramName = (node.params[i] as AST.Identifier).name
       const info = fenv.table.lookup(paramName)
       if (info !== undefined) {
-        const check = checkType(targetParamTypes[i]);
+        const name = info.transpiledName(paramName)
+        const check = checkType(name, targetParamTypes[i]);
         if (check) {
-          const name = info.transpiledName(paramName)
-          paramSig.push(`${check}${name})`);
+          paramSig.push(check);
         }
       }
     }
