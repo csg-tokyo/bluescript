@@ -1487,17 +1487,19 @@ test('convert an any-type value to an array', () => {
     const arr3a: any = new Array<boolean>(n)
     const arr4a: any = new Array<string>(n, 'foo')
     const arr5a: any = new Array(n)
+    const arr6a: any = new Array<any>(n)
     const arr1: integer[] = arr1a
     const arr2: float[] = arr2a
     const arr3: boolean[] = arr3a
-    typeof arr4a
-    const arr5: any[] = arr5a
+    print(typeof arr4a)
     const arr4: string[] = arr4a
+    const arr5: any[] = arr5a
+    const arr6: any[] = arr6a
     print(arr1[0])
   }
   foo(3)
   `
-  expect(() => compileAndRun(src)).toThrow(/cannot convert any to string\[\]/)
+  expect(compileAndRun(src)).toBe('any\n0\n')
 })
 
 test('array length', () => {
@@ -1916,11 +1918,11 @@ test('property accesses', () => {
           3, 23, 23, 25, 25, 23].join('\n') + '\n')
 })
 
-test.only('multiple source files for classes', () => {
+test('multiple source files for classes', () => {
   const src1 = `
   class Pos {
     x: number
-    constructor(x: number) { this.x = 3 }
+    constructor(x: number) { this.x = x + 3 }
   }
 `
 
@@ -1929,11 +1931,11 @@ test.only('multiple source files for classes', () => {
     constructor(x: number, y: number) { super(x); this.y = y }
   }
 
-  const obj = new Pos3(3, 11)
+  const obj = new Pos3(7, 11)
   print(obj.x)
 `
 
-  expect(multiCompileAndRun(src1, src2)).toEqual('3\n')
+  expect(multiCompileAndRun(src1, src2)).toEqual('10\n')
 })
 
 test('access a class in another source file', () => {
@@ -2343,7 +2345,7 @@ test('accumulation in properties of any-type objects', () => {
   expect(() => { compileAndRun(src + src5)}).toThrow(/no such property/)
 })
 
-test('an array object bound to a any-type variable', () => {
+test('an array object bound to an any-type variable', () => {
   const maker = (init: string, v1: string, v2: string, v3: string) => `
   const a1 = ${init}
   print(typeof a1)

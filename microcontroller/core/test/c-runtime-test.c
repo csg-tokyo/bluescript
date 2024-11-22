@@ -95,7 +95,7 @@ bool is_live_object(value_t obj) {
 }
 
 static value_t gc_new_array2(int32_t n) {
-    return gc_new_array(1, n, VALUE_UNDEF);
+    return gc_new_array(NULL, n, VALUE_UNDEF);
 }
 
 static value_t gc_new_vector2(int32_t n) {

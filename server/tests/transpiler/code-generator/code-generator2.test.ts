@@ -484,3 +484,87 @@ test('Uint8Array is a leaf class', () => {
 
   expect(() => compileAndRun(src, destFile)).toThrow(/invalid super class/)
 })
+
+test.only('instanceof array', () => {
+  const src = `
+  class Foo {}
+  const a1 = [1, 2, 3]
+  const a2 = [0.1, 0.2]
+  const a3 = ['foo', 'bar']
+  const a4 = [new Foo()]
+  print(a1 instanceof Array)
+  print(a2 instanceof Array)
+  print(a3 instanceof Array)
+  print(a4 instanceof Array)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('true\ntrue\ntrue\ntrue\n')
+})
+
+test('object array', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(n) { this.value = n }
+  }
+  `
+  const src2 = `
+  const a = new Array<Foo>(n)
+  `
+  expect(() => compileAndRun(src + src2, destFile)).toThrow(/wrong number of arguments/)
+
+  const src3 = `
+  const a = new Array<Foo>(n, null)
+  `
+  expect(() => compileAndRun(src + src3, destFile)).toThrow(/incompatible argument/)
+
+  const src5 = `
+  function foo(n: integer) {
+    const obj = new Foo(7)
+    const a = new Array<Foo>(n, obj)
+    return a
+  }
+
+  const arr = foo(3)
+  print(arr[0].value)
+
+  const v: any = arr
+  print(v[0].value)
+
+  const arr2 = v
+  print(arr2[0].value)
+
+  v[0].value = 13
+  const arr2d = [ arr ]
+  print(arr2d[0])
+  print(arr2d[0][0].value)
+  `
+  expect(compileAndRun(src + src5, destFile)).toBe('7\n7\n7\n<class Foo[]>\n13\n')
+})
+
+test('array access in multiple source files', () => {
+  const src1 = `
+  class Foo {
+    value: integer
+    constructor(x: integer) { this.value = x }
+    make(n) { return new Array<Foo>(n, this) }
+  }
+
+  function foo(a) {
+    return a[0]
+  }
+  `
+  const src2 = `
+  function bar() {
+    const a = new Foo(7).make(3)
+    print(typeof a)
+    const b: any = a
+    const aa: Foo[] = b
+    print(foo(aa))
+  }
+
+  bar()
+  `
+
+  expect(multiCompileAndRun(src1, src2, destFile)).toBe('Foo[]\n<class Foo>\n')
+})

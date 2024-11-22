@@ -1,7 +1,7 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { Null, FunctionType, StaticType, ObjectType, isPrimitiveType } from '../types'
+import { Null, FunctionType, StaticType, ObjectType, isPrimitiveType, ArrayType } from '../types'
 import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../names'
@@ -187,11 +187,18 @@ class FunctionVarNameTable extends FunctionNameTable<VariableInfo> {
   isFreeInfo(free: NameInfo): boolean { return free instanceof FreeVariableInfo }
 }
 
+let arrayTypeIndex = 0
+
 export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
   private classTableObject?: ClassTable
+  private arrayTypes: Map<string, [string, ArrayType, boolean]>
+  private parentGlobalTable?: GlobalVariableNameTable
 
-  constructor(parent?: NameTable<VariableInfo>) {
+  constructor(parent?: GlobalVariableNameTable) {
     super(parent)
+    this.arrayTypes = new Map<string, [string, ArrayType, boolean]>()
+    this.parentGlobalTable = parent
+
     if (parent)
       this.classTableObject = undefined
     else
@@ -209,6 +216,37 @@ export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
       return this.parent.classTable()
     else
       throw new Error('fatal: not class table found')
+  }
+
+  getArrayTypes() { return this.arrayTypes }
+
+  // useArrayType() returns [clazz_name_in_C, whether_it_must_be_declared_in_C].
+  // The second element is false when the class type for the array is imported by 'extern'.
+  useArrayType(type: ArrayType) {
+    const name = type.name()
+    const info = this.arrayTypes.get(name)
+    if (info !== undefined)
+      return info
+    else {
+      const found = this.findUsedArrayType(name)
+      const info: [string, ArrayType, boolean]
+        = [ found ? found[0] : `array_type${arrayTypeIndex++}`, type, !found ]
+      this.arrayTypes.set(name, info)
+      return info
+    }
+  }
+
+  private findUsedArrayType(name: string) {
+    let tbl = this.parentGlobalTable
+    while (tbl !== undefined) {
+      const info = tbl.arrayTypes?.get(name)
+      if (info !== undefined)
+        return info
+      else
+        tbl = tbl.parentGlobalTable
+    }
+
+    return undefined
   }
 }
 
@@ -276,6 +314,18 @@ export class VariableEnv {
       if (info.isBoxed())
         f(info, key)
     })
+  }
+
+
+  useArrayType(type: ArrayType): [ string, ArrayType, boolean ] {
+    let env: VariableEnv | null = this
+    while (env !== null)
+      if (env.table instanceof GlobalVariableNameTable)
+        return env.table.useArrayType(type)
+      else
+        env = env.parent
+
+    throw new Error('internal error: cannot find a GlobalVariableNameTable for useArrayType()')
   }
 }
 

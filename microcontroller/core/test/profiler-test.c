@@ -55,7 +55,7 @@ static void test_converter() {
     const char* result_str_s = typeint_to_str(typeint_s);
     Assert_str_equals(result_str_s, "string");
 
-    value_t arr = gc_new_array(true, 2, int_to_value(4));
+    value_t arr = gc_new_array(NULL, 2, int_to_value(4));
     typeint_t typeint_arr = value_to_typeint(arr);
     const char* result_str_arr = typeint_to_str(typeint_arr);
     Assert_str_equals(result_str_arr, "Array<any>");

@@ -7,6 +7,7 @@ import { Integer, Float, BooleanT, StringT, Void, Null, Any,
     StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype,
     ByteArrayClass, } from '../types'
 import { InstanceType, ClassTable } from '../classes'
+import { VariableEnv } from './variables'
 
 export const anyTypeInC = 'value_t'
 export const funcTypeInC = 'value_t'
@@ -73,7 +74,7 @@ function typeConversionError(from: StaticType | undefined, to: StaticType | unde
 // returns '(' or '<conversion function>('
 // "from" or "to" is undefined when type conversion is unnecessary
 export function typeConversion(from: StaticType | undefined, to: StaticType | undefined,
-                               node: AST.Node) {
+                               env: VariableEnv, node: AST.Node) {
   if (from === undefined || to === undefined)
     return '('
 
@@ -153,9 +154,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
             else if (to.elementType === Any)
               return 'safe_value_to_anyarray('
             else
-              break
-              // cannot determine wether a given array
-              // is an array of String or Any
+              return `safe_value_to_value(&${env.useArrayType(to)[0]}.clazz, ` 
           }
           else if (to instanceof InstanceType)
             if (isSubtype(from, to))
@@ -359,7 +358,8 @@ export function arrayElementSetter(arrayType: StaticType | undefined) {
 export const accumulateInUnknownArray = 'gc_safe_array_acc'
 
 // makes an array object from elements
-export function arrayFromElements(t: StaticType) {
+export function arrayFromElements(arrayType: ArrayType, env: VariableEnv) {
+  const t = arrayType.elementType
   if (t === Integer)
     return 'gc_make_intarray('
   else if (t === Float)
@@ -367,12 +367,13 @@ export function arrayFromElements(t: StaticType) {
   else if (t === BooleanT)
     return 'gc_make_bytearray(true, '
   else if (t === Any)
-    return 'gc_make_array(1, '
+    return 'gc_make_array((void*)0, '
   else
-    return 'gc_make_array(0, '
+    return `gc_make_array(&${env.useArrayType(arrayType)[0]}.clazz, `
 }
 
-export function arrayFromSize(t: StaticType) {
+export function arrayFromSize(arrayType: ArrayType, env: VariableEnv) {
+  const t = arrayType.elementType
   if (t === Integer)
     return 'gc_new_intarray('
   else if (t === Float)
@@ -380,9 +381,9 @@ export function arrayFromSize(t: StaticType) {
   else if (t === BooleanT)
     return 'gc_new_bytearray(true, '
   else if (t === Any)
-    return 'gc_new_array(1, '
+    return 'gc_new_array((void*)0, '
   else
-    return 'gc_new_array(0, '
+    return `gc_new_array(&${env.useArrayType(arrayType)[0]}.clazz, `
 }
 
 export function actualElementType(t: StaticType) {
@@ -403,7 +404,7 @@ export function getArrayLengthIndex(t: StaticType) {
     return 0
 }
 
-export const runtimeTypeArray = 'array_object'
+export const isInstanceOfArray = `gc_is_instance_of_array(`
 
 export const stringMaker = 'gc_new_string'
 export const isStringType = 'gc_is_string_object('
@@ -493,7 +494,7 @@ export function classDeclaration(clazz: InstanceType, classTable: ClassTable) {
   const propList = `static const uint16_t ${propListName}[] = { ${ptable.props.join(', ')} };`
 
   return `${propList}\nCLASS_OBJECT(${classNameInC(name)}, ${table.length}) = {
-    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .pt = ${propTable}, .vtbl = { ${tableArray} }}};`
+    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .f = 0, .pt = ${propTable}, .vtbl = { ${tableArray} }}};`
 }
 
 export function makeInstance(clazz: InstanceType) {
@@ -510,4 +511,12 @@ export function methodLookup(method: [StaticType, number, InstanceType], func: s
 
 export function isInstanceOf(t: InstanceType) {
   return `gc_is_instance_of(&${classObjectNameInC(t.name())}, `
+}
+
+export function arrayTypeDeclaration(type: ArrayType, name: string, is_declared: boolean) {
+  const typeName = typeToString(type)
+  if (is_declared)
+    return `CLASS_OBJECT(${name}, 0) = { .body = { .s = 2, .i = 1, .cn = "${typeName}", .sc = &object_class.clazz, .f = 1, .pt = { .size = 0, .offset = 0, .unboxed = 0, .prop_names = (void*)0, .unboxed_types = (void*)0 }, .vtbl = {}}};\n`
+  else
+    return `extern CLASS_OBJECT(${name}, 0);\n`
 }
