@@ -71,7 +71,7 @@ export default class Session {
     }
 
     const start = performance.now();
-    
+
     // Transpile
     const ast = runBabelParser(tsString, 1);
     convertAst(ast, this.profiler);

@@ -56,7 +56,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     const dram = useMemory('DRAM')
     
     const bluetooth = useRef(new Bluetooth())
-    // let onExecutionComplete = useRef((executionTime: number) => {})
+
     // To use these variables in callbacks
     const latestCellRef = useRef(latestCell)
     latestCellRef.current = latestCell
@@ -194,7 +194,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                            
         }
     }
-
 
     return (
         <ReplContext.Provider value={{
