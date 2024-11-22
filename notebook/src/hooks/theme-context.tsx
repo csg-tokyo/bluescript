@@ -31,7 +31,7 @@ const lightModeColorSet = {
     red: '#ff4d4f',
     orange: '#faad14',
     blue: "#85a5ff",
-    gray: "bfbfbf",
+    gray: "#bfbfbf",
     primary: '#1890ff',
 }
 
