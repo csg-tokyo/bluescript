@@ -3,7 +3,8 @@ import { ReloadOutlined, CaretRightOutlined, LoadingOutlined, CopyOutlined } fro
 import CodeEditor from '@uiw/react-textarea-code-editor';
 import type { CellT } from '../../utils/type';
 import { useContext } from 'react';
-import { ReplContext } from '../../context/repl-context';
+import { ReplContext } from '../../hooks/repl-context';
+import { ThemeContext } from '../../hooks/theme-context';
 
 
 export default function CodeArea() {
@@ -50,7 +51,12 @@ function ActivatedScreen() {
             <ButtonBar />
             <div style={{paddingTop: 30, paddingBottom: 250, overflow: 'scroll', height: '100%'}}>
                 { replContext.postExecutionCells.map(cell => <Cell cell={cell} key={cell.id} />)}
-                <Cell cell={replContext.latestCell} key={replContext.latestCell.id} />
+                <Cell 
+                    cell={replContext.latestCell} 
+                    onExecuteClick={replContext.executeLatestCell} 
+                    setCellCode={replContext.setLatestCellCode}
+                    key={replContext.latestCell.id} 
+                />
             </div>
         </div>
     )
@@ -61,8 +67,8 @@ function ButtonBar() {
     return (
         <Flex justify='start' align='center' style={{height:36, boxShadow: '0px 0px 4px gray'}}>
             <Button icon={<ReloadOutlined />} type='text' onClick={replContext.reset}>Reset</Button>
-            <Checkbox onChange={(e)=>replContext.updateUseJIT(e.target.checked)}>Use JIT</Checkbox>
-            <Checkbox onChange={(e)=>replContext.updateUseFlash(e.target.checked)}>Use Flash</Checkbox>
+            <Checkbox onChange={(e)=>replContext.updateUseJIT(e.target.checked)} checked={replContext.useJIT}>Use JIT</Checkbox>
+            <Checkbox onChange={(e)=>replContext.updateUseFlash(e.target.checked)} checked={replContext.useFlash}>Use Flash</Checkbox>
         </Flex>
     )
 }
@@ -70,9 +76,12 @@ function ButtonBar() {
 function Cell(props: {
     cell: CellT,
     onExecuteClick?: () => Promise<void>,
+    setCellCode?: (code: string) => void
 }) {
+    const theme = useContext(ThemeContext)
+
     const state = props.cell.state
-    let border = state === 'user-writing' ? 'solid #69c0ff 1px' : 'solid #bfbfbf 1px'
+    let border = state === 'user-writing' ? `solid ${theme.primary} 1px` : `solid ${theme.boarder.gray} 1px`
 
     const onCopyClick = async () => {
         await global.navigator.clipboard.writeText(props.cell.code);
@@ -84,7 +93,7 @@ function Cell(props: {
         else if (state === 'compiling' || state === 'sending' || state === 'executing')
             return <Button shape='circle' type='text' style={{marginRight:5}} disabled icon={<LoadingOutlined style={{fontSize:20}} />}/>
         else 
-            return <Button shape='circle' type='text' onClick={onCopyClick} style={{marginRight:5, color: '#8c8c8c'}} icon={<CopyOutlined style={{fontSize:20}} />}/>
+            return <Button shape='circle' type='text' onClick={onCopyClick} style={{marginRight:5, color: theme.text.gray1}} icon={<CopyOutlined style={{fontSize:20}} />}/>
     }
 
     let statusText = () => {
@@ -93,12 +102,15 @@ function Cell(props: {
         if (state === 'executing') { return 'Executing ...' }
         if (state === 'done') {
             const t = props.cell.time;
-            return `| compile: ${t?.compile ?? '??'} ms | bluetooth: ${t?.bluetooth ?? '??'} ms | execution: ${t?.execution ?? '??'} ms |`
+            const compile = t?.compile ? Math.round(t?.compile * 100) / 100 : '??'
+            const bluetooth = t?.bluetooth ? Math.round(t?.bluetooth * 100) / 100 : '??'
+            const execution = t?.execution ? Math.round(t?.execution * 100) / 100 : '??'
+            return `| compile: ${compile ?? '??'} ms | bluetooth: ${bluetooth ?? '??'} ms | execution: ${execution ?? '??'} ms |`
         }
     }
 
     return (
-        <div style={{width: '100%', paddingRight:30, paddingLeft: 15}}>
+        <div style={{width: '100%', paddingRight:30, paddingLeft: 15, paddingBottom: 20}}>
             <Row>
             <Flex style={{width: '100%'}}>
                 <CellButton />
@@ -108,18 +120,25 @@ function Cell(props: {
                     placeholder=""
                     style={{
                         fontSize: 14,
-                        backgroundColor: '#f0f0f0',
+                        backgroundColor: theme.background.gray,
                         width:'100%',
                         minHeight: 50, 
                         border,
                         fontFamily: 'ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace'
                     }}
-                    onKeyDown={(e) => {if (e.key === 'Enter' && e.shiftKey) console.log("Shift Enter")}}
+                    disabled = {props.cell.state !== 'user-writing'}
+                    onKeyDown={(e) => {if (e.key === 'Enter' && e.shiftKey && props.onExecuteClick) props.onExecuteClick()}}
+                    onChange={(e) => props.setCellCode ? props.setCellCode(e.target.value) : 0 }
                 />
             </Flex>
             </Row>
+            { props.cell.compileError !== '' &&
+                <Row justify='start' style={{ marginLeft: 50}}>
+                    <Typography.Text style={{color: theme.red, fontSize: 16}}>{props.cell.compileError}</Typography.Text>
+                </Row>
+            }
             <Row justify='end'>
-                <Typography.Text style={{color: '#8c8c8c'}}>{statusText()}</Typography.Text>
+                <Typography.Text style={{color: theme.text.gray1}}>{statusText()}</Typography.Text>
             </Row>
         </div>
     )

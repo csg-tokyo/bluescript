@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Splitter, ConfigProvider} from 'antd';
-import ReplProvider from '../context/repl-context';
+import ReplProvider from '../hooks/repl-context';
 import CodeArea from './components/code-area';
 import OutputArea from './components/output-area';
 import SystemArea from './components/system-area';
@@ -14,7 +14,7 @@ export default function Home() {
             theme={{components: {Splitter: {splitBarDraggableSize: 0}}}}>
         <ReplProvider>
             <Splitter>
-                <Splitter.Panel defaultSize="65%" min="50%" max="80%" style={{overflow: 'hidden'}}>
+                <Splitter.Panel defaultSize="65%" min="50%" max="80%" style={{overflow: 'scroll'}}>
                     <CodeArea />
                 </Splitter.Panel>
                 <Splitter.Panel>

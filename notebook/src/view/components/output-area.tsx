@@ -1,7 +1,8 @@
 import { Tabs, Badge } from "antd"
 import type { TabsProps } from 'antd';
 import { useContext } from 'react';
-import { ReplContext } from '../../context/repl-context';
+import { ReplContext } from '../../hooks/repl-context';
+import { ThemeContext } from "../../hooks/theme-context";
 
 export default function OutputArea(props: {height: number}) {
   const replContext = useContext(ReplContext)
@@ -35,8 +36,10 @@ function NormalOutputArea(props: {height: number, output: string[]}) {
 }
 
 function ErrorOutputArea(props: {height: number, error: string[]}) {
+  const theme = useContext(ThemeContext)
+
   return (
-    <div style={{height: props.height, width: '100%', color: "red"}}>
+    <div style={{height: props.height, width: '100%', color: theme.red}}>
       { props.error.map((s, id) => <div key={id}>{s}</div>)}
     </div>
   )
