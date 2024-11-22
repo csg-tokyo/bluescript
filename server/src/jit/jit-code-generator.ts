@@ -72,33 +72,33 @@ function specializedFunctionBodyName(name: string) {
 
 // returns '(' or '<type check function>('
 // '(' is returned if the type cannot be checked.
-function checkType(name: string, type?: StaticType): string|undefined {
+function checkType(env: VariableEnv, type?: StaticType): string|undefined {
   if (type instanceof ArrayType) {
     if (type.elementType === Integer)
-      return `gc_is_intarray(${name})`;
+      return 'gc_is_intarray(';
     if (type.elementType === Float)
-      return `gc_is_floatarray(${name})`;
+      return 'gc_is_floatarray(';
     if (type.elementType === BooleanT)
-      return `gc_is_boolarray(${name})`;
+      return 'gc_is_boolarray(';
     if (type.elementType === Any)
-      return `gc_is_anyarray(${name})`;
+      return 'gc_is_anyarray(';
     else
-      return `gc_is_instance_of_array(${name}) && ${checkType(name, type.elementType)}`
+      return `gc_is_instance_of(&${env.useArrayType(type)[0]}.clazz, `;
   }
 
   if (type instanceof InstanceType) {
-    return `gc_is_instance_of(&${classNameInC(type.name())}.clazz, ${name})`;
+    return `gc_is_instance_of(&${classNameInC(type.name())}.clazz, `;
   }
 
   switch (type) {
     case Integer:
-      return `is_int_value(${name})`;
+      return 'is_int_value(';
     case Float:
-      return `is_float_value(${name})`;
+      return 'is_float_value(';
     case BooleanT:
-      return `is_bool_value(${name})`;
+      return 'is_bool_value(';
     case StringT:
-      return `gc_is_string_object(${name})`;
+      return 'gc_is_string_object(';
     default:
       return undefined;
   }
@@ -249,12 +249,18 @@ export class JitCodeGenerator extends CodeGenerator{
     this.result.write(') {')
     this.result.right().nl()
 
+    // For test
+    this.result.write(`#ifdef TEST64`).nl().write('puts("Execute specialized function");').nl().write('#endif').nl()
+
     this.result.write('return ');
     this.functionCall(node, fenv, specializedFuncName, specializedType, funcType.paramTypes, 'self')
 
     this.result.left().nl()
     this.result.write('} else {')
     this.result.right().nl()
+
+    // For test
+    this.result.write(`#ifdef TEST64`).nl().write('puts("Execute original function");').nl().write('#endif').nl()
 
     this.result.write('return ');
     this.functionCall(node, fenv, originalFuncName, funcType, funcType.paramTypes, 'self')
@@ -309,10 +315,10 @@ export class JitCodeGenerator extends CodeGenerator{
       const paramName = (node.params[i] as AST.Identifier).name
       const info = fenv.table.lookup(paramName)
       if (info !== undefined) {
-        const name = info.transpiledName(paramName)
-        const check = checkType(name, targetParamTypes[i]);
+        const check = checkType(fenv, targetParamTypes[i]);
         if (check) {
-          paramSig.push(check);
+          const name = info.transpiledName(paramName)
+          paramSig.push(`${check}${name})`);
         }
       }
     }

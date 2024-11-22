@@ -288,7 +288,7 @@ print(add(1, 5.5, false))
   const func = profiler.getFunctionProfileById(0);
   if (func === undefined)
     throw new Error(`Cannot fine func.`)
-  profiler.setFuncSpecializedType(0, ["integer", "integer", "undefined", "undefined"].map(t => typeStringToStaticType(t, result1.names)))
+  profiler.setFuncSpecializedType(0, ["integer", "float", "boolean", "undefined"].map(t => typeStringToStaticType(t, result1.names)))
 
   const file2 = tempCFilePath('file2')
   const result2 = compile(1, func.src, profiler, file2, result1.names)
@@ -296,7 +296,7 @@ print(add(1, 5.5, false))
   const file3 = tempCFilePath('file3')
   const result3 = compile(2, src3, profiler, file3, result2.names)
   expect(execute([file0, file1, file2, file3], [result1.main, result2.main, result3.main], tempCFilePath('file4'), tempExecutableFilePath('bscript')))
-    .toEqual(`5.400000\n12.000000\n`)
+    .toEqual(`5.400000\nExecute specialized function\n12.000000\n`)
 })
 
 test('jit compile: string', () => {
@@ -329,7 +329,7 @@ printStr("world");
   const file3 = tempCFilePath('file3')
   const result3 = compile(2, src3, profiler, file3, result2.names)
   expect(execute([file0, file1, file2, file3], [result1.main, result2.main, result3.main], tempCFilePath('file4'), tempExecutableFilePath('bscript')))
-    .toEqual(`hello\nworld\n`)
+    .toEqual(`hello\nExecute specialized function\nworld\n`)
 })
 
 test('jit compile: intarray, floatarray, boolarray', () => {
@@ -362,7 +362,7 @@ print(add0([1, 3], [1.1, 4.4], [false, false]));
   const file3 = tempCFilePath('file3')
   const result3 = compile(2, src3, profiler, file3, result2.names)
   expect(execute([file0, file1, file2, file3], [result1.main, result2.main, result3.main], tempCFilePath('file4'), tempExecutableFilePath('bscript')))
-    .toEqual(`2.100000\n3.200000\n`)
+    .toEqual(`2.100000\nExecute specialized function\n3.200000\n`)
 })
 
 test('jit compile: anyarray, array', () => {
@@ -398,7 +398,7 @@ print(aarr0(aarr, arr));
   const file3 = tempCFilePath('file3')
   const result3 = compile(2, src3, profiler, file3, result2.names)
   expect(execute([file0, file1, file2, file3], [result1.main, result2.main, result3.main], tempCFilePath('file4'), tempExecutableFilePath('bscript')))
-    .toEqual(`1\n1\n`)
+    .toEqual(`1\nExecute specialized function\n1\n`)
 })
 
 test('jit compile: class', () => {
@@ -442,7 +442,7 @@ print(area(new Rectangle(3, 4)))
   const file3 = tempCFilePath('file3')
   const result3 = compile(2, src3, profiler, file3, result2.names)
   expect(execute([file0, file1, file2, file3], [result1.main, result2.main, result3.main], tempCFilePath('file4'), tempExecutableFilePath('bscript')))
-    .toEqual(`12\n12\n`)
+    .toEqual(`12\nExecute specialized function\n12\n`)
 })
 
 test('jit compile: class array', () => {
@@ -490,7 +490,7 @@ print(areas([new Rectangle(11, 4), new Rectangle(11, 4), new Rectangle(11, 4)]))
   const file3 = tempCFilePath('file3')
   const result3 = compile(2, src3, profiler, file3, result2.names)
   expect(execute([file0, file1, file2, file3], [result1.main, result2.main, result3.main], tempCFilePath('file4'), tempExecutableFilePath('bscript')))
-    .toEqual(`132\n132\n`)
+    .toEqual(`132\nExecute specialized function\n132\n`)
 })
 
 test('jit compile: function redefinition after jit compile', () => {
@@ -533,5 +533,5 @@ print(add(4, 5))
   const file4 = tempCFilePath('file4')
   const result4 = compile(3, src4, profiler, file4, result3.names)
   expect(execute([file0, file1, file2, file3, file4], [result1.main, result2.main, result3.main, result4.main], tempCFilePath('file5'), tempExecutableFilePath('bscript')))
-    .toEqual(`9\n9\n11\n`)
+    .toEqual(`9\nExecute specialized function\n9\nExecute specialized function\n11\n`)
 })

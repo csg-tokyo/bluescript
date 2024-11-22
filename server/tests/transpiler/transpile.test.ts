@@ -10,7 +10,7 @@ test("transpile", () => {
 })
 
 const bsSrc = `
-let sarr: any[][] = [[]]
+let sarr: string[] = ['hello']
 `
 
 test("playground", () => {

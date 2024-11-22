@@ -61,7 +61,6 @@ export default class Session {
 
   public executeWithProfiling(tsString: string) {
     this.currentCodeId += 1;
-    const ast = runBabelParser(tsString, 1)
 
     const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
       return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, tsString);
@@ -72,7 +71,10 @@ export default class Session {
     }
 
     const start = performance.now();
+    
     // Transpile
+    const ast = runBabelParser(tsString, 1);
+    convertAst(ast, this.profiler);
     const tResult = jitTranspile(this.currentCodeId, ast, typeChecker, codeGenerator, this.nameTable, undefined)
     const entryPointName = tResult.main;
     const cString = cProlog + tResult.code;
@@ -105,11 +107,9 @@ export default class Session {
     }
 
     // Transpile
-    const ast = runBabelParser(func.src, 1);
     const start = performance.now();
-
+    const ast = runBabelParser(func.src, 1);
     convertAst(ast, this.profiler);
-    // const tResult = transpile(0, func.src, this.nameTable, undefined, -1, ast, codeGenerator);
     const tResult = jitTranspile(this.currentCodeId, ast, typeChecker, codeGenerator, this.nameTable, undefined)
     const entryPointName = tResult.main;
     const cString = cProlog + tResult.code;
