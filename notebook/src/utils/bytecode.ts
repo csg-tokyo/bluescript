@@ -16,7 +16,7 @@ export enum BYTECODE {
 
 const LOAD_HEADER_SIZE = 9;
 
-export class BytecodeGenerator {
+export class BytecodeBufferBuilder {
     private readonly unitSize:number;
     private units: Buffer[] = [];
     private lastUnit: Buffer;
@@ -30,10 +30,12 @@ export class BytecodeGenerator {
 
     public loadToRAM(address: number, data: Buffer) {
         this.load(BYTECODE.LOAD, address, data);
+        return this
     }
 
     public loadToFlash(address: number, data: Buffer) {
         this.load(BYTECODE.FLOAD, address, data);
+        return this
     }
 
     private load(loadCmd: number, address: number, data: Buffer) {
@@ -65,6 +67,7 @@ export class BytecodeGenerator {
                 this.lastUnitRemain = this.unitSize;
             }
         }
+        return this
     }
 
     private createLoadHeader(loadCmd: number, address: number, size: number) {
@@ -86,6 +89,7 @@ export class BytecodeGenerator {
             this.units.push(this.lastUnit);
             this.lastUnit = header;
         }
+        return this
     }
 
 
@@ -97,6 +101,7 @@ export class BytecodeGenerator {
             this.units.push(this.lastUnit);
             this.lastUnit = header;
         }
+        return this
     }
 
     public generate() {
@@ -114,7 +119,7 @@ export class BytecodeGenerator {
 
 type ParseResult = 
     {bytecode:BYTECODE.RESULT_LOG, log:string} | 
-    {bytecode:BYTECODE.RESULT_ERROR, log:string} |
+    {bytecode:BYTECODE.RESULT_ERROR, error:string} |
     {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemInfo} |
     {bytecode:BYTECODE.RESULT_EXECTIME, exectime:number} |
     {bytecode:BYTECODE.RESULT_PROFILE, fid:number, paramtypes:string[]} |
@@ -128,7 +133,7 @@ export function bytecodeParser(data: DataView):ParseResult {
         return {bytecode, log:Buffer.from(data.buffer.slice(1)).toString()};
       case BYTECODE.RESULT_ERROR:
         // | cmd (1byte) | log string |
-        return {bytecode, log:Buffer.from(data.buffer.slice(1)).toString()}
+        return {bytecode, error:Buffer.from(data.buffer.slice(1)).toString()}
       case BYTECODE.RESULT_MEMINFO:
           // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | flash address | flash size |
           const meminfo = {

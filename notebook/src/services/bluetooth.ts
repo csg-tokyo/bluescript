@@ -31,11 +31,6 @@ export default class Bluetooth {
     return end - start
   }
 
-  public async readBuffer() {
-    await this.init();
-    return await this.characteristic?.readValue();
-  }
-
   public setNotificationHandler(handler: (event: Event) => void) {
     this.notificationHandler = handler;
   }
