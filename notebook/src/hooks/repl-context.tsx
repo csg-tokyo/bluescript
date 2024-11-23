@@ -56,7 +56,15 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     const dram = useMemory('DRAM')
     
     const bluetooth = useRef(new Bluetooth())
-    let onExecutionComplete = useRef((executionTime: number) => {})
+
+    // To use these variables in callbacks
+    const latestCellRef = useRef(latestCell)
+    latestCellRef.current = latestCell
+    const iramRef = useRef(iram)
+    const dramRef = useRef(dram)
+    iramRef.current = iram
+    dramRef.current = dram
+    
 
     useEffect(() => {
         bluetooth.current.setNotificationHandler(onReceiveNotification);
@@ -75,10 +83,9 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     }
 
     const executeLatestCell = async () => {
-        let updatedLatestCell:CellT = {...latestCell, compileError: '', state: 'compiling'}
-        setLatestCell(updatedLatestCell)
+        setLatestCell({...latestCell, compileError: '', state: 'compiling'})
         try {
-            const compileResult = useJIT ? await network.compileWithProfiling(updatedLatestCell.code) : await network.compile(updatedLatestCell.code)
+            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code)
             const iramBuffer = Buffer.from(compileResult.iram.data, "hex")
             const dramBuffer = Buffer.from(compileResult.dram.data, "hex")
             const flashBuffer = Buffer.from(compileResult.flash.data, "hex")
@@ -89,26 +96,12 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                         .loadToFlash(compileResult.flash.address, flashBuffer)
                         .jump(compileResult.entryPoint)
                         .generate()
-            updatedLatestCell = {...updatedLatestCell, state: 'sending'}
-            setLatestCell(updatedLatestCell)
+            setLatestCell({...latestCell, compileError: '', state: 'sending'})
             iram.actions.setUsedSegment(compileResult.iram.address, iramBuffer.length)
             dram.actions.setUsedSegment(compileResult.dram.address, dramBuffer.length)
             const bluetoothTime = await bluetooth.current.sendBuffers(bytecodeBuffer)
             const compileTime = compileResult.compileTime
-            updatedLatestCell = {...updatedLatestCell, state: 'executing', time: {compile: compileTime, bluetooth: bluetoothTime}}
-            setLatestCell(updatedLatestCell)
-            onExecutionComplete.current = (executionTime: number) => {
-                if (updatedLatestCell.time !== undefined && updatedLatestCell.time?.execution === undefined) {
-                    updatedLatestCell.time.execution = executionTime
-                    updatedLatestCell.state = 'done'
-                    const nextCellId = updatedLatestCell.id + 1
-                    setPostExecutionCells((cells) =>
-                        [...cells, updatedLatestCell]
-                    )
-                    setLatestCell({id: nextCellId, code: '', state: 'user-writing'})
-                }
-                
-            }
+            setLatestCell({...latestCell, state: 'executing', time: {compile: compileTime, bluetooth: bluetoothTime}})
         } catch (error: any) {
             if (error instanceof CompileError) {
                 setLatestCell({...latestCell, state: 'user-writing', compileError: error.toString()})
@@ -145,13 +138,29 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         });
     }
 
+    const onExecutionComplete = (executionTime: number) => {
+        if (latestCellRef.current.time !== undefined && latestCellRef.current.time?.execution === undefined) {
+            latestCellRef.current.time.execution = executionTime
+            latestCellRef.current.state = 'done'
+            const nextCellId = latestCellRef.current.id + 1
+            setPostExecutionCells((cells) =>
+                [...cells, latestCellRef.current]
+            )
+            setLatestCell({id: nextCellId, code: '', state: 'user-writing'})
+        }
+    }
+
     const jitCompile = (fid: number, paramtypes: string[]) => {
         network.jitCompile(fid, paramtypes).then((compileResult) => {
             console.log(compileResult)
+            const iramBuffer = Buffer.from(compileResult.iram.data, "hex")
+            const dramBuffer = Buffer.from(compileResult.dram.data, "hex")
+            iramRef.current.actions.setUsedSegment(compileResult.iram.address, iramBuffer.length)
+            dramRef.current.actions.setUsedSegment(compileResult.dram.address, dramBuffer.length)
             const bytecodeBuffer = 
                 new BytecodeBufferBuilder(MAX_MTU)
-                    .loadToRAM(compileResult.iram.address, Buffer.from(compileResult.iram.data, "hex"))
-                    .loadToRAM(compileResult.dram.address, Buffer.from(compileResult.dram.data, "hex"))
+                    .loadToRAM(compileResult.iram.address, iramBuffer)
+                    .loadToRAM(compileResult.dram.address, dramBuffer)
                     .loadToFlash(compileResult.flash.address, Buffer.from(compileResult.flash.data, "hex"))
                     .jump(compileResult.entryPoint)
                     .generate()
@@ -175,7 +184,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                 onDeviceResetComplete(parseResult.meminfo)
                 break;
             case BYTECODE.RESULT_EXECTIME: 
-                onExecutionComplete.current(parseResult.exectime)
+                onExecutionComplete(parseResult.exectime)
                 break;
             case BYTECODE.RESULT_PROFILE: {
                 console.log("receive profile", parseResult.fid, parseResult.paramtypes);
@@ -185,7 +194,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                            
         }
     }
-
 
     return (
         <ReplContext.Provider value={{

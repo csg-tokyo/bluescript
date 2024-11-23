@@ -20,6 +20,7 @@ function performance_now(): integer { return 0 }
 const prologCcode = `/* To compile, cc -DTEST64 this_file.c c-runtime.c */
 #include "../../microcontroller/core/include/c-runtime.h"
 #include "../../microcontroller/core/include/profiler.h"
+#include <stdio.h>
 
 `
 const prologCcode2 = `
