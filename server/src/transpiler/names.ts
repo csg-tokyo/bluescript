@@ -76,6 +76,7 @@ export interface NameTable<Info extends NameInfo> {
   returnType(): StaticType | undefined | null   // null if the table is for top-level
   setReturnType(t: StaticType): void
   isGlobal(): boolean       // true if the table is for top-level
+  hasParent(): boolean
   classTable(): ClassTable
 }
 
@@ -153,6 +154,8 @@ export abstract class GlobalNameTable<Info extends NameInfo> implements NameTabl
 
   isGlobal() { return true }
 
+  hasParent() { return this.parent !== undefined }
+
   abstract classTable(): ClassTable
 }
 
@@ -171,7 +174,7 @@ export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
     for (const k in this.elements)
       f(this.elements[k], k)
   }
- 
+
   record(key: string, t: StaticType, maker: NameTableMaker<Info>,
          init?: (i: Info) => void): boolean {
     const old = this.elements[key]
@@ -204,6 +207,8 @@ export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
   }
 
   isGlobal() { return false }
+
+  hasParent() { return true }
 
   classTable() { return this.parent.classTable() }
 }

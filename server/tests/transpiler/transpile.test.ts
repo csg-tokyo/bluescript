@@ -10,17 +10,7 @@ test("transpile", () => {
 })
 
 const bsSrc = `
-class GPIO {
-    pinNum:integer;
-
-    constructor(pinNum: integer) {
-        this.pinNum = pinNum;
-    }
-
-    set(level: integer) {
-      this.pinNum + 1
-    }
-}
+let sarr: string[] = ['hello']
 `
 
 test("playground", () => {

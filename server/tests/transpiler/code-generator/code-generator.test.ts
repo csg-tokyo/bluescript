@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { compileAndRun, multiCompileAndRun } from './test-code-generator'
+import { compileAndRun, multiCompileAndRun, toBoolean } from './test-code-generator'
 import { describe, expect, test, beforeAll } from '@jest/globals'
 
 beforeAll(() => {
@@ -112,7 +112,7 @@ test('literals', () => {
   }
   foo(33)
   `
-  expect(compileAndRun(src)).toBe('undefined\n33\n7.400000\n1\n0\ntest\n')
+  expect(compileAndRun(src)).toBe('undefined\n33\n7.400000\ntrue\nfalse\ntest\n')
 })
 
 test('undefined', () => {
@@ -599,17 +599,37 @@ test('calling a const function (it compares execution times.  If it fails, try a
       return fib_fast(i - 1) + fib_fast(i - 2)
   }
 
+  code\`
+  int32_t c_fib(int32_t i) {
+    if (i < 2)
+      return 1;
+    else
+      return c_fib(i - 1) + c_fib(i - 2);
+  }
+  \`
+
+  function fib_native(i: integer): integer {
+    const t1 = performance_now()
+    code\`c_fib(40);\`
+    const t2 = performance_now()
+    return t2 - t1
+  }
+
   const t0 = performance_now()
   fib(40)
   const t1 = performance_now()
   fib_fast(40)
   const t2 = performance_now()
+
+  const t3 = fib_native(40)
+
   print(t1 - t0)
   print(t2 - t1)
+  print(t3)
   print('result')
   print(t1 - t0 + 100 > t2 - t1)`
 
-  expect(compileAndRun(src)).toMatch(/result\n1/)
+  expect(compileAndRun(src)).toMatch(/result\ntrue/)
 })
 
 test('an arrow function capturing a local variable', () => {
@@ -670,7 +690,7 @@ test('unary operator', () => {
   }
   foo(3)
 `
-  expect(compileAndRun(src)).toBe('3\n-3\n0\n-4\n3\n-3\n0\n-4\n3.000000\n-3.000000\n0\n')
+  expect(compileAndRun(src)).toBe('3\n-3\nfalse\n-4\n3\n-3\nfalse\n-4\n3.000000\n-3.000000\nfalse\n')
 })
 
 test('typeof operator', () => {
@@ -743,7 +763,7 @@ test('equality operators', () => {
   }
   foo(5, 5.0)
 `
-  expect(compileAndRun(src)).toBe([1, 1, 0, 0].join('\n') + '\n')
+  expect(compileAndRun(src)).toBe(toBoolean([1, 1, 0, 0]).join('\n') + '\n')
 })
 
 test('boolean equality', () => {
@@ -760,7 +780,27 @@ test('boolean equality', () => {
   }
   foo(5, 7)
 `
-  expect(compileAndRun(src)).toBe([1, 0, 0, 1, 0].join('\n') + '\n')
+  expect(compileAndRun(src)).toBe(toBoolean([1, 0, 0, 1, 0]).join('\n') + '\n')
+})
+
+test('string equality', () => {
+  const src = `
+  function foo(m: string, n: string) {
+    print(m == n)
+    print(m != n)
+  }
+  function bar(m: any, n: string) {
+    print(m == n)
+    print(n == m)
+    print(m != n)
+    print(n != m)
+  }
+  foo('foo', 'foo')
+  foo('foo', 'bar')
+  bar('foo', 'foo')
+  bar('foo', 'bar')
+`
+  expect(compileAndRun(src)).toBe(toBoolean([1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1]).join('\n') + '\n')
 })
 
 test('basic binary operators', () => {
@@ -779,7 +819,7 @@ test('basic binary operators', () => {
   }
   foo(5, 3.0)
 `
-  expect(compileAndRun(src)).toBe(['8.000000', '15.000000', 1, 1, '2.000000', 1.666667, 0, 0].join('\n') + '\n')
+  expect(compileAndRun(src)).toBe(['8.000000', '15.000000', true, true, '2.000000', 1.666667, false, false].join('\n') + '\n')
 })
 
 test('integer binary operators', () => {
@@ -810,6 +850,25 @@ test('int % float is not valid', () => {
   foo(5, 3.0)
 `
   expect(() => { compileAndRun(src) }).toThrow(/invalid operands.*line 3/)
+})
+
+test('string comparison', () => {
+  const src = `
+  function foo(m: string, n: string) {
+    print(m < n)
+    print(m <= n)
+    print(m > n)
+    print(m >= n)
+  }
+  function bar(m: any, n: string) {
+    print(m < n)
+    print(n < m)
+  }
+  foo('foo', 'bar')
+  foo('foo', 'foo')
+  bar('foo', 'bar')
+`
+  expect(compileAndRun(src)).toBe(toBoolean([0, 0, 1, 1, 0, 1, 0, 1, 0, 1]).join('\n') + '\n')
 })
 
 test('assignment', () => {
@@ -935,7 +994,7 @@ test('logical operator', () => {
   print(foo(null, 0, 2))
   `
 
-  expect(compileAndRun(src)).toBe([1, 1, 0].join('\n') + '\n')
+  expect(compileAndRun(src)).toBe('true\ntrue\nfalse\n')
 })
 
 test('conditional operator', () => {
@@ -1302,7 +1361,7 @@ test('boolean array', () => {
 
   print(foo())`
 
-  expect(compileAndRun(src)).toBe('1\n0\n1\n')
+  expect(compileAndRun(src)).toBe('true\nfalse\ntrue\n')
 })
 
 test('new Array<boolean>(n)', () => {
@@ -1319,7 +1378,7 @@ test('new Array<boolean>(n)', () => {
 
   print(foo(3, 4))`
 
-  expect(compileAndRun(src)).toBe('0\n1\n1\n')
+  expect(compileAndRun(src)).toBe('false\ntrue\ntrue\n')
 })
 
 test('new Array<boolean>(n, v)', () => {
@@ -1331,7 +1390,7 @@ test('new Array<boolean>(n, v)', () => {
 
   print(foo(3))`
 
-  expect(compileAndRun(src)).toBe('1\n')
+  expect(compileAndRun(src)).toBe('true\n')
 })
 
 test('new Array<boolean>(n, v: any)', () => {
@@ -1346,7 +1405,23 @@ test('new Array<boolean>(n, v: any)', () => {
 
   print(foo(3))`
 
-  expect(compileAndRun(src)).toBe('1\n')
+  expect(compileAndRun(src)).toBe('true\n')
+})
+
+test('convert boolean[] to any', () => {
+  const src = `
+  function foo(n: integer) {
+    const a1 = new Array<boolean>(n, true)
+    const a2: any = a1
+    a2[1] = false
+    print(a2[1])
+    return a2[0]
+  }
+
+  print(foo(3))
+  `
+
+  expect(compileAndRun(src)).toBe('false\ntrue\n')
 })
 
 test('new Array<string>(n)', () => {
@@ -1412,17 +1487,19 @@ test('convert an any-type value to an array', () => {
     const arr3a: any = new Array<boolean>(n)
     const arr4a: any = new Array<string>(n, 'foo')
     const arr5a: any = new Array(n)
+    const arr6a: any = new Array<any>(n)
     const arr1: integer[] = arr1a
     const arr2: float[] = arr2a
     const arr3: boolean[] = arr3a
-    typeof arr4a
-    const arr5: any[] = arr5a
+    print(typeof arr4a)
     const arr4: string[] = arr4a
+    const arr5: any[] = arr5a
+    const arr6: any[] = arr6a
     print(arr1[0])
   }
   foo(3)
   `
-  expect(() => compileAndRun(src)).toThrow(/cannot convert any to string\[\]/)
+  expect(compileAndRun(src)).toBe('any\n0\n')
 })
 
 test('array length', () => {
@@ -1626,7 +1703,7 @@ test('recursive-type clas', () => {
   print(foo())
   `
 
-  expect(compileAndRun(src)).toBe('Ele\n1\n')
+  expect(compileAndRun(src)).toBe('Ele\ntrue\n')
 })
 
 test('class with a super constructor', () => {
@@ -1690,7 +1767,7 @@ test('class with a default super constructor', () => {
   print(obj)
   `
 
-  expect(compileAndRun(src)).toBe('??\n')
+  expect(compileAndRun(src)).toBe('<class Pos3>\n')
 })
 
 
@@ -1845,7 +1922,7 @@ test('multiple source files for classes', () => {
   const src1 = `
   class Pos {
     x: number
-    constructor(x: number) { this.x = 3 }
+    constructor(x: number) { this.x = x + 3 }
   }
 `
 
@@ -1854,11 +1931,11 @@ test('multiple source files for classes', () => {
     constructor(x: number, y: number) { super(x); this.y = y }
   }
 
-  const obj = new Pos3(3, 11)
+  const obj = new Pos3(7, 11)
   print(obj.x)
 `
 
-  expect(multiCompileAndRun(src1, src2)).toEqual('3\n')
+  expect(multiCompileAndRun(src1, src2)).toEqual('10\n')
 })
 
 test('access a class in another source file', () => {
@@ -2268,7 +2345,7 @@ test('accumulation in properties of any-type objects', () => {
   expect(() => { compileAndRun(src + src5)}).toThrow(/no such property/)
 })
 
-test('an array object bound to a any-type variable', () => {
+test('an array object bound to an any-type variable', () => {
   const maker = (init: string, v1: string, v2: string, v3: string) => `
   const a1 = ${init}
   print(typeof a1)
@@ -2413,7 +2490,7 @@ test('global variable of non-primitive type', () => {
   print(s)
   `
 
-  const expected = 'baz\nbaz\nbar\nbaz\n0\n'
+  const expected = 'baz\nbaz\nbar\nbaz\nfalse\n'
   expect(compileAndRun(src)).toBe(expected)
 
   const src2 = `

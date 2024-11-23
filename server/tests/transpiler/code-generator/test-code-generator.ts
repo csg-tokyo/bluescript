@@ -4,6 +4,10 @@ import { execSync } from 'child_process'
 import { ErrorLog } from '../../../src/transpiler/utils'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
 
+export function toBoolean(array: number[]) {
+  return array.map(x => x === 0 ? "false" : "true")
+}
+
 const prolog = `// predefined native functions
 function print(m: any) {}
 function print_i32(m: integer) {}
@@ -25,10 +29,19 @@ static void fbody_print(value_t self, value_t m) {
     printf("%f\\n", value_to_float(m));
   else if (m == VALUE_NULL || m == VALUE_UNDEF)
     puts("undefined");
-  else if (gc_is_string_literal(m))
+  else if (m == VALUE_TRUE)
+    puts("true");
+  else if (m == VALUE_FALSE)
+    puts("false");
+  else if (gc_is_string_object(m))
     puts(gc_string_literal_cstr(m));
-  else
-    puts("??");
+  else {
+    class_object* cls = gc_get_class_of(m);
+    if (cls == NULL)
+      puts("??");
+    else
+      printf("<class %s>\\n", cls->name);
+  }
 }
 
 static void fbody_print_i32(value_t self, int32_t i) {

@@ -1,6 +1,6 @@
 // Test code
 // To cmpile,
-// cc -DTEST64 c-runtime-test.c
+// cc -DTEST64 c-runtime-test.c -lm
 
 #include <string.h>
 #include "../src/c-runtime.c"
@@ -95,7 +95,7 @@ bool is_live_object(value_t obj) {
 }
 
 static value_t gc_new_array2(int32_t n) {
-    return gc_new_array(1, n, VALUE_UNDEF);
+    return gc_new_array(NULL, n, VALUE_UNDEF);
 }
 
 static value_t gc_new_vector2(int32_t n) {
@@ -161,8 +161,8 @@ static value_t gc_bytearray_set(value_t obj, value_t index, value_t new_value) {
 }
 
 void test_bytearray() {
-    value_t arr = gc_new_bytearray(3, 0);
-    value_t arr2 = gc_new_bytearray(7, 0);
+    value_t arr = gc_new_bytearray(true, 3, 0);
+    value_t arr2 = gc_new_bytearray(true, 7, 0);
     for (int i = 0; i < 7; i++) {
         value_t v = int_to_value(257 - i);
         Assert_equals(gc_bytearray_set(arr2, int_to_value(i), v), v);
@@ -356,7 +356,7 @@ void test_gc_liveness() {
     value_t obj, obj2, obj3;
     root_set.values[0] = obj = gc_new_array2(4);
     gc_new_array2(1);
-    gc_array_set(obj, 0, obj2 = gc_new_bytearray(8, 0));
+    gc_array_set(obj, 0, obj2 = gc_new_bytearray(true, 8, 0));
     gc_bytearray_set(obj2, int_to_value(0), obj);
     gc_new_array2(1);
     gc_new_array2(1);
@@ -389,7 +389,7 @@ void test_gc_liveness2() {
     value_t obj, obj2, obj3, obj4;
     root_set.values[0] = obj = gc_new_vector2(4);
     obj4 = gc_new_vector2(1);
-    gc_vector_setter(obj, int_to_value(0), obj2 = gc_new_bytearray(8, 0));
+    gc_vector_setter(obj, int_to_value(0), obj2 = gc_new_bytearray(true, 8, 0));
     gc_bytearray_set_raw_word(obj2, 0, obj4);
     gc_new_vector2(1);
     gc_new_vector2(1);

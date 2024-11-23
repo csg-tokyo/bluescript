@@ -10,12 +10,13 @@ export enum BYTECODE {
     RESULT_LOG,
     RESULT_ERROR,
     RESULT_MEMINFO,
-    RESULT_EXECTIME
+    RESULT_EXECTIME,
+    RESULT_PROFILE
 }
 
 const LOAD_HEADER_SIZE = 9;
 
-export class BytecodeGenerator {
+export class BytecodeBufferBuilder {
     private readonly unitSize:number;
     private units: Buffer[] = [];
     private lastUnit: Buffer;
@@ -29,10 +30,12 @@ export class BytecodeGenerator {
 
     public loadToRAM(address: number, data: Buffer) {
         this.load(BYTECODE.LOAD, address, data);
+        return this
     }
 
     public loadToFlash(address: number, data: Buffer) {
         this.load(BYTECODE.FLOAD, address, data);
+        return this
     }
 
     private load(loadCmd: number, address: number, data: Buffer) {
@@ -64,6 +67,7 @@ export class BytecodeGenerator {
                 this.lastUnitRemain = this.unitSize;
             }
         }
+        return this
     }
 
     private createLoadHeader(loadCmd: number, address: number, size: number) {
@@ -85,6 +89,7 @@ export class BytecodeGenerator {
             this.units.push(this.lastUnit);
             this.lastUnit = header;
         }
+        return this
     }
 
 
@@ -96,6 +101,7 @@ export class BytecodeGenerator {
             this.units.push(this.lastUnit);
             this.lastUnit = header;
         }
+        return this
     }
 
     public generate() {
@@ -111,14 +117,15 @@ export class BytecodeGenerator {
     }
 }
 
-type parseResult = 
+type ParseResult = 
     {bytecode:BYTECODE.RESULT_LOG, log:string} | 
-    {bytecode:BYTECODE.RESULT_ERROR, log:string} |
+    {bytecode:BYTECODE.RESULT_ERROR, error:string} |
     {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemInfo} |
     {bytecode:BYTECODE.RESULT_EXECTIME, exectime:number} |
+    {bytecode:BYTECODE.RESULT_PROFILE, fid:number, paramtypes:string[]} |
     {bytecode:BYTECODE.NONE}
 
-export function bytecodeParser(data: DataView):parseResult {
+export function bytecodeParser(data: DataView):ParseResult {
     const bytecode = data.getUint8(0);
     switch (bytecode) {
       case BYTECODE.RESULT_LOG:
@@ -126,7 +133,7 @@ export function bytecodeParser(data: DataView):parseResult {
         return {bytecode, log:Buffer.from(data.buffer.slice(1)).toString()};
       case BYTECODE.RESULT_ERROR:
         // | cmd (1byte) | log string |
-        return {bytecode, log:Buffer.from(data.buffer.slice(1)).toString()}
+        return {bytecode, error:Buffer.from(data.buffer.slice(1)).toString()}
       case BYTECODE.RESULT_MEMINFO:
           // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | flash address | flash size |
           const meminfo = {
@@ -137,6 +144,10 @@ export function bytecodeParser(data: DataView):parseResult {
           return {bytecode, meminfo};
       case BYTECODE.RESULT_EXECTIME:
         return {bytecode, exectime:data.getFloat32(1, true)};
+      case BYTECODE.RESULT_PROFILE:
+        let uint8arr = new Uint8Array(data.buffer, 2);
+        let textDecoder = new TextDecoder();
+        return {bytecode:BYTECODE.RESULT_PROFILE, fid: data.getUint8(1), paramtypes:textDecoder.decode(uint8arr).split(", ")};
       default:
         return {bytecode:BYTECODE.NONE}
     }

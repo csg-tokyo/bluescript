@@ -12,7 +12,7 @@
     xxxx ... xxxx xx00          30 bit integer
     xxxx ... xxxx xx01          IEEE 754 binary32 but 21 bit (not 23 bit) fraction
     xxxx ... xxxx xx11          32 bit address (4 byte aligned)
-    xxxx ... xxxx xx10          not used
+    xxxx ... xxxx xx10          symbols (true and false)
 
     A 32bit address points to a structure of object_type type.
 */
@@ -60,13 +60,14 @@ typedef struct class_object {
                             // If start_index is 2, body[0] and body[1] don't hold a pointer.
     const char* const name; // printable class name
     const struct class_object* const superclass;    // super class or NULL
+    uint32_t flags;         // 1: array type.  An array type supports [] and .length.
     struct property_table table;
     void* vtbl[1];
 } class_object;
 
 // A macro for declaring a class_object.
 // n: the length of body (> 0).
-#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; struct property_table pt; void* vtbl[n]; } body; } name
+#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; uint32_t f; struct property_table pt; void* vtbl[n]; } body; } name
 
 inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
@@ -90,13 +91,14 @@ inline bool is_ptr_value(value_t v) { return (v & 3) == 3; }
 #define VALUE_UNDEF   3         // equivalent to VALUE_NULL
 #define VALUE_ZERO    0         // integer 0
 #define VALUE_FZERO   1         // float 0.0
-#define VALUE_FALSE   0         // 0000 ... 0000 (integer 0)
-#define VALUE_TRUE    4         // 0000 ... 0100 (integer 1)
+#define VALUE_FALSE   2         // 0000 ... 0010
+#define VALUE_TRUE    6         // 0000 ... 0110
 
 extern bool CR_SECTION value_to_truefalse(value_t v);
 
 inline value_t bool_to_value(bool b) { return b ? VALUE_TRUE : VALUE_FALSE; }
 inline bool value_to_bool(value_t v) { return value_to_truefalse(v); }
+inline bool is_bool_value(value_t v) { return (v & 3) == 2; }
 
 inline bool safe_value_to_bool(value_t v) {
     // any value can be a boolean value.
@@ -109,13 +111,17 @@ struct gc_root_set {
     value_t values[1];
 };
 
-#define ROOT_SET(name,n)     struct { struct gc_root_set* next; uint32_t length; value_t values[n]; } name;\
-gc_init_rootset((struct gc_root_set*)&name, n);
-
-#define ROOT_SET_DECL(name,n)     struct { struct gc_root_set* next; uint32_t length; value_t values[n]; } name;
+#define ROOT_SET_DECL(name,n)     struct { struct gc_root_set* next; uint32_t length; value_t values[n]; } name
 #define ROOT_SET_INIT(name,n)     gc_init_rootset((struct gc_root_set*)&name, n);
 
 #define DELETE_ROOT_SET(name)     { gc_root_set_head = name.next; }
+
+#define ROOT_SET(name,n)    ROOT_SET_DECL(name,n); ROOT_SET_INIT(name,n)
+
+#define VALUE_UNDEF_2       VALUE_UNDEF, VALUE_UNDEF
+#define VALUE_UNDEF_3       VALUE_UNDEF, VALUE_UNDEF, VALUE_UNDEF
+#define ROOT_SET_N(name,n,initv)     ROOT_SET_DECL(name,n) \
+  = { .next = gc_root_set_head, .length = n, .values = { initv }}; gc_root_set_head = (struct gc_root_set*)&name;
 
 extern int32_t CR_SECTION try_and_catch(void (*main_function)());
 
@@ -131,7 +137,11 @@ extern value_t CR_SECTION any_add(value_t a, value_t b);
 extern value_t CR_SECTION any_subtract(value_t a, value_t b);
 extern value_t CR_SECTION any_multiply(value_t a, value_t b);
 extern value_t CR_SECTION any_divide(value_t a, value_t b);
+extern value_t CR_SECTION any_modulo(value_t a, value_t b);
+extern value_t CR_SECTION any_power(value_t a, value_t b);
+extern double CR_SECTION double_power(double a, double b);
 
+extern bool CR_SECTION any_eq(value_t a, value_t b);
 extern bool CR_SECTION any_less(value_t a, value_t b);
 extern bool CR_SECTION any_less_eq(value_t a, value_t b);
 extern bool CR_SECTION any_greater(value_t a, value_t b);
@@ -141,6 +151,7 @@ extern value_t CR_SECTION any_add_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_subtract_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_multiply_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_divide_assign(value_t* a, value_t b);
+extern value_t CR_SECTION any_modulo_assign(value_t* a, value_t b);
 
 extern value_t CR_SECTION any_increment(value_t* expr);
 extern value_t CR_SECTION any_decrement(value_t* expr);
@@ -157,6 +168,7 @@ extern void CR_SECTION interrupt_handler_end();
 
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
+extern bool CR_SECTION gc_is_instance_of(const class_object* clazz, value_t obj);
 extern void* CR_SECTION method_lookup(value_t obj, uint32_t index);
 
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
@@ -206,26 +218,29 @@ extern value_t CR_SECTION gc_new_int_box(int32_t value);
 extern value_t CR_SECTION gc_new_float_box(float value);
 
 extern value_t  CR_SECTION gc_new_string(char* str);
-extern bool CR_SECTION gc_is_string_literal(value_t obj);
 extern const char* CR_SECTION gc_string_literal_cstr(value_t obj);
+extern bool CR_SECTION gc_is_string_object(value_t obj);
 
 extern value_t CR_SECTION safe_value_to_intarray(value_t v);
 extern value_t CR_SECTION gc_new_intarray(int32_t n, int32_t init_value);
 extern value_t CR_SECTION gc_make_intarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_intarray_length(value_t obj);
 extern int32_t* CR_SECTION gc_intarray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_intarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_floatarray(value_t v);
 extern value_t CR_SECTION gc_new_floatarray(int32_t n, float init_value);
 extern value_t CR_SECTION gc_make_floatarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_floatarray_length(value_t obj);
 extern float* CR_SECTION gc_floatarray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_floatarray(value_t v);
 
-extern value_t CR_SECTION safe_value_to_bytearray(value_t v);
-extern value_t CR_SECTION gc_new_bytearray(int32_t n, int32_t init_value);
-extern value_t CR_SECTION gc_make_bytearray(int32_t n, ...);
+extern value_t CR_SECTION safe_value_to_boolarray(value_t v);
+extern value_t CR_SECTION gc_new_bytearray(bool is_boolean, int32_t n, int32_t init_value);
+extern value_t CR_SECTION gc_make_bytearray(bool is_boolean, int32_t n, ...);
 extern int32_t CR_SECTION gc_bytearray_length(value_t obj);
 extern uint8_t* CR_SECTION gc_bytearray_get(value_t obj, int32_t index);
+extern bool CR_SECTION gc_is_boolarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_vector(value_t v);
 extern value_t CR_SECTION gc_new_vector(int32_t n, value_t init_value);
@@ -234,14 +249,16 @@ extern value_t CR_SECTION gc_vector_get(value_t obj, int32_t index);
 extern value_t CR_SECTION gc_vector_set(value_t obj, int32_t index, value_t new_value);
 extern value_t CR_SECTION gc_make_vector(int32_t n, ...);
 
-extern value_t CR_SECTION safe_value_to_array(value_t v);
+extern bool CR_SECTION gc_is_instance_of_array(value_t obj);
 extern value_t CR_SECTION safe_value_to_anyarray(value_t v);
-extern value_t CR_SECTION gc_new_array(int32_t is_any, int32_t n, value_t init_value);
-extern value_t CR_SECTION gc_make_array(int32_t is_any, int32_t n, ...);
+extern value_t CR_SECTION gc_new_array(const class_object* clazz, int32_t n, value_t init_value);
+extern value_t CR_SECTION gc_make_array(const class_object* clazz, int32_t n, ...);
 extern int32_t CR_SECTION gc_array_length(value_t obj);
 extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);
 extern value_t CR_SECTION gc_array_set(value_t obj, int32_t index, value_t new_value);
+extern bool CR_SECTION gc_is_anyarray(value_t v);
 
+extern int32_t CR_SECTION get_all_array_length(value_t obj);
 extern value_t CR_SECTION get_anyobj_length_property(value_t obj, int property);
 extern value_t CR_SECTION gc_safe_array_get(value_t obj, int32_t idx);
 extern value_t CR_SECTION gc_safe_array_set(value_t obj, int32_t idx, value_t new_value);

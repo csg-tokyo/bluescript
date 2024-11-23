@@ -1,6 +1,6 @@
 // Test code for value_to_float and float_to_value functions in c-runtime.c
 // To compile,
-// cc -DTEST64 float-test.c
+// cc -DTEST64 float-test.c -lm
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -5,6 +5,10 @@
 **BlueScript** is a small and efficient programming language designed specifically for microcontrollers.  
 While it currently supports only the ESP32 board, future updates will include support for a wider range of boards.
 
+# Documentation
+- [Get started](https://github.com/csg-tokyo/bluescript/wiki)
+- [Reference Manual](https://github.com/csg-tokyo/bluescript/wiki/Reference)
+
 # Get Started
 
 ## Requirements
@@ -20,7 +24,7 @@ To start using BlueScript, you'll need the following:
 First, clone the BlueScript repository using Git:
 
 ```bash
-git clone git@github.com:csg-tokyo/bluescript.git
+git clone https://github.com/csg-tokyo/bluescript.git
 ```
 
 ### Build and Start the BlueScript Server

@@ -32,3 +32,12 @@ interface SourceLocation {
         column: number;
     };
 }
+
+export class InternalError extends Error {
+    static errorCode = 462;
+
+    public constructor(message?: string) {
+      super(`Internal Error: ${message}`);
+    }
+}
+

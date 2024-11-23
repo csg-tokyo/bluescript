@@ -4,8 +4,10 @@ import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
 import { Integer, Float, BooleanT, StringT, Void, Null, Any,
     ObjectType, objectType, FunctionType,
-    StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype, } from '../types'
+    StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype,
+    ByteArrayClass, } from '../types'
 import { InstanceType, ClassTable } from '../classes'
+import { VariableEnv } from './variables'
 
 export const anyTypeInC = 'value_t'
 export const funcTypeInC = 'value_t'
@@ -66,13 +68,13 @@ function typeConversionError(from: StaticType | undefined, to: StaticType | unde
                              node: AST.Node) {
   const fromType = from === undefined ? '?' : typeToString(from)
   const toType = to === undefined ? '?' : typeToString(to)
-  return new ErrorLog().push(`internal error: cannot convert ${fromType} to ${toType}`, node)
+  return new ErrorLog().push(`internal error: the current runtime cannot convert ${fromType} to ${toType}`, node)
 }
 
 // returns '(' or '<conversion function>('
 // "from" or "to" is undefined when type conversion is unnecessary
 export function typeConversion(from: StaticType | undefined, to: StaticType | undefined,
-                               node: AST.Node) {
+                               env: VariableEnv, node: AST.Node) {
   if (from === undefined || to === undefined)
     return '('
 
@@ -148,13 +150,11 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
             else if (to.elementType === Float)
               return 'safe_value_to_floatarray('
             else if (to.elementType === BooleanT)
-              return 'safe_value_to_bytearray('
+              return 'safe_value_to_boolarray('
             else if (to.elementType === Any)
               return 'safe_value_to_anyarray('
             else
-              break
-              // cannot determine wether a given array
-              // is an array of String or Any
+              return `safe_value_to_value(&${env.useArrayType(to)[0]}.clazz, ` 
           }
           else if (to instanceof InstanceType)
             if (isSubtype(from, to))
@@ -187,6 +187,10 @@ export function updateOperator(op: string, isPrefix: boolean) {
 
 export function arithmeticOpForAny(op: string) {
   switch(op) {
+    case '==':
+      return 'any_eq'
+    case '!=':
+      return '!any_eq'
     case '<':
       return 'any_less'     // returns boolean
     case '<=':
@@ -203,6 +207,10 @@ export function arithmeticOpForAny(op: string) {
       return 'any_multiply'
     case '/':
       return 'any_divide'
+    case '%':
+      return 'any_modulo'
+    case '**':
+      return 'any_power'
     case '+=':
       return 'any_add_assign'
     case '-=':
@@ -211,6 +219,8 @@ export function arithmeticOpForAny(op: string) {
       return 'any_multiply_assign'
     case '/=':
       return 'any_divide_assign'
+    case '%=':
+      return 'any_modulo_assign'
     case 'i':    // ++v
       return 'any_increment'
     case 'p':   // v++
@@ -222,6 +232,15 @@ export function arithmeticOpForAny(op: string) {
     default:
       throw new Error(`bad operator ${op}`)
   }
+}
+
+export function power(type: StaticType | undefined) {
+  if (type === Float)
+    return '(float)double_power('
+  else if (type === Integer)
+    return '(int32_t)double_power('
+  else
+    throw new Error('bad operand types for **')
 }
 
 export function updateOpForAny(prefix: boolean, op: string) {
@@ -245,14 +264,20 @@ export const minusAnyValue = 'minus_any_value'
 export const globalRootSetName = 'global_rootset'
 
 export function makeRootSet(n: number) {
-  if (n > 0)
-    return `ROOT_SET(func_rootset, ${n})`
-  else
+  if (n < 1)
     return ''
+  else if (n == 1)
+    return 'ROOT_SET_N(func_rootset,1,VALUE_UNDEF)'
+  else if (n == 2)
+    return 'ROOT_SET_N(func_rootset,2,VALUE_UNDEF_2)'
+  else if (n == 3)
+    return 'ROOT_SET_N(func_rootset,3,VALUE_UNDEF_3)'
+  else
+    return `ROOT_SET(func_rootset,${n})`
 }
 
 export function declareRootSet(name: string, n: number) {
-  return `ROOT_SET_DECL(${name}, ${n})`
+  return `ROOT_SET_DECL(${name}, ${n});`
 }
 
 export function initRootSet(name: string, n: number) {
@@ -307,7 +332,9 @@ export function makeBoxedValue(type: StaticType, value?: string) {
 
 // a getter/setter function for arrays
 export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticType | undefined, node: AST.Node) {
-  if (arrayType === Any)
+  if (arrayType instanceof InstanceType && arrayType.name() === ByteArrayClass)
+    return `(*gc_bytearray_get(`
+  else if (arrayType === Any)
     return '(gc_safe_array_get('
   else if (t === Integer)
     return '(*gc_intarray_get('
@@ -331,30 +358,32 @@ export function arrayElementSetter(arrayType: StaticType | undefined) {
 export const accumulateInUnknownArray = 'gc_safe_array_acc'
 
 // makes an array object from elements
-export function arrayFromElements(t: StaticType) {
+export function arrayFromElements(arrayType: ArrayType, env: VariableEnv) {
+  const t = arrayType.elementType
   if (t === Integer)
     return 'gc_make_intarray('
   else if (t === Float)
     return 'gc_make_floatarray('
   else if (t === BooleanT)
-    return 'gc_make_bytearray('
+    return 'gc_make_bytearray(true, '
   else if (t === Any)
-    return 'gc_make_array(1, '
+    return 'gc_make_array((void*)0, '
   else
-    return 'gc_make_array(0, '
+    return `gc_make_array(&${env.useArrayType(arrayType)[0]}.clazz, `
 }
 
-export function arrayFromSize(t: StaticType) {
+export function arrayFromSize(arrayType: ArrayType, env: VariableEnv) {
+  const t = arrayType.elementType
   if (t === Integer)
     return 'gc_new_intarray('
   else if (t === Float)
     return 'gc_new_floatarray('
   else if (t === BooleanT)
-    return 'gc_new_bytearray('
+    return 'gc_new_bytearray(true, '
   else if (t === Any)
-    return 'gc_new_array(1, '
+    return 'gc_new_array((void*)0, '
   else
-    return 'gc_new_array(0, '
+    return `gc_new_array(&${env.useArrayType(arrayType)[0]}.clazz, `
 }
 
 export function actualElementType(t: StaticType) {
@@ -375,8 +404,10 @@ export function getArrayLengthIndex(t: StaticType) {
     return 0
 }
 
-export const runtimeTypeArray = 'array_object'
-export const arrayMaker = 'gc_new_string'
+export const isInstanceOfArray = `gc_is_instance_of_array(`
+
+export const stringMaker = 'gc_new_string'
+export const isStringType = 'gc_is_string_object('
 
 export const functionMaker = 'gc_new_function'
 export const functionPtr = 'fptr'
@@ -463,14 +494,29 @@ export function classDeclaration(clazz: InstanceType, classTable: ClassTable) {
   const propList = `static const uint16_t ${propListName}[] = { ${ptable.props.join(', ')} };`
 
   return `${propList}\nCLASS_OBJECT(${classNameInC(name)}, ${table.length}) = {
-    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .pt = ${propTable}, .vtbl = { ${tableArray} }}};`
+    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .f = 0, .pt = ${propTable}, .vtbl = { ${tableArray} }}};`
 }
 
 export function makeInstance(clazz: InstanceType) {
   const name = clazz.name()
-  return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
+  if (name === ByteArrayClass)
+    return 'gc_new_bytearray(false'
+  else
+    return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
 }
 
 export function methodLookup(method: [StaticType, number, InstanceType], func: string) {
   return `((${funcTypeToCType(method[0])})method_lookup(${func}, ${method[1]}))`
+}
+
+export function isInstanceOf(t: InstanceType) {
+  return `gc_is_instance_of(&${classObjectNameInC(t.name())}, `
+}
+
+export function arrayTypeDeclaration(type: ArrayType, name: string, is_declared: boolean) {
+  const typeName = typeToString(type)
+  if (is_declared)
+    return `CLASS_OBJECT(${name}, 0) = { .body = { .s = 2, .i = 1, .cn = "${typeName}", .sc = &object_class.clazz, .f = 1, .pt = { .size = 0, .offset = 0, .unboxed = 0, .prop_names = (void*)0, .unboxed_types = (void*)0 }, .vtbl = {}}};\n`
+  else
+    return `extern CLASS_OBJECT(${name}, 0);\n`
 }

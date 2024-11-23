@@ -13,8 +13,10 @@ export class InstanceType extends ObjectType {
   private numOfUnboxed: number | undefined = undefined
   private numOfMethods: number
   private superClass: ObjectType
+  private subClasses: InstanceType[] = []
   private className: string
   private blueScriptName: string
+  public leafType = false      // true if this class is a leaf class.
 
   constructor(name: string, bsName: string, superClass: ObjectType) {
     super()
@@ -28,14 +30,16 @@ export class InstanceType extends ObjectType {
 
   // returns a globally-unique class name.  It may be different from the
   // original name given in the source code.
-  name() { return this.className }
+  override name() { return this.className }
 
   // the name given in the source code.
   override sourceName() { return this.blueScriptName }
 
-  superType(): ObjectType | null { return this.superClass }
+  override superType(): ObjectType | null { return this.superClass }
 
   superclass(): ObjectType { return this.superClass }
+
+  subclasses(): InstanceType[] { return this.subClasses }
 
   // false if this class extends another class that is not Object class.
   extendsObject() { return !(this.superClass instanceof InstanceType) }
@@ -210,13 +214,18 @@ export class InstanceType extends ObjectType {
 export class ClassTable {
   private names
   private numOfNames
+  private rootClasses: InstanceType[]
 
   constructor() {
     this.names = new Map<string, number>()
     this.numOfNames = 0
+    this.rootClasses = []
     const builtinMethods: string[] = [ArrayType.lengthMethod]
     builtinMethods.forEach(name => { this.names.set(name, this.numOfNames++) })
   }
+
+  // returns all the classes that do not inherit from another class.
+  roots() { return this.rootClasses }
 
   // clazz must be added after all properties and methods are
   //   added to it.
@@ -228,6 +237,11 @@ export class ClassTable {
 
     clazz.forEachName(f)
     clazz.forEachMethodName(f)
+    const sup = clazz.superclass()
+    if (sup instanceof InstanceType)
+      sup.subclasses().push(clazz)
+    else
+      this.rootClasses.push(clazz)
   }
 
   encodeName(name: string) {

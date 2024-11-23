@@ -3,10 +3,12 @@ import {Buffer} from "node:buffer";
 import {ErrorLog} from "../transpiler/utils";
 import Session from "./session";
 import {execSync} from "child_process";
+import {JITCompileError, ProfileError} from "../jit/utils";
 
 const ERROR_CODE = {
   COMPILE_ERROR: 460,
-  LINK_ERROR: 461
+  LINK_ERROR: 461,
+  INTERNAL_ERROR: 462,
 }
 
 export default class HttpServer {
@@ -72,11 +74,38 @@ export default class HttpServer {
           responseBody = {};
           statusCode = 200;
           break;
-          case "/check":
-            const cmd_result = execSync("ls ../microcontroller/ports/esp32/build/").toString();
-            responseBody = {cmd_result};
-            statusCode = 200;
+        case "/dummy-compile":
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
             break;
+          }
+          responseBody = this.session.dummyExecute();
+          statusCode = 200;
+          break;
+        case "/compile-with-profiling":
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
+            break;
+          }
+          responseBody = this.session.executeWithProfiling(JSON.parse(requestBody).src);
+          statusCode = 200;
+          break;
+        case "/jit-compile":
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
+            break;
+          }
+          responseBody = this.session.jitExecute(JSON.parse(requestBody));
+          statusCode = 200;
+          break;
+        case "/check":
+          const cmd_result = execSync("ls ../microcontroller/ports/esp32/build/").toString();
+          responseBody = {cmd_result};
+          statusCode = 200;
+          break;
         default:
           responseBody = {message: "Page not found."};
           statusCode = 404;
@@ -87,6 +116,9 @@ export default class HttpServer {
       if (e instanceof ErrorLog) {
         responseBody = {message: e};
         statusCode = ERROR_CODE.COMPILE_ERROR;
+      } else if (e instanceof ProfileError || e instanceof JITCompileError) {
+        responseBody = {message: e};
+        statusCode = ERROR_CODE.INTERNAL_ERROR;
       } else {
         responseBody = {message: e};
         statusCode = 500;

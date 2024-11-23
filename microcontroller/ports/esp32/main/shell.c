@@ -197,7 +197,7 @@ void bs_shell_task(void *arg) {
                 break;
             case BS_CMD_RESET:
                 ESP_LOGI(BS_SHELL_TAG, "Soft reset");
-                // shell_reset();
+                shell_reset();
                 send_result_meminfo();
                 break;
             default:
