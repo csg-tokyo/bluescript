@@ -129,9 +129,9 @@ extern int32_t CR_SECTION safe_value_to_int(value_t v);
 extern float CR_SECTION safe_value_to_float(value_t v);
 extern value_t CR_SECTION safe_value_to_null(value_t v);
 extern value_t CR_SECTION safe_value_to_func(const char* signature, value_t func);
-extern value_t CR_SECTION safe_value_to_string(value_t v);
-extern value_t CR_SECTION safe_value_to_object(value_t v);
-extern value_t CR_SECTION safe_value_to_value(const class_object* const clazz, value_t v);
+extern value_t CR_SECTION safe_value_to_string(bool nullable, value_t v);
+extern value_t CR_SECTION safe_value_to_object(bool nullable, value_t v);
+extern value_t CR_SECTION safe_value_to_value(bool nullable, const class_object* const clazz, value_t v);
 
 extern value_t CR_SECTION any_add(value_t a, value_t b);
 extern value_t CR_SECTION any_subtract(value_t a, value_t b);
@@ -221,28 +221,28 @@ extern value_t  CR_SECTION gc_new_string(char* str);
 extern const char* CR_SECTION gc_string_literal_cstr(value_t obj);
 extern bool CR_SECTION gc_is_string_object(value_t obj);
 
-extern value_t CR_SECTION safe_value_to_intarray(value_t v);
+extern value_t CR_SECTION safe_value_to_intarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_intarray(int32_t n, int32_t init_value);
 extern value_t CR_SECTION gc_make_intarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_intarray_length(value_t obj);
 extern int32_t* CR_SECTION gc_intarray_get(value_t obj, int32_t index);
 extern bool CR_SECTION gc_is_intarray(value_t v);
 
-extern value_t CR_SECTION safe_value_to_floatarray(value_t v);
+extern value_t CR_SECTION safe_value_to_floatarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_floatarray(int32_t n, float init_value);
 extern value_t CR_SECTION gc_make_floatarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_floatarray_length(value_t obj);
 extern float* CR_SECTION gc_floatarray_get(value_t obj, int32_t index);
 extern bool CR_SECTION gc_is_floatarray(value_t v);
 
-extern value_t CR_SECTION safe_value_to_boolarray(value_t v);
+extern value_t CR_SECTION safe_value_to_boolarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_bytearray(bool is_boolean, int32_t n, int32_t init_value);
 extern value_t CR_SECTION gc_make_bytearray(bool is_boolean, int32_t n, ...);
 extern int32_t CR_SECTION gc_bytearray_length(value_t obj);
 extern uint8_t* CR_SECTION gc_bytearray_get(value_t obj, int32_t index);
 extern bool CR_SECTION gc_is_boolarray(value_t v);
 
-extern value_t CR_SECTION safe_value_to_vector(value_t v);
+extern value_t CR_SECTION safe_value_to_vector(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_vector(int32_t n, value_t init_value);
 extern int32_t CR_SECTION gc_vector_length(value_t obj); 
 extern value_t CR_SECTION gc_vector_get(value_t obj, int32_t index);
@@ -250,7 +250,7 @@ extern value_t CR_SECTION gc_vector_set(value_t obj, int32_t index, value_t new_
 extern value_t CR_SECTION gc_make_vector(int32_t n, ...);
 
 extern bool CR_SECTION gc_is_instance_of_array(value_t obj);
-extern value_t CR_SECTION safe_value_to_anyarray(value_t v);
+extern value_t CR_SECTION safe_value_to_anyarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_array(const class_object* clazz, int32_t n, value_t init_value);
 extern value_t CR_SECTION gc_make_array(const class_object* clazz, int32_t n, ...);
 extern int32_t CR_SECTION gc_array_length(value_t obj);

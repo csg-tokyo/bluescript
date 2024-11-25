@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
-         StringT } from '../types'
+         StringT,  UnionType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
@@ -910,7 +910,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
         || (left_type === StringT || right_type === StringT)
-        || (left_type === Any || right_type === Any)) {
+        || (left_type === Any || right_type === Any)
+        || (left_type instanceof UnionType || right_type instanceof UnionType)) {
       this.result.write(`${cr.arithmeticOpForAny(op2)}(${cr.typeConversion(left_type, Any, env, left)}`)
       this.visit(left, env)
       this.result.write(`), ${cr.typeConversion(right_type, Any, env, right)}`)
@@ -1510,6 +1511,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   tsArrayType(node: AST.TSArrayType, env: VariableEnv) {}
 
   tsFunctionType(node: AST.TSFunctionType, env: VariableEnv): void {}
+
+  tsUnionType(node: AST.TSUnionType, env: VariableEnv): void {}
 
   tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: VariableEnv): void {}
 

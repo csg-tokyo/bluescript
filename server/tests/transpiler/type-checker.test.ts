@@ -252,3 +252,49 @@ test('InstanceType.subclasses() and ClassTable.roots()', () => {
   expect(roots !== undefined && roots[1].name()).toBe('Foo')
   expect(roots !== undefined && roots[2].name()).toBe('Foo2')
 })
+
+test('union types', () => {
+  const src = `
+  class Foo {}
+  class Bar extends Foo {}
+  const arr = [1, 2, 3]
+  const foo = new Foo()
+  const bar = new Bar()
+  const n = null
+  const s = 'foo'
+  `
+
+  const ast = tested.transpile(src)
+  const table = names.getNameTable(ast.program)
+  const arr = table?.lookup('arr')?.type
+  const foo = table?.lookup('foo')?.type
+  const bar = table?.lookup('bar')?.type
+  const n = table?.lookup('n')?.type
+  const s = table?.lookup('s')?.type
+  if (arr !== undefined && n !== undefined) {
+    const arrOrnull = new types.UnionType([arr, n])       //  integer[] | null
+    expect(types.isSubtype(arrOrnull, arr)).toBeFalsy()
+    expect(types.isSubtype(arrOrnull, n)).toBeFalsy()
+    expect(types.isSubtype(arr, arrOrnull)).toBeTruthy()  // integer <: integer[] | null
+    expect(types.isSubtype(n, arrOrnull)).toBeTruthy()    // null <: integer[] | null
+  }
+
+  if (foo !== undefined && n !== undefined) {
+    const fooOrnull = new types.UnionType([foo, n])
+    expect(types.isSubtype(fooOrnull, foo)).toBeFalsy()
+    expect(types.isSubtype(fooOrnull, n)).toBeFalsy()
+    expect(types.isSubtype(foo, fooOrnull)).toBeTruthy()  // Foo <: Foo|null
+    expect(types.isSubtype(n, fooOrnull)).toBeTruthy()    // null <: Foo|null
+  }
+
+  if (foo !== undefined && bar !== undefined && n !== undefined) {
+    const fooOrnull = new types.UnionType([foo, n])
+    const barOrnull = new types.UnionType([bar, n])
+    expect(types.isSubtype(foo, bar)).toBeFalsy()
+    expect(types.isSubtype(bar, foo)).toBeTruthy()      // Bar <: Foo
+    expect(types.isSubtype(bar, fooOrnull)).toBeTruthy()  // Bar <: Foo|null
+    expect(types.isSubtype(n, fooOrnull)).toBeTruthy()  // null <: Foo|null
+    expect(types.isSubtype(fooOrnull, barOrnull)).toBeFalsy()
+    expect(types.isSubtype(barOrnull, fooOrnull)).toBeTruthy()  // Bar|null <: Foo|null
+  }
+})

@@ -1,5 +1,7 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
+import { InstanceType } from "./classes"
+
 export const Integer = 'integer'
 export const Float = 'float'
 export const BooleanT = 'boolean'
@@ -11,7 +13,7 @@ export const Any = 'any'
 export const ByteArrayClass = 'Uint8Array'
 
 export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' |
-  ObjectType | FunctionType
+  ObjectType | FunctionType | UnionType
 
 export function isPrimitiveType(type: StaticType) {
   // unless String, Null, FunctionType, Any, or object type
@@ -29,7 +31,6 @@ abstract class CompositeType {
   abstract sameType(t: StaticType): boolean
 
   sourceName() { return this.name() }
-  superType(): ObjectType | null { return null }
 }
 
 // A singleton class.
@@ -46,6 +47,8 @@ export class ObjectType extends CompositeType {
   sameType(t: StaticType): boolean {
     return this === t
   }
+
+  superType(): ObjectType | null { return null }
 }
 
 export const objectType = new ObjectType()
@@ -117,6 +120,82 @@ export class ArrayType extends ObjectType {
   }
 }
 
+export class UnionType extends CompositeType {
+  types: StaticType[]
+
+  constructor(types: StaticType[]) {
+    super()
+    this.types = types
+  }
+
+  name() {
+    return this.types.map(t => typeToString(t)).join('|')
+  }
+
+  isSubtypeOf(t: StaticType): boolean {
+    for (const sub of this.types)
+      if (!isSubtype(sub, t))
+        return false
+
+    return true
+  }
+
+  isSuperTypeOf(t: StaticType): boolean {
+    for (const sup of this.types)
+      if (isSubtype(t, sup))
+        return true
+
+    return false
+  }
+
+  sameType(t: StaticType): boolean {
+    if (t instanceof UnionType && t.types.length === this.types.length) {
+      for (const e of t.types)
+        if (!this.isOneOfTypes(e))
+          return false
+
+      return true
+    }
+
+    return false
+  }
+
+  private isOneOfTypes(t: StaticType) {
+    for (const t2 of this.types)
+      if (sameType(t, t2))
+        return true
+
+    return false
+  }
+
+  isNullable() {
+    if (this.types.length !== 2)
+      return undefined
+
+    let index
+    if (this.types[0] === Null)
+      index = 1
+    else if (this.types[1] === Null)
+      index = 0
+    else
+      return undefined
+
+    const t = this.types[index]
+    if (t instanceof ObjectType || t === StringT)
+      return t
+    else
+      return undefined
+  }
+
+  hasStringOrBoolean() {
+    for (const t of this.types)
+      if (t === StringT || t === BooleanT)
+        return true
+
+    return false
+  }
+}
+
 // type name used for error messages
 export function typeToString(type: StaticType): string {
   if (type instanceof CompositeType)
@@ -161,6 +240,10 @@ export function encodeType(type: StaticType): string {
 export function isSubtype(subtype: StaticType, type: StaticType): boolean {
   if (type === subtype)
     return true     // subclassing has not been implemented yet.
+  else if (subtype instanceof UnionType)
+    return subtype.isSubtypeOf(type)
+  else if (type instanceof UnionType)
+    return type.isSuperTypeOf(subtype)
   else if (subtype === Integer && type === Float
     || subtype === StringT && type === objectType)
     return true
@@ -199,7 +282,7 @@ export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | un
     return t2
   else if (isSubtype(t2, t1))
     return t1
-  else if (t1 instanceof CompositeType) {
+  else if (t1 instanceof ObjectType) {
     const s = t1.superType()
     if (s !== null)
       return commonSuperType(s, t2)

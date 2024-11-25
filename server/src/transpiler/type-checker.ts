@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from './utils'
 import * as visitor from './visitor'
 
-import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType } from './types'
+import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType } from './types'
 
 import {
   Integer, Float, BooleanT, StringT, Void, Null, Any,
@@ -660,6 +660,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
+      else if (left_type instanceof UnionType && left_type.hasStringOrBoolean()
+               || right_type instanceof UnionType && right_type.hasStringOrBoolean()) {
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
+      }
       else if (left_type === BooleanT || right_type === BooleanT
                || left_type === StringT || right_type === StringT) {
         if (left_type !== right_type) {
@@ -1246,6 +1251,21 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       ret = Any
 
     this.result = new FunctionType(ret, params)
+  }
+
+  tsUnionType(node: AST.TSUnionType, names: NameTable<Info>): void {
+    const types = node.types.map(t => { this.visit(t, names); return this.result })
+    if (this.assert(types.length === 2, 'not supported union type', node))
+      for (const t of types)
+        if (t === Any) {
+          this.result = t
+          return
+        }
+        else
+          this.assert(t === Null || t === StringT || t instanceof ObjectType,
+                      'not supported union type', node)
+
+    this.result = new UnionType(types)
   }
 
   tsNumberKeyword(node: AST.TSNumberKeyword, names: NameTable<Info>): void {

@@ -2,6 +2,7 @@ import { execSync } from 'child_process'
 import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, transpileAndWrite, toBoolean } from './test-code-generator'
 import { expect, test, beforeAll } from '@jest/globals'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
+import { booleanLiteral } from '@babel/types'
 
 beforeAll(() => {
   execSync('mkdir -p ./temp-files')
@@ -485,7 +486,7 @@ test('Uint8Array is a leaf class', () => {
   expect(() => compileAndRun(src, destFile)).toThrow(/invalid super class/)
 })
 
-test.only('instanceof array', () => {
+test('instanceof array', () => {
   const src = `
   class Foo {}
   const a1 = [1, 2, 3]
@@ -567,4 +568,107 @@ test('array access in multiple source files', () => {
   `
 
   expect(multiCompileAndRun(src1, src2, destFile)).toBe('Foo[]\n<class Foo>\n')
+})
+
+test('nullable object types', () => {
+  const tester = (type: string, init: string, value: string, getter: string = '') => {
+    const src = `
+  class Foo {
+    value() { return 'foo' }
+  }
+
+  let obj: ${type} | undefined = ${init}
+  print(typeof obj)
+  print(obj instanceof ${type})
+  print(obj)
+  let v: any = obj
+  obj = v
+  const foo = obj as ${type}
+  print(foo${getter})
+  obj = undefined
+  print(obj instanceof ${type})
+  print(obj)
+  `
+    expect(compileAndRun(src, destFile)).toBe(`${type}|undefined\ntrue\n<class ${type}>\n${value}\nfalse\nundefined\n`)
+  }
+
+  tester('Foo', 'new Foo()', 'foo', '.value()')
+  tester('Uint8Array', 'new Uint8Array(3, 7)', '7', '[0]')
+})
+
+test('nullable arrays', () => {
+  const tester = (type: string, init: string, value: string, getter: string = '') => {
+    const src = `
+  class Foo {
+    value() { return 'foo' }
+  }
+  let ar1: ${type}[] | undefined = ${init}     // array | undefined = array
+  let tar1: ${type}[] = ar1 as ${type}[]       // array = (array | undefined) as array
+  print(tar1[0]${getter})
+  let a1: any = ar1                            // any = array | undefined
+  let ar1b: ${type}[] | null = a1              // array | undefined = any
+  let tar1b: ${type}[] = ar1b as ${type}[]
+  print(tar1b[0]${getter})
+  ar1 = null
+  print(ar1)
+  `
+    expect(compileAndRun(src, destFile)).toBe(`${value}\n${value}\nundefined\n`)
+  }
+
+  tester('integer', '[7, 8, 9]', '7')
+  tester('float', '[7.1, 8.1, 9.1]', '7.100000')
+  tester('boolean', '[true, false, true]', 'true')
+  tester('string', '["one", "two", "three"]', 'one')
+  tester('any', '[true, "apple", 9]', 'true')
+  tester('Foo', 'new Array<Foo>(3, new Foo())', 'foo', '.value()')
+})
+
+test('subtypes of union types', () => {
+  const src = `
+  class Foo {}
+  class Bar extends Foo {}
+  let v: Bar | undefined = new Bar()
+  let w: Foo | undefined = v
+  w = new Bar()
+  print(w)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('<class Bar>\n')
+})
+
+test('equality for nullable types', () => {
+  const tester = (type: string, init: string, value: string) => {
+    const src = `
+  class Foo {}
+  let obj: ${type} | undefined = ${init}
+  let obj2 = obj
+  print(obj === ${value})
+  print(obj !== ${value})
+  `
+    expect(compileAndRun(src, destFile)).toBe(`true\nfalse\n`)
+  }
+
+  tester('string', '"foo"', '"foo"')
+  tester('string', '"foo"', 'obj2')
+  tester('Foo', 'new Foo()', 'obj2')
+  tester('integer[]', '[1, 2, 3]', 'obj2')
+})
+
+test('(any | undefined) is any', () => {
+  const src = `
+  let v: any | undefined = 'foo'
+  print(typeof v)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('any\n')
+})
+
+test('unsupported union type', () => {
+  const src = `
+  let i: any = 7
+  let v: integer | undefined = i
+  print(v)
+  `
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/not supported union type/)
 })
