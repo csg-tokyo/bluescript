@@ -1,6 +1,6 @@
 import {GlobalVariableNameTable} from "../transpiler/code-generator/variables";
 import * as fs from "fs";
-import {FILE_PATH, MODULE_PREFIX} from "../constants";
+import {FILE_PATH} from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
 import {execSync} from "child_process";
 import {MemoryInfo, ShadowMemory} from "../linker/shadow-memory";
@@ -15,7 +15,7 @@ import {JitTypeChecker} from "../jit/jit-type-checker";
 const cProlog = `
 #include <stdint.h>
 #include "../${FILE_PATH.C_RUNTIME_H}"
-#include "../../microcontroller/core/include/profiler.h"
+#include "../${FILE_PATH.PROFILER_H}"
 
 `
 
@@ -51,7 +51,9 @@ export default class Session {
     // Link
     this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, tResult.main);
     const end = performance.now();
-    return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+    const response =   {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+    console.log(response)
+    return response
   }
 
   private transpile(src: string) {
@@ -60,12 +62,13 @@ export default class Session {
       if (mod)
         return mod;
       else {
-        const ffi = fs.readFileSync(`${FILE_PATH.MODULES_FFI}/${fname}.ts`).toString();
+        const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}_${this.convertFname(fname)}/${fname}.bs`).toString();
         const moduleId = this.convertFname(fname);
         this.sessionId += 1;
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
         this.modules.set(fname, result.names)
-        this.shadowMemory.loadAndLink(`${FILE_PATH.MODULES_O}/${fname}_${moduleId}.o`, result.main);
+        // this.shadowMemory.loadAndLink(`${FILE_PATH.MODULES_O}/${fname}_${moduleId}.o`, result.main);
+        this.shadowMemory.loadAndLinkForImport(result.main)
         return result.names
       }
     }
@@ -80,8 +83,9 @@ export default class Session {
     for (let i = 0; i < fname.length; i++) {
         result += fname.charCodeAt(i);
     }
-    return parseInt(result) ?? 0;
-}
+    return parseInt(result, 10) ?? 0;
+  }
+
   public executeWithProfiling(tsString: string) {
     this.sessionId += 1;
 

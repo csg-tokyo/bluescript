@@ -86,6 +86,19 @@ export class ExecutableElfReader {
     return symbols;
   }
 
+  public getAllSymbols() {
+    const syms = this.elf.readSyms();
+    const symbols:{name: string, address: number}[] = [];
+    syms.forEach(sym => {
+      const name = this.elf.readSymbolName(sym);
+      const address = sym.stValue;
+      if (name !== '' && address !== 0) {
+        symbols.push({name, address})
+      }
+    });
+    return symbols;
+  }
+
   public readSection(sectionName: string):Section|undefined {
     let section:Section|undefined = undefined;
     this.elf.shdrs.forEach(shdr => {
