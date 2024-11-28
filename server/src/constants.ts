@@ -6,8 +6,6 @@ export const FILE_PATH = {
   LINKER_SCRIPT: "./temp-files/linkerscript.ld",
   LINKED_ELF: "./temp-files/code",
   STD_MODULES: "../modules/std/std.bs",
-  MODULES_FFI: "../modules/ffi",
-  MODULES_O: "../modules/esp32/build",
   MODULES: "../modules",
   MCU_ELF: "../microcontroller/ports/esp32/build/bluescript.elf",
 };

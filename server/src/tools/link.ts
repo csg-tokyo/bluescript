@@ -2,10 +2,10 @@ import {LinkerScript} from "../linker/linker-script";
 import * as fs from "fs";
 import {ExecutableElfReader} from "../linker/elf-reader";
 import {FILE_PATH} from "../constants";
+import {MemoryRegion} from "../linker/shadow-memory";
+import Session from "../server/session";
 
 const componentsPath = '/Users/maejimafumika/Desktop/Lab/research/bluescript/microcontroller/ports/esp32/build/esp-idf/'
-const targetObjFilePath = '../microcontroller/ports/esp32/build/esp-idf/gpio_103112105111/libgpio_103112105111.a'
-
 const dependenciesJsonPath = '../microcontroller/ports/esp32/build/project_description.json'
 
 function getComponents(targetComponent: string) {
@@ -24,22 +24,25 @@ function getComponents(targetComponent: string) {
     if (componentInfo[curr].file !== undefined && componentInfo[curr].file !== '')
       componentPaths.push(componentInfo[curr].file)
   }
-  console.log(componentPaths)
   return componentPaths
 
 }
 
 
-function main() {
-  let components = getComponents('gpio_103112105111')
-  // let archives = (fs.readdirSync(componentsPath, {recursive: true}) as string[])
-  //                   .filter(fname => fname.endsWith('.a'))
+function main(moduleName: string) {
+  let components = getComponents(moduleName)
   const bsRuntime = new ExecutableElfReader(FILE_PATH.MCU_ELF);
 
-  const linkerScript = new LinkerScript(0x310000, 0x410000, components)
-  linkerScript.setTarget(componentsPath + 'gpio_103112105111/libgpio_103112105111.a', 'bluescript_main0_103112105111')
-  linkerScript.setExternalSymbols(bsRuntime.getAllSymbols())
-  linkerScript.save('./gpio_103112105111.ld')
+  const linkerScript = new LinkerScript(
+    new MemoryRegion('IRAM', 0x410000, 50000),
+    new MemoryRegion('DRAM', 0x310000, 50000),
+    new MemoryRegion('Flash', 0x210000, 100000),
+    true
+  )
+  linkerScript.setTarget(componentsPath + `${moduleName}/lib${moduleName}.a`, `bluescript_main0_${Session.moduleNameToId(moduleName)}`)
+  linkerScript.setExternalSymbols(bsRuntime.readAllSymbols())
+  linkerScript.setInputFiles(components)
+  linkerScript.save(`./temp-files/${moduleName}.ld`)
 }
 
-main()
+main(process.argv[2])

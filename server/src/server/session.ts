@@ -106,7 +106,7 @@ export default class Session {
         return mod;
       else {
         const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
-        const moduleId = this.moduleNameToId(fname);
+        const moduleId = Session.moduleNameToId(fname);
         this.sessionId += 1;
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
         this.modules.set(fname, result.names)
@@ -125,7 +125,7 @@ export default class Session {
         return mod;
       else {
         const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
-        const moduleId = this.moduleNameToId(fname);
+        const moduleId = Session.moduleNameToId(fname);
         this.sessionId += 1;
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
         this.modules.set(fname, result.names)
@@ -159,7 +159,7 @@ export default class Session {
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
 
-  private moduleNameToId(fname: string):number {
+  static moduleNameToId(fname: string):number {
     let result = "";
     for (let i = 0; i < fname.length; i++) {
       result += fname.charCodeAt(i);
