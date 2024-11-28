@@ -29,7 +29,7 @@ function InitialScreen() {
     return (
         <div style={{height: '100%', width: '100%', justifyItems: 'center', alignContent: 'center'}}>
             <Typography.Title level={3}>Click Here to Start Coding</Typography.Title>
-            <Button type="primary" onClick={replContext.reset} size='large'>Start</Button>
+            <Button type="primary" onClick={replContext.resetStart} size='large'>Start</Button>
         </div>
     )
 }
@@ -66,7 +66,7 @@ function ButtonBar() {
     const replContext = useContext(ReplContext)
     return (
         <Flex justify='start' align='center' style={{height:36, boxShadow: '0px 0px 4px gray'}}>
-            <Button icon={<ReloadOutlined />} type='text' onClick={replContext.reset}>Reset</Button>
+            <Button icon={<ReloadOutlined />} type='text' onClick={replContext.resetStart}>Reset</Button>
             <Checkbox onChange={(e)=>replContext.updateUseJIT(e.target.checked)} checked={replContext.useJIT}>Use JIT</Checkbox>
             <Checkbox onChange={(e)=>replContext.updateUseFlash(e.target.checked)} checked={replContext.useFlash}>Use Flash</Checkbox>
         </Flex>
@@ -89,7 +89,7 @@ function Cell(props: {
 
     let CellButton = () => {
         if (state === 'user-writing')
-            return <Button shape='circle' type='text' onClick={props.onExecuteClick} style={{marginRight:5}} icon={<CaretRightOutlined style={{fontSize:20}} />}/>
+            return <Button shape='circle' type='text' onClick={() => {props.onExecuteClick && props.onExecuteClick()}} style={{marginRight:5}} icon={<CaretRightOutlined style={{fontSize:20}} />}/>
         else if (state === 'compiling' || state === 'sending' || state === 'executing')
             return <Button shape='circle' type='text' style={{marginRight:5}} disabled icon={<LoadingOutlined style={{fontSize:20}} />}/>
         else 

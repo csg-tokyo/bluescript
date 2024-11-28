@@ -4,9 +4,9 @@ import { MemInfo } from "../utils/type";
 
 export type MemoryUpdate = {
   iram: {address: number, data: string},
-    dram: {address: number, data: string},
-    flash: {address: number, data: string},
-    entryPoint: number,
+  dram: {address: number, data: string},
+  flash: {address: number, data: string},
+  entryPoint: number,
 }
 
 export type CompileResult = {
@@ -14,8 +14,8 @@ export type CompileResult = {
     compileTime: number
 }
 
-export async function compile(src: string): Promise<CompileResult> {
-  return post("compile", {src});
+export async function compile(src: string, useFlash: boolean): Promise<CompileResult> {
+  return post("compile", {src, useFlash});
 }
 
 export async function compileWithProfiling(src: string): Promise<CompileResult> {
@@ -26,8 +26,8 @@ export async function jitCompile(funcId: number, paramTypes: string[]): Promise<
   return post("jit-compile", {funcId, paramTypes});
 }
 
-export async function reset(memInfo:MemInfo, useFlash:boolean) {
-    return post("reset", {...memInfo, useFlash});
+export async function reset(memInfo:MemInfo) {
+    return post("reset", memInfo);
 }
 
 async function post(path: string, body: object) {

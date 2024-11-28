@@ -31,7 +31,7 @@ export default class Bluetooth {
     return end - start
   }
 
-  public setNotificationHandler(handler: (event: Event) => void) {
+  public setNotificationHandler(handler: (event: Event) => Promise<void>) {
     this.notificationHandler = handler;
   }
 

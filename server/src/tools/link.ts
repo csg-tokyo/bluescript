@@ -1,4 +1,4 @@
-import {LinkerScript2} from "../linker/linker-script2";
+import {LinkerScript} from "../linker/linker-script";
 import * as fs from "fs";
 import {ExecutableElfReader} from "../linker/elf-reader";
 import {FILE_PATH} from "../constants";
@@ -36,7 +36,7 @@ function main() {
   //                   .filter(fname => fname.endsWith('.a'))
   const bsRuntime = new ExecutableElfReader(FILE_PATH.MCU_ELF);
 
-  const linkerScript = new LinkerScript2(0x310000, 0x410000, components)
+  const linkerScript = new LinkerScript(0x310000, 0x410000, components)
   linkerScript.setTarget(componentsPath + 'gpio_103112105111/libgpio_103112105111.a', 'bluescript_main0_103112105111')
   linkerScript.setExternalSymbols(bsRuntime.getAllSymbols())
   linkerScript.save('./gpio_103112105111.ld')

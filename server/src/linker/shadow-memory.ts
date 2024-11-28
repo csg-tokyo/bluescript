@@ -1,28 +1,17 @@
-import {ExecutableElfReader, RelocatableElfReader, SECTION_TYPE, Symbol} from "./elf-reader";
+import {ExecutableElfReader, RelocatableElfReader, Symbol} from "./elf-reader";
 import {FILE_PATH} from "../constants";
-import {LinkerScript} from "./linker-script";
 import {execSync} from "child_process";
 import * as fs from "fs";
-import {LinkerScript2} from "./linker-script2";
+import {LinkerScript} from "./linker-script";
 import {Buffer} from "node:buffer";
 
-const componentsPath = '/Users/maejimafumika/Desktop/Lab/research/bluescript/microcontroller/ports/esp32/build/esp-idf/'
-const targetObjFilePath = '../microcontroller/ports/esp32/build/esp-idf/gpio_103112105111/libgpio_103112105111.a'
 
-const dependenciesJsonPath = '../microcontroller/ports/esp32/build/project_description.json'
-
-export type MemoryInfo = {
+export type MemoryAddresses = {
   iram:{address:number, size:number},
   dram:{address:number, size:number},
   flash:{address:number, size:number},
-  useFlash: boolean
 }
 
-type MemoryUnit = {
-  address: number,
-  size: number,
-  used: number
-}
 
 type MemoryUpdate = {
   iram: {address: number, data: string},
@@ -31,108 +20,64 @@ type MemoryUpdate = {
   entryPoint: number|undefined
 }
 
+
 export class ShadowMemory {
-  private iram: MemoryUnit;
-  private dram: MemoryUnit;
-  private flash: MemoryUnit;
+  private iram: MemoryRegion;
+  private dram: MemoryRegion;
+  private flash: MemoryRegion;
   private symbols:Map<string, Symbol> = new Map<string, Symbol>();
-  private useFlash: boolean;
   private updates: MemoryUpdate[] = [];
 
-  // TODO: shouldBeDeleted
-  private bsRuntime: ExecutableElfReader
+  private componentsInfo = new ESPIDFComponentsInfo();
 
-  constructor(bsRuntimePath: string, memoryInfo: MemoryInfo) {
-    this.bsRuntime = new ExecutableElfReader(bsRuntimePath);
-    this.bsRuntime.readDefinedSymbols().forEach(symbol => {this.symbols.set(symbol.name, symbol)});
-    this.iram = {...memoryInfo.iram, used:0};
-    this.dram = {...memoryInfo.dram, used:0};
-    this.flash = {...memoryInfo.flash, used:0};
-    this.useFlash = memoryInfo.useFlash;
+  constructor(bsRuntimePath: string, addresses: MemoryAddresses) {
+    const bsRuntime = new ExecutableElfReader(bsRuntimePath);
+    bsRuntime.readAllSymbols().forEach(symbol => {this.symbols.set(symbol.name, symbol)});
+    this.iram = new MemoryRegion('IRAM', addresses.iram.address, addresses.iram.size);
+    this.dram = new MemoryRegion('DRAM', addresses.dram.address, addresses.dram.size);
+    this.flash = new MemoryRegion('Flash', addresses.flash.address, addresses.flash.size);
   }
 
-  public loadAndLink(objFilePath: string, entryPointName: string) {
-    const relocatableElf = new RelocatableElfReader(objFilePath);
+  public loadAndLink(objFilePath: string, entryPointName: string, useFlash: boolean) {
+    const objFile = new RelocatableElfReader(objFilePath);
     const externalSymbols:Symbol[] = [];
-    relocatableElf.readUndefinedSymbolNames().forEach(name => {
+    objFile.readExternalSymbolNames().forEach(name => {
       const symbol = this.symbols.get(name);
       if (symbol !== undefined)
         externalSymbols.push(symbol);
     });
 
-    // create linker script
-    const linkerScript = new LinkerScript(
-      objFilePath,
-      this.iram.address + this.iram.used,
-      this.dram.address + this.dram.used,
-      this.flash.address + this.flash.used);
-    linkerScript.externalSymbols = externalSymbols;
-    if (!this.useFlash) {
-      linkerScript.sectionNamesInIram = relocatableElf.readSectionNames(SECTION_TYPE.EXECUTABLE);
-      let dramSection = relocatableElf.readSectionNames(SECTION_TYPE.WRITABLE);
-      dramSection = dramSection.concat(relocatableElf.readSectionNames(SECTION_TYPE.READONLY));
-      linkerScript.sectionNamesInDram = dramSection;
-    } else {
-      linkerScript.sectionNamesInFlash = relocatableElf.readSectionNames(SECTION_TYPE.EXECUTABLE);
-      let dramSection = relocatableElf.readSectionNames(SECTION_TYPE.WRITABLE);
-      dramSection = dramSection.concat(relocatableElf.readSectionNames(SECTION_TYPE.READONLY));
-      linkerScript.sectionNamesInDram = dramSection;
-    }
-    linkerScript.save(FILE_PATH.LINKER_SCRIPT);
+    const linkerScript = new LinkerScript(this.iram, this.dram, this.flash, useFlash)
+    linkerScript.setInputFiles([objFilePath])
+    linkerScript.setTarget(objFilePath, entryPointName)
+    linkerScript.setExternalSymbols(externalSymbols)
+    linkerScript.save(FILE_PATH.LINKER_SCRIPT)
 
-    // link
-    execSync(`xtensa-esp32-elf-ld -o ${FILE_PATH.LINKED_ELF} -T ${FILE_PATH.LINKER_SCRIPT} ${objFilePath}`)
-
-    // get linked elf32.
-    const executableElf = new ExecutableElfReader(FILE_PATH.LINKED_ELF);
-    const emptySection = {size:0, value: Buffer.allocUnsafe(0)};
-    const iramSection = executableElf.readSection(linkerScript.IRAM_SECTION) ?? {address:this.iram.address+this.iram.used, ...emptySection};
-    const dramSection = executableElf.readSection(linkerScript.DRAM_SECTION) ?? {address:this.dram.address+this.dram.used, ...emptySection};
-    const flashSection = executableElf.readSection(linkerScript.FLASH_SECTION) ?? {address:this.flash.address+this.flash.used, ...emptySection};
-
-    this.iram.used += iramSection.size;
-    this.dram.used += dramSection.size;
-    this.flash.used += flashSection.size;
-
-    executableElf.readDefinedSymbols().forEach(symbol => {
-      this.symbols.set(symbol.name, symbol);
-    });
-
-    const entryPoint = this.symbols.get(entryPointName)?.address;
-
-    this.updates.push( {
-      iram: {address: iramSection.address, data: iramSection.value.toString("hex")},
-      dram: {address: dramSection.address, data: dramSection.value.toString("hex")},
-      flash: {address: flashSection.address, data: flashSection.value.toString("hex")},
-      entryPoint
-    })
+    this.link(FILE_PATH.LINKER_SCRIPT, FILE_PATH.LINKED_ELF)
+    this.load(FILE_PATH.LINKED_ELF, entryPointName)
   }
 
-  public loadAndLinkForImport(entryPointName: string) {
-    // create linker script
-    let components = this.getComponentPaths('gpio_103112105111')
-    const linkerScript = new LinkerScript2(
-      this.dram.address + this.dram.used,
-      this.flash.address + this.flash.used,
-      components
-    )
-    linkerScript.setExternalSymbols(this.bsRuntime.getAllSymbols())
-    linkerScript.setTarget(componentsPath + 'gpio_103112105111/libgpio_103112105111.a', entryPointName)
+  public loadAndLinkModule(moduleName: string, entryPointName: string) {
+    const linkerScript = new LinkerScript(this.iram, this.dram, this.flash, true)
+    linkerScript.setInputFiles(this.componentsInfo.getComponentsPath(moduleName))
+    linkerScript.setExternalSymbols(Array.from(this.symbols.values()))
+    linkerScript.setTarget(this.componentsInfo.getComponentPath(moduleName), entryPointName)
     linkerScript.save(FILE_PATH.LINKER_SCRIPT);
 
-    // link
-    execSync(`xtensa-esp32-elf-ld -o ${FILE_PATH.LINKED_ELF} -T ${FILE_PATH.LINKER_SCRIPT} --gc-sections`)
+    this.link(FILE_PATH.LINKER_SCRIPT, FILE_PATH.LINKED_ELF)
+    this.load(FILE_PATH.LINKED_ELF, entryPointName)
+  }
 
-    // get linked elf32.
-    const executableElf = new ExecutableElfReader(FILE_PATH.LINKED_ELF);
+  private load(executableFile: string, entryPointName: string) {
+    const executableElf = new ExecutableElfReader(executableFile);
     const emptySection = {size:0, value: Buffer.allocUnsafe(0)};
-    const iramSection = {address:this.iram.address+this.iram.used, ...emptySection};
-    const dramSection = executableElf.readSection(linkerScript.DRAM_SECTION) ?? {address:this.dram.address+this.dram.used, ...emptySection};
-    const flashSection = executableElf.readSection(linkerScript.FLASH_SECTION) ?? {address:this.flash.address+this.flash.used, ...emptySection};
+    const iramSection = executableElf.readSection(LinkerScript.IRAM_SECTION) ?? {address:this.iram.getNextAddress(), ...emptySection};
+    const dramSection = executableElf.readSection(LinkerScript.DRAM_SECTION) ?? {address:this.dram.getNextAddress(), ...emptySection};
+    const flashSection = executableElf.readSection(LinkerScript.FLASH_SECTION) ?? {address:this.flash.getNextAddress(), ...emptySection};
 
-    this.iram.used += iramSection.size;
-    this.dram.used += dramSection.size;
-    this.flash.used += flashSection.size;
+    this.iram.setUsed(iramSection.size)
+    this.dram.setUsed(dramSection.size)
+    this.flash.setUsed(flashSection.size)
 
     executableElf.readDefinedSymbols().forEach(symbol => {
       this.symbols.set(symbol.name, symbol);
@@ -148,23 +93,8 @@ export class ShadowMemory {
     })
   }
 
-  private getComponentPaths(targetComponent: string) {
-    const dependenciesJson = JSON.parse(fs.readFileSync(dependenciesJsonPath).toString())
-    const componentInfo = dependenciesJson.build_component_info
-    let tmp = [targetComponent]
-    let visited = new Set<string>()
-    const componentPaths:string[] = []
-    while(tmp.length > 0) {
-      let curr = tmp.shift() as string
-      visited.add(curr)
-      tmp = tmp.concat(
-        componentInfo[curr].priv_reqs.filter((r:string) => !visited.has(r)),
-        componentInfo[curr].reqs.filter((r:string) => !visited.has(r))
-      )
-      if (componentInfo[curr].file !== undefined && componentInfo[curr].file !== '')
-        componentPaths.push(componentInfo[curr].file)
-    }
-    return componentPaths
+  private link(linkerScript: string, outputPath: string) {
+    execSync(`xtensa-esp32-elf-ld -o ${outputPath} -T ${linkerScript} --gc-sections`)
   }
 
   public getUpdates() {
@@ -174,4 +104,69 @@ export class ShadowMemory {
   }
 }
 
+
+export class MemoryRegion {
+  private readonly name: string
+  private readonly address: number
+  private readonly size: number
+  private used: number = 0
+
+  constructor(name: string, address: number, size: number) {
+    this.name = name
+    this.address = address
+    this.size = size
+  }
+
+  public getRemainingSize() {
+    return this.size - this.used
+  }
+
+  public getNextAddress() {
+    return this.address + this.used
+  }
+
+  public setUsed(used: number) {
+    if (this.used + used > this.size)
+      throw new Error(`${this.name}: Memory Exhausted.`)
+    this.used += used
+  }
+}
+
+
+class ESPIDFComponentsInfo {
+  static DEPENDENCIES_FILE_PATH = '../microcontroller/ports/esp32/build/project_description.json'
+  static COMPONENTS_PATH_PREFIX = /^.*microcontroller\/ports\/esp32\/build/
+  static RELATIVE_PATH_COMMON = '../microcontroller/ports/esp32/build'
+
+  private dependenciesInfo: {[key: string]: {file: string, reqs: string[], priv_reqs: string[]}}
+
+  constructor() {
+    this.dependenciesInfo = JSON.parse(fs.readFileSync(ESPIDFComponentsInfo.DEPENDENCIES_FILE_PATH).toString()).build_component_info
+  }
+
+  public getComponentsPath(rootComponent: string): string[] {
+    let tmp = [rootComponent]
+    let visited = new Set<string>()
+    const componentPaths:string[] = []
+    while(tmp.length > 0) {
+      let curr = tmp.shift() as string
+      visited.add(curr)
+      tmp = tmp.concat(
+        this.dependenciesInfo[curr].priv_reqs.filter((r:string) => !visited.has(r)),
+        this.dependenciesInfo[curr].reqs.filter((r:string) => !visited.has(r))
+      )
+      if (this.dependenciesInfo[curr].file !== undefined && this.dependenciesInfo[curr].file !== '')
+        componentPaths.push(this.convertAbsoluteToRelative(this.dependenciesInfo[curr].file))
+    }
+    return componentPaths
+  }
+
+  public getComponentPath(componentName: string) {
+    return this.convertAbsoluteToRelative(this.dependenciesInfo[componentName].file)
+  }
+
+  private convertAbsoluteToRelative(absolutePath: string) {
+    return absolutePath.replace(ESPIDFComponentsInfo.COMPONENTS_PATH_PREFIX, ESPIDFComponentsInfo.RELATIVE_PATH_COMMON)
+  }
+}
 

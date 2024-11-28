@@ -66,7 +66,8 @@ export default class HttpServer {
             responseBody = {error: "Session have not started."}
             break;
           }
-          responseBody = this.session.execute(JSON.parse(requestBody).src);
+          const requestBodyJson = JSON.parse(requestBody)
+          responseBody = this.session.execute(requestBodyJson.src, requestBodyJson.useFlash);
           statusCode = 200;
           break;
         case "/reset":
@@ -83,24 +84,28 @@ export default class HttpServer {
           responseBody = this.session.dummyExecute();
           statusCode = 200;
           break;
-        case "/compile-with-profiling":
+        case "/compile-with-profiling": {
           if (this.session === undefined) {
             statusCode = 400;
             responseBody = {error: "Session have not started."}
             break;
           }
-          responseBody = this.session.executeWithProfiling(JSON.parse(requestBody).src);
+          const requestBodyJson = JSON.parse(requestBody)
+          responseBody = this.session.executeWithProfiling(requestBodyJson.src);
           statusCode = 200;
           break;
-        case "/jit-compile":
+        }
+        case "/jit-compile": {
           if (this.session === undefined) {
             statusCode = 400;
             responseBody = {error: "Session have not started."}
             break;
           }
-          responseBody = this.session.jitExecute(JSON.parse(requestBody));
+          const requestBodyJson = JSON.parse(requestBody)
+          responseBody = this.session.jitExecute(requestBodyJson.funcId, requestBodyJson.paramTypes);
           statusCode = 200;
           break;
+        }
         case "/check":
           const cmd_result = execSync("ls ../microcontroller/ports/esp32/build/").toString();
           responseBody = {cmd_result};

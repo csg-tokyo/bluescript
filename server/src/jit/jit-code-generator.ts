@@ -27,7 +27,7 @@ import {FunctionDeclaration} from "@babel/types";
 import * as cr from "../transpiler/code-generator/c-runtime";
 import {getStaticType, NameInfo, NameTableMaker} from "../transpiler/names";
 import {jitTypecheck, JitTypeChecker} from "./jit-type-checker";
-import {getSpecializedNode, JITCompileError, ProfileError} from "./utils";
+import {getSpecializedNode, ProfileError} from "./utils";
 import {InstanceType} from "../transpiler/classes";
 import {classNameInC} from "../transpiler/code-generator/c-runtime";
 
@@ -36,12 +36,11 @@ export function jitTranspile(codeId: number, ast: AST.Node,
                              typeChecker: (maker: NameTableMaker<NameInfo>) => JitTypeChecker<NameInfo>,
                              codeGenerator: (initializerName: string, codeId: number, moduleId: number) => JitCodeGenerator,
                              gvnt?: GlobalVariableNameTable,
-                             importer?: (name: string) => GlobalVariableNameTable,
                              moduleId: number = -1,
                              startLine: number = 1, header: string = '') {
   const maker = new VariableNameTableMaker(moduleId)
   const nameTable = new GlobalVariableNameTable(gvnt)
-  jitTypecheck(ast, maker, nameTable, typeChecker(maker), importer)
+  jitTypecheck(ast, maker, nameTable, typeChecker(maker))
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
   const mainFuncName = `${cr.mainFunctionName}${codeId}_${moduleId < 0 ? '' : moduleId}`
   const generator = codeGenerator(mainFuncName, codeId, moduleId)
