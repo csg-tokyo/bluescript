@@ -63,10 +63,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     // To use these variables in callbacks
     const latestCellRef = useRef(latestCell)
     latestCellRef.current = latestCell
-    // const iramRef = useRef(iram)
-    // const dramRef = useRef(dram)
-    // iramRef.current = iram
-    // dramRef.current = dram
     
     useEffect(() => {
         bluetooth.current.setNotificationHandler(onReceiveNotification);
