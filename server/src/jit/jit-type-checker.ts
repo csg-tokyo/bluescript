@@ -6,8 +6,7 @@ import {Any} from "../transpiler/types";
 
 
 export function jitTypecheck<Info extends NameInfo>(ast: AST.Node, maker: NameTableMaker<Info>, names: NameTable<Info>,
-                                                 typeChecker: TypeChecker<Info>,
-                                                 importer?: (file: string) => NameTable<Info>): NameTable<Info> {
+                                                 typeChecker: TypeChecker<Info>): NameTable<Info> {
   // importer reads a given source file and returns a name table.
   // If the source file is not found, importer throws an error message.  The type of the message must be string.
   // importer may also throw an ErrorLog object.

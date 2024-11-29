@@ -1,4 +1,4 @@
-import type { integer, float } from "../../base";
+import type { integer, float } from "../../bs-utils";
 
 export const print = (value: any) => {
     

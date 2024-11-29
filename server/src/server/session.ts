@@ -3,126 +3,148 @@ import * as fs from "fs";
 import {FILE_PATH} from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
 import {execSync} from "child_process";
-import {MemoryInfo, ShadowMemory} from "../linker/shadow-memory";
 import {Profiler} from "../jit/profiler";
 import {runBabelParser} from "../transpiler/utils";
 import {convertAst, typeStringToStaticType} from "../jit/utils";
 import {JitCodeGenerator, jitTranspile} from "../jit/jit-code-generator";
 import {NameInfo, NameTableMaker} from "../transpiler/names";
 import {JitTypeChecker} from "../jit/jit-type-checker";
+import {MemoryAddresses, ShadowMemory} from "../linker/shadow-memory";
 
 
 const cProlog = `
 #include <stdint.h>
-#include "../../microcontroller/core/include/c-runtime.h"
-#include "../../microcontroller/core/include/profiler.h"
-
+#include "../${FILE_PATH.C_RUNTIME_H}"
+#include "../${FILE_PATH.PROFILER_H}"
 `
 
+
 export default class Session {
-  currentCodeId: number = 0;
-  nameTable?: GlobalVariableNameTable;
+  sessionId: number = 0;
+  baseGlobalNames?: GlobalVariableNameTable
+  modules: Map<string, GlobalVariableNameTable>
   shadowMemory: ShadowMemory;
   profiler: Profiler;
 
-  constructor(memoryInfo: MemoryInfo) {
-    // Read module files.
-    fs.readdirSync(FILE_PATH.MODULES).forEach(file => {
-      if (/.*\.ts$/.test(file)) {
-        this.currentCodeId += 1;
-        const tsString = fs.readFileSync(`${FILE_PATH.MODULES}/${file}`).toString()
-        const result = transpile(this.currentCodeId, tsString, this.nameTable);
-        this.nameTable = result.names;
-      }
-    });
-    this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, memoryInfo);
+  constructor(addresses: MemoryAddresses) {
+    const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULES}`).toString()
+    const result = transpile(++this.sessionId, bsString, this.baseGlobalNames);
+    this.baseGlobalNames = result.names;
+    this.modules = new Map<string, GlobalVariableNameTable>()
+    this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, addresses)
     this.profiler = new Profiler();
   }
 
-  public execute(tsString: string) {
-    this.currentCodeId += 1;
-
+  public execute(src: string, useFlash = false) {
     const start = performance.now();
+    this.sessionId += 1;
+
     // Transpile
-    const tResult = transpile(this.currentCodeId, tsString, this.nameTable);
+    const tResult = this.transpile(src);
+    this.baseGlobalNames = tResult.names;
+
+    // Compile
+    const cString = cProlog + tResult.code;
+    fs.writeFileSync(FILE_PATH.C_FILE, cString);
+    execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
+
+    // Link
+    this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, tResult.main, useFlash);
+    const end = performance.now();
+    return  {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+  }
+
+  public executeWithProfiling(src: string) {
+    const start = performance.now();
+    this.sessionId += 1;
+
+    // Transpile
+    const tResult = this.transpileForJIT(src)
     const entryPointName = tResult.main;
     const cString = cProlog + tResult.code;
 
     // Compile
     fs.writeFileSync(FILE_PATH.C_FILE, cString);
     execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
-    this.nameTable = tResult.names;
+    this.baseGlobalNames = tResult.names;
 
     // Link
-    const lResult = this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName);
+    this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName, false);
     const end = performance.now();
-    return {...lResult, compileTime:end-start}
+    return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
 
-  public executeWithProfiling(tsString: string) {
-    this.currentCodeId += 1;
-
-    const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
-      return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, tsString);
-    }
-
-    const typeChecker = (maker: NameTableMaker<NameInfo>) => {
-      return new JitTypeChecker(maker, undefined);
-    }
-
+  public jitExecute(funcId: number, paramTypes: string[]) {
     const start = performance.now();
+    this.sessionId += 1
 
-    // Transpile
-    const ast = runBabelParser(tsString, 1);
-    convertAst(ast, this.profiler);
-    const tResult = jitTranspile(this.currentCodeId, ast, typeChecker, codeGenerator, this.nameTable, undefined)
-    const entryPointName = tResult.main;
-    const cString = cProlog + tResult.code;
-
-    // Compile
-    fs.writeFileSync(FILE_PATH.C_FILE, cString);
-    execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
-    this.nameTable = tResult.names;
-
-    // Link
-    const lResult = this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName);
-    const end = performance.now();
-    return {...lResult, compileTime:end-start}
-  }
-
-  public jitExecute(profile: {funcId: number, paramTypes: string[]}) {
-    console.log(profile)
-    const func = this.profiler.getFunctionProfileById(profile.funcId);
+    const func = this.profiler.getFunctionProfileById(funcId);
     if (func === undefined)
-      return {};
-
-    this.profiler.setFuncSpecializedType(profile.funcId, profile.paramTypes.map(t => typeStringToStaticType(t, this.nameTable)))
-
-    const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
-      return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, func.src);
-    }
-
-    const typeChecker = (maker: NameTableMaker<NameInfo>) => {
-      return new JitTypeChecker(maker, undefined);
-    }
+      return {}; // TODO： 要修正
+    this.profiler.setFuncSpecializedType(funcId, paramTypes.map(t => typeStringToStaticType(t, this.baseGlobalNames)))
 
     // Transpile
-    const start = performance.now();
-    const ast = runBabelParser(func.src, 1);
-    convertAst(ast, this.profiler);
-    const tResult = jitTranspile(this.currentCodeId, ast, typeChecker, codeGenerator, this.nameTable, undefined)
+    const tResult = this.transpileForJIT(func.src)
     const entryPointName = tResult.main;
     const cString = cProlog + tResult.code;
 
     // Compile
     fs.writeFileSync(FILE_PATH.C_FILE, cString);
     execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
-    this.nameTable = tResult.names;
+    this.baseGlobalNames = tResult.names;
 
     // Link
-    const lResult = this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName);
+    this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName, false);
     const end = performance.now();
-    return {...lResult, compileTime:end-start}
+    return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+  }
+
+  private transpile(src: string) {
+    const importer = (fname: string) => {
+      const mod = this.modules.get(fname);
+      if (mod)
+        return mod;
+      else {
+        const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
+        const moduleId = Session.moduleNameToId(fname);
+        this.sessionId += 1;
+        const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
+        this.modules.set(fname, result.names)
+        this.shadowMemory.loadAndLinkModule(fname, result.main)
+        return result.names
+      }
+    }
+
+    return transpile(this.sessionId, src, this.baseGlobalNames, importer);
+  }
+
+  private transpileForJIT(src: string) {
+    const importer = (fname: string) => {
+      const mod = this.modules.get(fname);
+      if (mod)
+        return mod;
+      else {
+        const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
+        const moduleId = Session.moduleNameToId(fname);
+        this.sessionId += 1;
+        const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
+        this.modules.set(fname, result.names)
+        this.shadowMemory.loadAndLinkModule(fname, result.main)
+        return result.names
+      }
+    }
+
+    const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
+      return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, src);
+    }
+
+    const typeChecker = (maker: NameTableMaker<NameInfo>) => {
+      return new JitTypeChecker(maker, importer);
+    }
+
+    const ast = runBabelParser(src, 1);
+    convertAst(ast, this.profiler);
+    return  jitTranspile(this.sessionId, ast, typeChecker, codeGenerator, this.baseGlobalNames)
   }
 
   public dummyExecute() {
@@ -132,8 +154,16 @@ export default class Session {
     const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
 
     // Link
-    const lResult = this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, "bluescript_main6_");
+    this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, "bluescript_main6_", false);
     const end = performance.now();
-    return {...lResult, compileTime:end-start}
+    return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+  }
+
+  static moduleNameToId(fname: string):number {
+    let result = "";
+    for (let i = 0; i < fname.length; i++) {
+      result += fname.charCodeAt(i);
+    }
+    return parseInt(result, 10) ?? 0;
   }
 }

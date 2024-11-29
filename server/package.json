@@ -22,7 +22,10 @@
     "build": "npx tsc",
     "build:watch": "npx tsc -w",
     "dev": "npm run build:watch & npm start",
+    "exec": "./node_modules/.bin/tsc && node ./dist/index.js",
     "shell": "./node_modules/.bin/tsc && node ./dist/transpiler/shell.js",
+    "transpile-module": "./node_modules/.bin/tsc && node ./dist/tools/transpile-module.js",
+    "link": "./node_modules/.bin/tsc && node ./dist/tools/link.js",
     "test": "jest"
   }
 }
