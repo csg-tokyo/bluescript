@@ -1,9 +1,11 @@
-#ifndef __BS_PRINT__
-#define __BS_PRINT__
+#ifndef __BS_STD__
+#define __BS_STD__
 
 #include <stdint.h>
 #include "c-runtime.h"
-#include "section.h"
+
+#define MD_SECTION_TEXT __attribute__((section(".modules_text")))
+#define MD_SECTION_DATA __attribute__((section(".modules_data")))
 
 
 void MD_SECTION_TEXT fbody_print(value_t self, value_t _value);
@@ -20,5 +22,4 @@ extern MD_SECTION_DATA struct func_body _abs;
 extern MD_SECTION_DATA struct func_body _fabs;
 extern MD_SECTION_DATA struct func_body _sqrt;
 
-#endif /* __BS_PRINT__ */
-
+#endif /* __BS_STD__ */

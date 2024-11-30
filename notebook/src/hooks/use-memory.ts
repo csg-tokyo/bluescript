@@ -46,7 +46,7 @@ export function useMemory(memoryName: string): MemoryT {
 
     const setUsedSegment = (startAddress: number, size: number) => {
         const start = startAddress - address
-        setBuffer(buffer.map((v, i) => v || (i >= (start / UNIT_SIZE) && i < (start + size) / UNIT_SIZE)))
+        setBuffer(buffer => buffer.map((v, i) => v || (i >= (start / UNIT_SIZE) && i < (start + size) / UNIT_SIZE)))
         setUsedSize(used => used + size)
     }
 

@@ -13,10 +13,13 @@ export default function SystemArea() {
             { replContext.state === 'activated' &&
                 <div>
                     <div style={{marginBottom:20}}>
-                    <MemoryData memory={replContext.iram} />
+                    <MemoryData memory={replContext.iram} showFigure={true} />
                     </div>
                     <div style={{marginBottom:20}}>
-                    <MemoryData memory={replContext.dram} />
+                    <MemoryData memory={replContext.dram} showFigure={true} />
+                    </div>
+                    <div style={{marginBottom:20}}>
+                    <MemoryData memory={replContext.flash} showFigure={false} />
                     </div>
                 </div>
             }
@@ -24,7 +27,7 @@ export default function SystemArea() {
     )
 }
 
-function MemoryData(props: {memory: MemoryT}) {
+function MemoryData(props: {memory: MemoryT, showFigure: boolean}) {
     const theme = useContext(ThemeContext)
 
     const size = Math.round(props.memory.state.size / 1000 * 100) / 100
@@ -35,9 +38,9 @@ function MemoryData(props: {memory: MemoryT}) {
         <div style={{fontSize: 16}}>
             <div style={{fontWeight: 'bold'}}>{props.memory.state.name}</div>
             <div style={{color: theme.text.gray2}}>Used: &nbsp;  {usageRatio} % ({usedSize} KB / {size} KB)</div>
-            {/* <div style={{color: "#595959", marginLeft:20}}>Reusable: &nbsp; 24% (344B / 654B)</div> */}
-            {/* <div style={{marginTop:5}}><Memory size={props.memory.state.size} usedSize={props.memory.state.usedSize}></Memory></div> */}
-            <div style={{marginTop:5}}><Memory buffer={props.memory.state.buffer}></Memory></div>
+            { props.showFigure &&
+                <div style={{marginTop:5}}><Memory buffer={props.memory.state.buffer}></Memory></div>
+            }
         </div>
     )
 }

@@ -17,11 +17,12 @@ export type ReplContextT = {
     useFlash: boolean,
     iram: MemoryT,
     dram: MemoryT,
+    flash: MemoryT
 
     updateUseJIT: (useJIT: boolean) => void,
-    updateUseFlash: (useFlash: boolean) => Promise<void>,
+    updateUseFlash: (useFlash: boolean) => void,
     setLatestCellCode: (code: string) => void,
-    reset: () => Promise<void>,
+    resetStart: () => Promise<void>,
     executeLatestCell: () => Promise<void>,
 }
 
@@ -36,11 +37,12 @@ export const ReplContext = createContext<ReplContextT>({
     useFlash: false,
     iram: MemoryDummry,
     dram: MemoryDummry,
+    flash: MemoryDummry,
 
     updateUseJIT: (useJIT: boolean) => {},
-    updateUseFlash: async (useFlash: boolean) => {},
+    updateUseFlash: (useFlash: boolean) => {},
     setLatestCellCode: (code: string) => {},
-    reset: async () => {},
+    resetStart: async () => {},
     executeLatestCell: async () => {},
 });
 
@@ -54,23 +56,19 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     const [runtimeError, setRuntimeError] = useState<string[]>([])
     const iram = useMemory('IRAM')
     const dram = useMemory('DRAM')
+    const flash = useMemory('Flash')
     
     const bluetooth = useRef(new Bluetooth())
 
     // To use these variables in callbacks
     const latestCellRef = useRef(latestCell)
     latestCellRef.current = latestCell
-    const iramRef = useRef(iram)
-    const dramRef = useRef(dram)
-    iramRef.current = iram
-    dramRef.current = dram
     
-
     useEffect(() => {
         bluetooth.current.setNotificationHandler(onReceiveNotification);
     },[])
-        
-    const reset = async () => {
+
+    const resetStart = async () => {
         setReplState("loading")
         const bytecodeBuffer = new BytecodeBufferBuilder(MAX_MTU).reset().generate()
         try {
@@ -82,25 +80,55 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         }
     }
 
+    const onResetComplete = (meminfo: MemInfo) => {
+        network.reset(meminfo).then(() => {
+            setPostExecutionCells([])
+            setOutput([])
+            setRuntimeError([])
+            setLatestCell({id: 0, code:'', state: 'user-writing'})
+            setReplState("activated")
+            iram.actions.reset(meminfo.iram.address, meminfo.iram.size)
+            dram.actions.reset(meminfo.dram.address, meminfo.dram.size)
+            flash.actions.reset(meminfo.flash.address, meminfo.flash.size)
+        }).catch(e => {
+            // TODO: 要修正
+            console.log(e)
+            window.alert(`Failed to reset: ${e.message}`)
+        });
+    }
+
+    const sendCompileResult = async (compileResult: network.CompileResult) => {
+        const bytecodeBuilder = new BytecodeBufferBuilder(MAX_MTU)
+        for (const update of compileResult.result) {
+            bytecodeBuilder.loadToRAM(update.iram.address, Buffer.from(update.iram.data, "hex"));
+            bytecodeBuilder.loadToRAM(update.dram.address, Buffer.from(update.dram.data, "hex"));
+            bytecodeBuilder.loadToFlash(update.flash.address, Buffer.from(update.flash.data, "hex"));
+        }
+        for (const update of compileResult.result) {
+            bytecodeBuilder.jump(update.entryPoint);
+        }
+        const bluetoothTime = await bluetooth.current.sendBuffers(bytecodeBuilder.generate())
+        return bluetoothTime
+    }
+
+    const setMemoryUpdates = (compileResult: network.CompileResult) => {
+        for (const update of compileResult.result) {
+            iram.actions.setUsedSegment(update.iram.address, Buffer.from(update.iram.data, "hex").length)
+            dram.actions.setUsedSegment(update.dram.address, Buffer.from(update.dram.data, "hex").length)
+            flash.actions.setUsedSegment(update.flash.address, Buffer.from(update.flash.data, "hex").length)
+        }
+    }
+
     const executeLatestCell = async () => {
+        console.log('execute latest cell',latestCell.id)
         setLatestCell({...latestCell, compileError: '', state: 'compiling'})
         try {
-            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code)
-            const iramBuffer = Buffer.from(compileResult.iram.data, "hex")
-            const dramBuffer = Buffer.from(compileResult.dram.data, "hex")
-            const flashBuffer = Buffer.from(compileResult.flash.data, "hex")
-            const bytecodeBuffer = 
-                    new BytecodeBufferBuilder(MAX_MTU)
-                        .loadToRAM(compileResult.iram.address, iramBuffer)
-                        .loadToRAM(compileResult.dram.address, dramBuffer)
-                        .loadToFlash(compileResult.flash.address, flashBuffer)
-                        .jump(compileResult.entryPoint)
-                        .generate()
+            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code, useFlash)
+            console.log(compileResult)
             setLatestCell({...latestCell, compileError: '', state: 'sending'})
-            iram.actions.setUsedSegment(compileResult.iram.address, iramBuffer.length)
-            dram.actions.setUsedSegment(compileResult.dram.address, dramBuffer.length)
-            const bluetoothTime = await bluetooth.current.sendBuffers(bytecodeBuffer)
+            const bluetoothTime = await sendCompileResult(compileResult)
             const compileTime = compileResult.compileTime
+            setMemoryUpdates(compileResult)
             setLatestCell({...latestCell, state: 'executing', time: {compile: compileTime, bluetooth: bluetoothTime}})
         } catch (error: any) {
             if (error instanceof CompileError) {
@@ -117,58 +145,31 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         setLatestCell({...latestCell, code})
     }
 
-    const updateUseFlash = async (useFlash: boolean) => {
-        setUseFlash(useFlash)
-        await reset()
-    }
-
-    const onDeviceResetComplete = (meminfo: MemInfo) => {
-        network.reset(meminfo, useFlash).then(() => {
-            setPostExecutionCells([])
-            setOutput([])
-            setRuntimeError([])
-            setLatestCell({id: 0, code:'', state: 'user-writing'})
-            setReplState("activated")
-            iram.actions.reset(meminfo.iram.address, meminfo.iram.size)
-            dram.actions.reset(meminfo.dram.address, meminfo.dram.size)
-        }).catch(e => {
-            // TODO: 要修正
-            console.log(e)
-            window.alert(`Failed to reset: ${e.message}`)
-        });
-    }
-
     const onExecutionComplete = (executionTime: number) => {
         if (latestCellRef.current.time !== undefined && latestCellRef.current.time?.execution === undefined) {
             latestCellRef.current.time.execution = executionTime
             latestCellRef.current.state = 'done'
             const nextCellId = latestCellRef.current.id + 1
-            setPostExecutionCells((cells) =>
-                [...cells, latestCellRef.current]
-            )
+            const current = latestCellRef.current
+            setPostExecutionCells((cells) => [...cells, current])
             setLatestCell({id: nextCellId, code: '', state: 'user-writing'})
         }
     }
 
-    const jitCompile = (fid: number, paramtypes: string[]) => {
-        network.jitCompile(fid, paramtypes).then((compileResult) => {
-            console.log(compileResult)
-            const iramBuffer = Buffer.from(compileResult.iram.data, "hex")
-            const dramBuffer = Buffer.from(compileResult.dram.data, "hex")
-            iramRef.current.actions.setUsedSegment(compileResult.iram.address, iramBuffer.length)
-            dramRef.current.actions.setUsedSegment(compileResult.dram.address, dramBuffer.length)
-            const bytecodeBuffer = 
-                new BytecodeBufferBuilder(MAX_MTU)
-                    .loadToRAM(compileResult.iram.address, iramBuffer)
-                    .loadToRAM(compileResult.dram.address, dramBuffer)
-                    .loadToFlash(compileResult.flash.address, Buffer.from(compileResult.flash.data, "hex"))
-                    .jump(compileResult.entryPoint)
-                    .generate()
-            bluetooth.current.sendBuffers(bytecodeBuffer).then(() => console.log("JIT finish!"))
-        })
+    const jitCompile = async (fid: number, paramtypes: string[]) => {
+        try {
+            const compileResult = await network.jitCompile(fid, paramtypes)
+            await sendCompileResult(compileResult)
+            setMemoryUpdates(compileResult)
+            console.log('JIT finish')
+        } catch (error: any) {
+            // TODO: 要修正
+            console.log(error)
+            window.alert(`Failed to compile: ${error.message}`)
+        }
     }
 
-    const onReceiveNotification = (event: Event) => {
+    const onReceiveNotification = async (event: Event) => {
         // @ts-ignore
         const value = event.target.value as any;
         const parseResult = bytecodeParser(value);
@@ -181,7 +182,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                 break;
             case BYTECODE.RESULT_MEMINFO:
                 console.log(parseResult.meminfo)
-                onDeviceResetComplete(parseResult.meminfo)
+                onResetComplete(parseResult.meminfo)
                 break;
             case BYTECODE.RESULT_EXECTIME: 
                 onExecutionComplete(parseResult.exectime)
@@ -191,8 +192,19 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                 jitCompile(parseResult.fid, parseResult.paramtypes)
                 break; 
             }
-                           
         }
+    }
+
+    const updateUseFlash = (useFlash: boolean) => {
+        if (useFlash)
+            setUseJIT(false)
+        setUseFlash(useFlash)
+    }
+
+    const updateUseJIT = (useJIT: boolean) => {
+        if (useJIT)
+            setUseFlash(false)
+        setUseJIT(useJIT)
     }
 
     return (
@@ -206,11 +218,12 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             useFlash,
             iram,
             dram,
+            flash,
 
-            updateUseJIT: setUseJIT,
+            updateUseJIT,
             updateUseFlash,
             setLatestCellCode,
-            reset,
+            resetStart,
             executeLatestCell,
         }}>
         {children}

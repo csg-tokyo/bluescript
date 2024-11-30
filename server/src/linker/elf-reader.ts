@@ -1,11 +1,11 @@
 import {Buffer} from "node:buffer";
 import * as fs from "fs";
-import {ELF32} from "./elf32";
-import {SHFlag, STBind, STType} from "./elf32";
+import {ELF32, SHFlag, STBind, STType} from "./elf32";
 
 export enum SYMBOL_TYPE {
   FUNCTION,
   OBJECT,
+  NONE
 }
 
 export enum SECTION_TYPE {
@@ -33,7 +33,7 @@ export class RelocatableElfReader {
     this.elf = new ELF32(fs.readFileSync(path));
   }
 
-  public readUndefinedSymbolNames():string[] {
+  public readExternalSymbolNames():string[] {
     const symbolNames:string[] = [];
     const syms = this.elf.readSyms();
     syms.forEach(sym => {
@@ -70,20 +70,37 @@ export class ExecutableElfReader {
   }
 
   public readDefinedSymbols():Symbol[] {
+    return this.readSymbols([STType.STT_FUNC, STType.STT_OBJECT])
+  }
+
+  public readAllSymbols() {
+    return this.readSymbols([STType.STT_FUNC, STType.STT_OBJECT, STType.STT_NOTYPE])
+  }
+
+  private readSymbols(types: STType[]): Symbol[] {
     const syms = this.elf.readSyms();
     const symbols:Symbol[] = [];
     syms.forEach(sym => {
       const symName = this.elf.readSymbolName(sym);
-      if (sym.stType === STType.STT_FUNC || sym.stType === STType.STT_OBJECT) {
+      if ((types.includes(sym.stType)) && sym.stBind === STBind.STB_GLOBAL) {
         const symbol:Symbol = {
           name: symName,
           address: sym.stValue,
-          type: sym.stType === STType.STT_FUNC ? SYMBOL_TYPE.FUNCTION : SYMBOL_TYPE.OBJECT
+          type: this.stTypeToSymbolType(sym.stType)
         }
         symbols.push(symbol);
       }
     });
     return symbols;
+  }
+
+  private stTypeToSymbolType(stType: STType) {
+    if (stType === STType.STT_FUNC)
+      return SYMBOL_TYPE.FUNCTION
+    else if (stType === STType.STT_OBJECT)
+      return SYMBOL_TYPE.OBJECT
+    else
+      return SYMBOL_TYPE.NONE
   }
 
   public readSection(sectionName: string):Section|undefined {
