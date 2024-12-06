@@ -120,7 +120,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     }
 
     const executeLatestCell = async () => {
-        console.log('execute latest cell',latestCell.id)
         setLatestCell({...latestCell, compileError: '', state: 'compiling'})
         try {
             const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code, useFlash)
