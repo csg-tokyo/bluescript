@@ -9,9 +9,12 @@ export class LinkerScript3 {
   sections(sections: LinkerScriptSection[]) { this.commands.push(new LinkerScriptSections(sections)); return this; }
   memory(regions: LinkerScriptMemoryRegion[]) { this.commands.push(new LinkerScriptMemory(regions)); return this; }
 
+  toString() {
+    return this.commands.map(c => c.toString()).join('\n');
+  }
+
   save(path: string) {
-    const str = this.commands.map(c => c.toString()).join('\n');
-    fs.writeFileSync(path, str);
+    fs.writeFileSync(path, this.toString());
   }
 }
 
@@ -41,9 +44,9 @@ class LinkerScriptMemory implements LinkerScriptCommand {
   toString(): string {
     return `
 MEMORY {
-${this.regions.map(r => `${r.toString(1)}\n`)}
-}    
-    `;
+${this.regions.map(r => `${r.toString(1)}`).join('\n')}
+}
+`;
   }
 }
 
@@ -53,9 +56,9 @@ class LinkerScriptSections implements LinkerScriptCommand {
   toString(): string {
     return `
 SECTIONS {
-${this.sections.map(s => `${s.toString(1)}\n`)}
+${this.sections.map(s => `${s.toString(1)}`).join('\n\n')}
 }
-    `;
+`;
   }
 }
 
@@ -68,11 +71,11 @@ export class LinkerScriptMemoryRegion implements LinkerScriptCommand {
   getName() { return this.name; }
 
   toString(indent: number = 0) {
-    return `${'\t'.repeat(indent)}${this.name}   (${this.attributes.map(a => a.toString()).join('')})   : ORIGIN = 0x${this.address.toString(16)},  LENGTH = ${this.size}B`;
+    return `${'\t'.repeat(indent)}${this.name}   (${this.attributes.map(a => a.toString()).join('')})   : ORIGIN = 0x${this.address.toString(16)},  LENGTH = ${this.size}`;
   }
 }
 
-class LinerScriptMemoryAttribute {
+export class LinerScriptMemoryAttribute {
   constructor(private attr: 'readonly' | 'read/write' | 'executable' | 'allocatable') {}
 
   toString() {
@@ -97,26 +100,29 @@ export class LinkerScriptSection implements LinkerScriptCommand {
 
   align(align: number) {
     this.commands.push(`. = ALIGN(${Math.round(align)});`);
+    return this;
   }
 
   symbol(name: string, address: number) {
     this.commands.push(`${name} = 0x${address.toString(16)};`);
+    return this;
   }
 
   section(objFilePath: string, sectionNames: string[], keep: boolean = false) {
     const command = `${objFilePath}(${sectionNames.join(' ')})`;
     if (keep)
-      this.commands.push(`KEEP(${command})`)
+      this.commands.push(`KEEP(${command})`);
     else
-      this.commands.push(command)
+      this.commands.push(command);
+    return this;
   }
 
   toString(indent: number = 0) {
-    return `
-${'\t'.repeat(indent)}${this.name} {
+    return `\
+${'\t'.repeat(indent)}${this.name} : {
+${'\t'.repeat(indent + 1)}. = 0x00000000;
 ${this.commands.map(comm => `${'\t'.repeat(indent + 1)}${comm}`).join('\n')}
-${'\t'.repeat(indent)}} > ${this.memory.getName()}
-    `
+${'\t'.repeat(indent)}} > ${this.memory.getName()}`
   }
 }
 

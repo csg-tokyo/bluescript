@@ -1,16 +1,20 @@
 import {Section} from "./elf-reader";
 
+const align4 = (value: number) => (value + 3) & ~3;
+
 export class MemoryRegion {
   private usedSize: number = 0;
   constructor(private name: string, private address: number, private size: number) {}
 
   public getNextAddress() { return this.address + this.size }
 
-  public allocate(size: number) {
-    if (this.usedSize + size > this.size)
+  public allocate(section: Section) {
+    const alignedSectionSize = align4(section.size);
+    if (this.usedSize + alignedSectionSize > this.size)
       throw new Error(`Memory exhausted: ${this.name}`)
-    const memoryBlock = new MemoryBlock(this.address + this.usedSize, size)
-    this.usedSize += size
+    const memoryBlock = new MemoryBlock(this.address + this.usedSize, alignedSectionSize)
+    memoryBlock.sectionName = section.name
+    this.usedSize += alignedSectionSize
     return memoryBlock
   }
 }
@@ -26,12 +30,13 @@ export class ReusableMemoryRegion {
   }
 
   public allocate(section: Section) {
+    const alignedSectionSize = align4(section.size);
     let current: undefined | MemoryBlock = this.memoryBlocks
     let allocatedBlock: undefined | MemoryBlock
     while(current !== undefined) {
-      if (current.isFree && current.size > section.size) {
+      if (current.isFree && current.size > alignedSectionSize) {
         allocatedBlock = current
-        current.separate(section.size)
+        current.separate(alignedSectionSize)
         current.isFree = false
         current.sectionName = section.name
         break
@@ -55,7 +60,7 @@ export class ReusableMemoryRegion {
 }
 
 
-class MemoryBlock {
+export class MemoryBlock {
   constructor(
     public address: number,
     public size: number,

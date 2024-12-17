@@ -73,7 +73,7 @@ ENTRY(${this.entryPointName})
   private memoryAttributesToStr(attrs: SECTION_TYPE[]) {
     const attrToStr = (attr: SECTION_TYPE) => {
       switch (attr) {
-        case SECTION_TYPE.READABLE:
+        case SECTION_TYPE.READONLY:
           return 'r'
         case SECTION_TYPE.WRITABLE:
           return 'w'

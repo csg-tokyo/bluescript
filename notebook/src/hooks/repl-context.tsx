@@ -99,23 +99,27 @@ export default function ReplProvider({children}: {children: ReactNode}) {
 
     const sendCompileResult = async (compileResult: network.CompileResult) => {
         const bytecodeBuilder = new BytecodeBufferBuilder(MAX_MTU)
-        for (const update of compileResult.result) {
-            bytecodeBuilder.loadToRAM(update.iram.address, Buffer.from(update.iram.data, "hex"));
-            bytecodeBuilder.loadToRAM(update.dram.address, Buffer.from(update.dram.data, "hex"));
-            bytecodeBuilder.loadToFlash(update.flash.address, Buffer.from(update.flash.data, "hex"));
+        for (const block of compileResult.result.blocks) {
+            if (block.isFlash)
+                bytecodeBuilder.loadToFlash(block.address, Buffer.from(block.data, "hex"));
+            else
+            bytecodeBuilder.loadToRAM(block.address, Buffer.from(block.data, "hex"));
         }
-        for (const update of compileResult.result) {
-            bytecodeBuilder.jump(update.entryPoint);
+        for (const entryPoint of compileResult.result.entryPoints) {
+            bytecodeBuilder.jump(entryPoint);
         }
         const bluetoothTime = await bluetooth.current.sendBuffers(bytecodeBuilder.generate())
         return bluetoothTime
     }
 
     const setMemoryUpdates = (compileResult: network.CompileResult) => {
-        for (const update of compileResult.result) {
-            iram.actions.setUsedSegment(update.iram.address, Buffer.from(update.iram.data, "hex").length)
-            dram.actions.setUsedSegment(update.dram.address, Buffer.from(update.dram.data, "hex").length)
-            flash.actions.setUsedSegment(update.flash.address, Buffer.from(update.flash.data, "hex").length)
+        for (const block of compileResult.result.blocks) {
+            if (block.address >= iram.state.address && block.address < iram.state.address + iram.state.usedSize)
+                iram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
+             else if (block.address >= dram.state.address && block.address < dram.state.address + dram.state.usedSize)
+                dram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
+            else if (block.isFlash)
+                flash.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
         }
     }
 

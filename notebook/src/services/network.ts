@@ -3,14 +3,12 @@ import { CompileError, InternalError } from "../utils/error";
 import { MemInfo } from "../utils/type";
 
 export type MemoryUpdate = {
-  iram: {address: number, data: string},
-  dram: {address: number, data: string},
-  flash: {address: number, data: string},
-  entryPoint: number,
+  blocks: {address: number, data: string, isFlash: boolean}[],
+  entryPoints: number[]
 }
 
 export type CompileResult = {
-    result: MemoryUpdate[],
+    result: MemoryUpdate,
     compileTime: number
 }
 

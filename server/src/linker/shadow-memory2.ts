@@ -91,7 +91,7 @@ export class ShadowMemory {
     linkerScriptBlocks.push({
       blockName: `DRAM`,
       address: this.dram.getNextAddress(),
-      attributes: [SECTION_TYPE.READABLE, SECTION_TYPE.WRITABLE],
+      attributes: [SECTION_TYPE.READONLY, SECTION_TYPE.WRITABLE],
       outputSectionName: DRAM_OUTPUT_SECTION,
       includedSection: {objFile: objFilePath, sectionName: DEFAULT_DATA_SECTIONS},
     })

@@ -11,7 +11,7 @@ export enum SYMBOL_TYPE {
 export enum SECTION_TYPE {
   EXECUTABLE,
   WRITABLE,
-  READABLE
+  READONLY
 }
 
 export type Section = {
@@ -29,9 +29,11 @@ export type Symbol = {
 
 
 export class ElfReader {
+  public readonly filePath: string;
   private readonly elf;
 
   constructor(path: string) {
+    this.filePath = path;
     this.elf = new ELF32(fs.readFileSync(path));
   }
 
@@ -92,8 +94,25 @@ export class ElfReader {
           sections.push(section);
         else if (type === SECTION_TYPE.WRITABLE && !!(shdr.shFlags & SHFlag.SHF_WRITE))
           sections.push(section);
-        else if (type === SECTION_TYPE.READABLE
+        else if (type === SECTION_TYPE.READONLY
           && !(shdr.shFlags & SHFlag.SHF_EXECINSTR) && !(shdr.shFlags & SHFlag.SHF_WRITE))
+          sections.push(section);
+      }
+    });
+    return sections;
+  }
+
+  public readAllSections() {
+    const sections:Section[] = [];
+    this.elf.shdrs.forEach(shdr => {
+      const name = this.elf.readSectionName(shdr);
+      const section = {
+        name,
+        address: shdr.shAddr,
+        size: shdr.shSize,
+        value: this.elf.readSectionValue(shdr)
+      }
+      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC)) {
           sections.push(section);
       }
     });

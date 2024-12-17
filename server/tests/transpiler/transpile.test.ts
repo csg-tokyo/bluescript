@@ -9,16 +9,20 @@ test("transpile", () => {
   expect(result.code.split('\n')[0]).toBe(expectedCString);
 })
 
-const bsSrc = `
-let sarr: string[] = ['hello']
+const bsSrc1 = `
+function add(a:integer, b:integer) {
+  return a + b;
+}
+`
+
+const bsSrc2 = `
+add(1, 2) + add(3, 4);
 `
 
 test("playground", () => {
-  const tsString = "1 + 1";
-
   try {
-    const result1 = transpile(1, 'const arr1 = [1, 2]; const f: float = 3.0;');
-    const result2 = transpile(2, bsSrc, result1.names);
+    const result1 = transpile(1, bsSrc1);
+    const result2 = transpile(2, bsSrc2, result1.names);
     const names = result2.names;
     const code = result2.code;
 
