@@ -1,7 +1,7 @@
 import * as fs from "fs";
 
 
-export class LinkerScript3 {
+export class LinkerScript {
   private commands: LinkerScriptCommand[] = [];
 
   input(files: string[]) { this.commands.push(new LinkerScriptInput(files)); return this; }

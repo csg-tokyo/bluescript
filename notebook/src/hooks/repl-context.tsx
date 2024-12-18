@@ -14,7 +14,6 @@ export type ReplContextT = {
     output: string[],
     runtimeError: string[],
     useJIT: boolean,
-    useFlash: boolean,
     iram: MemoryT,
     dram: MemoryT,
     flash: MemoryT
@@ -34,7 +33,6 @@ export const ReplContext = createContext<ReplContextT>({
     output: [],
     runtimeError: [],
     useJIT: true,
-    useFlash: false,
     iram: MemoryDummry,
     dram: MemoryDummry,
     flash: MemoryDummry,
@@ -114,9 +112,9 @@ export default function ReplProvider({children}: {children: ReactNode}) {
 
     const setMemoryUpdates = (compileResult: network.CompileResult) => {
         for (const block of compileResult.result.blocks) {
-            if (block.address >= iram.state.address && block.address < iram.state.address + iram.state.usedSize)
+            if (block.address >= iram.state.address && block.address < iram.state.address + iram.state.size)
                 iram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
-             else if (block.address >= dram.state.address && block.address < dram.state.address + dram.state.usedSize)
+             else if (block.address >= dram.state.address && block.address < dram.state.address + dram.state.size)
                 dram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
             else if (block.isFlash)
                 flash.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
@@ -127,7 +125,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         setLatestCell({...latestCell, compileError: '', state: 'compiling'})
         try {
             const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code, useFlash)
-            console.log(compileResult)
             setLatestCell({...latestCell, compileError: '', state: 'sending'})
             const bluetoothTime = await sendCompileResult(compileResult)
             const compileTime = compileResult.compileTime
@@ -218,7 +215,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             output,
             runtimeError,
             useJIT,
-            useFlash,
             iram,
             dram,
             flash,

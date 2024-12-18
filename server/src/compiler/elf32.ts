@@ -34,10 +34,10 @@ export class ELF32 {
 
   public readSectionValue(shdr: Shdr): Buffer {
     const value = Buffer.alloc(shdr.shSize);
-    console.log('Buffer size', this.buffer.length);
+    // console.log('Buffer size', this.buffer.length);
 
     this.buffer.copy(value, 0, shdr.shOffset, shdr.shOffset + shdr.shSize);
-    console.log(this.readSectionName(shdr), value)
+    // console.log(this.readSectionName(shdr), value)
     return value;
   }
 

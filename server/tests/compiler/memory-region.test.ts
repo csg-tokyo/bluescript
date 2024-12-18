@@ -1,5 +1,5 @@
-import {MemoryRegion, ReusableMemoryRegion} from "../../src/linker/memory-region";
-import {Section} from "../../src/linker/elf-reader";
+import {MemoryRegion, ReusableMemoryRegion} from "../../src/compiler/shadow-memory";
+import {Section} from "../../src/compiler/elf-reader";
 import {Buffer} from "node:buffer";
 
 test('Test memory region.', () => {

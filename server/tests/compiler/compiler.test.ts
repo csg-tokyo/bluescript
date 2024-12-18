@@ -1,5 +1,5 @@
 import {FILE_PATH} from "../../src/constants";
-import {Compiler, ModuleCompiler, ShadowMemory} from "../../src/linker/compiler";
+import {Compiler, ModuleCompiler, ShadowMemory} from "../../src/compiler/compiler";
 
 const COMPILER_PATH = '~/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/'
 
@@ -51,7 +51,7 @@ void bluescript_main2_() {
 
   const shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, {
     iram: {address: 0x4000000, size: 30000},
-    dram: {address: 0x3000000, size: 20000},
+    dram: {address: 0x3000614, size: 20000},
     flash: {address: 0x5000000, size: 1000000}
   });
   const compiler = new Compiler(COMPILER_PATH);
@@ -61,11 +61,29 @@ void bluescript_main2_() {
 
 
 test('Compile Module', () => {
+
+
+  const src2 = `
+extern CLASS_OBJECT(object_class, 1);
+extern struct func_body _103112105111gpioOn;
+void bluescript_main2_();
+ROOT_SET_DECL(global_rootset2, 0);
+
+void bluescript_main2_() {
+  ROOT_SET_INIT(global_rootset2, 0)
+  
+  
+}
+
+`
+
   const shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, {
     iram: {address: 0x4000000, size: 30000},
     dram: {address: 0x3000000, size: 20000},
     flash: {address: 0x5000000, size: 1000000}
   });
-  const compiler = new ModuleCompiler(COMPILER_PATH);
-  compiler.compile(shadowMemory, 'gpio', 'bluescript_main0_103112105111')
+  const moduleCompiler = new ModuleCompiler(COMPILER_PATH);
+  moduleCompiler.compile(shadowMemory, 'gpio', 'bluescript_main0_103112105111')
+  const compiler = new Compiler(COMPILER_PATH);
+  compiler.compile(shadowMemory, cProlog + src2, 'bluescript_main2_');
 })

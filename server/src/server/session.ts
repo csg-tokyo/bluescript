@@ -2,13 +2,14 @@ import {GlobalVariableNameTable} from "../transpiler/code-generator/variables";
 import * as fs from "fs";
 import {FILE_PATH} from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
-import {Profiler} from "../jit/profiler";
+import {Profiler} from "../jit-transpiler/profiler";
 import {runBabelParser} from "../transpiler/utils";
-import {convertAst, typeStringToStaticType} from "../jit/utils";
-import {JitCodeGenerator, jitTranspile} from "../jit/jit-code-generator";
+import {convertAst, typeStringToStaticType} from "../jit-transpiler/utils";
+import {JitCodeGenerator, jitTranspile} from "../jit-transpiler/jit-code-generator";
 import {NameInfo, NameTableMaker} from "../transpiler/names";
-import {JitTypeChecker} from "../jit/jit-type-checker";
-import {Compiler, MemoryAddresses, ModuleCompiler, ShadowMemory} from "../linker/compiler";
+import {JitTypeChecker} from "../jit-transpiler/jit-type-checker";
+import {Compiler, ModuleCompiler} from "../compiler/compiler";
+import {ShadowMemory, MemoryAddresses} from "../compiler/shadow-memory";
 
 
 const cProlog = `

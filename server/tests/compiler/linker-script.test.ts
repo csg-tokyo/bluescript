@@ -1,4 +1,4 @@
-import {LinkerScript3, LinkerScriptMemoryRegion, LinkerScriptSection, LinerScriptMemoryAttribute} from "../../src/linker/linker-script3";
+import {LinkerScript, LinkerScriptMemoryRegion, LinkerScriptSection, LinerScriptMemoryAttribute} from "../../src/compiler/linker-script";
 
 test('generate linker script.', () => {
   const linkerScriptMemory1 = new LinkerScriptMemoryRegion(
@@ -25,7 +25,7 @@ test('generate linker script.', () => {
   const linkerScriptSection3 = new LinkerScriptSection('.external_symbols', linkerScriptMemory3)
     .symbol('symbol1', 0x555);
 
-  const linkerScript = new LinkerScript3()
+  const linkerScript = new LinkerScript()
     .input(['obj1.o', 'obj2.o'])
     .memory([linkerScriptMemory1, linkerScriptMemory2, linkerScriptMemory3])
     .sections([linkerScriptSection1, linkerScriptSection2, linkerScriptSection3])
