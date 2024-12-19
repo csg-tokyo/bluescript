@@ -1,5 +1,6 @@
 import {FILE_PATH} from "../../src/constants";
-import {Compiler, ModuleCompiler, ShadowMemory} from "../../src/compiler/compiler";
+import {Compiler, ModuleCompiler} from "../../src/compiler/compiler";
+import {ShadowMemory} from "../../src/compiler/shadow-memory";
 
 const COMPILER_PATH = '~/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/'
 

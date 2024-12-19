@@ -6,7 +6,6 @@
 typedef enum {
     BS_CMD_NONE  = 0x00,
     BS_CMD_LOAD,
-    BS_CMD_FLOAD, 
     BS_CMD_JUMP,
     BS_CMD_RESET,
 

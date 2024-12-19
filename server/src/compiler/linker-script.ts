@@ -120,15 +120,7 @@ export class LinkerScriptSection implements LinkerScriptCommand {
   toString(indent: number = 0) {
     return `\
 ${'\t'.repeat(indent)}${this.name} : {
-${'\t'.repeat(indent + 1)}. = 0x00000000;
 ${this.commands.map(comm => `${'\t'.repeat(indent + 1)}${comm}`).join('\n')}
 ${'\t'.repeat(indent)}} > ${this.memory.getName()}`
   }
 }
-
-class LinkerScriptFormatError extends Error {
-  constructor(message: string) {
-    super(message);
-  }
-}
-

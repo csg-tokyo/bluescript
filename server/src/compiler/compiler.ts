@@ -1,5 +1,5 @@
 import {MemoryBlock, ShadowMemory} from "./shadow-memory";
-import {ElfReader, SECTION_TYPE, Symbol} from "./elf-reader";
+import {ElfReader, Section, SECTION_TYPE, Symbol} from "./elf-reader";
 import * as fs from "fs";
 import {execSync} from "child_process";
 import {
@@ -53,17 +53,16 @@ export class Compiler {
   }
 
   private load(shadowMemory: ShadowMemory, linkedElf: ElfReader, entryPointName: string) {
-    const blocks = linkedElf
+    const sections = linkedElf
       .readAllSections()
-      .filter(section => section.name !== EXTERNAL_SYMBOL_SECTION)
-      .map(section => ({address: section.address, data: section.value.toString("hex"), isFlash: false}));
+      .filter(section => section.name !== EXTERNAL_SYMBOL_SECTION && section.size !== 0);
     linkedElf.readDefinedSymbols().forEach(symbol => {
       shadowMemory.symbols.set(symbol.name, symbol);
     });
     const entryPoint = shadowMemory.symbols.get(entryPointName)?.address;
     if (entryPoint === undefined)
       throw new Error(`Cannot find entry point: ${entryPointName}`);
-    shadowMemory.setUpdate(blocks, entryPoint);
+    shadowMemory.load(sections, entryPoint);
   }
 
   private readExternalSymbols(shadowMemory: ShadowMemory, objFile: ElfReader) {
@@ -180,18 +179,18 @@ export class ModuleCompiler {
   private load(shadowMemory: ShadowMemory, linkedElf: ElfReader, entryPointName: string) {
     const dramSection = linkedElf.readSectionByName(this.DRAM_SECTION_NAME);
     const flashSection = linkedElf.readSectionByName(this.FLASH_SECTION_NAME);
-    const blocks: {address: number, data: string, isFlash: boolean}[] = []
+    const sections: Section[] = []
     if (dramSection !== undefined)
-      blocks.push({address: dramSection.address, data: dramSection.value.toString("hex"), isFlash: false});
+      sections.push(dramSection);
     if (flashSection !== undefined)
-      blocks.push({address: flashSection.address, data: flashSection.value.toString("hex"), isFlash: true});
+      sections.push(flashSection);
     linkedElf.readDefinedSymbols().forEach(symbol => {
       shadowMemory.symbols.set(symbol.name, symbol);
     });
     const entryPoint = shadowMemory.symbols.get(entryPointName)?.address;
     if (entryPoint === undefined)
       throw new Error(`Cannot find entry point: ${entryPointName}`);
-    shadowMemory.setUpdate(blocks, entryPoint);
+    shadowMemory.load(sections, entryPoint);
   }
 
   private allocate(shadowMemory: ShadowMemory, linkedElf: ElfReader) {

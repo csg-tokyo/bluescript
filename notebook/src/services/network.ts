@@ -3,7 +3,7 @@ import { CompileError, InternalError } from "../utils/error";
 import { MemInfo } from "../utils/type";
 
 export type MemoryUpdate = {
-  blocks: {address: number, data: string, isFlash: boolean}[],
+  blocks: {address: number, data: string}[],
   entryPoints: number[]
 }
 

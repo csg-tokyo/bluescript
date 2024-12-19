@@ -98,10 +98,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     const sendCompileResult = async (compileResult: network.CompileResult) => {
         const bytecodeBuilder = new BytecodeBufferBuilder(MAX_MTU)
         for (const block of compileResult.result.blocks) {
-            if (block.isFlash)
-                bytecodeBuilder.loadToFlash(block.address, Buffer.from(block.data, "hex"));
-            else
-            bytecodeBuilder.loadToRAM(block.address, Buffer.from(block.data, "hex"));
+            bytecodeBuilder.load(block.address, Buffer.from(block.data, "hex"));
         }
         for (const entryPoint of compileResult.result.entryPoints) {
             bytecodeBuilder.jump(entryPoint);
@@ -116,7 +113,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                 iram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
              else if (block.address >= dram.state.address && block.address < dram.state.address + dram.state.size)
                 dram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
-            else if (block.isFlash)
+            else if (block.address >= flash.state.address && block.address < flash.state.address + flash.state.size)
                 flash.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
         }
     }

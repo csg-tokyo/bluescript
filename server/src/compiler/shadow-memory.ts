@@ -10,7 +10,7 @@ export type MemoryAddresses = {
 }
 
 type MemoryUpdate = {
-  blocks: {address: number, data: string, isFlash: boolean}[],
+  blocks: {name: string, address: number, data: string}[],
   entryPoints: number[]
 }
 
@@ -30,9 +30,11 @@ export class ShadowMemory {
     this.flash = new MemoryRegion('Flash', addresses.flash.address, addresses.flash.size);
   }
 
-  setUpdate(blocks: {address: number, data: string, isFlash: boolean}[], entryPoint: number) {
-    this.updates.blocks = this.updates.blocks.concat(blocks);
-    this.updates.entryPoints.push(entryPoint)
+  load(sections: Section[], entryPoint: number) {
+    sections.forEach(section => {
+      this.updates.blocks.push({name: section.name, address: section.address, data: section.value.toString('hex')});
+    });
+    this.updates.entryPoints.push(entryPoint);
   }
 
   getUpdates() {
