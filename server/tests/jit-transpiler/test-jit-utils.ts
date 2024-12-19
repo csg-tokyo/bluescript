@@ -1,13 +1,13 @@
 import {transpile} from "../../src/transpiler/code-generator/code-generator";
 import * as fs from "fs";
 import {execSync} from "child_process";
-import {JitCodeGenerator, jitTranspile} from "../../src/jit/jit-code-generator";
+import {JitCodeGenerator, jitTranspile} from "../../src/jit-transpiler/jit-code-generator";
 import {NameInfo, NameTableMaker} from "../../src/transpiler/names";
-import {JitTypeChecker} from "../../src/jit/jit-type-checker";
-import {Profiler} from "../../src/jit/profiler";
+import {JitTypeChecker} from "../../src/jit-transpiler/jit-type-checker";
+import {Profiler} from "../../src/jit-transpiler/profiler";
 import {runBabelParser} from "../../src/transpiler/utils";
 import {GlobalVariableNameTable} from "../../src/transpiler/code-generator/variables";
-import {convertAst} from "../../src/jit/utils";
+import {convertAst} from "../../src/jit-transpiler/utils";
 
 
 const prolog = `// predefined native functions

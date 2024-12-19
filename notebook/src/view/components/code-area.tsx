@@ -68,7 +68,6 @@ function ButtonBar() {
         <Flex justify='start' align='center' style={{height:36, boxShadow: '0px 0px 4px gray'}}>
             <Button icon={<ReloadOutlined />} type='text' onClick={replContext.resetStart}>Reset</Button>
             <Checkbox onChange={(e)=>replContext.updateUseJIT(e.target.checked)} checked={replContext.useJIT}>Use JIT</Checkbox>
-            <Checkbox onChange={(e)=>replContext.updateUseFlash(e.target.checked)} checked={replContext.useFlash}>Use Flash</Checkbox>
         </Flex>
     )
 }

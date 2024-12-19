@@ -59,7 +59,7 @@ static void ram_reset() {
     memset(dram, 0, dram_size);
 }
 
-static void ram_memcpy(uint32_t* ram_dest, uint8_t *src, size_t len) {
+static void ram_memcpy(uint8_t* ram_dest, uint8_t *src, size_t len) {
     memcpy(ram_dest, src, len);
 }
 
@@ -89,6 +89,13 @@ static void flash_memcpy(uint8_t* flash_dest, uint8_t *src, size_t len) {
     ESP_ERROR_CHECK(esp_partition_write(text_partition, offset, src, len));
 }
 
+static void bs_memcpy(uint8_t* dest, uint8_t *src, size_t len) {
+    if (virtual_flash_ptr <= dest && dest <= virtual_flash_ptr + flash_read_size()) {
+        flash_memcpy(dest, src, len);
+    } else {
+        ram_memcpy(dest, src, len);
+    }
+}
 
 void bs_shell_register_sender(void (* sender)(uint8_t*, uint32_t)) {
     result_sender = sender;
@@ -104,16 +111,8 @@ void bs_shell_receptionist(uint8_t *task_data, int data_len) {
         {
             uint32_t address = *(uint32_t*)(task_data + (idx+1));
             uint32_t size = *(uint32_t*)(task_data + (idx+5));
-            ram_memcpy(address, task_data + (idx+9), size);
-            idx += (9 + size);
-            break;
-        }
-        case BS_CMD_FLOAD:
-        // | cmd(1byte) | address(4byte) | size(4byte) | data(size) |
-        {
-            uint32_t address = *(uint32_t*)(task_data + (idx+1));
-            uint32_t size = *(uint32_t*)(task_data + (idx+5));
-            flash_memcpy((uint8_t*)address, task_data + (idx+9), size);
+            ESP_LOGI(BS_SHELL_TAG, "Load %d bytes to %x", (int)size, (int)address);
+            bs_memcpy(address, task_data + (idx+9), size);
             idx += (9 + size);
             break;
         }

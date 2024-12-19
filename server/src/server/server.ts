@@ -3,7 +3,7 @@ import {Buffer} from "node:buffer";
 import {ErrorLog} from "../transpiler/utils";
 import Session from "./session";
 import {execSync} from "child_process";
-import {JITCompileError, ProfileError} from "../jit/utils";
+import {JITCompileError, ProfileError} from "../jit-transpiler/utils";
 
 const ERROR_CODE = {
   COMPILE_ERROR: 460,
@@ -67,7 +67,7 @@ export default class HttpServer {
             break;
           }
           const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.execute(requestBodyJson.src, requestBodyJson.useFlash);
+          responseBody = this.session.execute(requestBodyJson.src);
           statusCode = 200;
           break;
         case "/reset":
