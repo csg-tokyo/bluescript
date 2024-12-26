@@ -1,7 +1,7 @@
 import {beforeAll, expect, test} from "@jest/globals";
 import {execSync} from "child_process";
-import {Profiler} from "../../src/jit/profiler";
-import {typeStringToStaticType} from "../../src/jit/utils";
+import {Profiler} from "../../src/jit-transpiler/profiler";
+import {typeStringToStaticType} from "../../src/jit-transpiler/utils";
 import {
   compile, execute,
   initialCompile,

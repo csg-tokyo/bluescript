@@ -2,14 +2,14 @@ import {GlobalVariableNameTable} from "../transpiler/code-generator/variables";
 import * as fs from "fs";
 import {FILE_PATH} from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
-import {execSync} from "child_process";
-import {Profiler} from "../jit/profiler";
+import {Profiler} from "../jit-transpiler/profiler";
 import {runBabelParser} from "../transpiler/utils";
-import {convertAst, typeStringToStaticType} from "../jit/utils";
-import {JitCodeGenerator, jitTranspile} from "../jit/jit-code-generator";
+import {convertAst, typeStringToStaticType} from "../jit-transpiler/utils";
+import {JitCodeGenerator, jitTranspile} from "../jit-transpiler/jit-code-generator";
 import {NameInfo, NameTableMaker} from "../transpiler/names";
-import {JitTypeChecker} from "../jit/jit-type-checker";
-import {MemoryAddresses, ShadowMemory} from "../linker/shadow-memory";
+import {JitTypeChecker} from "../jit-transpiler/jit-type-checker";
+import {Compiler, ModuleCompiler} from "../compiler/compiler";
+import {ShadowMemory, MemoryAddresses} from "../compiler/shadow-memory";
 
 
 const cProlog = `
@@ -35,21 +35,19 @@ export default class Session {
     this.profiler = new Profiler();
   }
 
-  public execute(src: string, useFlash = false) {
+  public execute(src: string) {
     const start = performance.now();
     this.sessionId += 1;
 
     // Transpile
     const tResult = this.transpile(src);
+    const entryPointName = tResult.main;
     this.baseGlobalNames = tResult.names;
 
     // Compile
     const cString = cProlog + tResult.code;
-    fs.writeFileSync(FILE_PATH.C_FILE, cString);
-    execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
-
-    // Link
-    this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, tResult.main, useFlash);
+    const compiler = new Compiler();
+    compiler.compile(this.shadowMemory, cString, entryPointName);
     const end = performance.now();
     return  {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
@@ -61,15 +59,12 @@ export default class Session {
     // Transpile
     const tResult = this.transpileForJIT(src)
     const entryPointName = tResult.main;
+    this.baseGlobalNames = tResult.names;
     const cString = cProlog + tResult.code;
 
     // Compile
-    fs.writeFileSync(FILE_PATH.C_FILE, cString);
-    execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
-    this.baseGlobalNames = tResult.names;
-
-    // Link
-    this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName, false);
+    const compiler = new Compiler();
+    compiler.compile(this.shadowMemory, cString, entryPointName);
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
@@ -86,15 +81,12 @@ export default class Session {
     // Transpile
     const tResult = this.transpileForJIT(func.src)
     const entryPointName = tResult.main;
+    this.baseGlobalNames = tResult.names;
     const cString = cProlog + tResult.code;
 
     // Compile
-    fs.writeFileSync(FILE_PATH.C_FILE, cString);
-    execSync(`xtensa-esp32-elf-gcc -c -O2 ${FILE_PATH.C_FILE} -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
-    this.baseGlobalNames = tResult.names;
-
-    // Link
-    this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, entryPointName, false);
+    const compiler = new Compiler();
+    compiler.compile(this.shadowMemory, cString, entryPointName);
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
@@ -109,9 +101,10 @@ export default class Session {
         const moduleId = Session.moduleNameToId(fname);
         this.sessionId += 1;
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
-        this.modules.set(fname, result.names)
-        this.shadowMemory.loadAndLinkModule(fname, result.main)
-        return result.names
+        this.modules.set(fname, result.names);
+        const compiler = new ModuleCompiler();
+        compiler.compile(this.shadowMemory, fname, result.main);
+        return result.names;
       }
     }
 
@@ -128,8 +121,9 @@ export default class Session {
         const moduleId = Session.moduleNameToId(fname);
         this.sessionId += 1;
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
-        this.modules.set(fname, result.names)
-        this.shadowMemory.loadAndLinkModule(fname, result.main)
+        this.modules.set(fname, result.names);
+        const compiler = new ModuleCompiler();
+        compiler.compile(this.shadowMemory, fname, result.main);
         return result.names
       }
     }
@@ -150,11 +144,9 @@ export default class Session {
   public dummyExecute() {
     const start = performance.now();
     // Compile
-    execSync(`xtensa-esp32-elf-gcc -c -O2 ./temp-files/dummy-code.c -o ${FILE_PATH.OBJ_FILE} -w -fno-common -mtext-section-literals -mlongcalls`);
-    const buffer = fs.readFileSync(FILE_PATH.OBJ_FILE);
-
-    // Link
-    this.shadowMemory.loadAndLink(FILE_PATH.OBJ_FILE, "bluescript_main6_", false);
+    const cSrc = fs.readFileSync('./temp-files/dummy-code.c').toString()
+    const compiler = new Compiler();
+    compiler.compile(this.shadowMemory, cSrc, 'bluescript_main6_')
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }

@@ -5,6 +5,7 @@ const UNIT_SIZE = 100
 export type MemoryT = {
     state: {
         name: string,
+        address: number,
         size: number, 
         usedSize: number,
         buffer: boolean[],
@@ -19,6 +20,7 @@ export type MemoryT = {
 export const MemoryDummry = {
     state: {
         name: '',
+        address: 0,
         size: 0, 
         usedSize: 0,
         buffer: [false],
@@ -51,7 +53,7 @@ export function useMemory(memoryName: string): MemoryT {
     }
 
     return {
-        state: {name, size, usedSize, buffer, unitSize: UNIT_SIZE},
+        state: {name, address, size, usedSize, buffer, unitSize: UNIT_SIZE},
         actions: {reset, setUsedSegment}
     }
 }
