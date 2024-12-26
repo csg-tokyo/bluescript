@@ -4,7 +4,6 @@ import { MemInfo } from "./type";
 export enum BYTECODE {
     NONE,
     LOAD,
-    FLOAD,
     JUMP,
     RESET,
     RESULT_LOG,
@@ -28,30 +27,20 @@ export class BytecodeBufferBuilder {
         this.lastUnit = Buffer.alloc(0);
     }
 
-    public loadToRAM(address: number, data: Buffer) {
-        this.load(BYTECODE.LOAD, address, data);
-        return this
-    }
-
-    public loadToFlash(address: number, data: Buffer) {
-        this.load(BYTECODE.FLOAD, address, data);
-        return this
-    }
-
-    private load(loadCmd: number, address: number, data: Buffer) {
+    public load(address: number, data: Buffer) {
         let dataRemain = data.length;
         let offset = 0;
         let loadAddress = address;
         while (true) {
             if (LOAD_HEADER_SIZE + dataRemain <= this.lastUnitRemain) {
-                const header = this.createLoadHeader(loadCmd, loadAddress, dataRemain);
+                const header = this.createLoadHeader(BYTECODE.LOAD, loadAddress, dataRemain);
                 const body = data.subarray(offset);
                 this.lastUnit = Buffer.concat([this.lastUnit, header, body]);
                 this.lastUnitRemain -= LOAD_HEADER_SIZE + dataRemain
                 break;
             } else if (LOAD_HEADER_SIZE < this.lastUnitRemain) {
                 const loadSize = (this.lastUnitRemain - LOAD_HEADER_SIZE) & ~0b11; // 4 byte align
-                const header = this.createLoadHeader(loadCmd, loadAddress, loadSize);
+                const header = this.createLoadHeader(BYTECODE.LOAD, loadAddress, loadSize);
                 const body = data.subarray(offset, offset+loadSize);
                 this.lastUnit = Buffer.concat([this.lastUnit, header, body]);
 

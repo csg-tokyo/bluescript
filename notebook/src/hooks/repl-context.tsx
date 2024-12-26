@@ -14,7 +14,6 @@ export type ReplContextT = {
     output: string[],
     runtimeError: string[],
     useJIT: boolean,
-    useFlash: boolean,
     iram: MemoryT,
     dram: MemoryT,
     flash: MemoryT
@@ -34,7 +33,6 @@ export const ReplContext = createContext<ReplContextT>({
     output: [],
     runtimeError: [],
     useJIT: true,
-    useFlash: false,
     iram: MemoryDummry,
     dram: MemoryDummry,
     flash: MemoryDummry,
@@ -99,32 +97,31 @@ export default function ReplProvider({children}: {children: ReactNode}) {
 
     const sendCompileResult = async (compileResult: network.CompileResult) => {
         const bytecodeBuilder = new BytecodeBufferBuilder(MAX_MTU)
-        for (const update of compileResult.result) {
-            bytecodeBuilder.loadToRAM(update.iram.address, Buffer.from(update.iram.data, "hex"));
-            bytecodeBuilder.loadToRAM(update.dram.address, Buffer.from(update.dram.data, "hex"));
-            bytecodeBuilder.loadToFlash(update.flash.address, Buffer.from(update.flash.data, "hex"));
+        for (const block of compileResult.result.blocks) {
+            bytecodeBuilder.load(block.address, Buffer.from(block.data, "hex"));
         }
-        for (const update of compileResult.result) {
-            bytecodeBuilder.jump(update.entryPoint);
+        for (const entryPoint of compileResult.result.entryPoints) {
+            bytecodeBuilder.jump(entryPoint);
         }
         const bluetoothTime = await bluetooth.current.sendBuffers(bytecodeBuilder.generate())
         return bluetoothTime
     }
 
     const setMemoryUpdates = (compileResult: network.CompileResult) => {
-        for (const update of compileResult.result) {
-            iram.actions.setUsedSegment(update.iram.address, Buffer.from(update.iram.data, "hex").length)
-            dram.actions.setUsedSegment(update.dram.address, Buffer.from(update.dram.data, "hex").length)
-            flash.actions.setUsedSegment(update.flash.address, Buffer.from(update.flash.data, "hex").length)
+        for (const block of compileResult.result.blocks) {
+            if (block.address >= iram.state.address && block.address < iram.state.address + iram.state.size)
+                iram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
+             else if (block.address >= dram.state.address && block.address < dram.state.address + dram.state.size)
+                dram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
+            else if (block.address >= flash.state.address && block.address < flash.state.address + flash.state.size)
+                flash.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
         }
     }
 
     const executeLatestCell = async () => {
-        console.log('execute latest cell',latestCell.id)
         setLatestCell({...latestCell, compileError: '', state: 'compiling'})
         try {
             const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code, useFlash)
-            console.log(compileResult)
             setLatestCell({...latestCell, compileError: '', state: 'sending'})
             const bluetoothTime = await sendCompileResult(compileResult)
             const compileTime = compileResult.compileTime
@@ -215,7 +212,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             output,
             runtimeError,
             useJIT,
-            useFlash,
             iram,
             dram,
             flash,
