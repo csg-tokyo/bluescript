@@ -102,18 +102,17 @@ export class ElfReader {
     return sections;
   }
 
-  public readAllSections() {
+  public readSectionsStartWith(startWith: string) {
     const sections:Section[] = [];
     this.elf.shdrs.forEach(shdr => {
       const name = this.elf.readSectionName(shdr);
-      const section = {
-        name,
-        address: shdr.shAddr,
-        size: shdr.shSize,
-        value: this.elf.readSectionValue(shdr)
-      }
-      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC)) {
-          sections.push(section);
+      if (!!(shdr.shFlags & SHFlag.SHF_ALLOC) && name.startsWith(startWith)) {
+        sections.push({
+          name,
+          address: shdr.shAddr,
+          size: shdr.shSize,
+          value: this.elf.readSectionValue(shdr)
+        });
       }
     });
     return sections;

@@ -37,10 +37,14 @@ uint32_t *dram;
 size_t    dram_size;
 
 // variables for flash partition
-#define TEXT_PARTITION_LABEL "text"
-static esp_partition_t *text_partition = NULL;
-static uint8_t *virtual_flash_ptr = NULL;
-static esp_partition_mmap_handle_t virtual_flash_hdlr;
+#define IFLASH_PARTITION_LABEL "iflash"
+#define DFLASH_PARTITION_LABEL "dflash"
+static esp_partition_t *iflash_partition = NULL;
+static esp_partition_t *dflash_partition = NULL;
+static uint8_t *virtual_iflash_ptr = NULL;
+static uint8_t *virtual_dflash_ptr = NULL;
+static esp_partition_mmap_handle_t virtual_iflash_hdlr;
+static esp_partition_mmap_handle_t virtual_dflash_hdlr;
 
 
 // RAM
@@ -50,8 +54,8 @@ static void ram_init() {
     iram = heap_caps_malloc(iram_size, MALLOC_CAP_EXEC | MALLOC_CAP_32BIT);
     dram_size = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
     dram = heap_caps_malloc(dram_size, MALLOC_CAP_8BIT);
-    ESP_LOGI(BS_SHELL_TAG, "IRAM Size: %d\n", iram_size);
-    ESP_LOGI(BS_SHELL_TAG, "DRAM Size: %d\n", dram_size);
+    ESP_LOGI(BS_SHELL_TAG, "IRAM Address: %p Size: %d\n", iram, (int)iram_size);
+    ESP_LOGI(BS_SHELL_TAG, "DRAM Address: %p Size: %d\n", dram, (int)dram_size);
 }
 
 static void ram_reset() {
@@ -65,33 +69,48 @@ static void ram_memcpy(uint8_t* ram_dest, uint8_t *src, size_t len) {
 
 
 // Flash
+static void dflash_memcpy(uint8_t* dest, uint8_t *src, size_t len);
 
 static void flash_init() {
-    text_partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, TEXT_PARTITION_LABEL);
-    ESP_ERROR_CHECK(esp_partition_erase_range(text_partition, 0, text_partition->size));
-    esp_partition_mmap(text_partition, 0, text_partition->size, ESP_PARTITION_MMAP_INST, &virtual_flash_ptr, &virtual_flash_hdlr);
+    iflash_partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, IFLASH_PARTITION_LABEL);
+    dflash_partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, DFLASH_PARTITION_LABEL);
+    esp_partition_mmap(iflash_partition, 0, iflash_partition->size, ESP_PARTITION_MMAP_INST, &virtual_iflash_ptr, &virtual_iflash_hdlr);
+    esp_partition_mmap(dflash_partition, 0, dflash_partition->size, ESP_PARTITION_MMAP_DATA, &virtual_dflash_ptr, &virtual_dflash_hdlr);
+    ESP_LOGI(BS_SHELL_TAG, "IFlash Address: 0x%x VAddress: %p Size: %d\n", (int)iflash_partition->address, virtual_iflash_ptr, (int)iflash_partition->size);
+    ESP_LOGI(BS_SHELL_TAG, "DFlash Address: 0x%x VAddress: %p Size: %d\n", (int)dflash_partition->address, virtual_dflash_ptr, (int)dflash_partition->size);
 }
 
-static void flash_reset() {
-    ESP_ERROR_CHECK(esp_partition_erase_range(text_partition, 0, text_partition->size));
+static uint32_t iflash_read_address() {
+    return (uint32_t)virtual_iflash_ptr;
 }
 
-static uint32_t flash_read_address() {
-    return (uint32_t)virtual_flash_ptr;
+static uint32_t dflash_read_address() {
+    return (uint32_t)virtual_dflash_ptr;
 }
 
-static uint32_t flash_read_size() {
-    return (uint32_t)text_partition->size;
+static uint32_t iflash_read_size() {
+    return (uint32_t)iflash_partition->size;
 }
 
-static void flash_memcpy(uint8_t* flash_dest, uint8_t *src, size_t len) {
-    uint8_t* offset = flash_dest - virtual_flash_ptr;
-    ESP_ERROR_CHECK(esp_partition_write(text_partition, offset, src, len));
+static uint32_t dflash_read_size() {
+    return (uint32_t)dflash_partition->size;
+}
+
+static void iflash_memcpy(uint8_t* dest, uint8_t *src, size_t len) {
+    uint8_t* offset = dest - virtual_iflash_ptr;
+    ESP_ERROR_CHECK(esp_partition_write(iflash_partition, offset, src, len));
+}
+
+static void dflash_memcpy(uint8_t* dest, uint8_t *src, size_t len) {
+    uint8_t* offset = dest - virtual_dflash_ptr;
+    ESP_ERROR_CHECK(esp_partition_write(dflash_partition, offset, src, len));
 }
 
 static void bs_memcpy(uint8_t* dest, uint8_t *src, size_t len) {
-    if (virtual_flash_ptr <= dest && dest <= virtual_flash_ptr + flash_read_size()) {
-        flash_memcpy(dest, src, len);
+    if (virtual_iflash_ptr <= dest && dest <= virtual_iflash_ptr + iflash_read_size()) {
+        iflash_memcpy(dest, src, len);
+    } else if (virtual_dflash_ptr <= dest && dest <= virtual_dflash_ptr + dflash_read_size()) {
+        dflash_memcpy(dest, src, len);
     } else {
         ram_memcpy(dest, src, len);
     }
@@ -163,9 +182,11 @@ static void send_result_meminfo() {
     *(uint32_t*)(result+ 5) = iram_size;
     *(uint32_t*)(result+ 9) = dram;
     *(uint32_t*)(result+13) = dram_size;
-    *(uint32_t*)(result+17) = flash_read_address();
-    *(uint32_t*)(result+21) = flash_read_size();
-    result_sender(result, 25);
+    *(uint32_t*)(result+17) = iflash_read_address();
+    *(uint32_t*)(result+21) = iflash_read_size();
+    *(uint32_t*)(result+25) = dflash_read_address();
+    *(uint32_t*)(result+29) = dflash_read_size();
+    result_sender(result, 33);
 }
 
 static void send_result_exectime(float exectime) {
@@ -175,12 +196,23 @@ static void send_result_exectime(float exectime) {
     result_sender(result, 5);
 }
 
+void execute_installed_code() {
+    if (virtual_dflash_ptr[0] != 1) {
+        ESP_ERROR_CHECK(esp_partition_erase_range(iflash_partition, 0, iflash_partition->size));
+        ESP_ERROR_CHECK(esp_partition_erase_range(dflash_partition, 0, dflash_partition->size));
+    } else {
+        puts("I am execute_installed_code");
+        uint32_t length = *(uint32_t*)(virtual_dflash_ptr + 1);
+        bs_shell_receptionist(virtual_dflash_ptr + 5, length);
+    }
+}
 
 void bs_shell_task(void *arg) {
     task_item_u task_item;
     task_queue = xQueueCreate(TASK_QUEUE_LENGTH, sizeof(task_item_u));
     shell_init();
     shell_reset();
+    execute_installed_code();
     
     while (true) {
         xQueueReceive(task_queue, &task_item, portMAX_DELAY);

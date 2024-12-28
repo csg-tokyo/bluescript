@@ -2,8 +2,10 @@ import axios from "axios";
 import { CompileError, InternalError } from "../utils/error";
 import { MemInfo } from "../utils/type";
 
+type MemoryType = 'iram' | 'dram' | 'iflash' | 'dflash';
+
 export type MemoryUpdate = {
-  blocks: {address: number, data: string}[],
+  blocks: {type: MemoryType, address: number, data: string}[],
   entryPoints: number[]
 }
 
@@ -12,8 +14,12 @@ export type CompileResult = {
     compileTime: number
 }
 
-export async function compile(src: string, useFlash: boolean): Promise<CompileResult> {
-  return post("compile", {src, useFlash});
+export async function compile(src: string): Promise<CompileResult> {
+  return post("compile", {src});
+}
+
+export async function interactiveCompile(src: string): Promise<CompileResult> {
+  return post("interactive-compile", {src});
 }
 
 export async function compileWithProfiling(src: string): Promise<CompileResult> {

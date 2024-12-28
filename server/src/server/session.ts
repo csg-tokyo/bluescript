@@ -8,7 +8,7 @@ import {convertAst, typeStringToStaticType} from "../jit-transpiler/utils";
 import {JitCodeGenerator, jitTranspile} from "../jit-transpiler/jit-code-generator";
 import {NameInfo, NameTableMaker} from "../transpiler/names";
 import {JitTypeChecker} from "../jit-transpiler/jit-type-checker";
-import {Compiler, ModuleCompiler} from "../compiler/compiler";
+import {Compiler, InteractiveCompiler, ModuleCompiler} from "../compiler/compiler";
 import {ShadowMemory, MemoryAddresses} from "../compiler/shadow-memory";
 
 
@@ -21,22 +21,35 @@ const cProlog = `
 
 export default class Session {
   sessionId: number = 0;
-  baseGlobalNames?: GlobalVariableNameTable
+  baseGlobalNames: GlobalVariableNameTable
   modules: Map<string, GlobalVariableNameTable>
   shadowMemory: ShadowMemory;
   profiler: Profiler;
+  addresses: MemoryAddresses
 
   constructor(addresses: MemoryAddresses) {
+    this.addresses = addresses;
     const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULES}`).toString()
-    const result = transpile(++this.sessionId, bsString, this.baseGlobalNames);
+    const result = transpile(++this.sessionId, bsString, undefined);
     this.baseGlobalNames = result.names;
     this.modules = new Map<string, GlobalVariableNameTable>()
     this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, addresses)
     this.profiler = new Profiler();
   }
 
-  public execute(src: string) {
+  public reset() {
+    const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULES}`).toString()
+    const result = transpile(++this.sessionId, bsString, undefined);
+    this.baseGlobalNames = result.names;
+    this.modules = new Map<string, GlobalVariableNameTable>();
+    this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, this.addresses);
+    this.profiler = new Profiler();
+  }
+
+  public compile(src: string) {
     const start = performance.now();
+    this.reset();
+
     this.sessionId += 1;
 
     // Transpile
@@ -52,7 +65,24 @@ export default class Session {
     return  {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
 
-  public executeWithProfiling(src: string) {
+  public interactiveCompile(src: string) {
+    const start = performance.now();
+    this.sessionId += 1;
+
+    // Transpile
+    const tResult = this.transpile(src);
+    const entryPointName = tResult.main;
+    this.baseGlobalNames = tResult.names;
+
+    // Compile
+    const cString = cProlog + tResult.code;
+    const compiler = new InteractiveCompiler();
+    compiler.compile(this.shadowMemory, cString, entryPointName);
+    const end = performance.now();
+    return  {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+  }
+
+  public compileWithProfiling(src: string) {
     const start = performance.now();
     this.sessionId += 1;
 
@@ -63,13 +93,13 @@ export default class Session {
     const cString = cProlog + tResult.code;
 
     // Compile
-    const compiler = new Compiler();
+    const compiler = new InteractiveCompiler();
     compiler.compile(this.shadowMemory, cString, entryPointName);
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
 
-  public jitExecute(funcId: number, paramTypes: string[]) {
+  public jitCompile(funcId: number, paramTypes: string[]) {
     const start = performance.now();
     this.sessionId += 1
 
@@ -85,7 +115,7 @@ export default class Session {
     const cString = cProlog + tResult.code;
 
     // Compile
-    const compiler = new Compiler();
+    const compiler = new InteractiveCompiler();
     compiler.compile(this.shadowMemory, cString, entryPointName);
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
@@ -145,7 +175,7 @@ export default class Session {
     const start = performance.now();
     // Compile
     const cSrc = fs.readFileSync('./temp-files/dummy-code.c').toString()
-    const compiler = new Compiler();
+    const compiler = new InteractiveCompiler();
     compiler.compile(this.shadowMemory, cSrc, 'bluescript_main6_')
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}

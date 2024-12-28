@@ -16,13 +16,13 @@ export type ReplContextT = {
     useJIT: boolean,
     iram: MemoryT,
     dram: MemoryT,
-    flash: MemoryT
+    iflash: MemoryT,
 
     updateUseJIT: (useJIT: boolean) => void,
-    updateUseFlash: (useFlash: boolean) => void,
     setLatestCellCode: (code: string) => void,
     resetStart: () => Promise<void>,
     executeLatestCell: () => Promise<void>,
+    install: () => Promise<void>
 }
 
 export const ReplContext = createContext<ReplContextT>({
@@ -35,26 +35,26 @@ export const ReplContext = createContext<ReplContextT>({
     useJIT: true,
     iram: MemoryDummry,
     dram: MemoryDummry,
-    flash: MemoryDummry,
+    iflash: MemoryDummry,
 
     updateUseJIT: (useJIT: boolean) => {},
-    updateUseFlash: (useFlash: boolean) => {},
     setLatestCellCode: (code: string) => {},
     resetStart: async () => {},
     executeLatestCell: async () => {},
+    install: async () => {}
 });
 
 export default function ReplProvider({children}: {children: ReactNode}) {
-    const [replState, setReplState] = useState<ReplStateT>("initial")
+    const [replState, setReplState] = useState<ReplStateT>('initial')
     const [useJIT, setUseJIT] = useState(true)
-    const [useFlash, setUseFlash] = useState(false)
     const [latestCell, setLatestCell] = useState<CellT>({id: 0, code:'', state: 'user-writing'})
     const [postExecutionCells, setPostExecutionCells] = useState<CellT[]>([])
     const [output, setOutput] = useState<string[]>([])
     const [runtimeError, setRuntimeError] = useState<string[]>([])
     const iram = useMemory('IRAM')
     const dram = useMemory('DRAM')
-    const flash = useMemory('Flash')
+    const iflash = useMemory('Flash')
+    const dflash = useMemory('DFlash')
     
     const bluetooth = useRef(new Bluetooth())
 
@@ -87,7 +87,8 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             setReplState("activated")
             iram.actions.reset(meminfo.iram.address, meminfo.iram.size)
             dram.actions.reset(meminfo.dram.address, meminfo.dram.size)
-            flash.actions.reset(meminfo.flash.address, meminfo.flash.size)
+            iflash.actions.reset(meminfo.iflash.address, meminfo.iflash.size)
+            dflash.actions.reset(meminfo.dflash.address, meminfo.dflash.size)
         }).catch(e => {
             // TODO: 要修正
             console.log(e)
@@ -109,19 +110,19 @@ export default function ReplProvider({children}: {children: ReactNode}) {
 
     const setMemoryUpdates = (compileResult: network.CompileResult) => {
         for (const block of compileResult.result.blocks) {
-            if (block.address >= iram.state.address && block.address < iram.state.address + iram.state.size)
+            if (block.type === 'iram')
                 iram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
-             else if (block.address >= dram.state.address && block.address < dram.state.address + dram.state.size)
+             else if (block.type === 'dram')
                 dram.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
-            else if (block.address >= flash.state.address && block.address < flash.state.address + flash.state.size)
-                flash.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
+            else if (block.type === 'iflash')
+                iflash.actions.setUsedSegment(block.address, Buffer.from(block.data, "hex").length)
         }
     }
 
     const executeLatestCell = async () => {
         setLatestCell({...latestCell, compileError: '', state: 'compiling'})
         try {
-            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code, useFlash)
+            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.interactiveCompile(latestCell.code)
             setLatestCell({...latestCell, compileError: '', state: 'sending'})
             const bluetoothTime = await sendCompileResult(compileResult)
             const compileTime = compileResult.compileTime
@@ -166,6 +167,35 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         }
     }
 
+    const install = async () => {
+        setReplState('installing');
+        let src = "";
+        postExecutionCells.forEach(cell => src += `${cell.code}\n`);
+        try {
+            const compileResult = await network.compile(src);
+            const builderForDflash = new BytecodeBufferBuilder(dflash.state.size);
+            const builder = new BytecodeBufferBuilder(MAX_MTU);
+            compileResult.result.blocks.forEach(block => {
+                if (block.type === 'iflash')
+                    builder.load(block.address, Buffer.from(block.data, "hex"))
+                if (block.type === 'dram')
+                    builderForDflash.load(block.address, Buffer.from(block.data, "hex"))
+            });
+            compileResult.result.entryPoints.forEach(entry => builderForDflash.jump(entry));
+            const dflashBuffer = Buffer.concat(builderForDflash.generate());
+            const dflashHeader = Buffer.allocUnsafe(5);
+            dflashHeader.writeUIntLE(1, 0, 1); // flash is written or not.
+            dflashHeader.writeUIntLE(dflashBuffer.length, 1, 4); 
+            builder.load(dflash.state.address, dflashHeader);
+            builder.load(dflash.state.address + 5, dflashBuffer);
+            await bluetooth.current.sendBuffers(builder.generate());
+            setReplState('successfully installed');
+        } catch(e: any) {
+            console.log(e.message);
+            setReplState('failed to install');
+        }
+    }
+
     const onReceiveNotification = async (event: Event) => {
         // @ts-ignore
         const value = event.target.value as any;
@@ -192,18 +222,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         }
     }
 
-    const updateUseFlash = (useFlash: boolean) => {
-        if (useFlash)
-            setUseJIT(false)
-        setUseFlash(useFlash)
-    }
-
-    const updateUseJIT = (useJIT: boolean) => {
-        if (useJIT)
-            setUseFlash(false)
-        setUseJIT(useJIT)
-    }
-
     return (
         <ReplContext.Provider value={{
             state: replState,
@@ -214,13 +232,13 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             useJIT,
             iram,
             dram,
-            flash,
+            iflash,
 
-            updateUseJIT,
-            updateUseFlash,
+            updateUseJIT: setUseJIT,
             setLatestCellCode,
             resetStart,
             executeLatestCell,
+            install
         }}>
         {children}
         </ReplContext.Provider>

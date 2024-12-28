@@ -6,11 +6,14 @@ const align4 = (value: number) => (value + 3) & ~3;
 export type MemoryAddresses = {
   iram:{address:number, size:number},
   dram:{address:number, size:number},
-  flash:{address:number, size:number},
+  iflash:{address:number, size:number},
+  dflash:{address:number, size:number},
 }
 
+type MemoryType = 'iram' | 'dram' | 'iflash' | 'dflash';
+
 type MemoryUpdate = {
-  blocks: {name: string, address: number, data: string}[],
+  blocks: {type: MemoryType, address: number, data: string}[],
   entryPoints: number[]
 }
 
@@ -27,15 +30,24 @@ export class ShadowMemory {
     bsRuntime.readAllSymbols().forEach(symbol => {this.symbols.set(symbol.name, symbol)});
     this.iram = new ReusableMemoryRegion('IRAM', addresses.iram.address, addresses.iram.size);
     this.dram = new MemoryRegion('DRAM', addresses.dram.address, addresses.dram.size);
-    this.flash = new MemoryRegion('Flash', addresses.flash.address, addresses.flash.size);
+    this.flash = new MemoryRegion('Flash', addresses.iflash.address, addresses.iflash.size);
   }
 
-  load(sections: Section[], entryPoint: number) {
+  loadToIram(section: Section[]) { this.load(section, 'iram') }
+  loadToDram(section: Section[]) { this.load(section, 'dram') }
+  loadToIFlash(section: Section[]) { this.load(section, 'iflash') }
+
+  private load(sections: Section[], type: MemoryType) {
     sections.forEach(section => {
-      this.updates.blocks.push({name: section.name, address: section.address, data: section.value.toString('hex')});
+      this.updates.blocks.push({
+        address: section.address,
+        data: section.value.toString('hex'),
+        type
+      });
     });
-    this.updates.entryPoints.push(entryPoint);
   }
+
+  loadEntryPoint(entryPoint: number) { this.updates.entryPoints.push(entryPoint); }
 
   getUpdates() {
     const updates = this.updates;
