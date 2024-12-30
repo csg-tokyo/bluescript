@@ -204,11 +204,61 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   ifStatement(node: AST.IfStatement, names: NameTable<Info>): void {
+    const guard = this.isTypeGuard(node.test, names)
+    let names2 = names
+    if (guard !== undefined) {
+      const n = this.maker.typeGuardedTable(names)
+      n.addTypeGuard(guard.key, guard.type, guard.info, this.maker)
+      names2 = n
+    }
+
     this.visit(node.test, names)
     this.addCoercionForBoolean(node.test, this.result)
-    this.visit(node.consequent, names)
+    this.visit(node.consequent, guard?.then ? names2 : names)
     if (node.alternate)
-      this.visit(node.alternate, names)
+      this.visit(node.alternate, guard?.then ? names : names2)
+  }
+
+  private isTypeGuard(node: AST.Node, names: NameTable<Info>) {
+    if (!AST.isBinaryExpression(node))
+      return undefined
+
+    const left = node.left
+    const right = node.right
+    const op = node.operator
+    if (!(AST.isNullLiteral(right) || this.isUndefined(right)
+          || AST.isNullLiteral(left) || this.isUndefined(left)))
+      return undefined
+
+    let info: Info | undefined = undefined
+    let key = ''
+    if (AST.isIdentifier(left)) {
+      key = left.name
+      info = names.lookup(key)
+    }
+
+    if (info === undefined && AST.isIdentifier(right)) {
+      key = right.name
+      info = names.lookup(key)
+    }
+
+    if (info === undefined)
+      return undefined
+
+    const type = info.type instanceof UnionType ? info.type.isNullable() : undefined
+    if (type === undefined)
+      return undefined
+
+    if (op === '==' || op === '===')
+      return { type: type, key: key, info: info, then: false }
+    else if (op === '!=' || op === '!==')
+      return { type: type, key: key, info: info, then: true }
+    else
+      return undefined
+  }
+
+  private isUndefined(node: AST.Node): boolean {
+    return AST.isIdentifier(node) && node.name === 'undefined'
   }
 
   forStatement(node: AST.ForStatement, names: NameTable<Info>): void {

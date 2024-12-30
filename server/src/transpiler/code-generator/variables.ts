@@ -2,8 +2,8 @@
 
 import * as AST from '@babel/types'
 import { FunctionType, StaticType, ObjectType, isPrimitiveType, ArrayType } from '../types'
-import { NameTable, NameTableMaker, GlobalNameTable,
-         BlockNameTable, FunctionNameTable, NameInfo,
+import { NameTable, NameTableMaker, GlobalNameTable, GuardedBlockNameTable,
+         BlockNameTable, FunctionNameTable, NameInfo, WithTypeGuard,
          getNameTable } from '../names'
 import { ClassTable, InstanceType } from '../classes'
 import { rootSetVariable, getObjectProperty,
@@ -78,6 +78,9 @@ export class VariableInfo extends NameInfo {
 // A FreeVariableInfo object is contained only in a FunctionEnv or a GlobalEnv.
 // A free variable is a variable declared outside a function body (or a file scope).
 // It may be a global variable.
+//
+// Note that FreeVariableInfo is a superclass of TypeGuardInfo.
+//
 class FreeVariableInfo extends VariableInfo {
   protected nameInfo: VariableInfo    // never FreeVariableInfo
 
@@ -115,6 +118,13 @@ class FreeVariableInfo extends VariableInfo {
 class FreeGlobalVariableInfo extends FreeVariableInfo {
   transpile(name: string) { return this.nameInfo.transpile(name) }
   isGlobal() { return true }
+}
+
+class TypeGuardInfo extends FreeVariableInfo {
+  constructor(name: VariableInfo, t: StaticType) {
+    super(name)
+    this.type = t
+  }
 }
 
 class GlobalVariableInfo extends VariableInfo {
@@ -177,6 +187,12 @@ export class VariableNameTableMaker implements NameTableMaker<VariableInfo> {
   instanceType(name: string, superClass: ObjectType) {
     return new InstanceType(`${this.moduleId}${name}`, name, superClass)
   }
+
+  typeGuard(info: VariableInfo, t: StaticType): VariableInfo { return new TypeGuardInfo(info, t) }
+
+  typeGuardedTable(parent: NameTable<VariableInfo>): NameTable<VariableInfo> & WithTypeGuard<VariableInfo> {
+    return new GuardedBlockNameTable<VariableInfo>(parent)
+  }
 }
 
 class FunctionVarNameTable extends FunctionNameTable<VariableInfo> {
@@ -218,10 +234,12 @@ export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
       throw new Error('fatal: not class table found')
   }
 
+  // Array types are implicitly generated on demand when an array type is used.
+  // getArrayTypes() returns all array types.
   getArrayTypes() { return this.arrayTypes }
 
-  // useArrayType() returns [clazz_name_in_C, whether_it_must_be_declared_in_C].
-  // The second element is false when the class type for the array is imported by 'extern'.
+  // useArrayType() returns [clazz_name_in_C, array_type, whether_it_must_be_declared_in_C].
+  // The third element is false when the class type for the array is imported by 'extern'.
   useArrayType(type: ArrayType) {
     const name = type.name()
     const info = this.arrayTypes.get(name)

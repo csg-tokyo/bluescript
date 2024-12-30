@@ -59,9 +59,11 @@ export class FreeNameInfo extends NameInfo {
 // a factory for NameTable<T>
 export interface NameTableMaker<Info extends NameInfo> {
   block(parent: NameTable<Info>): NameTable<Info>
+  typeGuardedTable(parent: NameTable<Info>): NameTable<Info> & WithTypeGuard<Info>
   function(parent: NameTable<Info>): FunctionNameTable<Info>
   info(t: StaticType): Info
   globalInfo(t: StaticType): Info
+  typeGuard(info: Info, t: StaticType): Info
   instanceType(name: string, superClass: ObjectType): InstanceType
 }
 
@@ -78,6 +80,11 @@ export interface NameTable<Info extends NameInfo> {
   isGlobal(): boolean       // true if the table is for top-level
   hasParent(): boolean
   classTable(): ClassTable
+}
+
+export interface WithTypeGuard<Info extends NameInfo> {
+  addTypeGuard(key: string, t: StaticType, info: Info, maker: NameTableMaker<Info>,
+    init?: (i: NameInfo) => void): boolean
 }
 
 export abstract class GlobalNameTable<Info extends NameInfo> implements NameTable<Info> {
@@ -213,6 +220,20 @@ export class BlockNameTable<Info extends NameInfo> implements NameTable<Info> {
   classTable() { return this.parent.classTable() }
 }
 
+export class GuardedBlockNameTable<Info extends NameInfo> extends BlockNameTable<Info> implements WithTypeGuard<Info> {
+  addTypeGuard(key: string, t: StaticType, orig: Info, maker: NameTableMaker<Info>, init?: (i: NameInfo) => void): boolean {
+    if (this.elements[key] !== undefined)
+      return false
+
+    const info = maker.typeGuard(orig, t)
+    if (init !== undefined)
+      init(info)
+
+    this.elements[key] = info
+    return true
+  }
+}
+
 export abstract class FunctionNameTable<Info extends NameInfo> extends BlockNameTable<Info> {
   private thisReturnType: StaticType | undefined
 
@@ -283,6 +304,16 @@ export class BasicNameTableMaker implements NameTableMaker<NameInfo> {
   info(t: StaticType) { return new NameInfo(t) }
   globalInfo(t: StaticType) { return new NameInfo(t) }
   instanceType(name: string, superClass: ObjectType) { return new InstanceType(name, name, superClass) }
+
+  typeGuard(info: NameInfo, t: StaticType): NameInfo {
+    const free = new FreeNameInfo(info)
+    free.type = t
+    return free
+  }
+
+  typeGuardedTable(parent: NameTable<NameInfo>): NameTable<NameInfo> & WithTypeGuard<NameInfo> {
+    return new GuardedBlockNameTable<NameInfo>(parent)
+  }
 }
 
 class BasicFunctionNameTable extends FunctionNameTable<NameInfo> {

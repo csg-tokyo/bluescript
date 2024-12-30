@@ -229,6 +229,8 @@ export function encodeType(type: StaticType): string {
       return `(${type.paramTypes.map(e => encodeType(e)).join('')})${encodeType(type.returnType)}`
     else if (type instanceof ObjectType)
       return `'${type.name()}'`
+    else if (type instanceof UnionType)
+      return '|' + type.types.map(e => encodeType(e)).join('')
     else
       throw new Error(`cannot encode: ${typeToString(type)}`)
   }
