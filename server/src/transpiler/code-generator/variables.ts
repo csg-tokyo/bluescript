@@ -2,8 +2,8 @@
 
 import * as AST from '@babel/types'
 import { FunctionType, StaticType, ObjectType, isPrimitiveType, ArrayType } from '../types'
-import { NameTable, NameTableMaker, GlobalNameTable, GuardedBlockNameTable,
-         BlockNameTable, FunctionNameTable, NameInfo, WithTypeGuard,
+import { NameTable, NameTableMaker, GlobalNameTable,
+         BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../names'
 import { ClassTable, InstanceType } from '../classes'
 import { rootSetVariable, getObjectProperty,
@@ -12,20 +12,27 @@ import { rootSetVariable, getObjectProperty,
 
 // An object representing a name.
 export class VariableInfo extends NameInfo {
-  index?: number = undefined
+  private _index?: number = undefined
 
   constructor(t: StaticType) {
     super(t)
   }
 
+  index() { return this._index }
+  setIndex(index: number, ignored?: string) {
+     this._index = index
+     if (ignored === undefined)
+       throw new Error('fatal: bad rootset name given')
+  }
+
   // Name used for its declaration
   // the returned value should be the same as the value
-  // returned by transpile() when this.index === undefined.
+  // returned by transpile() when this.index() === undefined.
   transpiledName(name: string) { return this.transpile0(name) }
 
   // The expression to obtian the value of this variable.
   transpile(name: string) {
-    if (this.index === undefined)
+    if (this.index() === undefined)
       return this.transpile0(name)
     else
       if (this.captured)
@@ -56,7 +63,7 @@ export class VariableInfo extends NameInfo {
   }
 
   transpileAccess() {
-    return rootSetVariable(this.index)
+    return rootSetVariable(this.index())
   }
 
   // A variable holds a boxed value when it is captured by a lambda function.
@@ -78,9 +85,6 @@ export class VariableInfo extends NameInfo {
 // A FreeVariableInfo object is contained only in a FunctionEnv or a GlobalEnv.
 // A free variable is a variable declared outside a function body (or a file scope).
 // It may be a global variable.
-//
-// Note that FreeVariableInfo is a superclass of TypeGuardInfo.
-//
 class FreeVariableInfo extends VariableInfo {
   protected nameInfo: VariableInfo    // never FreeVariableInfo
 
@@ -120,13 +124,6 @@ class FreeGlobalVariableInfo extends FreeVariableInfo {
   isGlobal() { return true }
 }
 
-class TypeGuardInfo extends FreeVariableInfo {
-  constructor(name: VariableInfo, t: StaticType) {
-    super(name)
-    this.type = t
-  }
-}
-
 class GlobalVariableInfo extends VariableInfo {
   private rootSetName?: string
   private moduleId: string
@@ -138,7 +135,7 @@ class GlobalVariableInfo extends VariableInfo {
 
   override transpile(name: string) {
     if (this.rootSetName)
-      return rootSetVariable(this.index, this.rootSetName)
+      return rootSetVariable(this.index(), this.rootSetName)
     else
       return this.transpile0(name)
   }
@@ -148,9 +145,12 @@ class GlobalVariableInfo extends VariableInfo {
   }
 
   // set a rootset name and a rootset index
-  setIndex(varName: string, index: number) {
+  setIndex(index: number, varName?: string) {
+    if (varName === undefined)
+      throw new Error('fatal: no rootset name')
+
     this.rootSetName = varName
-    this.index = index
+    super.setIndex(index)
   }
 
   // name, type and index used for extern declaration
@@ -158,7 +158,7 @@ class GlobalVariableInfo extends VariableInfo {
     if (this.isTypeName)
       return [undefined, this.type]
     else if (this.rootSetName)
-      return [this.rootSetName, undefined, this.index]
+      return [this.rootSetName, undefined, this.index()]
     else
       return [this.transpile(name), this.type]
   }
@@ -186,12 +186,6 @@ export class VariableNameTableMaker implements NameTableMaker<VariableInfo> {
 
   instanceType(name: string, superClass: ObjectType) {
     return new InstanceType(`${this.moduleId}${name}`, name, superClass)
-  }
-
-  typeGuard(info: VariableInfo, t: StaticType): VariableInfo { return new TypeGuardInfo(info, t) }
-
-  typeGuardedTable(parent: NameTable<VariableInfo>): NameTable<VariableInfo> & WithTypeGuard<VariableInfo> {
-    return new GuardedBlockNameTable<VariableInfo>(parent)
   }
 }
 
@@ -320,7 +314,7 @@ export class VariableEnv {
       if (info.isBoxed()
           || (!(info instanceof FreeVariableInfo) && !info.isTypeName
               && !isPrimitiveType(info.type))) {
-        info.index = this.allocate()
+        info.setIndex(this.allocate())
         num++
       }
     })
@@ -407,7 +401,7 @@ export class GlobalEnv extends FunctionEnv {
           // do nothing
         }
         else
-          info.setIndex(this.rootset, num++)
+          info.setIndex(num++, this.rootset)
       }
       else if (!(info instanceof FreeGlobalVariableInfo))
         throw new Error(`bad global info: ${key}, ${info.constructor.name}`)

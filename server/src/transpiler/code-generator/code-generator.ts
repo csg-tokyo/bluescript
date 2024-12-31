@@ -201,7 +201,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
       const frees = fenv.getFreeVariables()
       frees.forEach((info) => {
-        args += `, ${cr.rootSetVariable(info.original().index)}`
+        args += `, ${cr.rootSetVariable(info.original().index())}`
       })
 
       if (frees.length > 0) {
@@ -733,7 +733,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (info !== undefined) {
         const name = simpleName ? `p${i}` : info.transpiledName(paramName)
         sig += cr.typeToCType(paramType, name)
-        if (info.index !== undefined) {
+        if (info.index() !== undefined) {
           if (isPrimitiveType(info.type)) {
             if (info.isBoxed())
               bodyResult2?.write(`${info.transpileAccess()} = ${cr.makeBoxedValue(info.type, name)};`)
