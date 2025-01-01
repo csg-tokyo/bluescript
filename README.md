@@ -9,6 +9,8 @@ While it currently supports only the ESP32 board, future updates will include su
 - [Get started](https://github.com/csg-tokyo/bluescript/wiki)
 - [Reference Manual](https://github.com/csg-tokyo/bluescript/wiki/Reference)
 
+- Fumika Mochizuki, Tetsuro Yamazaki, Shigeru Chiba, ["Interactive Programming for Microcontrollers by Offloading Dynamic Incremental Compilation"](https://dl.acm.org/doi/10.1145/3679007.3685062), MPLR 2024, pp. 28-40, ACM, 2024.
+
 # Get Started
 
 ## Requirements
@@ -43,10 +45,11 @@ docker compose up -d
     - Open [Google Chrome browser](https://www.google.com/chrome/) and access [http://localhost:3000/](http://localhost:3000/).  
     - You can see BlueScript REPL page on the browser.
 
-    - You can also run a REPL that executes a program on a PC.  You can use this REPL without a microcontroller connected to your PC.
-    ```
-    docker exec -it bluescript_server npm run shell
-    ```
+> #### Try BlueScript without a microcontroller
+>    You can also run a REPL that executes a BlueScript program on a PC.  You can use this REPL without a microcontroller connected to your PC.
+>    ```
+>    docker exec -it bluescript_server npm run shell
+>    ```
 
 ### Build and Flash the BlueScript Runtime  
 
