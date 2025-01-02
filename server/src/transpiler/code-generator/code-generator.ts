@@ -989,7 +989,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
 
     if (node.extra?.parenthesized)
-      this.result.write('(')
+      this.result.write(')')
   }
 
   private simpleAssignment(node: AST.AssignmentExpression, env: VariableEnv) {
