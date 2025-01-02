@@ -211,7 +211,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   ifStatement(node: AST.IfStatement, names: NameTable<Info>): void {
     const guard = this.isTypeGuard(node.test, names)
-    this.visit(node.test, names)
+    this.visitStatement(node.test, names)
     this.addCoercionForBoolean(node.test, this.result)
 
     if (guard === undefined || guard.isNull)
@@ -232,14 +232,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
   }
 
-  protected visitStatement(node: AST.Statement, names: NameTable<Info>) {
-    if (AST.isBlockStatement(node))
+  protected visitStatement(node: AST.Statement | AST.Expression, names: NameTable<Info>) {
+    if (AST.isBlockStatement(node) || AST.isIfStatement(node))
       this.visit(node, names)
     else {
       const updated = this.typeGuardsUpdated
       this.typeGuardsUpdated = false
       this.visit(node, names)
-      if (this.typeGuardsUpdated)
+      if (this.typeGuardsUpdated && !this.errorLog.hasError())
         this.visit(node, names)
 
       this.typeGuardsUpdated ||= updated
@@ -255,6 +255,19 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   private deleteGuard(name: string, newGuard: boolean) {
     if (newGuard)
       this.typeGuards.delete(name)
+  }
+
+  private saveTypeGuard(): [Map<string, StaticType>, boolean] {
+    const oldMap = this.typeGuards
+    const oldUpdated = this.typeGuardsUpdated
+    this.typeGuards = new Map()
+    this.typeGuardsUpdated = false
+    return [oldMap, oldUpdated]
+  }
+
+  private restoreTypeGuard(oldGurads: [Map<string, StaticType>, boolean]) {
+    this.typeGuards = oldGurads[0]
+    this.typeGuardsUpdated = oldGurads[1]
   }
 
   private isTypeGuard(node: AST.Node, names: NameTable<Info>) {
@@ -677,6 +690,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   arrowFunctionExpression(node: AST.ArrowFunctionExpression, names: NameTable<Info>): void {
+    const guards = this.saveTypeGuard()
+
     if (this.firstPass)
       this.functionDeclarationPass1(node, null, names)
     else
@@ -687,6 +702,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       throw new Error('fatal: an arrow function type is not recorded')
     else
       this.result = ftype
+
+    this.restoreTypeGuard(guards)
   }
 
   unaryExpression(node: AST.UnaryExpression, names: NameTable<Info>): void {
@@ -1459,6 +1476,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     // if the expression needs coercion to be tested as a boolean value.
     // In C, 0, 0.0, and NULL are false.
     // Note that a Null-type value might not be NULL.
+    this.assert(type !== Void, 'void may not be a condition or an operand', expr)
     if (!this.firstPass && !isPrimitiveType(type))
       this.addCoercion(expr, type)
   }

@@ -570,6 +570,21 @@ test('array access in multiple source files', () => {
   expect(multiCompileAndRun(src1, src2, destFile)).toBe('Foo[]\n<class Foo>\n')
 })
 
+test('void may not be a condition or an operand', () => {
+  const src = `
+  function foo(v: integer) {
+    if (v > 0 && print(v))  // error
+      return v
+    else if (print(v))      // error
+      return -v
+    else
+      return 0
+  }
+  foo(3)
+  `
+  expect(() => compileAndRun(src, destFile)).toThrow(/void may not be.*line 3.*\n.*void may not be.*line 5/)
+})
+
 test('nullable object types', () => {
   const tester = (type: string, init: string, value: string, getter: string = '') => {
     const src = `
@@ -831,4 +846,52 @@ test('type guard and loop', () => {
   `
 
   expect(compileAndRun(src, destFile)).toBe('Foo\nFoo|undefined\nFoo|undefined\nFoo\n')
+})
+
+test('type guard and assignment in condition', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    let i = 1
+    if (v !== undefined) {
+      if ((v = undefined) || display(typeof(v)) || i > 0)    // typeof(v) is Foo|undefined
+        print(typeof(v))                                     // typeof(v) is Foo|undefined
+    }
+  }
+  function display(s: string) {
+    print(s)
+    return false
+  }
+  foo(new Foo(7))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo|undefined\nFoo|undefined\n')
+})
+
+test('type guards are not effective in the body of a lambda function', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    let func = (v: Foo | undefined) => { print('default'); print(typeof(v)) }
+    if (v !== undefined) {
+      func = (w: Foo | undefined) => {
+        print('lambda'); print(typeof(v))   // lambda, Foo | undefined
+        if (w !== undefined)
+          print(typeof(w))        // Foo
+      }
+      print(typeof(v))            // Foo
+    }
+    func(new Foo(3))
+  }
+
+  foo(new Foo(7))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo\nlambda\nFoo|undefined\nFoo\n')
 })
