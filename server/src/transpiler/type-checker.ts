@@ -61,6 +61,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   result: StaticType = Any
   firstPass = true
   inExport: boolean = false   // true when the context is in an export declaration.
+  typeGuards: Map<string, StaticType> = new Map()
+  typeGuardsUpdated: boolean = false
 
   constructor(maker: NameTableMaker<Info>, importer?: (file: string) => NameTable<Info>) {
     super()
@@ -188,6 +190,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (nameInfo !== undefined) {
       if (this.assert(!nameInfo.isTypeName, `bad use of type name: ${node.name}`, node)) {
         this.result = nameInfo.type
+        const guard = this.typeGuards.get(node.name)
+        if (guard !== undefined)
+          this.result = guard
+
         return
       }
     }
@@ -205,18 +211,50 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   ifStatement(node: AST.IfStatement, names: NameTable<Info>): void {
     const guard = this.isTypeGuard(node.test, names)
-    let names2 = names
-    if (guard !== undefined) {
-      const n = this.maker.typeGuardedTable(names)
-      n.addTypeGuard(guard.key, guard.type, guard.info, this.maker)
-      names2 = n
-    }
-
     this.visit(node.test, names)
     this.addCoercionForBoolean(node.test, this.result)
-    this.visit(node.consequent, guard?.then ? names2 : names)
+
+    if (guard === undefined || guard.isNull)
+      this.visit(node.consequent, names)
+    else {
+      const newGuard = this.addGuard(guard.name, guard.type)
+      this.visitStatement(node.consequent, names)
+      this.deleteGuard(guard.name, newGuard)
+    }
+
     if (node.alternate)
-      this.visit(node.alternate, guard?.then ? names : names2)
+      if (guard === undefined || !guard.isNull)
+        this.visit(node.alternate, names)
+      else {
+        const newGuard = this.addGuard(guard.name, guard.type)
+        this.visitStatement(node.alternate, names)
+        this.deleteGuard(guard.name, newGuard)
+      }
+  }
+
+  protected visitStatement(node: AST.Statement, names: NameTable<Info>) {
+    if (AST.isBlockStatement(node))
+      this.visit(node, names)
+    else {
+      const updated = this.typeGuardsUpdated
+      this.typeGuardsUpdated = false
+      this.visit(node, names)
+      if (this.typeGuardsUpdated)
+        this.visit(node, names)
+
+      this.typeGuardsUpdated ||= updated
+    }
+  }
+
+  private addGuard(name: string, type: StaticType) {
+    const g = this.typeGuards.get(name)
+    this.typeGuards.set(name, type)
+    return g === undefined
+  }
+
+  private deleteGuard(name: string, newGuard: boolean) {
+    if (newGuard)
+      this.typeGuards.delete(name)
   }
 
   private isTypeGuard(node: AST.Node, names: NameTable<Info>) {
@@ -250,9 +288,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       return undefined
 
     if (op === '==' || op === '===')
-      return { type: type, key: key, info: info, then: false }
+      return { name: key, type: type, isNull: true }
     else if (op === '!=' || op === '!==')
-      return { type: type, key: key, info: info, then: true }
+      return { name: key, type: type, isNull: false }
     else
       return undefined
   }
@@ -291,7 +329,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       addNameTable(node, block_names)
 
     for (const child of node.body)
-      this.visit(child, block_names)
+      this.visitStatement(child, block_names)
   }
 
   returnStatement(node: AST.ReturnStatement, names: NameTable<Info>): void {
@@ -824,20 +862,24 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     this.assertLvalue(node.left, names)
     this.visit(node.left, names)
-    const left_type = this.result
+    let left_type = this.result
     this.visit(node.right, names)
     const right_type = this.result
     const op = node.operator
 
-    if (op === '=')
+    if (op === '=') {
       if (isConsistent(right_type, left_type) || this.isConsistentOnFirstPass(right_type, left_type)) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
-      else
-        this.assert(isSubtype(right_type, left_type),
-          `Type '${typeToString(right_type)}' is not assignable to type '${typeToString(left_type)}'`,
-          node)
+      else if (!isSubtype(right_type, left_type)) {
+          const t = this.removeTypeGuardIfPossible(node, names, right_type)
+          if (t !== undefined)
+            left_type = t
+          else
+            this.assert(false, `Type '${typeToString(right_type)}' is not assignable to type '${typeToString(left_type)}'`, node)
+      }
+    }
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
         this.invalidOperandsMessage(op, left_type, right_type), node)
@@ -861,6 +903,26 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(false, `not supported operator '${op}'`, node)
 
     this.result = left_type
+  }
+
+  // When null is assigned to a variable of a nullable type, remove its type guard if the type guard exists.
+  // The method returns that nullable type.  When this is not the case, it returns undefined.
+  private removeTypeGuardIfPossible(node: AST.AssignmentExpression, names: NameTable<Info>, right_type: StaticType): StaticType | undefined{
+    if (right_type === Null && AST.isIdentifier(node.left)) {
+      const guard = this.typeGuards.get(node.left.name)
+      if (guard !== undefined) {
+        const info = names.lookup(node.left.name)
+        if (info === undefined)
+          this.assert(false, `fatal: a variable is not found`, node.left)
+        else if (isSubtype(right_type, info.type)) {
+          this.deleteGuard(node.left.name, true)
+          this.typeGuardsUpdated = true
+          return info.type
+        }
+      }
+    }
+
+    return undefined
   }
 
   memberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, names: NameTable<Info>): void {

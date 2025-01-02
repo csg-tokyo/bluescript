@@ -21,7 +21,7 @@ export class VariableInfo extends NameInfo {
   index() { return this._index }
   setIndex(index: number, ignored?: string) {
      this._index = index
-     if (ignored === undefined)
+     if (ignored !== undefined)
        throw new Error('fatal: bad rootset name given')
   }
 

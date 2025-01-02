@@ -672,3 +672,163 @@ test('unsupported union type', () => {
 
   expect(() => compileAndRun(src, destFile)).toThrow(/not supported union type/)
 })
+
+test('type guard', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    if (v !== undefined) {
+      print(typeof(v))
+      print(v.value)
+    }
+    else {
+      print(typeof(v))
+      print('undefined')
+    }
+  }
+  foo(new Foo(7))
+  foo(undefined)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo\n7\nFoo|undefined\nundefined\n')
+})
+
+test('type guard with assignment of null', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    if (v !== undefined) {
+      print(typeof(v))
+      print(v.value)
+      v = undefined
+      print(v.value)
+    }
+    else {
+      v = new Foo(3)
+      print(typeof(v))
+    }
+  }
+  foo(new Foo(7))
+  `
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/unknown property name.*line 11/)
+})
+
+test('type guard with assignment of null 2', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    if (v !== undefined) {
+      print(typeof(v))
+      print(v.value)
+      v = undefined
+      print(typeof(v))
+    }
+    else {
+      print(typeof(v))
+      v = new Foo(3)
+      print(typeof(v))
+    }
+  }
+  foo(new Foo(7))
+  foo(undefined)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo\n7\nFoo|undefined\nFoo|undefined\nFoo|undefined\n')
+})
+
+test('nested type guard', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined, w: Foo | undefined) {
+    if (v !== undefined) {
+      if (w !== undefined) {
+        print(w.value)
+      }
+      print(v.value)
+      print(typeof(w))    // Foo|undefined
+    }
+    w = new Foo(9)
+    if (v != undefined) {
+      if (w !== undefined)
+        print(w.value)
+      print(typeof(w))
+      print(v.value)
+    }
+    print(typeof(v))
+  }
+  foo(new Foo(7), new Foo(3))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('3\n7\nFoo|undefined\n9\nFoo|undefined\n7\nFoo|undefined\n')
+})
+
+test('wrong nested type guard', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    if (v !== undefined) {
+      print(typeof(v))
+      if (v !== undefined)    // error.  v is not null.
+        print(typeof(v))
+    }
+  }
+  foo(new Foo(7))
+  `
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/invalid operands.*line 9/)
+})
+
+test('type guard and loop', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    let i = 1
+    if (v !== undefined) {
+      print(typeof(v))
+      while (i > 0) {
+        print(typeof(v))    // Foo|undefined
+        v = undefined
+        i -= 1
+      }
+    }
+  }
+  function bar(v: Foo | undefined) {
+    if (v === undefined)
+      return
+    else
+      print2(v = undefined, typeof(v))    // typeof(v) is Foo|undefined
+  }
+  function baz(v: Foo | undefined) {
+    let w: Foo | undefined = undefined
+    if (v !== undefined)
+      print2(w = undefined, typeof(v))    // typeof(v) is Foo
+  }
+  function print2(v: Foo | undefined, s: string) {
+    print(s)
+  }
+  foo(new Foo(7))
+  bar(new Foo(7))
+  baz(new Foo(7))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo\nFoo|undefined\nFoo|undefined\nFoo\n')
+})
