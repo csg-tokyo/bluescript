@@ -209,6 +209,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.visit(node.body, names)
   }
 
+  doWhileStatement(node: AST.DoWhileStatement, env: NameTable<Info>): void {
+    this.visit(node.body, env)
+    this.visit(node.test, env)
+    this.addCoercionForBoolean(node.test, this.result)
+  }
+
   ifStatement(node: AST.IfStatement, names: NameTable<Info>): void {
     const guard = this.isTypeGuard(node.test, names)
     this.visitStatement(node.test, names)
@@ -1539,6 +1545,12 @@ class ConstructorChecker<Info extends NameInfo> extends TypeChecker<Info> {
   whileStatement(node: AST.WhileStatement, names: NameTable<Info>): void {
     this.toplevel++
     super.whileStatement(node, names)
+    this.toplevel--
+  }
+
+  doWhileStatement(node: AST.DoWhileStatement, names: NameTable<Info>): void {
+    this.toplevel++
+    super.doWhileStatement(node, names)
     this.toplevel--
   }
 

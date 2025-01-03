@@ -585,6 +585,32 @@ test('void may not be a condition or an operand', () => {
   expect(() => compileAndRun(src, destFile)).toThrow(/void may not be.*line 3.*\n.*void may not be.*line 5/)
 })
 
+test.only('do-while statement', () => {
+  const src = `
+  function foo(n: integer) {
+    let i = 0
+    do
+      i += 1
+    while (i < n)
+    return i
+  }
+
+  function bar(n: integer) {
+    let i = 0, j = 0
+    do {
+      i += 1
+      j += 10
+    } while (i < n)
+    return i + j
+  }
+
+  print(foo(3))
+  print(bar(7))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('3\n77\n')
+})
+
 test('nullable object types', () => {
   const tester = (type: string, init: string, value: string, getter: string = '') => {
     const src = `

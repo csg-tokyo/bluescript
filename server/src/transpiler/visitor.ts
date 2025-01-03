@@ -22,6 +22,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'Identifier', (visitor, node, env) => visitor.identifier(node as AST.Identifier, env) ],
         // Statement
         [ 'WhileStatement', (visitor, node, env) => visitor.whileStatement(node as AST.WhileStatement, env) ],
+        [ 'DoWhileStatement', (visitor, node, env) => visitor.doWhileStatement(node as AST.DoWhileStatement, env) ],
         [ 'IfStatement', (visitor, node, env) => visitor.ifStatement(node as AST.IfStatement, env) ],
         [ 'ForStatement', (visitor, node, env) => visitor.forStatement(node as AST.ForStatement, env) ],
         [ 'ExpressionStatement', (visitor, node, env) => visitor.expressionStatement(node as AST.ExpressionStatement, env) ],
@@ -94,6 +95,7 @@ export abstract class NodeVisitor<Environment> {
     abstract numericLiteral(node: AST.NumericLiteral, env: Environment): void
     abstract identifier(node: AST.Identifier, env: Environment): void
     abstract whileStatement(node: AST.WhileStatement, env: Environment): void
+    abstract doWhileStatement(node: AST.DoWhileStatement, env: Environment): void
     abstract ifStatement(node: AST.IfStatement, env: Environment): void
     abstract forStatement(node: AST.ForStatement, env: Environment): void
     abstract expressionStatement(node: AST.ExpressionStatement, env: Environment): void
@@ -151,6 +153,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     numericLiteral(node: AST.NumericLiteral, env: Environment): void {}
     identifier(node: AST.Identifier, env: Environment): void {}
     whileStatement(node: AST.WhileStatement, env: Environment): void {}
+    doWhileStatement(node: AST.DoWhileStatement, env: Environment): void {}
     ifStatement(node: AST.IfStatement, env: Environment): void {}
     forStatement(node: AST.ForStatement, env: Environment): void {}
     expressionStatement(node: AST.ExpressionStatement, env: Environment): void {}

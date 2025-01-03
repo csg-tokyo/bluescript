@@ -250,6 +250,26 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.endWithReturn = false
   }
 
+  doWhileStatement(node: AST.DoWhileStatement, env: VariableEnv): void {
+    this.result.nl()
+    this.result.write('do ')
+    if (node.body.type === 'BlockStatement')
+      this.visit(node.body, env)
+    else {
+      this.result.write('{')
+      this.result.right()
+      this.visit(node.body, env)
+      this.result.left()
+      this.result.nl().write('}')
+    }
+
+    this.result.write(' while (')
+    this.testExpression(node.test, env)
+    this.result.write(');')
+
+    this.endWithReturn = false
+  }
+
   testExpression(test: AST.Node, env: VariableEnv) {
     const test_type = this.needsCoercion(test)
     if (test_type !== undefined && !isPrimitiveType(test_type)) {
