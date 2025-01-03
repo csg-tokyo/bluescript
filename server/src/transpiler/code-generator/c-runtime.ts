@@ -5,7 +5,7 @@ import { ErrorLog } from '../utils'
 import { Integer, Float, BooleanT, StringT, Void, Null, Any,
     ObjectType, objectType, FunctionType,
     StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype,
-    ByteArrayClass, } from '../types'
+    ByteArrayClass, UnionType } from '../types'
 import { InstanceType, ClassTable } from '../classes'
 import { VariableEnv } from './variables'
 
@@ -43,7 +43,7 @@ export function typeToCType(type: StaticType, name: string = ''): string {
 function typeToCType2(type: StaticType): string {
   if (type instanceof FunctionType)
     return funcTypeInC
-  else if (type instanceof ObjectType)
+  else if (type instanceof ObjectType || type instanceof UnionType)
     return anyTypeInC
   else
     switch (type) {
@@ -101,14 +101,14 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
         return '(int32_t)('
       else if (from === BooleanT)
         return '('
-      else if (from === Any)
+      else if (from === Any || from instanceof UnionType)
         return 'safe_value_to_int('
       else
         break
     case Float:
       if (from === Integer || from === BooleanT)
         return '(float)('
-      else if (from === Any)
+      else if (from === Any || from instanceof UnionType)
         return 'safe_value_to_float('
       else
         break
@@ -117,12 +117,12 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
         return '('
       else if (from === Float)
         return '(int32_t)('
-      else if (from === Any)
+      else if (from === Any || from instanceof UnionType)
         return 'safe_value_to_bool('
       else
         break
     case Null:
-      if (from === Any)
+      if (from === Any || from instanceof UnionType)
         return 'safe_value_to_null('
       else
         break
@@ -137,39 +137,71 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
         default:
           return '('
       }
-    default:    // "to" is either String, Object, or Array
-      if (from === Any || from instanceof ObjectType) {
+    default:    // "to" is either String, Object, Array, or UnionType
+      if (from === Any || from instanceof ObjectType || from instanceof UnionType) {
         if (to === StringT)
-          return 'safe_value_to_string('
+          return 'safe_value_to_string(false, '
         else if (to instanceof ObjectType) {
           if (to === objectType)
-            return 'safe_value_to_object('
+            return 'safe_value_to_object(false, '
           else if (to instanceof ArrayType) {
             if (to.elementType === Integer)
-              return 'safe_value_to_intarray('
+              return 'safe_value_to_intarray(false, '
             else if (to.elementType === Float)
-              return 'safe_value_to_floatarray('
+              return 'safe_value_to_floatarray(false, '
             else if (to.elementType === BooleanT)
-              return 'safe_value_to_boolarray('
+              return 'safe_value_to_boolarray(false, '
             else if (to.elementType === Any)
-              return 'safe_value_to_anyarray('
+              return 'safe_value_to_anyarray(false, '
             else
-              return `safe_value_to_value(&${env.useArrayType(to)[0]}.clazz, ` 
+              return `safe_value_to_value(false, &${env.useArrayType(to)[0]}.clazz, `
           }
           else if (to instanceof InstanceType)
             if (isSubtype(from, to))
               return '('
             else {
               const info = classObjectNameInC(to.name())
-              return `safe_value_to_value(&${info}, `
+              return `safe_value_to_value(false, &${info}, `
             }
-
-          break
         }
+        else if (to instanceof UnionType)
+          return typeConversionToUnion(from, to, env, node)
+
+        break
       }
       else if (from === Null)
         return '('
       // else if (from === String), then this is an error.
+  }
+
+  throw typeConversionError(from, to, node)
+}
+
+function typeConversionToUnion(from: StaticType, to: UnionType, env: VariableEnv, node: AST.Node) {
+  const objType = to.isNullable()
+  if (objType !== undefined) {
+    if (objType === StringT)
+      return 'safe_value_to_string(true, '
+    else {
+      if (objType === objectType)
+        return 'safe_value_to_object(true, '
+      else if (objType instanceof ArrayType) {
+        if (objType.elementType === Integer)
+          return 'safe_value_to_intarray(true, '
+        else if (objType.elementType === Float)
+          return 'safe_value_to_floatarray(true, '
+        else if (objType.elementType === BooleanT)
+          return 'safe_value_to_boolarray(true, '
+        else if (objType.elementType === Any)
+          return 'safe_value_to_anyarray(true, '
+        else
+          return `safe_value_to_value(true, &${env.useArrayType(objType)[0]}.clazz, `
+      }
+      else if (objType instanceof InstanceType) {
+        const info = classObjectNameInC(objType.name())
+        return `safe_value_to_value(true, &${info}, `
+      }
+    }
   }
 
   throw typeConversionError(from, to, node)

@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
-         StringT } from '../types'
+         StringT,  UnionType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
@@ -201,7 +201,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
       const frees = fenv.getFreeVariables()
       frees.forEach((info) => {
-        args += `, ${cr.rootSetVariable(info.original().index)}`
+        args += `, ${cr.rootSetVariable(info.original().index())}`
       })
 
       if (frees.length > 0) {
@@ -246,6 +246,26 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       this.visit(node.body, env)
       this.result.left()
     }
+
+    this.endWithReturn = false
+  }
+
+  doWhileStatement(node: AST.DoWhileStatement, env: VariableEnv): void {
+    this.result.nl()
+    this.result.write('do ')
+    if (node.body.type === 'BlockStatement')
+      this.visit(node.body, env)
+    else {
+      this.result.write('{')
+      this.result.right()
+      this.visit(node.body, env)
+      this.result.left()
+      this.result.nl().write('}')
+    }
+
+    this.result.write(' while (')
+    this.testExpression(node.test, env)
+    this.result.write(');')
 
     this.endWithReturn = false
   }
@@ -733,7 +753,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (info !== undefined) {
         const name = simpleName ? `p${i}` : info.transpiledName(paramName)
         sig += cr.typeToCType(paramType, name)
-        if (info.index !== undefined) {
+        if (info.index() !== undefined) {
           if (isPrimitiveType(info.type)) {
             if (info.isBoxed())
               bodyResult2?.write(`${info.transpileAccess()} = ${cr.makeBoxedValue(info.type, name)};`)
@@ -910,7 +930,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
         || (left_type === StringT || right_type === StringT)
-        || (left_type === Any || right_type === Any)) {
+        || (left_type === Any || right_type === Any)
+        || (left_type instanceof UnionType || right_type instanceof UnionType)) {
       this.result.write(`${cr.arithmeticOpForAny(op2)}(${cr.typeConversion(left_type, Any, env, left)}`)
       this.visit(left, env)
       this.result.write(`), ${cr.typeConversion(right_type, Any, env, right)}`)
@@ -988,7 +1009,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
 
     if (node.extra?.parenthesized)
-      this.result.write('(')
+      this.result.write(')')
   }
 
   private simpleAssignment(node: AST.AssignmentExpression, env: VariableEnv) {
@@ -1510,6 +1531,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   tsArrayType(node: AST.TSArrayType, env: VariableEnv) {}
 
   tsFunctionType(node: AST.TSFunctionType, env: VariableEnv): void {}
+
+  tsUnionType(node: AST.TSUnionType, env: VariableEnv): void {}
 
   tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: VariableEnv): void {}
 

@@ -1,3 +1,5 @@
+// Copyright (C) 2024- Shigeru Chiba.  All rights reserved.
+
 /*
   Before compiling shell.c, compile this file and build c-runtime.so.
 
