@@ -585,7 +585,7 @@ test('void may not be a condition or an operand', () => {
   expect(() => compileAndRun(src, destFile)).toThrow(/void may not be.*line 3.*\n.*void may not be.*line 5/)
 })
 
-test.only('do-while statement', () => {
+test('do-while statement', () => {
   const src = `
   function foo(n: integer) {
     let i = 0
@@ -609,6 +609,29 @@ test.only('do-while statement', () => {
   `
 
   expect(compileAndRun(src, destFile)).toBe('3\n77\n')
+})
+
+test('no initailizer for a variable', () => {
+  const src = `
+  let a: integer
+  let b: float
+  let c: boolean
+  let d: any
+  let e: string | undefined
+  `
+
+  const src2 = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  let e: Foo
+  `
+  expect(compileAndRun(src, destFile)).toBe('')
+  expect(() => compileAndRun('let a: string', destFile)).toThrow(/must have an initial value/)
+  expect(() => compileAndRun('let a: integer[]', destFile)).toThrow(/must have an initial value/)
+  expect(() => compileAndRun('let a: ()=>boolean', destFile)).toThrow(/must have an initial value/)
+  expect(() => compileAndRun(src2, destFile)).toThrow(/must have an initial value.*line 6/)
 })
 
 test('nullable object types', () => {

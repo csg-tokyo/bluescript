@@ -178,7 +178,7 @@ test('assign to a function name', () => {
 })
 
 test('function type', () => {
-  const src = `let foo: (a: float, b: string)=>integer
+  const src = `let foo: (a: float, b: string)=>integer = (a: float, b: string) => 1
 `
   const ast = tested.transpile(src)
   const table = names.getNameTable(ast.program)

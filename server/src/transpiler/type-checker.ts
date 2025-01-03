@@ -565,6 +565,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (varType === undefined)
       varType = Any
 
+    if (!node.init)
+      this.assert(isPrimitiveType(varType) || varType === Any || varType instanceof UnionType,
+                  'a variable must have an initial value', node)
+
     if (!alreadyDeclared) {
       const success = names.record(varName, varType, this.maker,
                                    _ => { _.isConst = isConst; _.isExported = this.inExport })
