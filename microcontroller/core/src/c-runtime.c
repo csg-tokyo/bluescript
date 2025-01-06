@@ -126,33 +126,33 @@ int32_t try_and_catch(void (*main_function)()) {
     }
 }
 
-static value_t runtime_type_error(const char* msg) {
-    const char fmt[] = "** runtime type error: %s\n";
-    if (strlen(msg) + sizeof(fmt) / sizeof(fmt[0]) >= sizeof(error_message) / sizeof(error_message[0]))
-        msg = "??";
-
-    sprintf(error_message, fmt, msg);
+static value_t throw_runtime_error(const char* name, const char* msg) {
+    size_t len = sizeof(error_message) / sizeof(error_message[0]);
+    snprintf(error_message, len, "** runtime %serror: %s\n", name, msg);
+    if (error_message[len - 2] != '\0') {
+        error_message[len - 2] = '\n';
+        error_message[len - 1] = '\0';
+    }
     longjmp(long_jump_buffer, -1);
     return 0;
 }
 
-static void runtime_index_error(int32_t idx, int32_t len, char* name) {
-    const char fmt[] = "** error: array index out of range: %d (len: %d) in %s\n";
-    if (strlen(name) + sizeof(fmt) / sizeof(fmt[0]) + 22 >= sizeof(error_message) / sizeof(error_message[0]))
-        name = "??";
+static value_t runtime_type_error(const char* msg) {
+    return throw_runtime_error("type ", msg);
+}
 
-    sprintf(error_message, fmt, (int)idx, (int)len, name);
+static void runtime_index_error(int32_t idx, int32_t len, char* name) {
+    const char fmt[] = "** runtime error: array index out of range: %d (len: %d) in %s\n";
+    snprintf(error_message, sizeof(error_message) / sizeof(error_message[0]), fmt, (int)idx, (int)len, name);
     longjmp(long_jump_buffer, -1);
 }
 
 static value_t runtime_memory_allocation_error(const char* msg) {
-    const char fmt[] = "** runtime memory allocation error: %s\n";
-    if (strlen(msg) + sizeof(fmt) / sizeof(fmt[0]) >= sizeof(error_message) / sizeof(error_message[0]))
-        msg = "??";
+    return throw_runtime_error("memory allocation ", msg);
+}
 
-    sprintf(error_message, fmt, msg);
-    longjmp(long_jump_buffer, -1);
-    return 0;
+value_t runtime_error(const char* msg) {
+    return throw_runtime_error("", msg);
 }
 
 // arithmetic operators for any-type values

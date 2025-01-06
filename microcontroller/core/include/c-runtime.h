@@ -124,6 +124,7 @@ struct gc_root_set {
   = { .next = gc_root_set_head, .length = n, .values = { initv }}; gc_root_set_head = (struct gc_root_set*)&name;
 
 extern int32_t CR_SECTION try_and_catch(void (*main_function)());
+extern value_t CR_SECTION runtime_error(const char* msg);
 
 extern int32_t CR_SECTION safe_value_to_int(value_t v);
 extern float CR_SECTION safe_value_to_float(value_t v);
