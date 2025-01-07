@@ -1,7 +1,7 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 import * as AST from '@babel/types'
-import { Null, FunctionType, StaticType, ObjectType, isPrimitiveType, ArrayType } from '../types'
+import { FunctionType, StaticType, ObjectType, isPrimitiveType, ArrayType } from '../types'
 import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../names'
@@ -12,20 +12,27 @@ import { rootSetVariable, getObjectProperty,
 
 // An object representing a name.
 export class VariableInfo extends NameInfo {
-  index?: number = undefined
+  private _index?: number = undefined
 
   constructor(t: StaticType) {
     super(t)
   }
 
+  index() { return this._index }
+  setIndex(index: number, ignored?: string) {
+     this._index = index
+     if (ignored !== undefined)
+       throw new Error('fatal: bad rootset name given')
+  }
+
   // Name used for its declaration
   // the returned value should be the same as the value
-  // returned by transpile() when this.index === undefined.
+  // returned by transpile() when this.index() === undefined.
   transpiledName(name: string) { return this.transpile0(name) }
 
   // The expression to obtian the value of this variable.
   transpile(name: string) {
-    if (this.index === undefined)
+    if (this.index() === undefined)
       return this.transpile0(name)
     else
       if (this.captured)
@@ -56,7 +63,7 @@ export class VariableInfo extends NameInfo {
   }
 
   transpileAccess() {
-    return rootSetVariable(this.index)
+    return rootSetVariable(this.index())
   }
 
   // A variable holds a boxed value when it is captured by a lambda function.
@@ -128,7 +135,7 @@ class GlobalVariableInfo extends VariableInfo {
 
   override transpile(name: string) {
     if (this.rootSetName)
-      return rootSetVariable(this.index, this.rootSetName)
+      return rootSetVariable(this.index(), this.rootSetName)
     else
       return this.transpile0(name)
   }
@@ -138,9 +145,12 @@ class GlobalVariableInfo extends VariableInfo {
   }
 
   // set a rootset name and a rootset index
-  setIndex(varName: string, index: number) {
+  setIndex(index: number, varName?: string) {
+    if (varName === undefined)
+      throw new Error('fatal: no rootset name')
+
     this.rootSetName = varName
-    this.index = index
+    super.setIndex(index)
   }
 
   // name, type and index used for extern declaration
@@ -148,7 +158,7 @@ class GlobalVariableInfo extends VariableInfo {
     if (this.isTypeName)
       return [undefined, this.type]
     else if (this.rootSetName)
-      return [this.rootSetName, undefined, this.index]
+      return [this.rootSetName, undefined, this.index()]
     else
       return [this.transpile(name), this.type]
   }
@@ -218,10 +228,12 @@ export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
       throw new Error('fatal: not class table found')
   }
 
+  // Array types are implicitly generated on demand when an array type is used.
+  // getArrayTypes() returns all array types.
   getArrayTypes() { return this.arrayTypes }
 
-  // useArrayType() returns [clazz_name_in_C, whether_it_must_be_declared_in_C].
-  // The second element is false when the class type for the array is imported by 'extern'.
+  // useArrayType() returns [clazz_name_in_C, array_type, whether_it_must_be_declared_in_C].
+  // The third element is false when the class type for the array is imported by 'extern'.
   useArrayType(type: ArrayType) {
     const name = type.name()
     const info = this.arrayTypes.get(name)
@@ -302,7 +314,7 @@ export class VariableEnv {
       if (info.isBoxed()
           || (!(info instanceof FreeVariableInfo) && !info.isTypeName
               && !isPrimitiveType(info.type))) {
-        info.index = this.allocate()
+        info.setIndex(this.allocate())
         num++
       }
     })
@@ -389,7 +401,7 @@ export class GlobalEnv extends FunctionEnv {
           // do nothing
         }
         else
-          info.setIndex(this.rootset, num++)
+          info.setIndex(num++, this.rootset)
       }
       else if (!(info instanceof FreeGlobalVariableInfo))
         throw new Error(`bad global info: ${key}, ${info.constructor.name}`)

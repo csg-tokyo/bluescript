@@ -126,33 +126,33 @@ int32_t try_and_catch(void (*main_function)()) {
     }
 }
 
-static value_t runtime_type_error(const char* msg) {
-    const char fmt[] = "** runtime type error: %s\n";
-    if (strlen(msg) + sizeof(fmt) / sizeof(fmt[0]) >= sizeof(error_message) / sizeof(error_message[0]))
-        msg = "??";
-
-    sprintf(error_message, fmt, msg);
+static value_t throw_runtime_error(const char* name, const char* msg) {
+    size_t len = sizeof(error_message) / sizeof(error_message[0]);
+    snprintf(error_message, len, "** runtime %serror: %s\n", name, msg);
+    if (error_message[len - 2] != '\0') {
+        error_message[len - 2] = '\n';
+        error_message[len - 1] = '\0';
+    }
     longjmp(long_jump_buffer, -1);
     return 0;
 }
 
-static void runtime_index_error(int32_t idx, int32_t len, char* name) {
-    const char fmt[] = "** error: array index out of range: %d (len: %d) in %s\n";
-    if (strlen(name) + sizeof(fmt) / sizeof(fmt[0]) + 22 >= sizeof(error_message) / sizeof(error_message[0]))
-        name = "??";
+static value_t runtime_type_error(const char* msg) {
+    return throw_runtime_error("type ", msg);
+}
 
-    sprintf(error_message, fmt, (int)idx, (int)len, name);
+static void runtime_index_error(int32_t idx, int32_t len, char* name) {
+    const char fmt[] = "** runtime error: array index out of range: %d (len: %d) in %s\n";
+    snprintf(error_message, sizeof(error_message) / sizeof(error_message[0]), fmt, (int)idx, (int)len, name);
     longjmp(long_jump_buffer, -1);
 }
 
 static value_t runtime_memory_allocation_error(const char* msg) {
-    const char fmt[] = "** runtime memory allocation error: %s\n";
-    if (strlen(msg) + sizeof(fmt) / sizeof(fmt[0]) >= sizeof(error_message) / sizeof(error_message[0]))
-        msg = "??";
+    return throw_runtime_error("memory allocation ", msg);
+}
 
-    sprintf(error_message, fmt, msg);
-    longjmp(long_jump_buffer, -1);
-    return 0;
+value_t runtime_error(const char* msg) {
+    return throw_runtime_error("", msg);
 }
 
 // arithmetic operators for any-type values
@@ -228,14 +228,20 @@ value_t safe_value_to_func(const char* signature, value_t func) {
     return func;
 }
 
-value_t safe_value_to_string(value_t v) {
+value_t safe_value_to_string(bool nullable, value_t v) {
+    if (nullable && v == VALUE_NULL)
+        return v;
+
     if (!gc_is_string_object(v))
         runtime_type_error("value_to_string");
 
     return v;
 }
 
-value_t safe_value_to_object(value_t v) {
+value_t safe_value_to_object(bool nullable, value_t v) {
+    if (nullable && v == VALUE_NULL)
+        return v;
+
     // note: String is not a subtype of Object
     if (!is_ptr_value(v) || gc_is_string_object(v))
         runtime_type_error("value_to_object");
@@ -243,7 +249,10 @@ value_t safe_value_to_object(value_t v) {
     return v;
 }
 
-value_t safe_value_to_value(const class_object* const clazz, value_t v) {
+value_t safe_value_to_value(bool nullable, const class_object* const clazz, value_t v) {
+    if (nullable && v == VALUE_NULL)
+        return v;
+
     if (!gc_is_instance_of(clazz, v))
         runtime_type_error(clazz->name);
 
@@ -733,8 +742,8 @@ static CLASS_OBJECT(intarray_object, 1) = {
     .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<integer>",
                .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
-value_t safe_value_to_intarray(value_t v) {
-    return safe_value_to_value(&intarray_object.clazz, v);
+value_t safe_value_to_intarray(bool nullable, value_t v) {
+    return safe_value_to_value(true, &intarray_object.clazz, v);
 }
 
 static pointer_t gc_new_intarray_base(int32_t n) {
@@ -801,8 +810,8 @@ static CLASS_OBJECT(floatarray_object, 1) = {
     .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<float>",
                .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
-value_t safe_value_to_floatarray(value_t v) {
-    return safe_value_to_value(&floatarray_object.clazz, v);
+value_t safe_value_to_floatarray(bool nullable, value_t v) {
+    return safe_value_to_value(nullable, &floatarray_object.clazz, v);
 }
 
 static pointer_t gc_new_floatarray_base(int32_t n) {
@@ -872,8 +881,8 @@ static CLASS_OBJECT(boolarray_object, 1) = {
     .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<boolean>",
                .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
-value_t safe_value_to_boolarray(value_t v) {
-    return safe_value_to_value(&boolarray_object.clazz, v);
+value_t safe_value_to_boolarray(bool nullable, value_t v) {
+    return safe_value_to_value(nullable, &boolarray_object.clazz, v);
 }
 
 /*
@@ -956,8 +965,8 @@ static CLASS_OBJECT(vector_object, 1) = {
     .clazz = { .size = -1, .start_index = 1, .name = "Vector",
                .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
-value_t safe_value_to_vector(value_t v) {
-    return safe_value_to_value(&vector_object.clazz, v);
+value_t safe_value_to_vector(bool nullable, value_t v) {
+    return safe_value_to_value(nullable, &vector_object.clazz, v);
 }
 
 /*
@@ -1049,8 +1058,8 @@ static CLASS_OBJECT(anyarray_object, 1) = {
     .clazz = { .size = 2, .start_index = 1, .name = "Array<any>",
                .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
 
-value_t safe_value_to_anyarray(value_t v) {
-    return safe_value_to_value(&anyarray_object.clazz, v);
+value_t safe_value_to_anyarray(bool nullable, value_t v) {
+    return safe_value_to_value(nullable, &anyarray_object.clazz, v);
 }
 
 value_t gc_new_array(const class_object* clazz, int32_t n, value_t init_value) {

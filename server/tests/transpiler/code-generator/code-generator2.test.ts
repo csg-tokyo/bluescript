@@ -2,6 +2,7 @@ import { execSync } from 'child_process'
 import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, transpileAndWrite, toBoolean } from './test-code-generator'
 import { expect, test, beforeAll } from '@jest/globals'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
+import { booleanLiteral } from '@babel/types'
 
 beforeAll(() => {
   execSync('mkdir -p ./temp-files')
@@ -485,7 +486,7 @@ test('Uint8Array is a leaf class', () => {
   expect(() => compileAndRun(src, destFile)).toThrow(/invalid super class/)
 })
 
-test.only('instanceof array', () => {
+test('instanceof array', () => {
   const src = `
   class Foo {}
   const a1 = [1, 2, 3]
@@ -567,4 +568,379 @@ test('array access in multiple source files', () => {
   `
 
   expect(multiCompileAndRun(src1, src2, destFile)).toBe('Foo[]\n<class Foo>\n')
+})
+
+test('void may not be a condition or an operand', () => {
+  const src = `
+  function foo(v: integer) {
+    if (v > 0 && print(v))  // error
+      return v
+    else if (print(v))      // error
+      return -v
+    else
+      return 0
+  }
+  foo(3)
+  `
+  expect(() => compileAndRun(src, destFile)).toThrow(/void may not be.*line 3.*\n.*void may not be.*line 5/)
+})
+
+test('do-while statement', () => {
+  const src = `
+  function foo(n: integer) {
+    let i = 0
+    do
+      i += 1
+    while (i < n)
+    return i
+  }
+
+  function bar(n: integer) {
+    let i = 0, j = 0
+    do {
+      i += 1
+      j += 10
+    } while (i < n)
+    return i + j
+  }
+
+  print(foo(3))
+  print(bar(7))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('3\n77\n')
+})
+
+test('no initailizer for a variable', () => {
+  const src = `
+  let a: integer
+  let b: float
+  let c: boolean
+  let d: any
+  let e: string | undefined
+  `
+
+  const src2 = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  let e: Foo
+  `
+  expect(compileAndRun(src, destFile)).toBe('')
+  expect(() => compileAndRun('let a: string', destFile)).toThrow(/must have an initial value/)
+  expect(() => compileAndRun('let a: integer[]', destFile)).toThrow(/must have an initial value/)
+  expect(() => compileAndRun('let a: ()=>boolean', destFile)).toThrow(/must have an initial value/)
+  expect(() => compileAndRun(src2, destFile)).toThrow(/must have an initial value.*line 6/)
+})
+
+test('nullable object types', () => {
+  const tester = (type: string, init: string, value: string, getter: string = '') => {
+    const src = `
+  class Foo {
+    value() { return 'foo' }
+  }
+
+  let obj: ${type} | undefined = ${init}
+  print(typeof obj)
+  print(obj instanceof ${type})
+  print(obj)
+  let v: any = obj
+  obj = v
+  const foo = obj as ${type}
+  print(foo${getter})
+  obj = undefined
+  print(obj instanceof ${type})
+  print(obj)
+  `
+    expect(compileAndRun(src, destFile)).toBe(`${type}|undefined\ntrue\n<class ${type}>\n${value}\nfalse\nundefined\n`)
+  }
+
+  tester('Foo', 'new Foo()', 'foo', '.value()')
+  tester('Uint8Array', 'new Uint8Array(3, 7)', '7', '[0]')
+})
+
+test('nullable arrays', () => {
+  const tester = (type: string, init: string, value: string, getter: string = '') => {
+    const src = `
+  class Foo {
+    value() { return 'foo' }
+  }
+  let ar1: ${type}[] | undefined = ${init}     // array | undefined = array
+  let tar1: ${type}[] = ar1 as ${type}[]       // array = (array | undefined) as array
+  print(tar1[0]${getter})
+  let a1: any = ar1                            // any = array | undefined
+  let ar1b: ${type}[] | null = a1              // array | undefined = any
+  let tar1b: ${type}[] = ar1b as ${type}[]
+  print(tar1b[0]${getter})
+  ar1 = null
+  print(ar1)
+  `
+    expect(compileAndRun(src, destFile)).toBe(`${value}\n${value}\nundefined\n`)
+  }
+
+  tester('integer', '[7, 8, 9]', '7')
+  tester('float', '[7.1, 8.1, 9.1]', '7.100000')
+  tester('boolean', '[true, false, true]', 'true')
+  tester('string', '["one", "two", "three"]', 'one')
+  tester('any', '[true, "apple", 9]', 'true')
+  tester('Foo', 'new Array<Foo>(3, new Foo())', 'foo', '.value()')
+})
+
+test('subtypes of union types', () => {
+  const src = `
+  class Foo {}
+  class Bar extends Foo {}
+  let v: Bar | undefined = new Bar()
+  let w: Foo | undefined = v
+  w = new Bar()
+  print(w)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('<class Bar>\n')
+})
+
+test('equality for nullable types', () => {
+  const tester = (type: string, init: string, value: string) => {
+    const src = `
+  class Foo {}
+  let obj: ${type} | undefined = ${init}
+  let obj2 = obj
+  print(obj === ${value})
+  print(obj !== ${value})
+  `
+    expect(compileAndRun(src, destFile)).toBe(`true\nfalse\n`)
+  }
+
+  tester('string', '"foo"', '"foo"')
+  tester('string', '"foo"', 'obj2')
+  tester('Foo', 'new Foo()', 'obj2')
+  tester('integer[]', '[1, 2, 3]', 'obj2')
+})
+
+test('(any | undefined) is any', () => {
+  const src = `
+  let v: any | undefined = 'foo'
+  print(typeof v)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('any\n')
+})
+
+test('unsupported union type', () => {
+  const src = `
+  let i: any = 7
+  let v: integer | undefined = i
+  print(v)
+  `
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/not supported union type/)
+})
+
+test('type guard', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    if (v !== undefined) {
+      print(typeof(v))
+      print(v.value)
+    }
+    else {
+      print(typeof(v))
+      print('undefined')
+    }
+  }
+  foo(new Foo(7))
+  foo(undefined)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo\n7\nFoo|undefined\nundefined\n')
+})
+
+test('type guard with assignment of null', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    if (v !== undefined) {
+      print(typeof(v))
+      print(v.value)
+      v = undefined
+      print(v.value)
+    }
+    else {
+      v = new Foo(3)
+      print(typeof(v))
+    }
+  }
+  foo(new Foo(7))
+  `
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/unknown property name.*line 11/)
+})
+
+test('type guard with assignment of null 2', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    if (v !== undefined) {
+      print(typeof(v))
+      print(v.value)
+      v = undefined
+      print(typeof(v))
+    }
+    else {
+      print(typeof(v))
+      v = new Foo(3)
+      print(typeof(v))
+    }
+  }
+  foo(new Foo(7))
+  foo(undefined)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo\n7\nFoo|undefined\nFoo|undefined\nFoo|undefined\n')
+})
+
+test('nested type guard', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined, w: Foo | undefined) {
+    if (v !== undefined) {
+      if (w !== undefined) {
+        print(w.value)
+      }
+      print(v.value)
+      print(typeof(w))    // Foo|undefined
+    }
+    w = new Foo(9)
+    if (v != undefined) {
+      if (w !== undefined)
+        print(w.value)
+      print(typeof(w))
+      print(v.value)
+    }
+    print(typeof(v))
+  }
+  foo(new Foo(7), new Foo(3))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('3\n7\nFoo|undefined\n9\nFoo|undefined\n7\nFoo|undefined\n')
+})
+
+test('wrong nested type guard', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    if (v !== undefined) {
+      print(typeof(v))
+      if (v !== undefined)    // error.  v is not null.
+        print(typeof(v))
+    }
+  }
+  foo(new Foo(7))
+  `
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/invalid operands.*line 9/)
+})
+
+test('type guard and loop', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    let i = 1
+    if (v !== undefined) {
+      print(typeof(v))
+      while (i > 0) {
+        print(typeof(v))    // Foo|undefined
+        v = undefined
+        i -= 1
+      }
+    }
+  }
+  function bar(v: Foo | undefined) {
+    if (v === undefined)
+      return
+    else
+      print2(v = undefined, typeof(v))    // typeof(v) is Foo|undefined
+  }
+  function baz(v: Foo | undefined) {
+    let w: Foo | undefined = undefined
+    if (v !== undefined)
+      print2(w = undefined, typeof(v))    // typeof(v) is Foo
+  }
+  function print2(v: Foo | undefined, s: string) {
+    print(s)
+  }
+  foo(new Foo(7))
+  bar(new Foo(7))
+  baz(new Foo(7))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo\nFoo|undefined\nFoo|undefined\nFoo\n')
+})
+
+test('type guard and assignment in condition', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    let i = 1
+    if (v !== undefined) {
+      if ((v = undefined) || display(typeof(v)) || i > 0)    // typeof(v) is Foo|undefined
+        print(typeof(v))                                     // typeof(v) is Foo|undefined
+    }
+  }
+  function display(s: string) {
+    print(s)
+    return false
+  }
+  foo(new Foo(7))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo|undefined\nFoo|undefined\n')
+})
+
+test('type guards are not effective in the body of a lambda function', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  function foo(v: Foo | undefined) {
+    let func = (v: Foo | undefined) => { print('default'); print(typeof(v)) }
+    if (v !== undefined) {
+      func = (w: Foo | undefined) => {
+        print('lambda'); print(typeof(v))   // lambda, Foo | undefined
+        if (w !== undefined)
+          print(typeof(w))        // Foo
+      }
+      print(typeof(v))            // Foo
+    }
+    func(new Foo(3))
+  }
+
+  foo(new Foo(7))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('Foo\nlambda\nFoo|undefined\nFoo\n')
 })

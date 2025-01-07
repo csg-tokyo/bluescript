@@ -200,6 +200,14 @@ void test_function_object() {
     Assert_equals(((int32_t (*)(int32_t))gc_function_object_ptr(func, 0))(7), 8);
 }
 
+void test_runtime_error2() {
+    runtime_error("test_runtime_error2() thorws an error");
+}
+
+void test_runtime_error() {
+    Assert_true(try_and_catch(test_runtime_error2));
+}
+
 int main() {
 #ifdef TEST64
     initialize_pointer_table();
@@ -212,6 +220,7 @@ int main() {
     test_array();
     test_string_literal();
     test_function_object();
+    test_runtime_error();
     if (nerrors > 0) {
         printf("Test failed %d\n", nerrors);
         return 1;

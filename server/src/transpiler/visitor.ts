@@ -22,6 +22,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'Identifier', (visitor, node, env) => visitor.identifier(node as AST.Identifier, env) ],
         // Statement
         [ 'WhileStatement', (visitor, node, env) => visitor.whileStatement(node as AST.WhileStatement, env) ],
+        [ 'DoWhileStatement', (visitor, node, env) => visitor.doWhileStatement(node as AST.DoWhileStatement, env) ],
         [ 'IfStatement', (visitor, node, env) => visitor.ifStatement(node as AST.IfStatement, env) ],
         [ 'ForStatement', (visitor, node, env) => visitor.forStatement(node as AST.ForStatement, env) ],
         [ 'ExpressionStatement', (visitor, node, env) => visitor.expressionStatement(node as AST.ExpressionStatement, env) ],
@@ -59,6 +60,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'TSTypeReference', (visitor, node, env) => visitor.tsTypeReference(node as AST.TSTypeReference, env) ],
         [ 'TSArrayType', (visitor, node, env) => visitor.tsArrayType(node as AST.TSArrayType, env) ],
         [ 'TSFunctionType', (visitor, node, env) => visitor.tsFunctionType(node as AST.TSFunctionType, env) ],
+        [ 'TSUnionType', (visitor, node, env) => visitor.tsUnionType(node as AST.TSUnionType, env) ],
         [ 'TSNumberKeyword', (visitor, node, env) => visitor.tsNumberKeyword(node as AST.TSNumberKeyword, env) ],
         [ 'TSVoidKeyword', (visitor, node, env) => visitor.tsVoidKeyword(node as AST.TSVoidKeyword, env) ],
         [ 'TSBooleanKeyword', (visitor, node, env) => visitor.tsBooleanKeyword(node as AST.TSBooleanKeyword, env) ],
@@ -93,6 +95,7 @@ export abstract class NodeVisitor<Environment> {
     abstract numericLiteral(node: AST.NumericLiteral, env: Environment): void
     abstract identifier(node: AST.Identifier, env: Environment): void
     abstract whileStatement(node: AST.WhileStatement, env: Environment): void
+    abstract doWhileStatement(node: AST.DoWhileStatement, env: Environment): void
     abstract ifStatement(node: AST.IfStatement, env: Environment): void
     abstract forStatement(node: AST.ForStatement, env: Environment): void
     abstract expressionStatement(node: AST.ExpressionStatement, env: Environment): void
@@ -127,6 +130,7 @@ export abstract class NodeVisitor<Environment> {
     abstract tsTypeReference(node: AST.TSTypeReference, env: Environment): void
     abstract tsArrayType(node: AST.TSArrayType, env: Environment): void
     abstract tsFunctionType(node: AST.TSFunctionType, env: Environment): void
+    abstract tsUnionType(node: AST.TSUnionType, env: Environment): void
     abstract tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void
     abstract tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void
     abstract tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void
@@ -149,6 +153,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     numericLiteral(node: AST.NumericLiteral, env: Environment): void {}
     identifier(node: AST.Identifier, env: Environment): void {}
     whileStatement(node: AST.WhileStatement, env: Environment): void {}
+    doWhileStatement(node: AST.DoWhileStatement, env: Environment): void {}
     ifStatement(node: AST.IfStatement, env: Environment): void {}
     forStatement(node: AST.ForStatement, env: Environment): void {}
     expressionStatement(node: AST.ExpressionStatement, env: Environment): void {}
@@ -183,6 +188,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     tsTypeReference(node: AST.TSTypeReference, env: Environment): void {}
     tsArrayType(node: AST.TSArrayType, env: Environment): void {}
     tsFunctionType(node: AST.TSFunctionType, env: Environment): void {}
+    tsUnionType(node: AST.TSUnionType, env: Environment): void {}
     tsNumberKeyword(node: AST.TSNumberKeyword, env: Environment): void {}
     tsVoidKeyword(node: AST.TSVoidKeyword, env: Environment): void {}
     tsBooleanKeyword(node: AST.TSBooleanKeyword, env: Environment): void {}
@@ -202,84 +208,4 @@ export function file<E>(node: AST.File, env: E, v: NodeVisitor<E>): void {
 export function program<E>(node: AST.Program, env: E, v: NodeVisitor<E>): void {
     for (const child of node.body)
         v.visit(child, env)
-}
-
-export function whileStatement<E>(node: AST.WhileStatement, env: E, v: NodeVisitor<E>): void {
-    v.visit(node.test, env)
-    v.visit(node.body, env)
-}
-
-export function ifStatement<E>(node: AST.IfStatement, env: E, v: NodeVisitor<E>): void {
-    v.visit(node.test, env)
-    v.visit(node.consequent, env)
-    if (node.alternate)
-        v.visit(node.alternate, env)
-}
-
-export function forStatement<E>(node: AST.ForStatement, env: E, v: NodeVisitor<E>): void {
-    if (node.init)
-        v.visit(node.init, env)
-
-    if (node.test)
-        v.visit(node.test, env)
-
-    if (node.update)
-        v.visit(node.update, env)
-
-    v.visit(node.body, env)
-}
-
-export function expressionStatement<E>(node: AST.ExpressionStatement, env: E, v: NodeVisitor<E>): void {
-    v.visit(node.expression, env)
-}
-
-export function blockStatement<E>(node: AST.BlockStatement, env: E, v: NodeVisitor<E>): void {
-    for (const child of node.body)
-        v.visit(child, env)
-}
-
-export function returnStatement<E>(node: AST.ReturnStatement, env: E, v: NodeVisitor<E>): void {
-    if (node.argument)
-        v.visit(node.argument, env)
-}
-
-export function variableDeclaration<E>(node: AST.VariableDeclaration, env: E, v: NodeVisitor<E>): void {
-    for (const decl of node.declarations)
-        v.visit(decl, env)
-}
-
-export function variableDeclarator<E>(node: AST.VariableDeclarator, env: E, v: NodeVisitor<E>): void {
-    if (node.init)
-        v.visit(node.init, env)
-}
-
-export function functionDeclaration<E>(node: AST.FunctionDeclaration, env: E, v: NodeVisitor<E>): void {
-    if (node.id)
-        v.visit(node.id, env)
-
-    for (const p of node.params)
-        v.visit(p, env)
-
-    v.visit(node.body, env)
-}
-
-export function binaryExpression<E>(node: AST.BinaryExpression, env: E, v: NodeVisitor<E>): void {
-    v.visit(node.left, env)
-    v.visit(node.right, env)
-}
-
-export function assignmentExpression<E>(node: AST.AssignmentExpression, env: E, v: NodeVisitor<E>): void {
-    v.visit(node.left, env)
-    v.visit(node.right, env)
-}
-
-export function logicalExpression<E>(node: AST.LogicalExpression, env: E, v: NodeVisitor<E>): void {
-    v.visit(node.left, env)
-    v.visit(node.right, env)
-}
-
-export function callExpression<E>(node: AST.CallExpression, env: E, v: NodeVisitor<E>): void {
-    v.visit(node.callee, env)
-    for (const a of node.arguments)
-        v.visit(a, env)
 }
