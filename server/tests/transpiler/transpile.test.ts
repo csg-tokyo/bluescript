@@ -10,24 +10,20 @@ test("transpile", () => {
 })
 
 const bsSrc1 = `
-function add(a:integer, b:integer) {
-  return a + b;
-}
-`
 
-const bsSrc2 = `
-add(1, 2) + add(3, 4);
+
+function test(fn: () => void) {
+  fn();
+}
+
+test(() => {1 + 1})
 `
 
 test("playground", () => {
   try {
     const result1 = transpile(1, bsSrc1);
-    const result2 = transpile(2, bsSrc2, result1.names);
-    const names = result2.names;
-    const code = result2.code;
 
-    console.log(names.lookup("arr"));
-    console.log(code);
+    console.log(result1.code);
   }
   catch (e) {
     if (e instanceof ErrorLog)
