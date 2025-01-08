@@ -1,6 +1,6 @@
 #include "c-runtime.h"
 #include "driver/gpio.h"
-#include "include/gpio.h"
+#include "gpio.h"
 
 extern struct func_body _103112105111gpioOn;
 extern CLASS_OBJECT(object_class, 1);
