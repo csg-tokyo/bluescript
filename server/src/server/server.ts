@@ -67,7 +67,7 @@ export default class HttpServer {
             break;
           }
           const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.execute(requestBodyJson.src);
+          responseBody = this.session.execute(requestBodyJson.id, requestBodyJson.src);
           statusCode = 200;
           break;
         case "/reset":
@@ -91,7 +91,7 @@ export default class HttpServer {
             break;
           }
           const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.executeWithProfiling(requestBodyJson.src);
+          responseBody = this.session.executeWithProfiling(requestBodyJson.id, requestBodyJson.src);
           statusCode = 200;
           break;
         }

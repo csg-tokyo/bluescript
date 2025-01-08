@@ -23,10 +23,10 @@ export class Compiler {
 
   constructor(private compilerPath = '') {}
 
-  compile(shadowMemory: ShadowMemory, src: string, entryPointName: string) {
+  compile(shadowMemory: ShadowMemory, id: number, src: string, entryPointName: string) {
     const objFile = this._compile(src);
     const linkedElf = this.link(shadowMemory, objFile, entryPointName);
-    this.load(shadowMemory, linkedElf, entryPointName)
+    this.load(shadowMemory, id, linkedElf, entryPointName)
   }
 
   private _compile(src: string) {
@@ -52,7 +52,7 @@ export class Compiler {
     return new ElfReader(this.LINKED_ELF);
   }
 
-  private load(shadowMemory: ShadowMemory, linkedElf: ElfReader, entryPointName: string) {
+  private load(shadowMemory: ShadowMemory, id: number, linkedElf: ElfReader, entryPointName: string) {
     const sections = linkedElf
       .readAllSections()
       .filter(section => section.name !== EXTERNAL_SYMBOL_SECTION && section.size !== 0);
@@ -62,7 +62,7 @@ export class Compiler {
     const entryPoint = shadowMemory.symbols.get(entryPointName)?.address;
     if (entryPoint === undefined)
       throw new Error(`Cannot find entry point: ${entryPointName}`);
-    shadowMemory.load(sections, entryPoint);
+    shadowMemory.load(id, sections, entryPoint);
   }
 
   private readExternalSymbols(shadowMemory: ShadowMemory, objFile: ElfReader) {
@@ -190,7 +190,7 @@ export class ModuleCompiler {
     const entryPoint = shadowMemory.symbols.get(entryPointName)?.address;
     if (entryPoint === undefined)
       throw new Error(`Cannot find entry point: ${entryPointName}`);
-    shadowMemory.load(sections, entryPoint);
+    shadowMemory.load(-1, sections, entryPoint);
   }
 
   private allocate(shadowMemory: ShadowMemory, linkedElf: ElfReader) {

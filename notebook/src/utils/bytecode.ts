@@ -68,10 +68,11 @@ export class BytecodeBufferBuilder {
     }
 
 
-    public jump(address: number) {
-        const header = Buffer.allocUnsafe(5);
+    public jump(id: number, address: number) {
+        const header = Buffer.allocUnsafe(9);
         header.writeUIntLE(BYTECODE.JUMP, 0, 1); // cmd
-        header.writeUIntLE(address, 1, 4);
+        header.writeIntLE(id, 1, 4); // id
+        header.writeUIntLE(address, 5, 4); // address
         if (5 <= this.lastUnitRemain) {
             this.lastUnit = Buffer.concat([this.lastUnit, header]);
         } else {
@@ -110,7 +111,7 @@ type ParseResult =
     {bytecode:BYTECODE.RESULT_LOG, log:string} | 
     {bytecode:BYTECODE.RESULT_ERROR, error:string} |
     {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemInfo} |
-    {bytecode:BYTECODE.RESULT_EXECTIME, exectime:number} |
+    {bytecode:BYTECODE.RESULT_EXECTIME, id: number, exectime:number} |
     {bytecode:BYTECODE.RESULT_PROFILE, fid:number, paramtypes:string[]} |
     {bytecode:BYTECODE.NONE}
 
@@ -132,7 +133,8 @@ export function bytecodeParser(data: DataView):ParseResult {
           }
           return {bytecode, meminfo};
       case BYTECODE.RESULT_EXECTIME:
-        return {bytecode, exectime:data.getFloat32(1, true)};
+        // | cmd (1byte) | id (4byte) | exectime (4byte) |
+        return {bytecode, id: data.getInt32(1, true), exectime:data.getFloat32(5, true)};
       case BYTECODE.RESULT_PROFILE:
         let uint8arr = new Uint8Array(data.buffer, 2);
         let textDecoder = new TextDecoder();

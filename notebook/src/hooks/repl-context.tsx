@@ -101,7 +101,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             bytecodeBuilder.load(block.address, Buffer.from(block.data, "hex"));
         }
         for (const entryPoint of compileResult.result.entryPoints) {
-            bytecodeBuilder.jump(entryPoint);
+            bytecodeBuilder.jump(entryPoint.id, entryPoint.address);
         }
         const bluetoothTime = await bluetooth.current.sendBuffers(bytecodeBuilder.generate())
         return bluetoothTime
@@ -121,7 +121,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     const executeLatestCell = async () => {
         setLatestCell({...latestCell, compileError: '', state: 'compiling'})
         try {
-            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code, useFlash)
+            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.id, latestCell.code) : await network.compile(latestCell.id, latestCell.code)
             setLatestCell({...latestCell, compileError: '', state: 'sending'})
             const bluetoothTime = await sendCompileResult(compileResult)
             const compileTime = compileResult.compileTime
@@ -142,14 +142,30 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         setLatestCell({...latestCell, code})
     }
 
-    const onExecutionComplete = (executionTime: number) => {
-        if (latestCellRef.current.time !== undefined && latestCellRef.current.time?.execution === undefined) {
-            latestCellRef.current.time.execution = executionTime
-            latestCellRef.current.state = 'done'
-            const nextCellId = latestCellRef.current.id + 1
-            const current = latestCellRef.current
-            setPostExecutionCells((cells) => [...cells, current])
-            setLatestCell({id: nextCellId, code: '', state: 'user-writing'})
+    const onExecutionComplete = (id: number, exectime: number) => {
+        if (id === -1) 
+            return;    
+
+        const updateCells = () => {
+            const current = latestCellRef.current;
+            const latestCellTime = {compile: current.time?.compile, bluetooth: current.time?.compile, execution: exectime};
+            setPostExecutionCells((cells) => [...cells, {...current, state: 'done', time: latestCellTime}]);
+            setLatestCell((cell) => ({id: cell.id + 1, code: '', state: 'user-writing'}));
+        }
+
+        console.log('complete execution', latestCellRef.current);
+        if (latestCellRef.current.state === 'executing') {
+            updateCells();
+        } else {
+            // Sometimes execution overtake screen drawing.
+            setTimeout(() => {
+                console.log('complete execution', latestCellRef.current);
+                if (latestCellRef.current.state !== 'executing') {
+                    window.alert(`Something wrong happend.`)
+                } else {
+                    updateCells();
+                }
+            }, 500);
         }
     }
 
@@ -182,7 +198,8 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                 onResetComplete(parseResult.meminfo)
                 break;
             case BYTECODE.RESULT_EXECTIME: 
-                onExecutionComplete(parseResult.exectime)
+                console.log("exectime", parseResult.id, parseResult.exectime);
+                onExecutionComplete(parseResult.id, parseResult.exectime)
                 break;
             case BYTECODE.RESULT_PROFILE: {
                 console.log("receive profile", parseResult.fid, parseResult.paramtypes);

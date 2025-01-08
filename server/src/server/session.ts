@@ -35,7 +35,7 @@ export default class Session {
     this.profiler = new Profiler();
   }
 
-  public execute(src: string) {
+  public execute(id: number, src: string) {
     const start = performance.now();
     this.sessionId += 1;
 
@@ -47,12 +47,12 @@ export default class Session {
     // Compile
     const cString = cProlog + tResult.code;
     const compiler = new Compiler();
-    compiler.compile(this.shadowMemory, cString, entryPointName);
+    compiler.compile(this.shadowMemory, id, cString, entryPointName);
     const end = performance.now();
     return  {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
 
-  public executeWithProfiling(src: string) {
+  public executeWithProfiling(id: number, src: string) {
     const start = performance.now();
     this.sessionId += 1;
 
@@ -64,7 +64,7 @@ export default class Session {
 
     // Compile
     const compiler = new Compiler();
-    compiler.compile(this.shadowMemory, cString, entryPointName);
+    compiler.compile(this.shadowMemory, id, cString, entryPointName);
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
@@ -86,7 +86,7 @@ export default class Session {
 
     // Compile
     const compiler = new Compiler();
-    compiler.compile(this.shadowMemory, cString, entryPointName);
+    compiler.compile(this.shadowMemory, -1, cString, entryPointName);
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
@@ -146,7 +146,7 @@ export default class Session {
     // Compile
     const cSrc = fs.readFileSync('./temp-files/dummy-code.c').toString()
     const compiler = new Compiler();
-    compiler.compile(this.shadowMemory, cSrc, 'bluescript_main6_')
+    compiler.compile(this.shadowMemory, -1, cSrc, 'bluescript_main6_')
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }

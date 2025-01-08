@@ -21,6 +21,7 @@ typedef union {
 
     struct task_jump {
         bs_cmd_t cmd;
+        int32_t id;
         uint32_t to;
     } jump;
 } task_item_u;
@@ -117,13 +118,14 @@ void bs_shell_receptionist(uint8_t *task_data, int data_len) {
             break;
         }
         case BS_CMD_JUMP:
-        // | cmd(1byte) | address(4byte) |
+        // | cmd(1byte) | id(4byte) | address(4byte) |
         {
             task_item_u task;
             task.jump.cmd = BS_CMD_JUMP;
-            task.jump.to = *(uint32_t*)(task_data + (idx+1));
+            task.jump.id = *(uint32_t*)(task_data + (idx+1));
+            task.jump.to = *(uint32_t*)(task_data + (idx+5));
             xQueueSend(task_queue, &task, portMAX_DELAY);
-            idx += 5;
+            idx += 9;
             break;
         }
         case BS_CMD_RESET:
@@ -168,11 +170,12 @@ static void send_result_meminfo() {
     result_sender(result, 25);
 }
 
-static void send_result_exectime(float exectime) {
-    uint8_t result[5];
+static void send_result_exectime(int32_t id, float exectime) {
+    uint8_t result[9];
     result[0] = BS_CMD_RESULT_EXECTIME;
-    *(float*)(result+1) = exectime;
-    result_sender(result, 5);
+    *(int32_t*)(result+1) = id;
+    *(float*)(result+5) = exectime;
+    result_sender(result, 9);
 }
 
 
@@ -187,12 +190,12 @@ void bs_shell_task(void *arg) {
 
         switch (task_item.cmd) {
             case BS_CMD_JUMP:
-                ESP_LOGI(BS_SHELL_TAG, "Jump to %x", (int)task_item.jump.to);
+                ESP_LOGI(BS_SHELL_TAG, "Jump to %x, id: %d", (int)task_item.jump.to, (int)task_item.jump.id);
                 uint32_t start_us = esp_timer_get_time();
                 try_and_catch((void *)task_item.jump.to);
                 uint32_t end_us = esp_timer_get_time();
                 float exectime = (float)(end_us - start_us) / 1000.0;
-                send_result_exectime(exectime);
+                send_result_exectime(task_item.jump.id, exectime);
                 break;
             case BS_CMD_RESET:
                 ESP_LOGI(BS_SHELL_TAG, "Soft reset");
