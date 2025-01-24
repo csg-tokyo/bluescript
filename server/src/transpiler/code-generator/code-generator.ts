@@ -4,7 +4,8 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
-         StringT,  UnionType } from '../types'
+         StringT,  UnionType,
+         VectorClass} from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
@@ -1245,7 +1246,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   callExpression(node: AST.CallExpression, env: VariableEnv): void {
-    const ftype = getStaticType(node.callee) as FunctionType
+    const ftype = getStaticType(node.callee)
     let numOfObjectArgs = 0
     let calleeIsIdentifier
     if (AST.isIdentifier(node.callee)) {
@@ -1263,30 +1264,36 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const func = cr.rootSetVariable(index)
       this.result.write(`(${func} = `)
       const method = AST.isMemberExpression(node.callee) && this.visitIfMethodExpr(node.callee, env)
-      if (method) {
+      if (typeof method === 'string') {
+        // a method call on an object of unknown type
+        const code = this.getPropertyCode(method, node, env)
+        this.result.write(`, ${cr.dynamicMethodCall}(${func}, ${code}, ${node.arguments.length}`)
+      }
+      else if (method) {
         if (method[1]) {
           // a method call on super
-          const funcType = method[0][0]
-          const index = method[0][1]
-          const clazz = method[0][2]
+          const [funcType, index, clazz] = method[0]
           const funcName = cr.methodBodyNameInC(clazz.name(), index)
           this.externalMethods.set(funcName, funcType)
           this.result.write(`, ${funcName}(${func}`)
         }
-        else
+        else {
+          // a method call on a typed object
           this.result.write(`, ${cr.methodLookup(method[0], func)}(${func}`)
+        }
       }
       else {
         // the callee is an expression resulting in a function object.
         this.visit(node.callee, env)
-        this.result.write(`, ((${cr.funcTypeToCType(ftype)})${cr.functionGet}(${func}, 0))(${func}`)
+        this.result.write(`, ((${cr.funcTypeToCType(ftype as FunctionType)})${cr.functionGet}(${func}, 0))(${func}`)
       }
     }
 
     for (let i = 0; i < node.arguments.length; i++) {
       const arg = node.arguments[i]
       this.result.write(', ')
-      numOfObjectArgs += this.callExpressionArg(arg, ftype.paramTypes[i], env)
+      const type = ftype instanceof FunctionType ? ftype.paramTypes[i] : Any
+      numOfObjectArgs += this.callExpressionArg(arg, type, env)
     }
 
     env.deallocate(numOfObjectArgs)
@@ -1355,13 +1362,16 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   newObjectExpression(node: AST.NewExpression, clazz: InstanceType, env: VariableEnv): void {
-    this.result.write(cr.makeInstance(clazz))
+    const maker = cr.makeInstance(clazz)
+    const needsComma = !maker.endsWith('(')
+    this.result.write(maker)
     const cons = clazz.findConstructor()
     if (cons !== undefined) {
       const params = cons.paramTypes
       let numOfObjectArgs = 0
       for (let i = 0; i < node.arguments.length; i++) {
-        this.result.write(', ')
+        if (needsComma || i > 0)
+          this.result.write(', ')
         numOfObjectArgs += this.callExpressionArg(node.arguments[i], params[i], env)
       }
 
@@ -1422,6 +1432,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           this.visit(node.object, env)
           this.result.write(`, ${cr.getArrayLengthIndex(BooleanT)})`)
         }
+        else if (propertyName === ArrayType.lengthMethod && objType.name() === VectorClass) {
+          this.result.write(cr.getObjectPrimitiveProperty(Integer))
+          this.visit(node.object, env)
+          this.result.write(`, ${cr.getArrayLengthIndex(Any)})`)
+        }
         else {
           const typeAndIndex = this.getPropertyIndex(objType, propertyName, node)
           const unbox = objType.unboxedProperties()
@@ -1453,8 +1468,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
   }
 
-  // This returns [[method_type, method_table_index, declaring_class], is_call_on_super?] or undefined.
-  visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv): [[StaticType, number, InstanceType], boolean] | undefined {
+  // This returns [[method_type, method_table_index, declaring_class], is_call_on_super?], method_name, or undefined.
+  visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv): [[StaticType, number, InstanceType], boolean] | string | undefined {
     if (node.computed)
       return undefined
 
@@ -1469,6 +1484,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         this.visit(node.object, env)
         return [mth, AST.isSuper(node.object)]
       }
+    }
+    else if (receiverType === Any) {
+      this.visit(node.object, env)
+      return propertyName
     }
 
     return undefined

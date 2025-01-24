@@ -1138,7 +1138,7 @@ test('any-type array 2', () => {
   }
   print(foo('test'))`
 
-  expect(() => compileAndRun(src2)).toThrow(/runtime type error: Array\<any\>/)
+  expect(() => compileAndRun(src2)).toThrow(/runtime type error: any\[\]/)
 })
 
 test('any-type array element', () => {
@@ -2050,7 +2050,7 @@ test('wrong method overriding', () => {
     getx() { return this.x }
   }
   class Pos2 extends Pos {
-    getx() { return "this.x" }
+    getx() { return "this.x" }    // error: incompatible type
   }
 `
 

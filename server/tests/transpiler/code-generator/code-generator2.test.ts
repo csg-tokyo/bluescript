@@ -944,3 +944,209 @@ test('type guards are not effective in the body of a lambda function', () => {
 
   expect(compileAndRun(src, destFile)).toBe('Foo\nlambda\nFoo|undefined\nFoo\n')
 })
+
+test('method call on an any-type object', () => {
+  const src = `
+  class Position {
+    x: integer
+    y: integer
+    constructor(x: integer, y: integer) {
+      this.x = x
+      this.y = y
+    }
+    xmove(dx: integer) { return this.x + dx }
+    ymove(dy: integer): integer { return this.y + dy }
+    zmove(dx: integer, dy: float, dz: string): float {
+      print(dz)
+      return dx + dy
+    }
+  }
+  class Position3 extends Position {
+    constructor(x: integer, y: integer) { super(x, y) }
+    xmove(dx: integer) { return this.x + dx * 100 }
+  }
+
+  const p1: any = new Position(10, 20)
+  const r1 = p1.xmove(4)
+  print(r1)
+  const p3: any = new Position3(70, 40)
+  const r2 = p3.xmove(3)
+  print(r2)
+  const r3 = p3.ymove(3)
+  print(r3)
+  print(p3.zmove(10, 4.5, 'foo'))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('14\n370\n43\nfoo\n14.500000\n')
+})
+
+test('method call on an any-type object with many arguments', () => {
+  const src = `
+  class Position {
+    x: integer
+    y: integer
+    constructor(x: integer, y: integer) {
+      this.x = x
+      this.y = y
+    }
+    xmove(a1: integer, a2: integer, a3: integer, b9: float, a4: integer, b10: float, b11: float, a5: integer, a6: integer, a7: integer, a8: integer, b12: float) {
+      print(b9 + b10 + b11 + b12)
+      return a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8
+    }
+  }
+
+  function foo(p: any) {
+    const r1 = p.xmove(1, 2, 3, 9.1, 4, 10.2, 11.3, 5, 6, 7, 8, 12.5)
+    return r1
+  }
+
+  print(foo(new Position(10, 20)))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('43.099998\n36\n')
+})
+
+test('method call on a method call expression', () => {
+  const src = `
+  class Position {
+    x: integer
+    y: integer
+    constructor(x: integer, y: integer) {
+      this.x = x
+      this.y = y
+    }
+    xmove(dx: integer) { return this.x + dx }
+    ymove(dy: integer): integer { return this.y + dy }
+    get() { return this }
+  }
+  `
+
+  const src2 = `
+  function foo(p: Position) {
+    return p.get().xmove(3)
+  }
+  function bar(p: any) {
+    return p.get().xmove(3)
+  }
+  print(foo(new Position(10, 20)))
+  print(bar(new Position(10, 20)))
+  `
+
+  expect(compileAndRun(src + src2, destFile)).toBe('13\n13\n')
+
+  const src3 = `
+  function foo(p: Position) {
+    return p.get().zmove(3)
+  }
+  `
+
+  expect(() => compileAndRun(src + src3, destFile)).toThrow(/unknown property name.*line 15/)
+
+  const src4 = `
+  function foo(p: any) {
+    return p.get().zmove(3)
+  }
+
+  print(foo(new Position(10, 20)))
+  `
+
+  expect(() => compileAndRun(src + src4, destFile)).toThrow(/no class declares.*zmove.*line 15/)
+
+  const src5 = `
+  class Pos {
+    zmove() {}
+  }
+  function foo(p: any) {
+    return p.get().zmove(3)
+  }
+
+  print(foo(new Position(10, 20)))
+  `
+
+  expect(() => compileAndRun(src + src5, destFile)).toThrow(/runtime error/)
+
+  const src6 = `
+  function foo(p: any) {
+    return bar(5).zmove(3)
+  }
+  function bar(i: integer) {
+    return [i]
+  }
+
+  print(foo(new Position(10, 20)))
+  `
+
+  expect(() => compileAndRun(src + src6, destFile)).toThrow(/unknown property name.*in line 15/)
+})
+
+test('method call on an any-type object with a wrong argument', () => {
+  const src = `
+  class Position {
+    x: integer
+    y: integer
+    constructor(x: integer, y: integer) {
+      this.x = x
+      this.y = y
+    }
+    xmove(dx: integer) { return this.x + dx }
+      m1(p: Position) { return p }
+      m2(p: integer[]) { return p[0] }
+      m3(p: string[]) { return p[0] }
+      m4(p: Position[]) { return p[0] }
+      m5(p: integer[][], q: Position | null, r: string) { return r }
+      m6(p: Uint8Array, q: string) { return p[0] }
+  }
+  class Rect {}
+
+  let pobj: any = new Position(3, 7);
+  `
+  const src2 = 'pobj.m1(new Rect())'
+  expect(() => compileAndRun(src + src2, destFile)).toThrow(/runtime type error.*argument/)
+
+  const src3 = 'pobj.m2(new Rect())'
+  expect(() => compileAndRun(src + src3, destFile)).toThrow(/runtime type error.*argument/)
+
+  const src4 = 'pobj.m3([new Rect()])'
+  expect(() => compileAndRun(src + src4, destFile)).toThrow(/runtime type error.*argument/)
+
+  const src5 = 'pobj.m4([new Rect()])'
+  expect(() => compileAndRun(src + src5, destFile)).toThrow(/runtime type error.*argument/)
+
+  const src6 = 'pobj.m5([[1]], null, "foo")'
+  expect(compileAndRun(src + src6, destFile)).toBe('')
+  const src7 = 'pobj.m5([[1]], "bar", "foo")'
+  expect(() => compileAndRun(src + src7, destFile)).toThrow(/runtime type error.*argument/)
+
+  const src8 = 'print(pobj.m6(new Uint8Array(3, 7), "8"))'
+  expect(compileAndRun(src + src8, destFile)).toBe('7\n')
+
+  // Uint8Array is not integer[].
+  const src9 = 'pobj.m2(new Uint8Array(3, 7))'
+  expect(() => compileAndRun(src + src9, destFile)).toThrow(/runtime type error.*argument/)
+})
+
+test('Vector class', () => {
+  const src = `
+  function bar() {
+    const a = new Uint8Array(3, 7)
+    print(a.length)
+  }
+  function foo() {
+    const a = new Vector(3, null)
+    print(a.length)
+    a[0] = 13
+    a[1] = 'foo'
+    print(a[0])
+    const b: any = a
+    print(b.length)
+    b[1] = 73
+    print(b[1])
+    print((b as Vector)[2])
+    const c: any = b
+    print(c[0])
+  }
+  foo()
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('3\n13\n3\n73\nundefined\n13\n')
+})
