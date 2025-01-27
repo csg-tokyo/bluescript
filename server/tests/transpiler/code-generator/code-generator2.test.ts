@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, transpileAndWrite, toBoolean } from './test-code-generator'
+import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, importAndMultiCompileAndRun, transpileAndWrite, toBoolean } from './test-code-generator'
 import { expect, test, beforeAll } from '@jest/globals'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
 import { booleanLiteral } from '@babel/types'
@@ -454,6 +454,56 @@ test('issue #15.  Cannot access a property of class type when a class declaratio
 
   expect(multiCompileAndRun(src, src2, destFile)).toBe('<class Foo>\n')
   expect(multiCompileAndRun(src, src3, destFile)).toBe('true\n')
+})
+
+test('import in multiple source files', () => {
+  const modules = [
+    { name: 'foo', source: `
+  export class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+   `},
+    { name: 'bar', source: `
+  export class Bar {
+    value: Bar
+    constructor() { this.value = this }
+  }
+  export const bar = new Bar()
+    `}]
+
+  const src = `
+import { Foo } from 'foo'
+let obj = new Foo(7)`
+
+  const src2 = `
+  print(obj.value)`
+
+const imp = new Importer(modules)
+expect(importAndMultiCompileAndRun(src, src2, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('7\n')
+
+  const src3 = `
+import { Bar } from 'bar'
+let obj2 = new Bar()`
+
+  const src4 = `
+  print(obj2.value)`
+
+  imp.reset()
+  expect(importAndMultiCompileAndRun(src3, src4, imp.importer(), imp.init(), imp.files(), imp.path)).toMatch(/<class [0-9]+Bar>/)
+
+  const src5 = `
+  import { bar } from 'bar'`
+
+  const src6 = `
+  print(bar.value)`
+
+  imp.reset()
+  expect(importAndMultiCompileAndRun(src5, src6, imp.importer(), imp.init(), imp.files(), imp.path)).toMatch(/<class [0-9]+Bar>/)
+
+  imp.reset()
+  expect(importAndMultiCompileAndRun(src5 + src6, src6, imp.importer(), imp.init(), imp.files(), imp.path))
+    .toMatch(/<class [0-9]+Bar>\n<class [0-9]+Bar>/)
 })
 
 test('Uint8Array', () => {

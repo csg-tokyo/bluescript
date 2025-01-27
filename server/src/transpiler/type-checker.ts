@@ -128,6 +128,18 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         else {
           this.assert(info.isExported, `'${name}' is declared but not exported in ${sourceFile}`, spec)
           env.importInfo(name, info)
+          // import the class definition and give it a name including the module ID.
+          // this is not necessary for type checking but for code generation.
+          // See identifier() in CodeGenerator.
+          if (info.type instanceof InstanceType) {
+            if (env.lookup(info.type.name()) === undefined) {
+              const info2 = info.isTypeName ? info : imported.lookup(info.type.sourceName())
+              if (info2 !== undefined)
+                env.importInfo(info.type.name(), info2)
+              else
+                this.assert(false, `fatal: cannot find ${info.type.sourceName()} in ${sourceFile}`, spec)
+            }
+          }
         }
       }
       else
