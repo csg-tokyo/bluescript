@@ -49,7 +49,7 @@ static esp_partition_mmap_handle_t virtual_flash_hdlr;
 static void ram_init() {
     iram_size = heap_caps_get_largest_free_block(MALLOC_CAP_EXEC | MALLOC_CAP_32BIT) - 4;
     iram = heap_caps_malloc(iram_size, MALLOC_CAP_EXEC | MALLOC_CAP_32BIT);
-    dram_size = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    dram_size = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) / 2;
     dram = heap_caps_malloc(dram_size, MALLOC_CAP_8BIT);
     ESP_LOGI(BS_SHELL_TAG, "IRAM Size: %d\n", iram_size);
     ESP_LOGI(BS_SHELL_TAG, "DRAM Size: %d\n", dram_size);

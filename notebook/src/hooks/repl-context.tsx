@@ -148,7 +148,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
 
         const updateCells = () => {
             const current = latestCellRef.current;
-            const latestCellTime = {compile: current.time?.compile, bluetooth: current.time?.compile, execution: exectime};
+            const latestCellTime = {compile: current.time?.compile, bluetooth: current.time?.bluetooth, execution: exectime};
             setPostExecutionCells((cells) => [...cells, {...current, state: 'done', time: latestCellTime}]);
             setLatestCell((cell) => ({id: cell.id + 1, code: '', state: 'user-writing'}));
         }

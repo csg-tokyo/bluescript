@@ -56,8 +56,8 @@ void bluescript_main2_() {
     flash: {address: 0x5000000, size: 1000000}
   });
   const compiler = new Compiler(COMPILER_PATH);
-  compiler.compile(shadowMemory, cProlog + src1, 'bluescript_main1_');
-  compiler.compile(shadowMemory, cProlog + src2, 'bluescript_main2_');
+  compiler.compile(shadowMemory, 0, cProlog + src1, 'bluescript_main1_');
+  compiler.compile(shadowMemory, 1, cProlog + src2, 'bluescript_main2_');
 });
 
 
@@ -86,5 +86,33 @@ void bluescript_main2_() {
   const moduleCompiler = new ModuleCompiler(COMPILER_PATH);
   moduleCompiler.compile(shadowMemory, 'gpio', 'bluescript_main0_103112105111')
   const compiler = new Compiler(COMPILER_PATH);
-  compiler.compile(shadowMemory, cProlog + src2, 'bluescript_main2_');
+  compiler.compile(shadowMemory, 0, cProlog + src2, 'bluescript_main2_');
+})
+
+test('Compile Display Module', () => {
+
+
+  const src2 = `
+extern CLASS_OBJECT(object_class, 1);
+extern struct func_body _103112105111gpioOn;
+void bluescript_main2_();
+ROOT_SET_DECL(global_rootset2, 0);
+
+void bluescript_main2_() {
+  ROOT_SET_INIT(global_rootset2, 0)
+  
+  
+}
+
+`
+
+  const shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, {
+    iram: {address: 0x4000000, size: 30000},
+    dram: {address: 0x3000000, size: 20000},
+    flash: {address: 0x5000000, size: 1000000}
+  });
+  const moduleCompiler = new ModuleCompiler(COMPILER_PATH);
+  moduleCompiler.compile(shadowMemory, 'gpio', 'bluescript_main0_103112105111')
+  const compiler = new Compiler(COMPILER_PATH);
+  compiler.compile(shadowMemory, 0, cProlog + src2, 'bluescript_main2_');
 })

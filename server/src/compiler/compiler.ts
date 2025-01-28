@@ -41,7 +41,7 @@ export class Compiler {
     const externalSymbols = this.readExternalSymbols(shadowMemory, objFile);
     const linkerScript = this.generateLinkerScript(shadowMemory, iramMemoryBlocks, externalSymbols, objFile, entryPointName);
     const linkedElf = this._link(linkerScript);
-    this.freeEntryPoint(shadowMemory, entryPointName);
+    // this.freeEntryPoint(shadowMemory, entryPointName);
     this.allocateDram(shadowMemory, linkedElf);
     return linkedElf;
   }

@@ -417,10 +417,20 @@ export class GlobalEnv extends FunctionEnv {
   // For other variables, f receives [info, c_name, type, undefined].
   // For a type name, f receives [info, undefined, type, undefined].
   forEachExternalVariable(f: (vinfo: VariableInfo, name?: string, type?: StaticType, index?: number) => void) {
+    const set = new Set<VariableInfo>()
     this.table.forEach((info, key) => {
       if (info instanceof FreeGlobalVariableInfo) {
         const origInfo = info.original()
         if (origInfo instanceof GlobalVariableInfo) {
+          // an imported class type may be included in this environment
+          // with two different names.  One is a source-code name, and the other is
+          // a fully-qualified name with a module ID.
+          if (origInfo.isTypeName)
+            if (set.has(origInfo))
+             return
+            else
+               set.add(origInfo)
+
           const nameAndType = origInfo.externName(key)
           f(origInfo, nameAndType[0], nameAndType[1], nameAndType[2])
         }

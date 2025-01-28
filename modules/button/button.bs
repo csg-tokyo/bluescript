@@ -1,0 +1,3 @@
+import type {integer} from "../../bs-utils"
+
+export const buttonOnPressed = (buttonPin: integer, callback: () => void) => {}
