@@ -1,0 +1,80 @@
+import { integer, float, Array } from "../../../../bluescript/modules/base";
+import { assert, abs, fabs, sqrt } from "../../../../bluescript/modules/esp32/bluescript/utils";
+
+const RESULT = 10;
+
+class Element {
+    val: integer
+    next: Element
+    isSentinel: boolean
+
+    constructor(val) {
+        this.val = val;
+        this.next = this;
+        this.isSentinel = false;
+    }
+
+    length() {
+        if (this.isSentinel) {
+            return 0;
+        } else {
+            return 1 + this.next.length();
+        }
+    }
+}
+
+function makeList(length) {
+    if (length === 0) {
+        const sentinel = new Element(0);
+        sentinel.isSentinel = true;
+        return sentinel;
+    } else {
+        const e = new Element(length);
+        e.next = makeList(length - 1);
+        return e;
+    }
+}
+
+function isShorterThan(x, y) {
+    let xTail = x;
+    let yTail = y;
+
+    while (!yTail.isSentinel) {
+        if (xTail.isSentinel) {
+            return true;
+        }
+        xTail = xTail.next;
+        yTail = yTail.next;
+    }
+    return false;
+}
+
+function tail(x, y, z) {
+    if (isShorterThan(y, x)) {
+        return tail(
+            tail(x.next, y, z),
+            tail(y.next, z, x),
+            tail(z.next, x, y)
+        )
+    }
+    return z;
+}
+
+
+function verifyResult(result) {
+    return result === RESULT;
+}
+
+
+
+function benchmark(cycle) {
+    for (let i = 0; i < cycle; i++) {
+        const result:Element = tail(makeList(15), makeList(10), makeList(6))
+        verifyResult(result.length())
+        assert(verifyResult(result.length()));
+    }
+}
+
+
+benchmark(3);
+
