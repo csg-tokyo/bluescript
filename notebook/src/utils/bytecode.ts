@@ -125,11 +125,12 @@ export function bytecodeParser(data: DataView):ParseResult {
         // | cmd (1byte) | log string |
         return {bytecode, error:Buffer.from(data.buffer.slice(1)).toString()}
       case BYTECODE.RESULT_MEMINFO:
-          // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | flash address | flash size |
+          // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | iflash address | iflash size | dflash address | dflash size |
           const meminfo = {
             iram:{address:data.getUint32(1, true), size:data.getUint32(5, true)},
             dram:{address:data.getUint32(9, true), size:data.getUint32(13, true)},
-            flash:{address:data.getUint32(17, true), size:data.getUint32(21, true)},
+            iflash:{address:data.getUint32(17, true), size:data.getUint32(21, true)},
+            dflash:{address:data.getUint32(25, true), size:data.getUint32(29, true)},
           }
           return {bytecode, meminfo};
       case BYTECODE.RESULT_EXECTIME:

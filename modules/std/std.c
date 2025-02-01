@@ -8,6 +8,7 @@
 char message[256];
 
 void fbody_print(value_t self, value_t _value) {
+  puts("I am print!");
   if (is_int_value(_value)) 
     sprintf(message, "%d\n", (int) value_to_int(_value));
   else if (is_float_value(_value))
@@ -27,6 +28,7 @@ void fbody_print(value_t self, value_t _value) {
     else
       snprintf(message, sizeof(message), "<class %s>\n", cls->name);
   }
+  printf(message);
   bs_logger_push_log(message);
 }
 

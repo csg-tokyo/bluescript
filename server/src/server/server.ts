@@ -60,16 +60,27 @@ export default class HttpServer {
     try {
       requestBody = await this.getRequestBody(request);
       switch (request.url) {
-        case "/compile":
+        case "/interactive-compile":
           if (this.session === undefined) {
             statusCode = 400;
             responseBody = {error: "Session have not started."}
             break;
           }
           const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.execute(requestBodyJson.id, requestBodyJson.src);
+          responseBody = this.session.interactiveCompile(requestBodyJson.id, requestBodyJson.src);
           statusCode = 200;
           break;
+        case "/compile": {
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
+            break;
+          }
+          const requestBodyJson = JSON.parse(requestBody)
+          responseBody = this.session.compile(requestBodyJson.id, requestBodyJson.src);
+          statusCode = 200;
+          break;
+        }
         case "/reset":
           this.session = new Session(JSON.parse(requestBody));
           responseBody = {};
@@ -91,7 +102,7 @@ export default class HttpServer {
             break;
           }
           const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.executeWithProfiling(requestBodyJson.id, requestBodyJson.src);
+          responseBody = this.session.compileWithProfiling(requestBodyJson.id, requestBodyJson.src);
           statusCode = 200;
           break;
         }
@@ -102,7 +113,7 @@ export default class HttpServer {
             break;
           }
           const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.jitExecute(requestBodyJson.funcId, requestBodyJson.paramTypes);
+          responseBody = this.session.jitCompile(requestBodyJson.funcId, requestBodyJson.paramTypes);
           statusCode = 200;
           break;
         }
