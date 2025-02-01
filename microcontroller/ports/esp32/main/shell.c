@@ -214,7 +214,7 @@ void bs_shell_task(void *arg) {
     task_item_u task_item;
     task_queue = xQueueCreate(TASK_QUEUE_LENGTH, sizeof(task_item_u));
     shell_init();
-    shell_reset();
+    // shell_reset();
     execute_installed_code();
     
     while (true) {
