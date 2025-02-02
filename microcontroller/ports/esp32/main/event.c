@@ -35,7 +35,6 @@ void bs_event_handler_task(void *arg) {
 
     while (true) {
        xQueueReceive(event_queue, &event, portMAX_DELAY);
-       puts("hello");
        ((void (*)(value_t))gc_function_object_ptr(event.fn, 0))(get_obj_property(event.fn, 2));
     }
 }

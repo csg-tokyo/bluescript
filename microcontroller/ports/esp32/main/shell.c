@@ -24,6 +24,11 @@ typedef union {
         int32_t id;
         uint32_t to;
     } jump;
+
+    struct task_event_call {
+        bs_cmd_t cmd;
+        value_t fn;
+    } event_call;
 } task_item_u;
 
 static QueueHandle_t task_queue;
@@ -131,7 +136,7 @@ void bs_shell_receptionist(uint8_t *task_data, int data_len) {
         {
             uint32_t address = *(uint32_t*)(task_data + (idx+1));
             uint32_t size = *(uint32_t*)(task_data + (idx+5));
-            ESP_LOGI(BS_SHELL_TAG, "Load %d bytes to %x", (int)size, (int)address);
+            ESP_LOGI(BS_SHELL_TAG, "Load %d bytes to %x, time: %d", (int)size, (int)address, (int)esp_timer_get_time());
             bs_memcpy(address, task_data + (idx+9), size);
             idx += (9 + size);
             break;
@@ -210,6 +215,23 @@ void execute_installed_code() {
     }
 }
 
+// Event
+void bs_event_push(void* event_fn) {
+    task_item_u task;
+    task.event_call.cmd = BS_CMD_CALL_EVENT;
+    task.event_call.fn = event_fn;
+    xQueueSend(task_queue, &task, portMAX_DELAY);
+}
+
+
+void bs_event_push_from_isr(void* event_fn) {
+    portBASE_TYPE yield = pdFALSE;
+    task_item_u task;
+    task.event_call.cmd = BS_CMD_CALL_EVENT;
+    task.event_call.fn = event_fn;
+    xQueueSendFromISR(task_queue, &task, &yield);
+}
+
 void bs_shell_task(void *arg) {
     task_item_u task_item;
     task_queue = xQueueCreate(TASK_QUEUE_LENGTH, sizeof(task_item_u));
@@ -228,6 +250,10 @@ void bs_shell_task(void *arg) {
                 uint32_t end_us = esp_timer_get_time();
                 float exectime = (float)(end_us - start_us) / 1000.0;
                 send_result_exectime(task_item.jump.id, exectime);
+                break;
+            case BS_CMD_CALL_EVENT:
+                ESP_LOGI(BS_SHELL_TAG, "CALL_EVENT");
+                ((void (*)(value_t))gc_function_object_ptr(task_item.event_call.fn, 0))(get_obj_property(task_item.event_call.fn, 2));
                 break;
             case BS_CMD_RESET:
                 ESP_LOGI(BS_SHELL_TAG, "Soft reset");

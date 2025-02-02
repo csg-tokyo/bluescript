@@ -1,4 +1,4 @@
-idf_component_register(SRCS "main.c" "ble.c" "shell.c" "logger.c" "event.c" 
+idf_component_register(SRCS "main.c" "ble.c" "shell.c" "logger.c"
                     INCLUDE_DIRS "include"
                     LDFRAGMENTS linker.lf
                     WHOLE_ARCHIVE)

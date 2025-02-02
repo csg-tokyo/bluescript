@@ -4,7 +4,7 @@
 #include "esp_timer.h"
 #include "esp_log.h"
 
-#include "event.h"
+#include "shell.h"
 #include "timer.h"
 
 #define BS_TIMER_TAG  "BS_TIMER"
