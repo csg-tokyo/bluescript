@@ -473,18 +473,18 @@ test('import in multiple source files', () => {
     `}]
 
   const src = `
-import { Foo } from 'foo'
-let obj = new Foo(7)`
+  import { Foo } from 'foo'
+  let obj = new Foo(7)`
 
   const src2 = `
   print(obj.value)`
 
-const imp = new Importer(modules)
-expect(importAndMultiCompileAndRun(src, src2, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('7\n')
+  const imp = new Importer(modules)
+  expect(importAndMultiCompileAndRun(src, src2, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('7\n')
 
   const src3 = `
-import { Bar } from 'bar'
-let obj2 = new Bar()`
+  import { Bar } from 'bar'
+  let obj2 = new Bar()`
 
   const src4 = `
   print(obj2.value)`
