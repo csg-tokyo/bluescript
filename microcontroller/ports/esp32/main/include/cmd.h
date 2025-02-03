@@ -16,6 +16,8 @@ typedef enum {
     BS_CMD_RESULT_EXECTIME,
     BS_CMD_RESULT_PROFILE,
 
+    BS_CMD_CALL_EVENT,
+
     // Sentinel
     BS_CMD_END
 } bs_cmd_t;

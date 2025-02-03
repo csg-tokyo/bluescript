@@ -1,5 +1,4 @@
 import {
-  booleanLiteral,
   identifier,
   isFunctionDeclaration,
   tsAnyKeyword,
@@ -17,7 +16,7 @@ import {GlobalVariableNameTable} from "../transpiler/code-generator/variables";
 export const specializedFuncPrefix = "0";
 
 
-export function typeStringToStaticType(typeString: string, gvnt?: GlobalVariableNameTable):StaticType {
+export function typeStringToStaticType(typeString: string, gvnt: GlobalVariableNameTable):StaticType {
   if (typeString === 'integer' || typeString === 'float' || typeString === 'boolean' || typeString === 'string') {
     return typeString
   } else if (typeString === 'undefined') {
@@ -46,7 +45,7 @@ function isArray(typeString: string) {
   return /\[\]$/.test(typeString)
 }
 
-function getArrayType(typeString: string, gvnt?: GlobalVariableNameTable):StaticType {
+function getArrayType(typeString: string, gvnt: GlobalVariableNameTable):StaticType {
   const matches = typeString.match(/(\[\])+$/);
   let ndim = matches ? matches[0].length / 2 : 0;
   const className = typeString.replace(/(\[\])+$/, "");
@@ -54,7 +53,7 @@ function getArrayType(typeString: string, gvnt?: GlobalVariableNameTable):Static
   if (className === 'string')
       arr = 'string'
   else {
-    arr = gvnt === undefined ? undefined : gvnt.lookup(className)?.type
+    arr = gvnt.lookup(className)?.type
     if (arr === undefined || !(arr instanceof InstanceType))
       throw new ProfileError(`Cannot find the profiled class: ${className}`)
   }

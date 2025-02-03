@@ -4,15 +4,17 @@
 #include "esp_timer.h"
 #include "esp_log.h"
 
-#include "event.h"
+#include "shell.h"
 #include "timer.h"
+
+#define BS_TIMER_TAG  "BS_TIMER"
+#define NUM_TIMERS    20
 
 extern CLASS_OBJECT(object_class, 1);
 void bluescript_main0_116105109101114();
-ROOT_SET_DECL(global_rootset0_116105109101114, 0);
+ROOT_SET_DECL(global_rootset0_116105109101114, NUM_TIMERS);
 
-#define BS_TIMER_TAG  "BS_TIMER"
-#define NUM_TIMERS    10
+
 
 esp_timer_handle_t timer_handlers[NUM_TIMERS] = {0};
 
@@ -20,7 +22,6 @@ static int32_t find_unused_timer_id() {
     for (uint32_t i = 0; i < NUM_TIMERS; i++) {
         if (timer_handlers[i] == 0) return i;
     }
-    ESP_LOGE(BS_TIMER_TAG, "The number of used timers has exceeded the max numbers: %d", NUM_TIMERS);
     return -1;
 }
 
@@ -31,8 +32,9 @@ int32_t fbody_116105109101114setInterval(value_t self, value_t _func, int32_t _d
   {
     int32_t timer_id = find_unused_timer_id();
     if (timer_id == -1) {
-      // TODO throw error
+      runtime_error("** timer module error: all available timers have been used up. Please use clearTimeout or clearInterval.");
     }
+    set_global_variable(&global_rootset0_116105109101114.values[timer_id], _func);
     esp_timer_handle_t timer;
     const esp_timer_create_args_t timer_args = {
         .callback = &bs_event_push_from_isr,
@@ -53,8 +55,9 @@ int32_t fbody_116105109101114setTimeout(value_t self, value_t _func, int32_t _de
   {
     int32_t timer_id = find_unused_timer_id();
     if (timer_id == -1) {
-      // TODO throw error
+      runtime_error("** timer module error: all available timers have been used up. Please use clearTimeout or clearInterval.");
     }
+    set_global_variable(&global_rootset0_116105109101114.values[timer_id], _func);
     esp_timer_handle_t timer;
     const esp_timer_create_args_t timer_args = {
         .callback = &bs_event_push_from_isr,
@@ -72,9 +75,13 @@ void fbody_116105109101114clearInterval(value_t self, int32_t _timerId) {
   ROOT_SET_N(func_rootset,1,VALUE_UNDEF)
   func_rootset.values[0] = self;
   {
+    if (_timerId < 0 || _timerId >= NUM_TIMERS) {
+      runtime_error("** timer module error: unknown timer id."); 
+    }
     esp_timer_handle_t timer = timer_handlers[_timerId];
     esp_timer_stop(timer);
     esp_timer_delete(timer);
+    global_rootset0_116105109101114.values[_timerId] = VALUE_UNDEF;
     timer_handlers[_timerId] = 0;
   }
   DELETE_ROOT_SET(func_rootset)
@@ -85,8 +92,12 @@ void fbody_116105109101114clearTimeout(value_t self, int32_t _timerId) {
   ROOT_SET_N(func_rootset,1,VALUE_UNDEF)
   func_rootset.values[0] = self;
   {
+    if (_timerId < 0 || _timerId >= NUM_TIMERS) {
+      runtime_error("** timer module error: unknown timer id."); 
+    }
     esp_timer_handle_t timer = timer_handlers[_timerId];
     esp_timer_delete(timer);
+    global_rootset0_116105109101114.values[_timerId] = VALUE_UNDEF;
     timer_handlers[_timerId] = 0;
   }
   DELETE_ROOT_SET(func_rootset)
@@ -103,5 +114,5 @@ float fbody_116105109101114getTimeMs(value_t self) {
 struct func_body _116105109101114getTimeMs = { fbody_116105109101114getTimeMs, "()f" };
 
 void bluescript_main0_116105109101114() {
-  ROOT_SET_INIT(global_rootset0_116105109101114, 0)
+  ROOT_SET_INIT(global_rootset0_116105109101114, 10)
 }

@@ -1,4 +1,16 @@
 import type {integer} from "../../bs-utils"
 
 
-export function gpioOn(pin: integer) {}
+// export function gpioOn(pin: integer) {}
+
+export class GPIO {
+    pin:integer;
+
+    constructor(pin: integer) {
+        this.pin = pin;
+    }
+
+    on() {}
+
+    off() {}
+}

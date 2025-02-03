@@ -68,10 +68,11 @@ export class BytecodeBufferBuilder {
     }
 
 
-    public jump(address: number) {
-        const header = Buffer.allocUnsafe(5);
+    public jump(id: number, address: number) {
+        const header = Buffer.allocUnsafe(9);
         header.writeUIntLE(BYTECODE.JUMP, 0, 1); // cmd
-        header.writeUIntLE(address, 1, 4);
+        header.writeIntLE(id, 1, 4); // id
+        header.writeUIntLE(address, 5, 4); // address
         if (5 <= this.lastUnitRemain) {
             this.lastUnit = Buffer.concat([this.lastUnit, header]);
         } else {
@@ -110,7 +111,7 @@ type ParseResult =
     {bytecode:BYTECODE.RESULT_LOG, log:string} | 
     {bytecode:BYTECODE.RESULT_ERROR, error:string} |
     {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemInfo} |
-    {bytecode:BYTECODE.RESULT_EXECTIME, exectime:number} |
+    {bytecode:BYTECODE.RESULT_EXECTIME, id: number, exectime:number} |
     {bytecode:BYTECODE.RESULT_PROFILE, fid:number, paramtypes:string[]} |
     {bytecode:BYTECODE.NONE}
 
@@ -124,15 +125,17 @@ export function bytecodeParser(data: DataView):ParseResult {
         // | cmd (1byte) | log string |
         return {bytecode, error:Buffer.from(data.buffer.slice(1)).toString()}
       case BYTECODE.RESULT_MEMINFO:
-          // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | flash address | flash size |
+          // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | iflash address | iflash size | dflash address | dflash size |
           const meminfo = {
             iram:{address:data.getUint32(1, true), size:data.getUint32(5, true)},
             dram:{address:data.getUint32(9, true), size:data.getUint32(13, true)},
-            flash:{address:data.getUint32(17, true), size:data.getUint32(21, true)},
+            iflash:{address:data.getUint32(17, true), size:data.getUint32(21, true)},
+            dflash:{address:data.getUint32(25, true), size:data.getUint32(29, true)},
           }
           return {bytecode, meminfo};
       case BYTECODE.RESULT_EXECTIME:
-        return {bytecode, exectime:data.getFloat32(1, true)};
+        // | cmd (1byte) | id (4byte) | exectime (4byte) |
+        return {bytecode, id: data.getInt32(1, true), exectime:data.getFloat32(5, true)};
       case BYTECODE.RESULT_PROFILE:
         let uint8arr = new Uint8Array(data.buffer, 2);
         let textDecoder = new TextDecoder();

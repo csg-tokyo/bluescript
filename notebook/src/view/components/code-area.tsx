@@ -1,5 +1,5 @@
-import { Flex, Button, Checkbox, Row, Typography, Spin} from 'antd';
-import { ReloadOutlined, CaretRightOutlined, LoadingOutlined, CopyOutlined } from '@ant-design/icons';
+import { Flex, Button, Checkbox, Row, Typography, Spin, Result} from 'antd';
+import { ReloadOutlined, CaretRightOutlined, LoadingOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import CodeEditor from '@uiw/react-textarea-code-editor';
 import type { CellT } from '../../utils/type';
 import { useContext } from 'react';
@@ -15,7 +15,13 @@ export default function CodeArea() {
             {replContext.state === 'initial' ? (
                 <InitialScreen />
             ) : replContext.state === 'loading' ? (
-                <LoadingScreen />
+                <LoadingScreen message='Loading' />
+            ) : replContext.state === 'installing' ? (
+                <LoadingScreen message='Installing' />
+            ) : replContext.state === 'successfully installed' ? (
+                <SuccessfullyInstalledScreen />
+            ) : replContext.state === 'failed to install' ? (
+                <FailedToInstallScreen />
             ) : (
                 <ActivatedScreen />
             )}
@@ -34,12 +40,32 @@ function InitialScreen() {
     )
 }
 
-function LoadingScreen() {
+function LoadingScreen(props: {message: string}) {
     return (
         <div style={{height: '100%', width: '100%', justifyItems: 'center', alignContent: 'center'}}>
-            <Spin tip="Initializing" size="large">
+            <Spin tip={props.message} size="large">
                 <div style={{height: 100, width: 100}}></div>
             </Spin>
+        </div>
+    )
+}
+
+function SuccessfullyInstalledScreen() {
+    return (
+        <div style={{height: '100%', width: '100%', justifyItems: 'center', alignContent: 'center'}}>
+            <Result 
+            status="success" 
+            title="Successfully Installed Your Application."
+            subTitle="Please reboot your device."
+            />
+        </div>
+    )
+}
+
+function FailedToInstallScreen() {
+    return (
+        <div style={{height: '100%', width: '100%', justifyItems: 'center', alignContent: 'center'}}>
+            <Result status="warning" title="Failed To Install Your Application."/>
         </div>
     )
 }
@@ -66,8 +92,9 @@ function ButtonBar() {
     const replContext = useContext(ReplContext)
     return (
         <Flex justify='start' align='center' style={{height:36, boxShadow: '0px 0px 4px gray'}}>
-            <Button icon={<ReloadOutlined />} type='text' onClick={replContext.resetStart}>Reset</Button>
-            <Checkbox onChange={(e)=>replContext.updateUseJIT(e.target.checked)} checked={replContext.useJIT}>Use JIT</Checkbox>
+            <Button icon={<ReloadOutlined />} size='small' type='text' onClick={replContext.resetStart}>Reset</Button>
+            <Button icon={<DownloadOutlined />} size='small' type='text' onClick={replContext.install}>Install</Button>
+            <Checkbox onChange={(e)=>replContext.updateUseJIT(e.target.checked)} checked={replContext.useJIT} style={{marginLeft:10}}>Use JIT</Checkbox>
         </Flex>
     )
 }
