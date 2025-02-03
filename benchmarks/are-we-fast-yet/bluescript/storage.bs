@@ -1,0 +1,58 @@
+import { integer, float, Array } from "../../../bluescript/modules/base";
+import { assert, abs, fabs, sqrt } from "../../../bluescript/modules/esp32/bluescript/utils";
+
+const DEPTH = 5;
+const RESULT = 341;
+
+
+class Random {
+    seed: integer;
+
+    constructor () {
+        this.seed = 74755;
+    }
+
+    next() {
+        this.seed = ((this.seed * 1309) + 13849) & 65535;
+        return this.seed;
+    }
+}
+
+
+let count = 0;
+
+function buildTreeDepth(depth: integer, random: Random): any[] {
+    count += 1;
+    if (depth == 1) {
+        return new Array<any>(random.next() % 10 + 1, 0);
+    }
+
+    let arr = new Array<any>(4, 0);
+    for (let i = 0; i < 4; i++) {
+        arr[i] = buildTreeDepth(depth - 1, random);
+    }
+    return arr;
+}
+
+function storage() {
+    let random = new Random();
+    count = 0;
+    buildTreeDepth(DEPTH, random);
+   return count;
+}
+
+function verifyResult(result: integer) {
+    return result === RESULT;
+}
+
+
+function benchmark(cycle: integer) {
+    for (let i = 0; i < cycle; i++) {
+        let result = storage();
+        assert(verifyResult(result));
+    }
+}
+
+
+benchmark(3);
+

@@ -1,0 +1,37 @@
+import { integer, float, Array } from "../../../bluescript/modules/base";
+import { assert, abs, fabs, sqrt } from "../../../bluescript/modules/esp32/bluescript/utils";
+
+const SIZE = 5000;
+const RESULT = 669;
+
+function sieve(flags: boolean[], size: integer): integer {
+    let primeCount = 0;
+
+    for (let i = 2; i < size + 1; i++) {
+        if (flags[i - 1]) {
+            primeCount += 1;
+            let k = i * 2;
+            while (k <= size) {
+                flags[k - 1] = false;
+                k += i;
+            }
+        }
+    }
+    
+    return primeCount;
+}
+
+function verify_result(result: integer) {
+    return result === RESULT;
+}
+
+function benchmark(cycle: integer) {
+    for (let i = 0; i < cycle; i++) {
+        let flags = new Array<boolean>(SIZE, true);
+        const result = sieve(flags, SIZE);
+        assert(verify_result(result));
+    }
+}
+
+
+benchmark(3);
