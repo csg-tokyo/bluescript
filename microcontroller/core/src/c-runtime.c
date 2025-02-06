@@ -484,15 +484,19 @@ bool gc_is_instance_of(const class_object* clazz, value_t obj) {
     return true;
 }
 
-void* method_lookup(value_t obj, uint32_t index) {
+void* gc_method_lookup(value_t obj, uint32_t index) {
     return get_objects_class(value_to_ptr(obj))->vtbl[index];
 }
 
-#define IS_ARRAY_TYPE(clazz)    (clazz != NULL && (clazz)->flags & 1)
+// IS_ARRAY_TYPE(t) is true when t is an array object, Uint8Array, or Vector.
+// t is an object accessible by the [] operator.
+#define IS_ARRAY_TYPE(clazz)    (clazz != NULL && (clazz)->array_type_name != NULL)
+
 #define DEFAULT_PTABLE      { .size = 0, .offset = 0, .unboxed = 0, .prop_names = NULL, .unboxed_types = NULL }
+#define DEFAULT_MTABLE      { .size = 0, .names = NULL, .signatures = NULL }
 
 CLASS_OBJECT(object_class, 1) = {
-    .clazz = { .size = 0, .start_index = 0, .name = "Object", .superclass = NULL, .flags = 0, .table = DEFAULT_PTABLE }};
+    .clazz = { .size = 0, .start_index = 0, .name = "object", .superclass = NULL, .array_type_name = NULL, .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 static pointer_t allocate_heap(uint16_t word_size);
 
@@ -639,8 +643,8 @@ value_t acc_anyobj_property(value_t obj, char op, int property, value_t value) {
 // a function object
 
 static CLASS_OBJECT(function_object, 0) = {
-     .clazz = { .size = 3, .start_index = 2, .name = "Function",
-                .superclass = &object_class.clazz, .flags = 0, .table = DEFAULT_PTABLE }};
+     .clazz = { .size = 3, .start_index = 2, .name = "#Function",
+                .superclass = &object_class.clazz, .array_type_name = NULL, .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 // this_object may be VALUE_UNDEF.
 value_t gc_new_function(void* fptr, const char* signature, value_t captured_values) {
@@ -677,11 +681,13 @@ value_t gc_function_captured_value(value_t obj, int index) {
 // boxed_value and boxed_raw_value are classes for boxing.  Their instances hold one value_t value
 // or one primitive value.  They are used for implementing a free variable.
 
-static CLASS_OBJECT(boxed_value, 0) = { .clazz.size = 1, .clazz.start_index = 0,
-                                        .clazz.name = "boxed_value", .clazz.superclass = NULL, .clazz.flags = 0, .clazz.table = DEFAULT_PTABLE };
+static CLASS_OBJECT(boxed_value, 0) = {
+    .clazz = { .size = 1, .start_index = 0, .name = "#boxed_value",
+               .superclass = NULL, .array_type_name = NULL, .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
-static CLASS_OBJECT(boxed_raw_value, 0) = { .clazz.size = 1, .clazz.start_index = SIZE_NO_POINTER,
-                                            .clazz.name = "boxed_raw_value", .clazz.superclass = NULL, .clazz.flags = 0, .clazz.table = DEFAULT_PTABLE };
+static CLASS_OBJECT(boxed_raw_value, 0) = {
+    .clazz = { .size = 1, .start_index = SIZE_NO_POINTER, .name = "#boxed_raw_value",
+               .superclass = NULL, .array_type_name = NULL, .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 value_t gc_new_box(value_t value) {
     ROOT_SET(rootset, 1)
@@ -707,8 +713,9 @@ value_t gc_new_float_box(float value) {
 // string_literal is a class for objects that contain a pointer to a C string.
 // This C string is not allocated in the heap memory managed by the garbage collector.
 
-static CLASS_OBJECT(string_literal, 0) = { .clazz.size = 1, .clazz.start_index = SIZE_NO_POINTER,
-                                           .clazz.name = "string", .clazz.superclass = NULL, .clazz.flags = 0, .clazz.table = DEFAULT_PTABLE };
+static CLASS_OBJECT(string_literal, 0) = {
+    .clazz = { .size = 1, .start_index = SIZE_NO_POINTER, .name = "string",
+               .superclass = NULL, .array_type_name = NULL, .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
@@ -739,8 +746,8 @@ bool gc_is_string_object(value_t obj) {
 // An int32_t array
 
 static CLASS_OBJECT(intarray_object, 1) = {
-    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<integer>",
-               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "integer[]",
+               .superclass = &object_class.clazz, .array_type_name = "[i", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 value_t safe_value_to_intarray(bool nullable, value_t v) {
     return safe_value_to_value(true, &intarray_object.clazz, v);
@@ -807,8 +814,8 @@ bool gc_is_intarray(value_t v) {
 // A float array
 
 static CLASS_OBJECT(floatarray_object, 1) = {
-    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<float>",
-               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "float[]",
+               .superclass = &object_class.clazz, .array_type_name = "[f", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 value_t safe_value_to_floatarray(bool nullable, value_t v) {
     return safe_value_to_value(nullable, &floatarray_object.clazz, v);
@@ -875,11 +882,11 @@ bool gc_is_floatarray(value_t v) {
 
 CLASS_OBJECT(class_Uint8Array, 1) = {
     .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Uint8Array",
-               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
+               .superclass = &object_class.clazz, .array_type_name = "'Uint8Array'", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 static CLASS_OBJECT(boolarray_object, 1) = {
-    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "Array<boolean>",
-               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
+    .clazz = { .size = -1, .start_index = SIZE_NO_POINTER, .name = "boolean[]",
+               .superclass = &object_class.clazz, .array_type_name = "[b", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 value_t safe_value_to_boolarray(bool nullable, value_t v) {
     return safe_value_to_value(nullable, &boolarray_object.clazz, v);
@@ -961,12 +968,12 @@ bool gc_is_boolarray(value_t v) {
 
 // A fixed-length array
 
-static CLASS_OBJECT(vector_object, 1) = {
+CLASS_OBJECT(class_Vector, 1) = {
     .clazz = { .size = -1, .start_index = 1, .name = "Vector",
-               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
+               .superclass = &object_class.clazz, .array_type_name = "'Vector'", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 value_t safe_value_to_vector(bool nullable, value_t v) {
-    return safe_value_to_value(nullable, &vector_object.clazz, v);
+    return safe_value_to_value(nullable, &class_Vector.clazz, v);
 }
 
 /*
@@ -982,7 +989,7 @@ value_t gc_new_vector(int32_t n, value_t init_value) {
         n = 0;
 
     pointer_t obj = allocate_heap(n + 1);
-    set_object_header(obj, &vector_object.clazz);
+    set_object_header(obj, &class_Vector.clazz);
     obj->body[0] = n;
     for (int i = 0; i < n; i++)
         obj->body[i + 1] = init_value;
@@ -1048,15 +1055,15 @@ value_t gc_make_vector(int32_t n, ...) {
 
 // any-type and other arrays
 
-// Returns true when obj is an array of any kind of type.
+// Returns true when obj is an array of any kind of type, such as integer[] and any[].
 bool gc_is_instance_of_array(value_t obj) {
     class_object* clazz = gc_get_class_of(obj);
     return IS_ARRAY_TYPE(clazz);
 }
 
 static CLASS_OBJECT(anyarray_object, 1) = {
-    .clazz = { .size = 2, .start_index = 1, .name = "Array<any>",
-               .superclass = &object_class.clazz, .flags = 1, .table = DEFAULT_PTABLE }};
+    .clazz = { .size = 2, .start_index = 1, .name = "any[]",
+               .superclass = &object_class.clazz, .array_type_name = "[a", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 value_t safe_value_to_anyarray(bool nullable, value_t v) {
     return safe_value_to_value(nullable, &anyarray_object.clazz, v);
@@ -1151,7 +1158,7 @@ value_t gc_safe_array_get(value_t obj, int32_t idx) {
         return int_to_value(*gc_bytearray_get(obj, idx));
     else if (clazz == &boolarray_object.clazz)
         return bool_to_value(*gc_bytearray_get(obj, idx));
-    else if (clazz == &vector_object.clazz)
+    else if (clazz == &class_Vector.clazz)
         return gc_vector_get(obj, idx);
     else if (IS_ARRAY_TYPE(clazz))   // for arrays of value_t
         return *gc_array_get(obj, idx);
@@ -1173,7 +1180,7 @@ value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
         uint8_t v = *gc_bytearray_get(obj, idx) = safe_value_to_bool(new_value);
         return bool_to_value(v);
     }
-    else if (clazz == &vector_object.clazz)
+    else if (clazz == &class_Vector.clazz)
         return gc_vector_set(obj, idx, new_value);
     else if (IS_ARRAY_TYPE(clazz))  // for arrays of value_t
         return gc_array_set(obj, idx, new_value);
@@ -1209,6 +1216,202 @@ value_t gc_safe_array_acc(value_t obj, int32_t index, char op, value_t value) {
 bool gc_is_anyarray(value_t v) {
     const class_object* type = gc_get_class_of(v);
     return type == &anyarray_object.clazz;
+}
+
+static bool is_subclass_of(value_t obj, const char** sig) {
+    const class_object* clazz = gc_get_class_of(obj);
+    while (clazz != NULL) {
+        const char* name = clazz->name;
+        const char* ptr = *sig;
+        while (*name == *ptr) {
+            name++;
+            ptr++;
+        }
+
+        if (*name == '\0' && *ptr == '\'') {
+            *sig = ptr + 1;
+            return true;
+        }
+
+        clazz = clazz->superclass;
+    }
+
+    const char* ptr2 = *sig;
+    while (*ptr2++ != '\'')
+        ;
+
+    *sig = ptr2;
+    return false;        // not a subclass
+}
+
+static bool is_array_type(value_t obj, const char** sig) {
+    const class_object* clazz = gc_get_class_of(obj);
+    if (clazz != NULL) {
+        const char* name = clazz->array_type_name;
+        if (name != NULL) {
+            const char* name2 = *sig;
+            while (*name != '\0')
+                if (*name++ != *name2++)
+                    return false;
+
+            *sig = name2;
+            return true;
+        }
+    }
+    return false;
+}
+
+// This is used by is_subtype_of().
+// It is similar to gc_is_function_object(), but it is slightly different.
+static bool is_function_type(value_t obj, const char** sig) {
+    if (gc_get_class_of(obj) == &function_object.clazz) {
+        const char* name = raw_value_to_ptr(value_to_ptr(obj)->body[1]);
+        const char* name2 = *sig;
+        while (*name != '\0')
+            if (*name++ != *name2++)
+                return false;
+
+        *sig = name2;
+        return true;
+    }
+    return false;
+}
+
+static bool is_subtype_of(value_t obj, const char** sig) {
+    char t = **sig;
+    *sig += 1;
+    if (t == 'a')
+        return true;
+    else if (t == 'i' || t == 'b') {
+        if (is_int_value(obj))
+            return true;
+    }
+    else if (t == 'f') {
+        if (is_float_value(obj))
+            return true;
+    }
+    else if (t == 's') {
+        if (gc_is_string_object(obj))
+            return true;
+    }
+    else if (t == 'n') {
+        if (obj == VALUE_NULL)
+            return true;
+    }
+    else if (t == '[') {
+        *sig -= 1;
+        if (is_array_type(obj, sig))
+            return true;
+        else {
+            *sig += 1;
+            is_subtype_of(obj, sig);
+        }
+    }
+    else if (t == '(') {
+        *sig -= 1;
+        if (is_function_type(obj, sig))
+            return true;
+        else {
+            const char* sig2 = *sig;
+            while (*sig2++ != ')')
+                ;
+
+            *sig = sig2;
+            is_subtype_of(obj, sig);
+            return false;
+        }
+    }
+    else if (t == '\'')
+        return is_subclass_of(obj, sig);
+    else if (t == '|') {
+        bool left = is_subtype_of(obj, sig);
+        bool right = is_subtype_of(obj, sig);
+        return left || right;
+    }
+
+    return false;
+}
+
+value_t gc_dynamic_method_call(value_t obj, uint32_t index, uint32_t num, ...) {
+    value_t args[12];
+    if (num > sizeof(args) / sizeof(args[0]))
+        runtime_error("too many arguments; not supported");
+
+    class_object* clazz = gc_get_class_of(obj);
+    if (clazz == NULL)
+        runtime_error("a method call on a non-object");
+
+    const void* fptr = NULL;
+    const char* sig = NULL;
+    if (clazz == &function_object.clazz) {
+        fptr = gc_function_object_ptr(obj, 0);
+        sig = gc_function_object_ptr(obj, 1);
+    }
+    else
+        for (int32_t i = 0; i < clazz->mtable.size; i++)
+            if (clazz->mtable.names[i] == index) {
+                fptr = clazz->vtbl[i];
+                sig = clazz->mtable.signatures[i];
+                break;
+            }
+
+    if (fptr == NULL)
+        runtime_error("no such method is found");
+
+    float fargs[4];
+
+    va_list arguments;
+    va_start(arguments, num);
+
+    ++sig;
+    int32_t i, j, k;
+    for (i = j = k = 0; i < num && *sig != ')'; i++) {
+        value_t v = va_arg(arguments, value_t);
+        char t = *sig;
+        if (!is_subtype_of(v, &sig))
+            runtime_type_error("wrong type argument");
+
+        if (t == 'i' || t == 'b')
+            args[j++] = (value_t)safe_value_to_int(v);
+        else if (t == 'f') {
+#ifdef __XTENSA__
+            /* The Xtensa processor does not use a floating-point register when passing a float argumenbt.
+               It uses an AR register as it uses for an integer argument.
+               See Xtensa Instruction Set Architecture (ISA) Summary, Section 10.
+            */
+            float w = safe_value_to_float(v);
+            args[j++] = *(value_t*)&w;
+#else
+            /* Arm32, Arm64, x86-64 uses a floating-point register for a float argument.
+            */
+            if (k < sizeof(fargs) / sizeof(fargs[0]))
+                fargs[k++] = safe_value_to_float(v);
+            else
+                runtime_error("too many float arguments; not supported");
+#endif
+        }
+        else
+            args[j++] = v;
+    }
+
+    va_end(arguments);
+    if (i != num || *sig != ')')
+        runtime_error("wrong number of arguments for dynamic method call");
+
+    char t = *++sig;
+    if (t == 'f') {
+        float r = ((float (*)(value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, float, float, float, float))fptr)
+                        (obj, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10], args[11], fargs[0], fargs[1], fargs[2], fargs[3]);
+        return float_to_value(r);
+    }
+    else {
+        value_t r = ((value_t (*)(value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, float, float, float, float))fptr)
+                        (obj, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10], args[11], fargs[0], fargs[1], fargs[2], fargs[3]);
+        if (t == 'i' || t == 'b')
+            return int_to_value(r);
+        else
+            return r;
+    }
 }
 
 // Compute an object size.   It is always an even number.

@@ -200,6 +200,90 @@ void test_function_object() {
     Assert_equals(((int32_t (*)(int32_t))gc_function_object_ptr(func, 0))(7), 8);
 }
 
+void test_is_subtype_of() {
+    class_object clazz = { .name = "bar", .array_type_name = NULL };
+    value_t obj = ptr_to_value(gc_allocate_object(&clazz));
+    const char* sig = "'bar'";
+    sig += 1;
+    Assert_true(is_subclass_of(obj, &sig));
+
+    const char* sig2 = "'baz'";
+    sig = sig2 + 1;
+    Assert_true(!is_subclass_of(obj, &sig));
+    Assert_true(sig == sig2 + 5);
+
+    class_object clazz2 = { .name = "integer[]", .array_type_name = "[i" };
+    value_t obj2 = ptr_to_value(gc_allocate_object(&clazz2));
+    sig = "[i";
+    Assert_true(is_array_type(obj2, &sig));
+    const char* sig3 = "['foo'";
+    sig = sig3;
+    Assert_true(!is_array_type(obj2, &sig));
+    Assert_true(sig == sig3);
+
+    value_t func = gc_new_function(NULL, "(is)a", 0);
+    const char* sig4 = "(is)a";
+    sig = sig4;
+    Assert_true(is_function_type(func, &sig));
+    Assert_true(sig == sig4 + 5);
+
+    const char* sig5 = "()i";
+    sig = sig5;
+    Assert_true(!is_function_type(func, &sig));
+    Assert_true(sig == sig5);
+
+    const char* sig55 = "'bar'";
+    sig = sig55;
+    Assert_true(is_subtype_of(obj, &sig));
+    Assert_true(sig == sig55 + 5);
+    const char* sig56 = "[i";
+    sig = sig56;
+    Assert_true(is_subtype_of(obj2, &sig));
+    Assert_true(sig == sig56 + 2);
+
+    const char* sig6 = "['bar'";
+    sig = sig6;
+    Assert_true(!is_subtype_of(obj, &sig));
+    Assert_true(sig == sig6 + 6);
+
+    const char* sig7 = "[s";
+    sig = sig7;
+    Assert_true(!is_subtype_of(obj2, &sig));
+    Assert_true(sig == sig7 + 2);
+
+    sig = sig4;
+    Assert_true(is_subtype_of(func, &sig));
+    Assert_true(sig == sig4 + 5);
+
+    const char* sig8 = "(i)'bar'";
+    sig = sig8;
+    Assert_true(!is_subtype_of(func, &sig));
+    Assert_true(sig == sig8 + 8);
+
+    const char* sig9 = "|n'bar'";
+    sig = sig9;
+    Assert_true(is_subtype_of(obj, &sig));
+    Assert_true(sig == sig9 + 7);
+
+    sig = sig9;
+    Assert_true(!is_subtype_of(obj2, &sig));
+    Assert_true(sig == sig9 + 7);
+
+    const char* sig10 = "|'bar'n";
+    sig = sig10;
+    Assert_true(is_subtype_of(obj, &sig));
+    Assert_true(sig == sig10 + 7);
+
+    const char* sig11 = "|'bar'[i";
+    sig = sig11;
+    Assert_true(is_subtype_of(obj, &sig));
+    Assert_true(sig == sig11 + 8);
+
+    sig = sig11;
+    Assert_true(is_subtype_of(obj2, &sig));
+    Assert_true(sig == sig11 + 8);
+}
+
 void test_runtime_error2() {
     runtime_error("test_runtime_error2() thorws an error");
 }
@@ -212,7 +296,7 @@ int main() {
 #ifdef TEST64
     initialize_pointer_table();
 #endif
-  gc_initialize();
+    gc_initialize();
     test_any_add();
     test_any_less();
     test_minus_any_value();
@@ -220,6 +304,7 @@ int main() {
     test_array();
     test_string_literal();
     test_function_object();
+    test_is_subtype_of();
     test_runtime_error();
     if (nerrors > 0) {
         printf("Test failed %d\n", nerrors);

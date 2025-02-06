@@ -301,7 +301,7 @@ void test_nested_root_set() {
     Assert_equals(heap_memory[3], 2);
     Assert_equals(heap_memory[6], 32);
     Assert_equals(heap_memory[7], 22);
-    Assert_pequals(get_objects_class((pointer_t)&heap_memory[28]), &vector_object);
+    Assert_pequals(get_objects_class((pointer_t)&heap_memory[28]), &class_Vector);
     Assert_equals(heap_memory[32], heap_size);
     Assert_equals(heap_memory[33], heap_size - 32);
 

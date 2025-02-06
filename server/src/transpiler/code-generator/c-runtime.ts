@@ -5,7 +5,8 @@ import { ErrorLog } from '../utils'
 import { Integer, Float, BooleanT, StringT, Void, Null, Any,
     ObjectType, objectType, FunctionType,
     StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype,
-    ByteArrayClass, UnionType } from '../types'
+    ByteArrayClass, UnionType, 
+    VectorClass} from '../types'
 import { InstanceType, ClassTable } from '../classes'
 import { VariableEnv } from './variables'
 
@@ -365,7 +366,9 @@ export function makeBoxedValue(type: StaticType, value?: string) {
 // a getter/setter function for arrays
 export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticType | undefined, node: AST.Node) {
   if (arrayType instanceof InstanceType && arrayType.name() === ByteArrayClass)
-    return `(*gc_bytearray_get(`
+    return '(*gc_bytearray_get('
+  else if (arrayType instanceof InstanceType && arrayType.name() === VectorClass)
+    return '(gc_vector_get('
   else if (arrayType === Any)
     return '(gc_safe_array_get('
   else if (t === Integer)
@@ -383,6 +386,8 @@ export function arrayElementSetter(arrayType: StaticType | undefined) {
     throw new Error('unknown array type')
   else if (arrayType === Any)
     return 'gc_safe_array_set('
+  else if (arrayType instanceof InstanceType && arrayType.name() === VectorClass)
+    return 'gc_vector_set('
   else
     return `gc_array_set(`
 }
@@ -455,6 +460,14 @@ export function classNameInC(name: string) {
   return `class_${name}`
 }
 
+function methodListNameInC(name: string) {
+  return `mnames_${name}`
+}
+
+function methodSigListNameInC(name: string) {
+  return `msigs_${name}`
+}
+
 function propertyListNameInC(name: string) {
   return `plist_${name}`
 }
@@ -511,9 +524,20 @@ export function classDeclaration(clazz: InstanceType, classTable: ClassTable) {
     superAddr = `&${classObjectNameInC(superClass.name())}`
 
   const table = clazz.makeMethodTable()
+  const methodListName = methodListNameInC(name)
+  const methodSigListName = methodSigListNameInC(name)
+  let methodNames = `static const uint16_t ${methodListName}[] = { `
+  let methodSigs = `static const char* const ${methodSigListName}[] = { `
   let tableArray = ''
-  for (let i = 0; i < table.length; i++)
+  for (let i = 0; i < table.length; i++) {
+    methodNames += classTable.encodeName(table[i].name) + ', '
+    methodSigs += `"${encodeType(table[i].type)}", `
     tableArray += `${methodBodyNameInC(table[i].clazz.name(), i)}, `
+  }
+
+  methodNames += '};'
+  methodSigs += '};'
+  const methodTable = `{ .size = ${table.length}, .names = ${methodListName}, .signatures = ${methodSigListName} }`
 
   const size = clazz.objectSize()
   const start = clazz.unboxedProperties() || 0
@@ -525,21 +549,25 @@ export function classDeclaration(clazz: InstanceType, classTable: ClassTable) {
 
   const propList = `static const uint16_t ${propListName}[] = { ${ptable.props.join(', ')} };`
 
-  return `${propList}\nCLASS_OBJECT(${classNameInC(name)}, ${table.length}) = {
-    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .f = 0, .pt = ${propTable}, .vtbl = { ${tableArray} }}};`
+  return `${methodNames}\n${methodSigs}\n${propList}\nCLASS_OBJECT(${classNameInC(name)}, ${table.length}) = {
+    .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .an = (void*)0, .pt = ${propTable}, .mt = ${methodTable}, .vtbl = { ${tableArray} }}};`
 }
 
 export function makeInstance(clazz: InstanceType) {
   const name = clazz.name()
   if (name === ByteArrayClass)
     return 'gc_new_bytearray(false'
+  else if (name === VectorClass)
+    return 'gc_new_vector('
   else
     return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
 }
 
 export function methodLookup(method: [StaticType, number, InstanceType], func: string) {
-  return `((${funcTypeToCType(method[0])})method_lookup(${func}, ${method[1]}))`
+  return `((${funcTypeToCType(method[0])})gc_method_lookup(${func}, ${method[1]}))`
 }
+
+export const dynamicMethodCall = 'gc_dynamic_method_call'
 
 export function isInstanceOf(t: InstanceType) {
   return `gc_is_instance_of(&${classObjectNameInC(t.name())}, `
@@ -547,8 +575,9 @@ export function isInstanceOf(t: InstanceType) {
 
 export function arrayTypeDeclaration(type: ArrayType, name: string, is_declared: boolean) {
   const typeName = typeToString(type)
+  const arrayName = encodeType(type)
   if (is_declared)
-    return `CLASS_OBJECT(${name}, 0) = { .body = { .s = 2, .i = 1, .cn = "${typeName}", .sc = &object_class.clazz, .f = 1, .pt = { .size = 0, .offset = 0, .unboxed = 0, .prop_names = (void*)0, .unboxed_types = (void*)0 }, .vtbl = {}}};\n`
+    return `CLASS_OBJECT(${name}, 0) = { .body = { .s = 2, .i = 1, .cn = "${typeName}", .sc = &object_class.clazz, .an = "${arrayName}", .pt = { .size = 0, .offset = 0, .unboxed = 0, .prop_names = (void*)0, .unboxed_types = (void*)0 }, .vtbl = {}}};\n`
   else
     return `extern CLASS_OBJECT(${name}, 0);\n`
 }

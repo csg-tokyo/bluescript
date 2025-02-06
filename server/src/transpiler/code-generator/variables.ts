@@ -427,9 +427,9 @@ export class GlobalEnv extends FunctionEnv {
           // a fully-qualified name with a module ID.
           if (origInfo.isTypeName)
             if (set.has(origInfo))
-             return
+              return
             else
-               set.add(origInfo)
+              set.add(origInfo)
 
           const nameAndType = origInfo.externName(key)
           f(origInfo, nameAndType[0], nameAndType[1], nameAndType[2])

@@ -52,6 +52,12 @@ struct property_table {
     const char* const unboxed_types; // the types of unboxed properties
 };
 
+struct method_table {
+    const uint16_t size;        // the number of methods declared in this class.
+    const uint16_t* const names;         // method names
+    const char* const* const signatures; // method pointers
+};
+
 typedef struct class_object {
     int32_t size;           // instance size excluding a header.
                             // -1 if the instance is an array.
@@ -60,14 +66,16 @@ typedef struct class_object {
                             // If start_index is 2, body[0] and body[1] don't hold a pointer.
     const char* const name; // printable class name
     const struct class_object* const superclass;    // super class or NULL
-    uint32_t flags;         // 1: array type.  An array type supports [] and .length.
+    const char* const array_type_name;  // encoded type name.  NULL if this type is not an array type.
+                                        // An array type supports [] and .length.
     struct property_table table;
-    void* vtbl[1];
+    struct method_table mtable;
+    void* vtbl[1];          // virtual function table
 } class_object;
 
 // A macro for declaring a class_object.
 // n: the length of body (> 0).
-#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; uint32_t f; struct property_table pt; void* vtbl[n]; } body; } name
+#define CLASS_OBJECT(name, n)    ALGIN const union { struct class_object clazz; struct { uint32_t s; uint32_t i; const char* const cn; const struct class_object* const sc; const char* const an; struct property_table pt; struct method_table mt; void* vtbl[n]; } body; } name
 
 inline int32_t value_to_int(value_t v) { return (int32_t)v / 4; }
 inline value_t int_to_value(int32_t v) { return (uint32_t)v << 2; }
@@ -170,7 +178,8 @@ extern void CR_SECTION interrupt_handler_end();
 extern void CR_SECTION gc_initialize();
 extern class_object* CR_SECTION gc_get_class_of(value_t value);
 extern bool CR_SECTION gc_is_instance_of(const class_object* clazz, value_t obj);
-extern void* CR_SECTION method_lookup(value_t obj, uint32_t index);
+extern void* CR_SECTION gc_method_lookup(value_t obj, uint32_t index);
+extern value_t CR_SECTION gc_dynamic_method_call(value_t obj, uint32_t index, uint32_t num, ...);
 
 extern pointer_t CR_SECTION gc_allocate_object(const class_object* clazz);
 

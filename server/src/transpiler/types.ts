@@ -10,10 +10,16 @@ export const Void = 'void'
 export const Null = 'null'
 export const Any = 'any'
 
-export const ByteArrayClass = 'Uint8Array'
+export const ByteArrayClass = 'Uint8Array'    // Uint8Array is also used as byte[].
+export const VectorClass = 'Vector'
 
 export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' |
   ObjectType | FunctionType | UnionType
+
+export function isBuiltinTypeName(name: string) {
+  return name === Integer || name === Float || name === BooleanT || name === Void || name === StringT || name === Null ||
+         name === Any || name === 'undefined' || name === 'Array' || name === 'object'
+}
 
 export function isPrimitiveType(type: StaticType) {
   // unless String, Null, FunctionType, Any, or object type
@@ -206,6 +212,8 @@ export function typeToString(type: StaticType): string {
     return type
 }
 
+// When this function is modified,
+// next_type_in_signature() in c-runtime.c must be modified accordingly.
 export function encodeType(type: StaticType): string {
   switch (type) {
   case Integer:

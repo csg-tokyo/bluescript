@@ -4,13 +4,13 @@ import * as AST from '@babel/types'
 import { ErrorLog } from './utils'
 import * as visitor from './visitor'
 
-import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType } from './types'
+import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType, VectorClass } from './types'
 
 import {
   Integer, Float, BooleanT, StringT, Void, Null, Any,
   ObjectType, FunctionType, objectType,
   typeToString, isSubtype, isConsistent, commonSuperType,
-  isNumeric
+  isNumeric, isBuiltinTypeName
 } from './types'
 
 import { actualElementType } from './code-generator/c-runtime'
@@ -85,6 +85,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
                                  _ => { _.isTypeName = true; _.isExported = true })
     this.assert(success, `internal error: cannot record ${ByteArrayClass} class`, node)
     names.classTable().addClass(ByteArrayClass, clazz)
+
+    const clazz2 = this.maker.instanceType(VectorClass, objectType)
+    clazz2.addMethod('constructor', new FunctionType(Void, [Integer, Any]))
+    clazz2.leafType = true
+    const success2 = names.record(VectorClass, clazz2, this.maker,
+                                 _ => { _.isTypeName = true; _.isExported = true })
+    this.assert(success2, `internal error: cannot record ${VectorClass} class`, node)
+    names.classTable().addClass(VectorClass, clazz2)
   }
 
   file(node: AST.File, names: NameTable<Info>): void {
@@ -405,6 +413,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
 
     const className = node.id.name
+    this.assert(!isBuiltinTypeName(className), `bad class name: ${className}`, node)
+
     if (!this.firstPass) {
       // 2nd phase
       const info = names.lookup(className)
@@ -1044,9 +1054,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   callExpression(node: AST.CallExpression, names: NameTable<Info>): void {
-    if (AST.isMemberExpression(node.callee) && this.checkMethodExpr(node.callee, names)) {
+    if (AST.isMemberExpression(node.callee) && this.checkMethodCallee(node.callee, names)) {
       // "node" is a method call and checkMethodExpr() has visited node.callee.
-    } else
+      // If a method name is wrong, checkMethodCallee() returns false.
+      // Read node.callee as a property access.
+    }
+    else
       this.visit(node.callee, names)
 
     if (AST.isSuper(node.callee))
@@ -1066,7 +1079,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.result = func_type.returnType
     }
     else {
-      this.assert(this.firstPass, 'the callee is not a function', node.callee)
+      this.assert(this.firstPass || this.result === Any, 'the callee is not a function', node.callee)
+      for (let i = 0; i < node.arguments.length; i++) {
+        const arg = node.arguments[i]
+        this.callExpressionArg(arg, Any, names)
+      }
+
+      this.addStaticType(node.callee, Any)
       this.result = Any
     }
   }
@@ -1240,14 +1259,17 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addStaticType(node, this.result)
       }
       else if (this.result instanceof InstanceType && this.result.name() === ByteArrayClass) {
-        this.addStaticType(node.object, this.result)
         this.addStaticType(node, Integer)
         this.result = Integer
       }
+      else if (this.result instanceof InstanceType && this.result.name() === VectorClass) {
+        this.addStaticType(node, Any)
+        this.result = Any
+      }
       else {
         this.assert(this.firstPass || this.result === Any, 'an element access to a non-array', node.object)
+        this.addStaticType(node, Any)
         this.result = Any
-        this.addStaticType(node, this.result)
         // false if this is an array access but the array object type is unknown since this path is the first one.
         return !this.firstPass
       }
@@ -1266,7 +1288,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             const unboxed = type.unboxedProperties()
             return unboxed === undefined || unboxed <= typeAndIndex[1]
           }
-          else if (propertyName === ArrayType.lengthMethod && type.name() === ByteArrayClass) {
+          else if (propertyName === ArrayType.lengthMethod && (type.name() === ByteArrayClass || type.name() === VectorClass)) {
             this.assert(readonly, 'cannot change .length', node.property)
             this.result = Integer
             return false  // an uboxed value.
@@ -1300,7 +1322,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   // returns true if "node" is a method
-  private checkMethodExpr(node: AST.MemberExpression, names: NameTable<Info>): boolean {
+  private checkMethodCallee(node: AST.MemberExpression, names: NameTable<Info>): boolean {
     if (node.computed)
       return false    // an array access like a[i]
 
@@ -1320,11 +1342,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else if (type instanceof ArrayType) {
       // no method available
-      return false
+    }
+    else if (type === Any) {
+      this.result = Any
+      return true
     }
 
-    this.result = Any
-    return this.firstPass
+    this.result = Null    // a method is not found, but it may be a property access.
+    return false
   }
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, names: NameTable<Info>): void {
