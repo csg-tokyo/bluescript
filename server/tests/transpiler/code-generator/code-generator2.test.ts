@@ -1175,6 +1175,22 @@ test('method call on an any-type object with a wrong argument', () => {
   expect(() => compileAndRun(src + src9, destFile)).toThrow(/runtime type error.*argument/)
 })
 
+test('a call to an any-type function', () => {
+  const src = `
+  function foo(a: integer, b: integer) { return a + b }
+  function bar(a: integer) { return (i: integer) => a + i }
+  function test() {
+    let f: any = foo
+    print(f(3, 7))
+    let g: any = bar(3)
+    print(g(70))
+  }
+  test()
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('10\n73\n')
+})
+
 test('Vector class', () => {
   const src = `
   function bar() {

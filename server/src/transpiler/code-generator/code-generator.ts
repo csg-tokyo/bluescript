@@ -215,7 +215,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     return `${cr.functionMaker}(${name}.${cr.functionPtr}, ${name}.${cr.functionSignature}, ${obj})`
   }
 
-  private identifierAsCallable(node: AST.Identifier, env: VariableEnv): void {
+  private identifierAsCallable(node: AST.Identifier, nargs: number, env: VariableEnv): void {
     const info = env.table.lookup(node.name)
     if (info !== undefined) {
         const ftype = cr.funcTypeToCType(info.type)
@@ -226,7 +226,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
             this.result.write(`((${ftype})${info.transpile(node.name)}.${cr.functionPtr})(0`)
         else {
           const fname = info.transpile(node.name)
-          this.result.write(`((${ftype})${cr.functionGet}(${fname}, 0))(${fname}`)
+          if (info.type === Any)
+            this.result.write(`${cr.dynamicMethodCall}(${fname}, 0, ${nargs}`)
+          else
+            this.result.write(`((${ftype})${cr.functionGet}(${fname}, 0))(${fname}`)
         }
 
       return
@@ -1251,7 +1254,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     let calleeIsIdentifier
     if (AST.isIdentifier(node.callee)) {
       calleeIsIdentifier = true
-      this.identifierAsCallable(node.callee, env)
+      this.identifierAsCallable(node.callee, node.arguments.length, env)
     }
     else if (AST.isSuper(node.callee)) {
       calleeIsIdentifier = true
@@ -1285,7 +1288,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       else {
         // the callee is an expression resulting in a function object.
         this.visit(node.callee, env)
-        this.result.write(`, ((${cr.funcTypeToCType(ftype as FunctionType)})${cr.functionGet}(${func}, 0))(${func}`)
+        if (ftype === Any)
+          this.result.write(`, ${cr.dynamicMethodCall}(${func}, 0, ${node.arguments.length}`)
+        else
+          this.result.write(`, ((${cr.funcTypeToCType(ftype as FunctionType)})${cr.functionGet}(${func}, 0))(${func}`)
       }
     }
 

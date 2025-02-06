@@ -1261,6 +1261,8 @@ static bool is_array_type(value_t obj, const char** sig) {
     return false;
 }
 
+// This is used by is_subtype_of().
+// It is similar to gc_is_function_object(), but it is slightly different.
 static bool is_function_type(value_t obj, const char** sig) {
     if (gc_get_class_of(obj) == &function_object.clazz) {
         const char* name = raw_value_to_ptr(value_to_ptr(obj)->body[1]);
@@ -1339,14 +1341,19 @@ value_t gc_dynamic_method_call(value_t obj, uint32_t index, uint32_t num, ...) {
     if (clazz == NULL)
         runtime_error("a method call on a non-object");
 
-    void* fptr = NULL;
+    const void* fptr = NULL;
     const char* sig = NULL;
-    for (int32_t i = 0; i < clazz->mtable.size; i++)
-        if (clazz->mtable.names[i] == index) {
-            fptr = clazz->vtbl[i];
-            sig = clazz->mtable.signatures[i];
-            break;
-        }
+    if (clazz == &function_object.clazz) {
+        fptr = gc_function_object_ptr(obj, 0);
+        sig = gc_function_object_ptr(obj, 1);
+    }
+    else
+        for (int32_t i = 0; i < clazz->mtable.size; i++)
+            if (clazz->mtable.names[i] == index) {
+                fptr = clazz->vtbl[i];
+                sig = clazz->mtable.signatures[i];
+                break;
+            }
 
     if (fptr == NULL)
         runtime_error("no such method is found");
