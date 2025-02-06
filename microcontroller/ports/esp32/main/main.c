@@ -15,7 +15,7 @@ void app_main(void) {
     bs_logger_register_sender(bs_ble_send_notification);
     bs_shell_register_sender(bs_ble_send_notification);
 
-    xTaskCreatePinnedToCore(bs_shell_task, "bs_shell_task", 4096 * 16, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(bs_shell_task, "bs_shell_task", 4096 * 16, NULL, 5, NULL, 0);
     xTaskCreatePinnedToCore(bs_logger_task, "bs_logger_task", 4096, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(bs_event_handler_task, "bs_event_handler_task", 4096, NULL, 1, NULL, 0);
+    // xTaskCreatePinnedToCore(bs_event_handler_task, "bs_event_handler_task", 4096, NULL, 5, NULL, 0);
 }

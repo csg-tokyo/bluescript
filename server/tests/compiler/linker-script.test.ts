@@ -34,24 +34,24 @@ test('generate linker script.', () => {
 INPUT(obj1.o obj2.o)
 
 MEMORY {
-\tIRAM   (X)   : ORIGIN = 0x4000,  LENGTH = 150B
-\tDRAM   (WR)   : ORIGIN = 0x3000,  LENGTH = 150B
-\tEXTERNAL_SYMBOLS   (X)   : ORIGIN = 0x0,  LENGTH = 1000000000B
+\tIRAM   (X)   : ORIGIN = 0x4000,  LENGTH = 150
+\tDRAM   (WR)   : ORIGIN = 0x3000,  LENGTH = 150
+\tEXTERNAL_SYMBOLS   (X)   : ORIGIN = 0x0,  LENGTH = 1000000000
 }
 
 
 SECTIONS {
-\t.iram1 {
+\t.iram1 : {
 \t\t. = ALIGN(4);
 \t\tKEEP(obj1.o(.iram))
 \t} > IRAM
 
-\t.dram {
+\t.dram : {
 \t\t. = ALIGN(4);
 \t\tobj1.o(.dram .data*)
 \t} > DRAM
 
-\t.external_symbols {
+\t.external_symbols : {
 \t\tsymbol1 = 0x555;
 \t} > EXTERNAL_SYMBOLS
 }

@@ -2,10 +2,11 @@
 export type MemInfo = {
     iram:{address:number, size:number},
     dram:{address:number, size:number},
-    flash:{address:number, size:number},
+    iflash:{address:number, size:number},
+    dflash:{address:number, size:number},
 }
 
-export type ReplStateT = 'initial' | 'loading' | 'activated'
+export type ReplStateT = 'initial' | 'loading' | 'activated' | 'installing' | 'successfully installed' | 'failed to install'
 
 export type CellStateT = 'user-writing' | 'compiling' | 'sending' | 'executing' | 'done'
 

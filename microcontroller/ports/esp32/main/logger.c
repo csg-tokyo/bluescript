@@ -2,6 +2,8 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/semphr.h"
+#include "esp_timer.h"
 
 #include "include/logger.h"
 #include "include/cmd.h"

@@ -1,0 +1,60 @@
+import { integer, float, Array } from "../../../bluescript/modules/base";
+import { assert, abs, fabs, sqrt } from "../../../bluescript/modules/esp32/bluescript/utils";
+
+let freeRows: boolean[] = new Array<boolean>(8, true);
+let freeMaxs: boolean[] = new Array<boolean>(16, true);
+let freeMins: boolean[] = new Array<boolean>(16, true);
+let queenRows: integer[] = new Array<integer>(8, -1);
+
+function setRowColumn(r: integer, c: integer, v: boolean) {
+    freeRows[r] = v;
+    freeMaxs[c + r] = v;
+    freeMins[c - r + 7] = v;
+}
+
+function getRowColumn(r: integer, c: integer) {
+    return freeRows[r] && freeMaxs[c + r] && freeMins[c - r + 7];
+}
+
+function placeQueen(c: integer):boolean {
+    for (let r = 0; r < 8; r++) {
+        if (getRowColumn(r, c)) {
+            queenRows[r] = c as any;
+            setRowColumn(r, c, false);
+            if (c == 7) {
+                return true;
+            }
+            if (placeQueen(c + 1)) {
+                return true;
+            }
+            setRowColumn(r, c, true);
+        }
+    }
+    return false;
+}
+
+function queens(): boolean {
+    freeRows = new Array<boolean>(8, true);
+    freeMaxs = new Array<boolean>(16, true);
+    freeMins = new Array<boolean>(16, true);
+    queenRows = new Array<integer>(8, -1);
+    return placeQueen(0);
+}
+
+function verifyResult(result: boolean) {
+    return result;
+}
+
+
+function benchmark(cycle: integer) {
+    for (let i = 0; i < cycle; i++) {
+        let result: boolean = true;
+        for (let i = 0; i < 10; i++) {
+            result = result && queens();
+        }
+        assert(verifyResult(result));
+    }
+}
+
+
+benchmark(3);

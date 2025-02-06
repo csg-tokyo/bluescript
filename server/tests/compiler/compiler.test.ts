@@ -1,5 +1,5 @@
 import {FILE_PATH} from "../../src/constants";
-import {Compiler, ModuleCompiler} from "../../src/compiler/compiler";
+import {InteractiveCompiler, ModuleCompiler} from "../../src/compiler/compiler";
 import {ShadowMemory} from "../../src/compiler/shadow-memory";
 
 const COMPILER_PATH = '~/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/'
@@ -11,7 +11,7 @@ const cProlog = `
 `
 
 
-test('Compile', () => {
+test('Interactive Compile', () => {
   const src1 = `\
 extern struct func_body _add;
 extern CLASS_OBJECT(object_class, 1);
@@ -53,11 +53,12 @@ void bluescript_main2_() {
   const shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, {
     iram: {address: 0x4000000, size: 30000},
     dram: {address: 0x3000614, size: 20000},
-    flash: {address: 0x5000000, size: 1000000}
+    iflash: {address: 0x5000000, size: 1000000},
+    dflash: {address: 0x5000000, size: 1000000}
   });
-  const compiler = new Compiler(COMPILER_PATH);
-  compiler.compile(shadowMemory, cProlog + src1, 'bluescript_main1_');
-  compiler.compile(shadowMemory, cProlog + src2, 'bluescript_main2_');
+  const compiler = new InteractiveCompiler(COMPILER_PATH);
+  compiler.compile(shadowMemory, 0, cProlog + src1, 'bluescript_main1_');
+  compiler.compile(shadowMemory, 1, cProlog + src2, 'bluescript_main2_');
 });
 
 
@@ -81,10 +82,11 @@ void bluescript_main2_() {
   const shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, {
     iram: {address: 0x4000000, size: 30000},
     dram: {address: 0x3000000, size: 20000},
-    flash: {address: 0x5000000, size: 1000000}
+    iflash: {address: 0x5000000, size: 1000000},
+    dflash: {address: 0x5000000, size: 1000000}
   });
   const moduleCompiler = new ModuleCompiler(COMPILER_PATH);
-  moduleCompiler.compile(shadowMemory, 'gpio', 'bluescript_main0_103112105111')
-  const compiler = new Compiler(COMPILER_PATH);
-  compiler.compile(shadowMemory, cProlog + src2, 'bluescript_main2_');
+  moduleCompiler.compile(shadowMemory, -1, 'gpio', 'bluescript_main0_103112105111')
+  const compiler = new InteractiveCompiler(COMPILER_PATH);
+  compiler.compile(shadowMemory, 0, cProlog + src2, 'bluescript_main2_');
 })
