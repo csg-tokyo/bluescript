@@ -1,7 +1,7 @@
 import { Flex, Button, Checkbox, Row, Typography, Spin, Result} from 'antd';
 import { ReloadOutlined, CaretRightOutlined, LoadingOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import CodeEditor from '@uiw/react-textarea-code-editor';
-import type { CellT } from '../../utils/type';
+import { CellStateT, type CellT } from '../../utils/type';
 import { useContext } from 'react';
 import { ReplContext } from '../../hooks/repl-context';
 import { ThemeContext } from '../../hooks/theme-context';
@@ -107,31 +107,31 @@ function Cell(props: {
     const theme = useContext(ThemeContext)
 
     const state = props.cell.state
-    let border = state === 'user-writing' ? `solid ${theme.primary} 1px` : `solid ${theme.boarder.gray} 1px`
+    let border = state === CellStateT.UserWriting ? `solid ${theme.primary} 1px` : `solid ${theme.boarder.gray} 1px`
 
     const onCopyClick = async () => {
         await global.navigator.clipboard.writeText(props.cell.code);
     }
 
     let CellButton = () => {
-        if (state === 'user-writing')
+        if (state === CellStateT.UserWriting)
             return <Button shape='circle' type='text' onClick={() => {props.onExecuteClick && props.onExecuteClick()}} style={{marginRight:5}} icon={<CaretRightOutlined style={{fontSize:20}} />}/>
-        else if (state === 'compiling' || state === 'sending' || state === 'executing')
+        else if (state === CellStateT.Compiling || state === CellStateT.Sending || state === CellStateT.Executing)
             return <Button shape='circle' type='text' style={{marginRight:5}} disabled icon={<LoadingOutlined style={{fontSize:20}} />}/>
         else 
             return <Button shape='circle' type='text' onClick={onCopyClick} style={{marginRight:5, color: theme.text.gray1}} icon={<CopyOutlined style={{fontSize:20}} />}/>
     }
 
     let statusText = () => {
-        if (state === 'compiling') { return 'Compiling ...' }
-        if (state === 'sending') { return 'Sending ...' }
-        if (state === 'executing') { return 'Executing ...' }
-        if (state === 'done') {
+        if (state === CellStateT.Compiling) { return 'Compiling ...' }
+        if (state === CellStateT.Sending) { return 'Sending ...' }
+        if (state === CellStateT.Executing) { return 'Executing ...' }
+        if (state === CellStateT.Done) {
             const t = props.cell.time;
-            const compile = t?.compile ? Math.round(t?.compile * 100) / 100 : '??'
-            const bluetooth = t?.bluetooth ? Math.round(t?.bluetooth * 100) / 100 : '??'
-            const execution = t?.execution ? Math.round(t?.execution * 100) / 100 : '??'
-            return `| compile: ${compile ?? '??'} ms | bluetooth: ${bluetooth ?? '??'} ms | execution: ${execution ?? '??'} ms |`
+            const compile = t.compile ? Math.round(t.compile * 100) / 100 : '??'
+            const bluetooth = t.send ? Math.round(t.send * 100) / 100 : '??'
+            const execution = t.execute ? Math.round(t.execute * 100) / 100 : '??'
+            return `| compile: ${compile} ms | bluetooth: ${bluetooth} ms | execution: ${execution} ms |`
         }
     }
 
@@ -152,16 +152,18 @@ function Cell(props: {
                         border,
                         fontFamily: 'ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace'
                     }}
-                    disabled = {props.cell.state !== 'user-writing'}
+                    disabled = {props.cell.state !== CellStateT.UserWriting}
                     onKeyDown={(e) => {if (e.key === 'Enter' && e.shiftKey && props.onExecuteClick) props.onExecuteClick()}}
                     onChange={(e) => props.setCellCode ? props.setCellCode(e.target.value) : 0 }
                 />
             </Flex>
             </Row>
-            { props.cell.compileError !== '' &&
-                <Row justify='start' style={{ marginLeft: 50}}>
-                    <Typography.Text style={{color: theme.red, fontSize: 16}}>{props.cell.compileError}</Typography.Text>
-                </Row>
+            { props.cell.state === CellStateT.UserWriting && props.cell.compileError !== undefined &&
+                <div style={{ marginLeft: 50, justifyContent:'start'}}>
+                    { props.cell.compileError.map( (message, id) => 
+                        <div style={{color: theme.red, fontSize: 16}} key={id}>{message}</div>
+                    )}
+                </div>
             }
             <Row justify='end'>
                 <Typography.Text style={{color: theme.text.gray1}}>{statusText()}</Typography.Text>
