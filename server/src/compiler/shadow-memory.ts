@@ -17,8 +17,8 @@ type MemoryUpdate = {
   entryPoints: {id: number, address: number}[]
 }
 
-type sessionId = number;
-type sectionId = number;
+type compileIdT = number;
+type sectionIdT = number;
 
 export class ShadowMemory {
   public readonly iram: ReusableMemoryRegion;
@@ -27,7 +27,7 @@ export class ShadowMemory {
   public readonly symbols:Map<string, Symbol> = new Map<string, Symbol>();
   public readonly componentsInfo = new ESPIDFComponentsInfo();
   private updates: MemoryUpdate = {blocks: [], entryPoints: []};
-  private freeableIramSection: Map<sessionId, sectionId[]> = new Map();
+  private freeableIramSection: Map<compileIdT, sectionIdT[]> = new Map();
 
   constructor(bsRuntimePath: string, addresses: MemoryAddresses) {
     const bsRuntime = new ElfReader(bsRuntimePath);
@@ -37,14 +37,24 @@ export class ShadowMemory {
     this.flash = new MemoryRegion('Flash', addresses.iflash.address, addresses.iflash.size);
   }
 
-  freeIram(sessionId: sessionId) {
-    const freeableSection = this.freeableIramSection.get(sessionId);
+  freeIram(compileId: compileIdT) {
+    const freeableSection = this.freeableIramSection.get(compileId);
     if (freeableSection === undefined)
       return;
     freeableSection.forEach(id => {
       this.iram.free(id);
     });
-    this.freeableIramSection.delete(sessionId);
+    this.freeableIramSection.delete(compileId);
+  }
+
+  setFreeableIramSection(compileId: compileIdT, sectionNames: string[]) {
+    const sectionIds: number[] = [];
+    sectionNames.forEach(name => {
+      const id = this.iram.sectionNameToId(name);
+      if (id !== undefined)
+        sectionIds.push(id);
+    });
+    this.freeableIramSection.set(compileId, sectionIds);
   }
 
   loadToIram(section: Section[]) { this.load(section, 'iram') }
@@ -92,7 +102,7 @@ export class MemoryRegion {
 export class ReusableMemoryRegion {
   private name: string
   private memoryBlocks: MemoryBlock
-  private sectionId: sessionId
+  private sectionId: sectionIdT
 
   constructor(name: string, address: number, size: number) {
     this.name = name
@@ -120,7 +130,7 @@ export class ReusableMemoryRegion {
     return allocatedBlock
   }
 
-  public sectionNameToId(sectionName: string): sectionId | undefined {
+  public sectionNameToId(sectionName: string): sectionIdT | undefined {
     let current: undefined | MemoryBlock = this.memoryBlocks
     while(current !== undefined) {
       if (current.sectionName === sectionName) {
@@ -131,7 +141,7 @@ export class ReusableMemoryRegion {
     return undefined
   }
 
-  public free(sectionId: sectionId) {
+  public free(sectionId: sectionIdT) {
     let current: undefined | MemoryBlock = this.memoryBlocks
     while(current !== undefined) {
       if (current.sectionId === sectionId) {

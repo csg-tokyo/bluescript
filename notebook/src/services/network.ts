@@ -12,7 +12,7 @@ export type MemoryUpdate = {
 export type CompileResult = {
     result: MemoryUpdate,
     compileTime: number,
-    sessionId: number
+    compileId: number
 }
 
 export async function compile(src: string): Promise<CompileResult> {
@@ -23,12 +23,16 @@ export async function interactiveCompile(src: string): Promise<CompileResult> {
   return post("interactive-compile", {src});
 }
 
-export async function compileWithProfiling(src: string): Promise<CompileResult> {
-  return post("compile-with-profiling", {src}); 
+export async function interactiveCompileWithProfiling(src: string): Promise<CompileResult> {
+  return post("interactive-compile-with-profiling", {src}); 
 }
 
 export async function jitCompile(funcId: number, paramTypes: string[]): Promise<CompileResult> {
   return post("jit-compile", {funcId, paramTypes});
+}
+
+export async function codeExecutionFinished(compileId: number) {
+  return post("code-execution-finished", {compileId}); 
 }
 
 export async function reset(memInfo:MemInfo) {

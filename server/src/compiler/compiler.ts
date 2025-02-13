@@ -26,10 +26,10 @@ export class Compiler {
 
   constructor(protected compilerPath = '') {}
 
-  compile(shadowMemory: ShadowMemory, sessionId: number, src: string, entryPointName: string) {
+  compile(shadowMemory: ShadowMemory, compileId: number, src: string, entryPointName: string) {
     const objFile = this._compile(src);
     const linkedElf = this.link(shadowMemory, objFile, entryPointName);
-    this.load(shadowMemory, sessionId, linkedElf, entryPointName)
+    this.load(shadowMemory, compileId, linkedElf, entryPointName)
   }
 
   protected _compile(src: string) {
@@ -109,7 +109,7 @@ export class Compiler {
       shadowMemory.flash.allocate(flashSection);
   }
 
-  protected load(shadowMemory: ShadowMemory, sessionId:number, linkedElf: ElfReader, entryPointName: string) {
+  protected load(shadowMemory: ShadowMemory, compileId:number, linkedElf: ElfReader, entryPointName: string) {
     const dramSection = linkedElf.readSectionByName(this.DRAM_SECTION_NAME);
     const flashSection = linkedElf.readSectionByName(this.FLASH_SECTION_NAME);
     linkedElf.readDefinedSymbols().forEach(symbol => {
@@ -120,7 +120,7 @@ export class Compiler {
       throw new Error(`Cannot find entry point: ${entryPointName}`);
     shadowMemory.loadToDram(dramSection !== undefined ? [dramSection]: []);
     shadowMemory.loadToIFlash(flashSection !== undefined ? [flashSection]: []);
-    shadowMemory.loadEntryPoint(sessionId, entryPoint);
+    shadowMemory.loadEntryPoint(compileId, entryPoint);
   }
 }
 
@@ -131,13 +131,14 @@ export class InteractiveCompiler extends Compiler {
     super(compilerPath);
   }
 
-  compile(shadowMemory: ShadowMemory, sessionId: number, src: string, entryPointName: string) {
+  compile(shadowMemory: ShadowMemory, compileId: number, src: string, entryPointName: string) {
     const objFile = this._compile(src);
-    const linkedElf = this.link(shadowMemory, objFile, entryPointName);
-    this.load(shadowMemory, sessionId, linkedElf, entryPointName)
+    const linkedElf = this.interactiveLink(shadowMemory, compileId, objFile, entryPointName);
+    this.load(shadowMemory, compileId, linkedElf, entryPointName)
   }
 
-  protected link(shadowMemory: ShadowMemory, objFile: ElfReader, entryPointName: string) {
+  protected interactiveLink(shadowMemory: ShadowMemory, compileId: number, objFile: ElfReader, entryPointName: string) {
+    this.registerFreeableFuncSections(shadowMemory, compileId, objFile, entryPointName);
     const iramMemoryBlocks = this.allocateIram(shadowMemory, objFile);
     const externalSymbols = this.readExternalSymbols(shadowMemory, objFile);
     const linkerScript = this.generateInteractiveLinkerScript(shadowMemory, iramMemoryBlocks, externalSymbols, objFile, entryPointName);
@@ -146,7 +147,7 @@ export class InteractiveCompiler extends Compiler {
     return linkedElf;
   }
 
-  protected load(shadowMemory: ShadowMemory, sessionId:number, linkedElf: ElfReader, entryPointName: string) {
+  protected load(shadowMemory: ShadowMemory, compileId:number, linkedElf: ElfReader, entryPointName: string) {
     const iramSections = linkedElf
       .readSectionsStartWith(this.IRAM_SECTION_NAME)
       .filter(section => section.size !== 0);
@@ -159,7 +160,17 @@ export class InteractiveCompiler extends Compiler {
     const entryPoint = shadowMemory.symbols.get(entryPointName)?.address;
     if (entryPoint === undefined)
       throw new Error(`Cannot find entry point: ${entryPointName}`);
-    shadowMemory.loadEntryPoint(sessionId, entryPoint);
+    shadowMemory.loadEntryPoint(compileId, entryPoint);
+  }
+
+  private registerFreeableFuncSections(shadowMemory: ShadowMemory, compileId: number, objFile: ElfReader, entryPointName: string) {
+    const funcSymbols = objFile.readFunctions();
+    const freeableSectionNames = [this.funcNameToSectionName(entryPointName)];
+    funcSymbols.forEach(symbol => {
+      if (shadowMemory.symbols.has(symbol.name))
+        freeableSectionNames.push(this.funcNameToSectionName(symbol.name));
+    });
+    shadowMemory.setFreeableIramSection(compileId, freeableSectionNames);
   }
 
   private generateInteractiveLinkerScript(
@@ -225,9 +236,9 @@ export class ModuleCompiler extends Compiler {
     super(compilerPath)
   }
 
-  override compile(shadowMemory: ShadowMemory, sessionId: number, moduleName: string, entryPointName: string) {
+  override compile(shadowMemory: ShadowMemory, compileId: number, moduleName: string, entryPointName: string) {
     const executableElf = this.moduleLink(shadowMemory, moduleName, entryPointName);
-    this.load(shadowMemory, sessionId, executableElf, entryPointName)
+    this.load(shadowMemory, compileId, executableElf, entryPointName)
   }
 
   private moduleLink(shadowMemory: ShadowMemory, moduleName: string, entryPointName: string): ElfReader {

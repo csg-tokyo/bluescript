@@ -23,8 +23,8 @@ export type CellTimeT = {
 }
 
 export type CellT = 
-    {state: CellStateT.UserWriting, id: number, code: string, compileError?: string[], time: undefined} |
-    {state: CellStateT.Compiling, id: number, code: string, time: undefined} |
-    {state: CellStateT.Sending, id: number, code: string, time: CellTimeT} | 
-    {state: CellStateT.Executing, id: number, code: string, time: CellTimeT} | 
-    {state: CellStateT.Done, id: number, code: string, time: CellTimeT} 
+    {state: CellStateT.UserWriting, compileId: -1, code: string, compileError?: string[], time: undefined} |
+    {state: CellStateT.Compiling, compileId: -1, code: string, time: undefined} |
+    {state: CellStateT.Sending, compileId: number, code: string, time: CellTimeT} | 
+    {state: CellStateT.Executing, compileId: number, code: string, time: CellTimeT} | 
+    {state: CellStateT.Done, compileId: number, code: string, time: CellTimeT} 

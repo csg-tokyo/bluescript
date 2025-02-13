@@ -76,12 +76,12 @@ function ActivatedScreen() {
         <div>
             <ButtonBar />
             <div style={{paddingTop: 30, paddingBottom: 250, overflow: 'scroll', height: '100%'}}>
-                { replContext.postExecutionCells.map(cell => <Cell cell={cell} key={cell.id} />)}
+                { replContext.postExecutionCells.map(cell => <Cell cell={cell} key={cell.compileId} />)}
                 <Cell 
                     cell={replContext.latestCell} 
                     onExecuteClick={replContext.executeLatestCell} 
                     setCellCode={replContext.setLatestCellCode}
-                    key={replContext.latestCell.id} 
+                    key={replContext.latestCell.compileId} 
                 />
             </div>
         </div>
