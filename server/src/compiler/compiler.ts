@@ -138,8 +138,9 @@ export class InteractiveCompiler extends Compiler {
   }
 
   protected interactiveLink(shadowMemory: ShadowMemory, compileId: number, objFile: ElfReader, entryPointName: string) {
-    this.registerFreeableFuncSections(shadowMemory, compileId, objFile, entryPointName);
+    this.registerFreeableFuncSections(shadowMemory, compileId, objFile);
     const iramMemoryBlocks = this.allocateIram(shadowMemory, objFile);
+    this.registerFreeableEntryPoint(shadowMemory, compileId, entryPointName);
     const externalSymbols = this.readExternalSymbols(shadowMemory, objFile);
     const linkerScript = this.generateInteractiveLinkerScript(shadowMemory, iramMemoryBlocks, externalSymbols, objFile, entryPointName);
     const linkedElf = this._link(linkerScript);
@@ -163,14 +164,16 @@ export class InteractiveCompiler extends Compiler {
     shadowMemory.loadEntryPoint(compileId, entryPoint);
   }
 
-  private registerFreeableFuncSections(shadowMemory: ShadowMemory, compileId: number, objFile: ElfReader, entryPointName: string) {
+  private registerFreeableFuncSections(shadowMemory: ShadowMemory, compileId: number, objFile: ElfReader) {
     const funcSymbols = objFile.readFunctions();
-    const freeableSectionNames = [this.funcNameToSectionName(entryPointName)];
     funcSymbols.forEach(symbol => {
       if (shadowMemory.symbols.has(symbol.name))
-        freeableSectionNames.push(this.funcNameToSectionName(symbol.name));
+        shadowMemory.setFreeableIramSection(compileId, this.funcNameToSectionName(symbol.name))
     });
-    shadowMemory.setFreeableIramSection(compileId, freeableSectionNames);
+  }
+
+  private registerFreeableEntryPoint(shadowMemory: ShadowMemory, compileId: number, entryPoint: string) {
+    shadowMemory.setFreeableIramSection(compileId, this.funcNameToSectionName(entryPoint));
   }
 
   private generateInteractiveLinkerScript(

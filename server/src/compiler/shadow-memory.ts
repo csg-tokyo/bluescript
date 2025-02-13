@@ -47,14 +47,15 @@ export class ShadowMemory {
     this.freeableIramSection.delete(compileId);
   }
 
-  setFreeableIramSection(compileId: compileIdT, sectionNames: string[]) {
-    const sectionIds: number[] = [];
-    sectionNames.forEach(name => {
-      const id = this.iram.sectionNameToId(name);
-      if (id !== undefined)
-        sectionIds.push(id);
-    });
-    this.freeableIramSection.set(compileId, sectionIds);
+  setFreeableIramSection(compileId: compileIdT, sectionName: string) {
+    const id = this.iram.sectionNameToId(sectionName);
+    if (id === undefined)
+      return;
+    const current = this.freeableIramSection.get(compileId);
+    if (current !== undefined)
+      current.push(id);
+    else
+      this.freeableIramSection.set(compileId, [id]);
   }
 
   loadToIram(section: Section[]) { this.load(section, 'iram') }
