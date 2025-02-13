@@ -2,7 +2,7 @@ import Bluetooth, {MAX_MTU} from '../services/bluetooth';
 import {useState, useEffect, useRef, createContext, ReactNode} from 'react';
 import * as network from "../services/network"
 import { CompileError } from '../utils/error';
-import { CellT, MemInfo, ReplStateT } from '../utils/type';
+import { CellStateT, CellT, MemInfo, ReplStateT } from '../utils/type';
 import { BYTECODE, BytecodeBufferBuilder, bytecodeParser } from '../utils/bytecode';
 import {Buffer} from "buffer";
 import { MemoryDummry, MemoryT, useMemory } from './use-memory';
@@ -28,7 +28,7 @@ export type ReplContextT = {
 export const ReplContext = createContext<ReplContextT>({
     // These are used if there is no provider.
     state: 'initial',
-    latestCell: {id:0, code:'', state: 'user-writing'},
+    latestCell: {id:0, code:'', state: CellStateT.UserWriting, time:undefined},
     postExecutionCells: [],
     output: [],
     runtimeError: [],
@@ -47,7 +47,7 @@ export const ReplContext = createContext<ReplContextT>({
 export default function ReplProvider({children}: {children: ReactNode}) {
     const [replState, setReplState] = useState<ReplStateT>('initial')
     const [useJIT, setUseJIT] = useState(true)
-    const [latestCell, setLatestCell] = useState<CellT>({id: 0, code:'', state: 'user-writing'})
+    const [latestCell, setLatestCell] = useState<CellT>({id: 0, code:'', state: CellStateT.UserWriting, time:undefined})
     const [postExecutionCells, setPostExecutionCells] = useState<CellT[]>([])
     const [output, setOutput] = useState<string[]>([])
     const [runtimeError, setRuntimeError] = useState<string[]>([])
@@ -83,7 +83,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             setPostExecutionCells([])
             setOutput([])
             setRuntimeError([])
-            setLatestCell({id: 0, code:'', state: 'user-writing'})
+            setLatestCell({id: 0, code:'', state: CellStateT.UserWriting, time:undefined})
             setReplState("activated")
             iram.actions.reset(meminfo.iram.address, meminfo.iram.size)
             dram.actions.reset(meminfo.dram.address, meminfo.dram.size)
@@ -120,17 +120,18 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     }
 
     const executeLatestCell = async () => {
-        setLatestCell({...latestCell, compileError: '', state: 'compiling'})
+        setLatestCell({...latestCell, state: CellStateT.Compiling, time:undefined})
         try {
             const compileResult = useJIT ? await network.compileWithProfiling(latestCell.id, latestCell.code) : await network.compile(latestCell.id, latestCell.code)
-            setLatestCell({...latestCell, compileError: '', state: 'sending'})
-            const bluetoothTime = await sendCompileResult(compileResult)
             const compileTime = compileResult.compileTime
+            setLatestCell({...latestCell, state: CellStateT.Sending, time: {compile: compileTime}})
+            const bluetoothTime = await sendCompileResult(compileResult)
             setMemoryUpdates(compileResult)
-            setLatestCell({...latestCell, state: 'executing', time: {compile: compileTime, bluetooth: bluetoothTime}})
+            setLatestCell({...latestCell, state: CellStateT.Executing, time: {compile: compileTime, send: bluetoothTime}})
         } catch (error: any) {
             if (error instanceof CompileError) {
-                setLatestCell({...latestCell, state: 'user-writing', compileError: error.toString()})
+                const errorStrings = error.messages.map(e => e.message)
+                setLatestCell({...latestCell, state: CellStateT.UserWriting, compileError: errorStrings, time:undefined})
             } else {
                 // TODO: 要修正
                 console.log(error)
@@ -148,20 +149,21 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             return;    
 
         const updateCells = () => {
+            console.log('update cells is called')
             const current = latestCellRef.current;
-            const latestCellTime = {compile: current.time?.compile, bluetooth: current.time?.bluetooth, execution: exectime};
-            setPostExecutionCells((cells) => [...cells, {...current, state: 'done', time: latestCellTime}]);
-            setLatestCell((cell) => ({id: cell.id + 1, code: '', state: 'user-writing'}));
+            const latestCellTime = {compile: current.time?.compile, send: current.time?.send, execute: exectime};
+            setPostExecutionCells((cells) => [...cells, {...current, state: CellStateT.Done, time: latestCellTime}]);
+            setLatestCell((cell) => ({state: CellStateT.UserWriting, id: cell.id + 1, code: '', time: undefined}));
         }
 
         console.log('complete execution', latestCellRef.current);
-        if (latestCellRef.current.state === 'executing') {
+        if (latestCellRef.current.state === CellStateT.Executing) {
             updateCells();
         } else {
             // Sometimes execution overtake screen drawing.
             setTimeout(() => {
                 console.log('complete execution', latestCellRef.current);
-                if (latestCellRef.current.state !== 'executing') {
+                if (latestCellRef.current.state !== CellStateT.Executing) {
                     window.alert(`Something wrong happend.`)
                 } else {
                     updateCells();
