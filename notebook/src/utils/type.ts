@@ -8,8 +8,6 @@ export type MemInfo = {
 
 export type ReplStateT = 'initial' | 'loading' | 'activated' | 'installing' | 'successfully installed' | 'failed to install'
 
-// export type CellStateT = 'user-writing' | 'compiling' | 'sending' | 'executing' | 'done'
-
 export enum CellStateT {
     UserWriting,
     Compiling,
@@ -30,13 +28,3 @@ export type CellT =
     {state: CellStateT.Sending, id: number, code: string, time: CellTimeT} | 
     {state: CellStateT.Executing, id: number, code: string, time: CellTimeT} | 
     {state: CellStateT.Done, id: number, code: string, time: CellTimeT} 
-
-
-// export type CellT = {
-//     id: number,
-//     code: string,
-//     state: CellStateT,
-//     compileError?: string,
-//     time?: CellTimeT
-// }
-
