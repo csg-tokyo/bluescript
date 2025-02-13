@@ -47,7 +47,7 @@ export const ReplContext = createContext<ReplContextT>({
 export default function ReplProvider({children}: {children: ReactNode}) {
     const [replState, setReplState] = useState<ReplStateT>('initial')
     const [useJIT, setUseJIT] = useState(true)
-    const [latestCell, setLatestCell] = useState<CellT>({id: 0, code:'', state: 'user-writing'})
+    const [latestCell, setLatestCell] = useState<CellT>({id:-1, code:'', state: 'user-writing'})
     const [postExecutionCells, setPostExecutionCells] = useState<CellT[]>([])
     const [output, setOutput] = useState<string[]>([])
     const [runtimeError, setRuntimeError] = useState<string[]>([])
@@ -83,7 +83,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             setPostExecutionCells([])
             setOutput([])
             setRuntimeError([])
-            setLatestCell({id: 0, code:'', state: 'user-writing'})
+            setLatestCell({id: -1, code:'', state: 'user-writing'})
             setReplState("activated")
             iram.actions.reset(meminfo.iram.address, meminfo.iram.size)
             dram.actions.reset(meminfo.dram.address, meminfo.dram.size)
@@ -122,8 +122,8 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     const executeLatestCell = async () => {
         setLatestCell({...latestCell, compileError: '', state: 'compiling'})
         try {
-            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.id, latestCell.code) : await network.compile(latestCell.id, latestCell.code)
-            setLatestCell({...latestCell, compileError: '', state: 'sending'})
+            const compileResult = useJIT ? await network.compileWithProfiling(latestCell.code) : await network.compile(latestCell.code)
+            setLatestCell({...latestCell, id: compileResult.result.entryPoints.id, compileError: '', state: 'sending'})
             const bluetoothTime = await sendCompileResult(compileResult)
             const compileTime = compileResult.compileTime
             setMemoryUpdates(compileResult)
@@ -188,7 +188,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         let src = "";
         postExecutionCells.forEach(cell => src += `${cell.code}\n`);
         try {
-            const compileResult = await network.compile(0, src);
+            const compileResult = await network.compile(src);
             const builderForDflash = new BytecodeBufferBuilder(dflash.state.size);
             const builder = new BytecodeBufferBuilder(MAX_MTU);
             compileResult.result.blocks.forEach(block => {

@@ -46,7 +46,7 @@ export default class Session {
     this.profiler = new Profiler();
   }
 
-  public compile(id: number, src: string) {
+  public compile(src: string) {
     const start = performance.now();
     this.reset();
 
@@ -60,12 +60,12 @@ export default class Session {
     // Compile
     const cString = cProlog + tResult.code;
     const compiler = new Compiler();
-    compiler.compile(this.shadowMemory, id, cString, entryPointName);
+    compiler.compile(this.shadowMemory, this.sessionId, cString, entryPointName);
     const end = performance.now();
     return  {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
 
-  public interactiveCompile(id: number, src: string) {
+  public interactiveCompile(src: string) {
     const start = performance.now();
     this.sessionId += 1;
 
@@ -77,12 +77,12 @@ export default class Session {
     // Compile
     const cString = cProlog + tResult.code;
     const compiler = new InteractiveCompiler();
-    compiler.compile(this.shadowMemory, id, cString, entryPointName);
+    compiler.compile(this.shadowMemory, this.sessionId, cString, entryPointName);
     const end = performance.now();
     return  {result: this.shadowMemory.getUpdates(), compileTime:end-start}
   }
 
-  public compileWithProfiling(id: number, src: string) {
+  public compileWithProfiling(src: string) {
     const start = performance.now();
     this.sessionId += 1;
 
@@ -94,9 +94,9 @@ export default class Session {
 
     // Compile
     const compiler = new InteractiveCompiler();
-    compiler.compile(this.shadowMemory, id, cString, entryPointName);
+    compiler.compile(this.shadowMemory, this.sessionId, cString, entryPointName);
     const end = performance.now();
-    return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+    return {result: this.shadowMemory.getUpdates(), compileTime:end-start, sessionId: this.sessionId}
   }
 
   public jitCompile(funcId: number, paramTypes: string[]) {
@@ -116,9 +116,9 @@ export default class Session {
 
     // Compile
     const compiler = new InteractiveCompiler();
-    compiler.compile(this.shadowMemory, -1, cString, entryPointName);
+    compiler.compile(this.shadowMemory, this.sessionId, cString, entryPointName);
     const end = performance.now();
-    return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+    return {result: this.shadowMemory.getUpdates(), compileTime:end-start, sessionId: this.sessionId}
   }
 
   private transpile(src: string) {
@@ -129,11 +129,10 @@ export default class Session {
       else {
         const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
         const moduleId = Session.moduleNameToId(fname);
-        this.sessionId += 1;
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
         this.modules.set(fname, result.names);
         const compiler = new ModuleCompiler();
-        compiler.compile(this.shadowMemory, -1, fname, result.main);
+        compiler.compile(this.shadowMemory, moduleId, fname, result.main);
         return result.names;
       }
     }
@@ -142,28 +141,12 @@ export default class Session {
   }
 
   private transpileForJIT(src: string) {
-    const importer = (fname: string) => {
-      const mod = this.modules.get(fname);
-      if (mod)
-        return mod;
-      else {
-        const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
-        const moduleId = Session.moduleNameToId(fname);
-        this.sessionId += 1;
-        const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
-        this.modules.set(fname, result.names);
-        const compiler = new ModuleCompiler();
-        compiler.compile(this.shadowMemory, -1, fname, result.main);
-        return result.names
-      }
-    }
-
     const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
       return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, src);
     }
 
     const typeChecker = (maker: NameTableMaker<NameInfo>) => {
-      return new JitTypeChecker(maker, importer);
+      return new JitTypeChecker(maker);
     }
 
     const ast = runBabelParser(src, 1);
@@ -178,7 +161,7 @@ export default class Session {
     const compiler = new InteractiveCompiler();
     compiler.compile(this.shadowMemory, -1, cSrc, 'bluescript_main6_')
     const end = performance.now();
-    return {result: this.shadowMemory.getUpdates(), compileTime:end-start}
+    return {result: this.shadowMemory.getUpdates(), compileTime:end-start, sessionId: -1}
   }
 
   static moduleNameToId(fname: string):number {

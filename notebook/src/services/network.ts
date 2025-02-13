@@ -11,19 +11,20 @@ export type MemoryUpdate = {
 
 export type CompileResult = {
     result: MemoryUpdate,
-    compileTime: number
+    compileTime: number,
+    sessionId: number
 }
 
-export async function compile(id: number, src: string): Promise<CompileResult> {
-  return post("compile", {id, src});
+export async function compile(src: string): Promise<CompileResult> {
+  return post("compile", {src});
 }
 
-export async function interactiveCompile(id:number, src: string): Promise<CompileResult> {
-  return post("interactive-compile", {id, src});
+export async function interactiveCompile(src: string): Promise<CompileResult> {
+  return post("interactive-compile", {src});
 }
 
-export async function compileWithProfiling(id: number, src: string): Promise<CompileResult> {
-  return post("compile-with-profiling", {id, src}); 
+export async function compileWithProfiling(src: string): Promise<CompileResult> {
+  return post("compile-with-profiling", {src}); 
 }
 
 export async function jitCompile(funcId: number, paramTypes: string[]): Promise<CompileResult> {
