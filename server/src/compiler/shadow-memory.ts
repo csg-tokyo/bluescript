@@ -17,6 +17,9 @@ type MemoryUpdate = {
   entryPoints: {id: number, address: number}[]
 }
 
+type compileIdT = number;
+type sectionIdT = number;
+
 export class ShadowMemory {
   public readonly iram: ReusableMemoryRegion;
   public readonly dram: MemoryRegion;
@@ -24,6 +27,7 @@ export class ShadowMemory {
   public readonly symbols:Map<string, Symbol> = new Map<string, Symbol>();
   public readonly componentsInfo = new ESPIDFComponentsInfo();
   private updates: MemoryUpdate = {blocks: [], entryPoints: []};
+  private freeableIramSection: Map<compileIdT, sectionIdT[]> = new Map();
 
   constructor(bsRuntimePath: string, addresses: MemoryAddresses) {
     const bsRuntime = new ElfReader(bsRuntimePath);
@@ -31,6 +35,27 @@ export class ShadowMemory {
     this.iram = new ReusableMemoryRegion('IRAM', addresses.iram.address, addresses.iram.size);
     this.dram = new MemoryRegion('DRAM', addresses.dram.address, addresses.dram.size);
     this.flash = new MemoryRegion('Flash', addresses.iflash.address, addresses.iflash.size);
+  }
+
+  freeIram(compileId: compileIdT) {
+    const freeableSection = this.freeableIramSection.get(compileId);
+    if (freeableSection === undefined)
+      return;
+    freeableSection.forEach(id => {
+      this.iram.free(id);
+    });
+    this.freeableIramSection.delete(compileId);
+  }
+
+  setFreeableIramSection(compileId: compileIdT, sectionName: string) {
+    const id = this.iram.sectionNameToId(sectionName);
+    if (id === undefined)
+      return;
+    const current = this.freeableIramSection.get(compileId);
+    if (current !== undefined)
+      current.push(id);
+    else
+      this.freeableIramSection.set(compileId, [id]);
   }
 
   loadToIram(section: Section[]) { this.load(section, 'iram') }
@@ -78,10 +103,12 @@ export class MemoryRegion {
 export class ReusableMemoryRegion {
   private name: string
   private memoryBlocks: MemoryBlock
+  private sectionId: sectionIdT
 
   constructor(name: string, address: number, size: number) {
     this.name = name
     this.memoryBlocks = new MemoryBlock(address, size)
+    this.sectionId = 0
   }
 
   public allocate(section: Section) {
@@ -94,6 +121,7 @@ export class ReusableMemoryRegion {
         current.separate(alignedSectionSize)
         current.isFree = false
         current.sectionName = section.name
+        current.sectionId = this.sectionId++
         break
       }
       current = current.next
@@ -103,10 +131,21 @@ export class ReusableMemoryRegion {
     return allocatedBlock
   }
 
-  public free(sectionName: string) {
+  public sectionNameToId(sectionName: string): sectionIdT | undefined {
     let current: undefined | MemoryBlock = this.memoryBlocks
     while(current !== undefined) {
       if (current.sectionName === sectionName) {
+        return current.sectionId
+      }
+      current = current.next
+    }
+    return undefined
+  }
+
+  public free(sectionId: sectionIdT) {
+    let current: undefined | MemoryBlock = this.memoryBlocks
+    while(current !== undefined) {
+      if (current.sectionId === sectionId) {
         current = current.free()
       }
       current = current.next
@@ -121,6 +160,7 @@ export class MemoryBlock {
     public size: number,
     public isFree = true,
     public sectionName?: string,
+    public sectionId?: number,
     public prev?: MemoryBlock,
     public next?: MemoryBlock) {}
 
