@@ -142,28 +142,12 @@ export default class Session {
   }
 
   private transpileForJIT(src: string) {
-    const importer = (fname: string) => {
-      const mod = this.modules.get(fname);
-      if (mod)
-        return mod;
-      else {
-        const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
-        const moduleId = Session.moduleNameToId(fname);
-        this.sessionId += 1;
-        const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
-        this.modules.set(fname, result.names);
-        const compiler = new ModuleCompiler();
-        compiler.compile(this.shadowMemory, -1, fname, result.main);
-        return result.names
-      }
-    }
-
     const codeGenerator = (initializerName: string, codeId: number, moduleId: string) => {
       return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, src);
     }
 
     const typeChecker = (maker: NameTableMaker<NameInfo>) => {
-      return new JitTypeChecker(maker, importer);
+      return new JitTypeChecker(maker);
     }
 
     const ast = runBabelParser(src, 1);
