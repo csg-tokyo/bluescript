@@ -2,7 +2,7 @@ import { execSync } from 'child_process'
 import { compileAndRun, multiCompileAndRun, importAndCompileAndRun, importAndMultiCompileAndRun, transpileAndWrite, toBoolean } from './test-code-generator'
 import { expect, test, beforeAll } from '@jest/globals'
 import { GlobalVariableNameTable } from '../../../src/transpiler/code-generator/variables'
-import { booleanLiteral } from '@babel/types'
+import { transpile } from '../../../src/transpiler/code-generator/code-generator'
 
 beforeAll(() => {
   execSync('mkdir -p ./temp-files')
@@ -184,6 +184,49 @@ print(bar(7).get())
   `
   imp.reset()
   expect(() => importAndCompileAndRun(src3, imp.importer(), imp.init(), imp.files(), imp.path)).toThrow(/Foo.*line 3/)
+})
+
+test('import Uint8Array.  Issue 36', () => {
+  const modules = [
+    { name: 'foo', source: `
+  export const aa = new Uint8Array(4, 7)
+  aa[0] = 13
+` }]
+
+  const src = `
+import { aa } from 'foo'
+
+print(aa[0])
+`
+  const imp = new Importer(modules)
+  expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('13\n')
+})
+
+test('import Uint8Array 2.  Issue 36', () => {
+  const moduleCode = `
+  export const a = new Uint8Array(3, 7)
+  a[0] = 13
+  `
+
+  let sessionId = 0
+  let moduleId = 0
+  const nameTable = transpile(++sessionId, '').names
+  const modules: Map<string, GlobalVariableNameTable> = new Map();
+
+  const importer = (fname: string) => {
+    const mod = modules.get(fname);
+    if (mod)
+      return mod;
+    else {
+      const ffi = moduleCode
+      const result = transpile(++sessionId, ffi, nameTable, importer, ++moduleId);
+      modules.set(fname, result.names);
+      return result.names;
+    }
+  }
+
+  const src = `import { a } from 'foo'`
+  const result = transpile(++sessionId, src, nameTable, importer, ++moduleId)
 })
 
 test('import an unexported function', () => {

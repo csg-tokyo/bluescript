@@ -34,16 +34,17 @@ import {classNameInC} from "../transpiler/code-generator/c-runtime";
 
 export function jitTranspile(codeId: number, ast: AST.Node,
                              typeChecker: (maker: NameTableMaker<NameInfo>) => JitTypeChecker<NameInfo>,
-                             codeGenerator: (initializerName: string, codeId: number, moduleId: number) => JitCodeGenerator,
+                             codeGenerator: (initializerName: string, codeId: number, moduleId: string) => JitCodeGenerator,
                              gvnt?: GlobalVariableNameTable,
-                             moduleId: number = -1,
+                             moduleId: number | string = -1,
                              startLine: number = 1, header: string = '') {
-  const maker = new VariableNameTableMaker(moduleId)
+  const moduleName = typeof moduleId === 'number' && moduleId < 0 ? '' : `${moduleId}`
+  const maker = new VariableNameTableMaker(moduleName)
   const nameTable = new GlobalVariableNameTable(gvnt)
   jitTypecheck(ast, maker, nameTable, typeChecker(maker))
   const nullEnv = new GlobalEnv(new GlobalVariableNameTable(), cr.globalRootSetName)
-  const mainFuncName = `${cr.mainFunctionName}${codeId}_${moduleId < 0 ? '' : moduleId}`
-  const generator = codeGenerator(mainFuncName, codeId, moduleId)
+  const mainFuncName = `${cr.mainFunctionName}${codeId}_${moduleName}`
+  const generator = codeGenerator(mainFuncName, codeId, moduleName)
   generator.visit(ast, nullEnv)   // nullEnv will not be used.
   if (generator.errorLog.hasError())
     throw generator.errorLog
@@ -108,7 +109,7 @@ export class JitCodeGenerator extends CodeGenerator{
   private bsSrc: string[];
 
 
-  constructor(initializerName: string, codeId: number, moduleId: number, profiler: Profiler, src: string) {
+  constructor(initializerName: string, codeId: number, moduleId: string, profiler: Profiler, src: string) {
     super(initializerName, codeId, moduleId);
     this.profiler = profiler;
     this.bsSrc = src.split('\n');

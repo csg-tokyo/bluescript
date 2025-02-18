@@ -221,30 +221,6 @@ export function transpileAndWrite(id: number, src: string, file: string, names?:
   return result
 }
 
-export function importAndMultiCompileAndRun(src: string, src2: string, importer: (name: string) => GlobalVariableNameTable,
-                                            initImporter: (names: GlobalVariableNameTable) => void,
-                                            importedFiles: () => { file: string, main: string }[],
-                                            destFile = './temp-files/bscript') {
-  const result1 = transpile(1, prolog)
-  const firstFile = destFile + '1.c'
-  fs.writeFileSync(firstFile, prologCcode + prologCcode2 + prologCode2c)
-  let globalNames = result1.names
-  initImporter(globalNames)
-  const result2 = runTranspiler(2, src, globalNames, importer)
-  const secondFile = destFile + '2.c'
-  fs.writeFileSync(secondFile, prologCcode + result2.code)
-  globalNames = result2.names
-  const result3 = runTranspiler(3, src2, globalNames, importer)
-  const thirdFile = destFile + '3.c'
-  const imported3 = importedFiles()
-  imported3.push({ file: secondFile, main: result2.main })
-  const protoMain3 = imported3.map(f => `extern void ${f.main}();\n`).join('')
-  fs.writeFileSync(thirdFile, prologCcode + protoMain3 + result3.code + makeEpilog(imported3, result3.main))
-  // throw an Error when compilation fails.
-  execSync(`cc -g -DTEST64 -O2 ${firstFile} ${imported3.map(f => f.file).join(' ')} ${thirdFile} ../microcontroller/core/src/c-runtime.c -o ${destFile}`)
-  return execSync(destFile).toString()   // returns the printed text
-}
-
 function runTranspiler(id: number, src: string, names?: GlobalVariableNameTable,
                        importer?: (name: string) => GlobalVariableNameTable, moduleId: number = -1) {
   try {

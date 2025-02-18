@@ -158,7 +158,7 @@ export default class Session {
       }
     }
 
-    const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
+    const codeGenerator = (initializerName: string, codeId: number, moduleId: string) => {
       return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, src);
     }
 
