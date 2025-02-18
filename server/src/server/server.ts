@@ -49,7 +49,7 @@ export default class HttpServer {
   }
 
   private async pathHandler(request: http.IncomingMessage): Promise<[string, number]> {
-    let responseBody: object;
+    let responseBody: object = {}
     let statusCode: number;
 
     if (request.method === "OPTIONS") { // for preflight
@@ -60,52 +60,37 @@ export default class HttpServer {
     try {
       requestBody = await this.getRequestBody(request);
       switch (request.url) {
+        case "/reset":
+          this.session = new Session(JSON.parse(requestBody));
+          statusCode = 200;
+          break;
+        case "/compile":
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
+            break;
+          }
+          responseBody = this.session.compile(JSON.parse(requestBody).src);
+          statusCode = 200;
+          break;
         case "/interactive-compile":
           if (this.session === undefined) {
             statusCode = 400;
             responseBody = {error: "Session have not started."}
             break;
           }
-          const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.interactiveCompile(requestBodyJson.id, requestBodyJson.src);
+          responseBody = this.session.interactiveCompile(JSON.parse(requestBody).src);
           statusCode = 200;
           break;
-        case "/compile": {
+        case "/interactive-compile-with-profiling":
           if (this.session === undefined) {
             statusCode = 400;
             responseBody = {error: "Session have not started."}
             break;
           }
-          const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.compile(requestBodyJson.id, requestBodyJson.src);
+          responseBody = this.session.InteractiveCompileWithProfiling(JSON.parse(requestBody).src);
           statusCode = 200;
           break;
-        }
-        case "/reset":
-          this.session = new Session(JSON.parse(requestBody));
-          responseBody = {};
-          statusCode = 200;
-          break;
-        case "/dummy-compile":
-          if (this.session === undefined) {
-            statusCode = 400;
-            responseBody = {error: "Session have not started."}
-            break;
-          }
-          responseBody = this.session.dummyExecute();
-          statusCode = 200;
-          break;
-        case "/compile-with-profiling": {
-          if (this.session === undefined) {
-            statusCode = 400;
-            responseBody = {error: "Session have not started."}
-            break;
-          }
-          const requestBodyJson = JSON.parse(requestBody)
-          responseBody = this.session.compileWithProfiling(requestBodyJson.id, requestBodyJson.src);
-          statusCode = 200;
-          break;
-        }
         case "/jit-compile": {
           if (this.session === undefined) {
             statusCode = 400;
@@ -117,6 +102,25 @@ export default class HttpServer {
           statusCode = 200;
           break;
         }
+        case "/code-execution-finished": {
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
+            break;
+          }
+          this.session.codeExecutionFinished(JSON.parse(requestBody).compileId);
+          statusCode = 200;
+          break;
+        }
+        case "/dummy-compile":
+          if (this.session === undefined) {
+            statusCode = 400;
+            responseBody = {error: "Session have not started."}
+            break;
+          }
+          responseBody = this.session.dummyExecute();
+          statusCode = 200;
+          break;
         case "/check":
           const cmd_result = execSync("ls ../microcontroller/ports/esp32/build/").toString();
           responseBody = {cmd_result};
