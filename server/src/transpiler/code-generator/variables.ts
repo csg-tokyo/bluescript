@@ -172,11 +172,9 @@ class GlobalVariableInfo extends VariableInfo {
 export class VariableNameTableMaker implements NameTableMaker<VariableInfo> {
   private moduleId: string
 
-  constructor(moduleId: number) {
-    if (moduleId >= 0)
-      this.moduleId = `${moduleId}`
-    else
-      this.moduleId = ''
+  // moduleId is '' unless this maker is used for a module.
+  constructor(moduleId: string) {
+    this.moduleId = moduleId
   }
 
   block(parent: NameTable<VariableInfo>) { return new BlockNameTable<VariableInfo>(parent) }

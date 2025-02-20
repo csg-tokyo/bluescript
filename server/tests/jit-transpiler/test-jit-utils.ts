@@ -82,7 +82,7 @@ export function initialCompile(destFile: string) {
 }
 
 export function compile(id: number, src: string, profiler: Profiler, destFile: string, globalNames?: GlobalVariableNameTable) {
-  const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
+  const codeGenerator = (initializerName: string, codeId: number, moduleId: string) => {
     return new JitCodeGenerator(initializerName, codeId, moduleId, profiler, src);
   }
   const typeChecker = (maker: NameTableMaker<NameInfo>) => {

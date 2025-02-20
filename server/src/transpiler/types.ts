@@ -111,7 +111,11 @@ export class ArrayType extends ObjectType {
   }
 
   name() {
-    return `${typeToString(this.elementType)}[]`
+    const etype = typeToString(this.elementType)
+    if (this.elementType instanceof FunctionType || this.elementType instanceof UnionType)
+      return `(${etype})[]`
+    else
+      return `${etype}[]`
   }
 
   isSubtypeOf(t: StaticType): boolean {

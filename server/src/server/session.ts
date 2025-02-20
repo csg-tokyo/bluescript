@@ -156,11 +156,11 @@ export default class Session {
         this.modules.set(fname, result.names);
         const compiler = new ModuleCompiler();
         compiler.compile(this.shadowMemory, -1, fname, result.main);
-        return result.names
+        return result.names;
       }
     }
 
-    const codeGenerator = (initializerName: string, codeId: number, moduleId: number) => {
+    const codeGenerator = (initializerName: string, codeId: number, moduleId: string) => {
       return new JitCodeGenerator(initializerName, codeId, moduleId, this.profiler, src);
     }
 
