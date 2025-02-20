@@ -12,10 +12,6 @@ export default class Bluetooth {
   private isInProgress: boolean = false;
 
   public async sendBuffers(buffs: Buffer[]) {
-    let size = 0;
-    buffs.forEach(buff => size += buff.length);
-    console.log("Buffers size: ", size);
-
     if (this.isInProgress) {
       this.waitingBuffers.push(buffs);
       return;

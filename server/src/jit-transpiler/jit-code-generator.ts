@@ -33,11 +33,11 @@ import {classNameInC} from "../transpiler/code-generator/c-runtime";
 
 
 export function jitTranspile(codeId: number, ast: AST.Node,
-                            typeChecker: (maker: NameTableMaker<NameInfo>) => JitTypeChecker<NameInfo>,
-                            codeGenerator: (initializerName: string, codeId: number, moduleId: number) => JitCodeGenerator,
-                            gvnt?: GlobalVariableNameTable,
-                            moduleId: number = -1,
-                            startLine: number = 1, header: string = '') {
+                             typeChecker: (maker: NameTableMaker<NameInfo>) => JitTypeChecker<NameInfo>,
+                             codeGenerator: (initializerName: string, codeId: number, moduleId: number) => JitCodeGenerator,
+                             gvnt?: GlobalVariableNameTable,
+                             moduleId: number = -1,
+                             startLine: number = 1, header: string = '') {
   const maker = new VariableNameTableMaker(moduleId)
   const nameTable = new GlobalVariableNameTable(gvnt)
   jitTypecheck(ast, maker, nameTable, typeChecker(maker))
