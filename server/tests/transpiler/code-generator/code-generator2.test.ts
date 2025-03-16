@@ -1259,3 +1259,138 @@ test('Vector class', () => {
 
   expect(compileAndRun(src, destFile)).toBe('3\n13\n3\n73\nundefined\n13\n')
 })
+
+test('string methods', () => {
+  const src = `
+  class Foo {
+  }
+
+  function foo() {
+    const s = 'foo'
+    const t = 'bar'
+    const u = 'foobar'
+    const w = s + t
+    print(w)
+    print(w.length)
+    print(w == u)
+    print(w != u)
+    print(w < u)
+    print(w <= s + 'bar')
+    print(w.startsWith('foo'))
+    print(w.endsWith(t))
+    print(w.substring(1, 3))
+    print(u.substring(1, 3))
+  }
+  foo()`
+
+  expect(compileAndRun(src, destFile)).toBe('foobar\n6\ntrue\nfalse\nfalse\ntrue\ntrue\ntrue\noo\noo\n')
+
+  const src2 = `
+  function bar() {
+    const s = 'foo'
+    const t = 'bar'
+    const u = 'foobar'
+    const w: any = s + t    // w is any
+    print(w)
+    print(w.length)
+    print(w == u)
+    print(w != u)
+    print(w < u)
+    print(w <= s + 'bar')
+    print(w.startsWith('foo'))
+    print(w.endsWith(t))
+    print(w.substring(1, 3))
+    print(u.substring(1, 3))
+  }
+  bar()`
+
+  expect(compileAndRun(src2, destFile)).toBe('foobar\n6\ntrue\nfalse\nfalse\ntrue\ntrue\ntrue\noo\noo\n')
+
+  const src3 = `
+  function baz() {
+    const s = 'foo'
+    const t = s + 123
+    const t2 = 123 + s
+    const u = s + 1.2
+    const v = false + s
+    const w = s + undefined
+    const x = s + [1, 2, 3]
+
+    print(t)
+    print(t2)
+    print(u)
+    print(v)
+    print(w)
+    print(x)
+
+    const y: any = s      // y is any
+    const z = 123 + y
+    const z2 = y + t
+    print(z)
+    print(z2)
+  }
+  baz()`
+
+  expect(compileAndRun(src3, destFile)).toBe('foo123\n123foo\nfoo1.2\nfalsefoo\nfooundefined\nfoo<class integer[]>\n123foo\nfoofoo123\n')
+})
+
+test('string +=', () => {
+  const src = `
+  class Foo {
+    v1: string
+    v2: any
+    constructor() {
+      this.v1 = 'cat'
+      this.v2 = 'dog'
+    }
+  }
+
+  function baz() {
+    let s = 'foo'
+    let t = 'bar'
+    s += t
+    s += 57
+    print(s)
+    t += 123
+    print(t)
+
+    let u: any = 'baz'
+    u += 'qux'
+    u += 57
+    u += .3
+    u += true
+    print(u)
+
+    const obj = new Foo()
+    obj.v1 += '#'
+    obj.v1 += 6
+    obj.v2 += '!'
+    obj.v2 += 7
+    print(obj.v1)
+    print(obj.v2)
+
+    const arr = new Array<string>(3, 'foo')
+    arr[0] += 'bar'
+    arr[1] += 123
+    print(arr[0])
+    print(arr[1])
+
+    const arr2 = new Array(4, 'baz')
+    arr2[0] += 'bar'
+    arr2[1] += 123
+    print(arr2[0])
+    print(arr2[1])
+
+    const arr3: any = arr2
+    arr3[2] += 'xyz'
+    arr3[3] += 123
+    print(arr3[2])
+    print(arr3[3])
+  }
+  baz()
+  `
+
+  expect(compileAndRun(src, destFile)).toBe(['foobar57', 'bar123', 'bazqux570.3true', 'cat#6', 'dog!7',
+                                             'foobar', 'foo123', 'bazbar', 'baz123',
+                                             'bazxyz', 'baz123'].join('\n') + '\n')
+})

@@ -25,7 +25,7 @@ static void print_value(value_t m) {
   else if (m == VALUE_FALSE)
     printf("false");
   else if (gc_is_string_object(m))
-    printf("'%s'", gc_string_literal_cstr(m));
+    printf("'%s'", gc_string_to_cstr(m));
   else {
     class_object* cls = gc_get_class_of(m);
     if (cls == NULL)

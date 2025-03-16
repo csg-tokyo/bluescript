@@ -4,8 +4,7 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
-         StringT,  UnionType,
-         VectorClass} from '../types'
+         StringT,  UnionType, VectorClass, StringType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import { typecheck } from '../type-checker'
@@ -954,7 +953,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private basicBinaryExpression(op: string, node: AST.BinaryExpression, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if (left_type === Any || right_type === Any || left_type === StringT) {
+    if (left_type === Any || right_type === Any || left_type === StringT || right_type === StringT) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(${cr.typeConversion(left_type, Any, env, left)}`)
       this.visit(left, env)
       this.result.write(`), ${cr.typeConversion(right_type, Any, env, right)}`)
@@ -1160,15 +1159,18 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     this.accumulateExpr(node, leftType, rightType, env, () => this.visit(left, env))
   }
 
+  // if node is a member expression, the type of l-value is a primitive type.
+  // otherwise, the type of l-value may be StringT, but the l-value is a variable.
+  // So this method does not insert a write barrier.
   private accumulateExpr(node: AST.AssignmentExpression, leftType: StaticType | undefined,
                          rightType: StaticType | undefined, env: VariableEnv,
                          writeLval: () => void) {
     const op = node.operator
-    if (leftType === Any) {
+    if (leftType === Any || leftType === StringT) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(&(`)
       writeLval()
       this.result.write(`), `)
-      this.assignmentRight(leftType, node.right, rightType, env)
+      this.assignmentRight(Any, node.right, rightType, env)
       this.result.write(')')
     }
     else {
@@ -1185,7 +1187,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     let nvars = 0     // number of variables
     if (leftNode.computed) {
       // an array access like a[b]
-      this.result.write(`${cr.accumulateInUnknownArray}(`)
+      this.result.write(`${cr.accumulateInUnknownArray}(`)  // this calls gc_write_barrier()
       this.visit(leftNode.object, env)
       this.result.write(', ')
       nvars = this.callExpressionArg(leftNode.property, Integer, env)
@@ -1197,15 +1199,23 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const objType = getStaticType(leftNode.object)
       if (objType instanceof InstanceType) {
         const typeAndIndex = this.getPropertyIndex(objType, propertyName, leftNode)
-
         // the resulting type of assignment is always ANY
-        this.result.write(`${cr.arithmeticOpForAny(op)}(`)
-        this.result.write(`${cr.getObjectPropertyAddress}(`)
-        this.visit(leftNode.object, env)
-        this.result.write(`, ${typeAndIndex[1]})`)
-        if (rightNode === undefined) {
-          this.result.write(')')
-          return
+        if (op === '+=' && (typeAndIndex[0] === StringT || typeAndIndex[0] === Any)) {
+          // call gc_write_barrier()
+          this.result.write(`${cr.anyAddMember}(`)
+          this.visit(leftNode.object, env)
+          this.result.write(`, ${typeAndIndex[1]}`)
+        }
+        else {
+          // not call gc_write_barrier()
+          this.result.write(`${cr.arithmeticOpForAny(op)}(`)
+          this.result.write(`${cr.getObjectPropertyAddress}(`)
+          this.visit(leftNode.object, env)
+          this.result.write(`, ${typeAndIndex[1]})`)
+          if (rightNode === undefined) {
+            this.result.write(')')
+            return
+          }
         }
       }
       else if (objType === Any || objType === undefined) {
@@ -1280,7 +1290,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         if (method[1]) {
           // a method call on super
           const [funcType, index, clazz] = method[0]
-          const funcName = cr.methodBodyNameInC(clazz.name(), index)
+          const funcName = cr.methodBodyNameInC(clazz ? clazz.name() : '', index)
           this.externalMethods.set(funcName, funcType)
           this.result.write(`, ${funcName}(${func}`)
         }
@@ -1437,12 +1447,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const objType = getStaticType(node.object)
       const propertyName = (node.property as AST.Identifier).name
       if (objType instanceof InstanceType) {
-        if (propertyName === ArrayType.lengthMethod && objType.name() === ByteArrayClass) {
+        if (propertyName === ArrayType.lengthProperty && objType.name() === ByteArrayClass) {
           this.result.write(cr.getObjectPrimitiveProperty(Integer))
           this.visit(node.object, env)
           this.result.write(`, ${cr.getArrayLengthIndex(BooleanT)})`)
         }
-        else if (propertyName === ArrayType.lengthMethod && objType.name() === VectorClass) {
+        else if (propertyName === ArrayType.lengthProperty && objType.name() === VectorClass) {
           this.result.write(cr.getObjectPrimitiveProperty(Integer))
           this.visit(node.object, env)
           this.result.write(`, ${cr.getArrayLengthIndex(Any)})`)
@@ -1462,10 +1472,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           }
         }
       }
-      else if (objType instanceof ArrayType && propertyName === ArrayType.lengthMethod) {
+      else if (objType instanceof ArrayType && propertyName === ArrayType.lengthProperty) {
         this.result.write(cr.getObjectPrimitiveProperty(Integer))
         this.visit(node.object, env)
         this.result.write(`, ${cr.getArrayLengthIndex(objType.elementType)})`)
+      }
+      else if (objType === StringT && propertyName === StringType.lengthProperty) {
+        this.result.write(`${cr.getArrayOrStringLength}(`)
+        this.visit(node.object, env)
+        this.result.write(')')
       }
       else if (objType === Any) {
         const propertyCode = this.getPropertyCode(propertyName, node, env)
@@ -1478,8 +1493,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     }
   }
 
-  // This returns [[method_type, method_table_index, declaring_class], is_call_on_super?], method_name, or undefined.
-  visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv): [[StaticType, number, InstanceType], boolean] | string | undefined {
+  // This returns method_info, method_name, or undefined.
+  visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv):
+        [ method: [method_type: StaticType, method_table_index: number, declaring_class?: InstanceType],
+          is_call_on_super_or_not: boolean] | string | undefined {
     if (node.computed)
       return undefined
 
@@ -1493,6 +1510,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       if (mth) {
         this.visit(node.object, env)
         return [mth, AST.isSuper(node.object)]
+      }
+    }
+    else if (receiverType === StringT) {
+      const mth = StringType.findMethod(propertyName)
+      if (mth) {
+        this.visit(node.object, env)
+        return [mth, false]
       }
     }
     else if (receiverType === Any) {

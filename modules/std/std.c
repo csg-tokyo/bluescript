@@ -20,7 +20,7 @@ void fbody_print(value_t self, value_t _value) {
   else if (_value == VALUE_FALSE)
     sprintf(message, "false\n");
   else if (gc_is_string_object(_value))
-    snprintf(message, sizeof(message), "%s\n", gc_string_literal_cstr(_value));
+    snprintf(message, sizeof(message), "%s\n", gc_string_to_cstr(_value));
   else {
     class_object* cls = gc_get_class_of(_value);
     if (cls == NULL)

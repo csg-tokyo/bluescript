@@ -12,12 +12,6 @@ test('simple code', () => {
   expect(compileAndRun(src)).toEqual('2\n')
 })
 
-test('string concatenation is not available', () => {
-  const src = 'print("foo" + 1)'    // + is available only for numbers
-
-  expect(() => { compileAndRun(src) }).toThrow(/invalid operands to +/)
-})
-
 test('boolean conditions', () => {
   const src = `
     function foo(n: integer) {
@@ -346,7 +340,7 @@ test('runtime type checking', () => {
   expect(compileAndRun(src)).toEqual('4\n')
 
   const src2 = `function foo(n: any) { return n + 1 }   // runtime type error
-  print(foo('foo'))
+  print(foo(true))
   `
   expect(() => { compileAndRun(src2) }).toThrow(/runtime type error: bad operand for +/)
 
@@ -2324,7 +2318,8 @@ test('accumulation in properties of any-type objects', () => {
 
   const src3 = `
   const obj: any = new Bar()
-  obj.s += 100
+  obj.j = ['foo', 'bar']
+  obj.j += 100
   `
 
   expect(() => { compileAndRun(src + src3)}).toThrow(/bad operand for \+/)
