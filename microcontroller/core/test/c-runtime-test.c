@@ -3,6 +3,7 @@
 // cc -DTEST64 c-runtime-test.c -lm
 
 #include <string.h>
+#include <math.h>
 #include "../src/c-runtime.c"
 
 #define Assert_true(v)     assert_true(v, __LINE__)
@@ -153,6 +154,57 @@ void test_string() {
     Assert_true(!is_int_value(v));
     Assert_true(!is_float_value(v));
     Assert_true(is_ptr_value(v));
+}
+
+static void check_string_length(value_t obj) {
+    char buf[128];
+    gc_any_to_cstring(buf, obj);
+    Assert_equals(gc_string_length(obj), strlen(buf));
+}
+
+void test_String() {
+    char buf[128];
+    value_t s1 = gc_new_string("hello");
+    value_t s2 = gc_new_string("world");
+    value_t s = gc_new_String(s1, s2);
+    Assert_pequals(gc_get_class_of(s1), &string_literal);
+    Assert_pequals(gc_get_class_of(s), &class_String);
+    Assert_true(gc_is_string_object(s));
+    Assert_true(gc_is_string_instance(s));
+    Assert_true(!gc_is_string_literal(s));
+    Assert_true(!is_int_value(s));
+    Assert_true(!is_float_value(s));
+    Assert_true(is_ptr_value(s));
+    Assert_str_equals(gc_string_instance_cstr(s), "helloworld");
+
+    check_string_length(float_to_value(1.000000));
+    check_string_length(float_to_value(1.000002));
+    check_string_length(float_to_value(1.0000009));
+
+    check_string_length(int_to_value(123));
+    check_string_length(int_to_value(-123));
+    check_string_length(int_to_value(0));
+
+    check_string_length(float_to_value(0.0));
+    check_string_length(float_to_value(-0.0));
+    check_string_length(float_to_value((float)NAN));
+    check_string_length(float_to_value(-0.1));
+    check_string_length(float_to_value(0.123));
+    check_string_length(float_to_value(-0.123));
+    check_string_length(float_to_value(456.123));
+    check_string_length(float_to_value(-456.123));
+    check_string_length(float_to_value(0.123));
+    check_string_length(float_to_value(1.2 - 1));
+
+    check_string_length(VALUE_TRUE);
+    check_string_length(VALUE_FALSE);
+    check_string_length(VALUE_UNDEF);
+    check_string_length(VALUE_NULL);
+
+    check_string_length(s1);
+    check_string_length(s);
+
+    check_string_length(gc_new_vector(3, VALUE_NULL));
 }
 
 static value_t gc_bytearray_set(value_t obj, value_t index, value_t new_value) {
@@ -499,6 +551,7 @@ void test_gc_write_barrier() {
 void test_main() {
     test_converters();
     test_string();
+    test_String();
     test_bytearray();
     test_array();
     test_allocate_heap();

@@ -34,7 +34,7 @@ static void fbody_print(value_t self, value_t m) {
   else if (m == VALUE_FALSE)
     puts("false");
   else if (gc_is_string_object(m))
-    puts(gc_string_literal_cstr(m));
+    puts(gc_string_to_cstr(m));
   else {
     class_object* cls = gc_get_class_of(m);
     if (cls == NULL)

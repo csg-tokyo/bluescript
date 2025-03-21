@@ -259,7 +259,7 @@ value_t safe_value_to_value(bool nullable, const class_object* const clazz, valu
     return v;
 }
 
-#define ANY_OP_FUNC(name, op) \
+#define ANY_OP_FUNC(name, op, rest) \
 value_t any_##name(value_t a, value_t b) {\
     if (is_int_value(a)) {\
         if (is_int_value(b))\
@@ -273,13 +273,15 @@ value_t any_##name(value_t a, value_t b) {\
         else if (is_float_value(b))\
             return float_to_value(value_to_float(a) op value_to_float(b));\
     }\
+    rest\
     return runtime_type_error("bad operand for " #op);\
 }
 
-ANY_OP_FUNC(add,+)
-ANY_OP_FUNC(subtract,-)
-ANY_OP_FUNC(multiply,*)
-ANY_OP_FUNC(divide,/)
+ANY_OP_FUNC(add,+,if (gc_is_string_object(a) || gc_is_string_object(b)) {\
+    return gc_new_String(a, b); })
+ANY_OP_FUNC(subtract,-,)
+ANY_OP_FUNC(multiply,*,)
+ANY_OP_FUNC(divide,/,)
 
 value_t any_modulo(value_t a, value_t b) {
     if (is_int_value(a))
@@ -322,7 +324,7 @@ double double_power(double a, double b) { return pow(a, b); }
 bool any_eq(value_t a, value_t b) {
     if (gc_is_string_object(a))
         return gc_is_string_object(b)
-            && strcmp(gc_string_literal_cstr(a), gc_string_literal_cstr(b)) == 0;
+            && strcmp(gc_string_to_cstr(a), gc_string_to_cstr(b)) == 0;
     else
         return a == b;
 }
@@ -342,7 +344,7 @@ bool any_##name(value_t a, value_t b) {\
             return value_to_float(a) op value_to_float(b);\
     }\
     else if (gc_is_string_object(a) && gc_is_string_object(b))\
-        return strcmp(gc_string_literal_cstr(a), gc_string_literal_cstr(b)) op 0;\
+        return strcmp(gc_string_to_cstr(a), gc_string_to_cstr(b)) op 0;\
     return runtime_type_error("bad operand for " #op);\
 }
 
@@ -351,7 +353,7 @@ ANY_CMP_FUNC(less_eq,<=)
 ANY_CMP_FUNC(greater,>)
 ANY_CMP_FUNC(greater_eq,>=)
 
-#define ANY_ASSIGN_OP_FUNC(name, op) \
+#define ANY_ASSIGN_OP_FUNC(name, op, rest) \
 value_t any_##name##_assign(value_t* a, value_t b) {\
     if (is_int_value(*a)) {\
         if (is_int_value(b))\
@@ -365,13 +367,25 @@ value_t any_##name##_assign(value_t* a, value_t b) {\
         else if (is_float_value(b))\
             return *a = float_to_value(value_to_float(*a) op value_to_float(b));\
     }\
+    rest\
     return runtime_type_error("bad operand for " #op);\
 }
 
-ANY_ASSIGN_OP_FUNC(add,+)
-ANY_ASSIGN_OP_FUNC(subtract,-)
-ANY_ASSIGN_OP_FUNC(multiply,*)
-ANY_ASSIGN_OP_FUNC(divide,/)
+ANY_ASSIGN_OP_FUNC(add,+,else if (gc_is_string_object(*a)) {\
+    return *a = gc_new_String(*a, b); })
+ANY_ASSIGN_OP_FUNC(subtract,-,)
+ANY_ASSIGN_OP_FUNC(multiply,*,)
+ANY_ASSIGN_OP_FUNC(divide,/,)
+
+value_t any_add_member(value_t obj, int index, value_t v) {
+    value_t* ptr = &value_to_ptr(obj)->body[index];
+    if (gc_is_string_object(*ptr)) {
+        value_t s = gc_new_String(*ptr, v);
+        return set_obj_property(obj, index, s);
+    }
+    else
+        return any_add_assign(ptr, v);
+}
 
 value_t any_modulo_assign(value_t* a, value_t b) {
     if (is_int_value(*a))
@@ -576,6 +590,7 @@ value_t set_anyobj_property(value_t obj, int property, value_t new_value) {
 }
 
 // accumulate a value in a property of an any-type object
+// this runs gc_write_barrier().
 value_t acc_anyobj_property(value_t obj, char op, int property, value_t value) {
     class_object* clazz = gc_get_class_of(obj);
     char type;
@@ -710,12 +725,63 @@ value_t gc_new_float_box(float value) {
     return obj;
 }
 
+// string object
+
+static int32_t string_starts_with(value_t self, value_t prefix) {
+    const char* str = gc_string_to_cstr(self);
+    const char* pre = gc_string_to_cstr(prefix);
+    return strncmp(str, pre, strlen(pre)) == 0;
+}
+
+static int32_t string_ends_with(value_t self, value_t suffix) {
+    const char* str = gc_string_to_cstr(self);
+    const char* suf = gc_string_to_cstr(suffix);
+    int32_t len = strlen(str);
+    int32_t len2 = strlen(suf);
+    if (len2 > len)
+        return false;
+
+    return strncmp(str + len - len2, suf, len2) == 0;
+}
+
+static pointer_t make_string_object(int32_t len);
+
+static value_t string_substring(value_t self, int32_t start, int32_t end) {
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = self;
+    const char* str = gc_string_to_cstr(self);
+    int32_t len = strlen(str);
+    if (start < 0)
+        start = 0;
+    if (end < 0)
+        end = len;
+
+    pointer_t obj = make_string_object(end - start);
+    char* buf = (char*)&obj->body[1];
+    for (int i = start; i < end; i++)
+        *buf++ = str[i];
+
+    *buf = '\0';
+    DELETE_ROOT_SET(rootset)
+    return ptr_to_value(obj);
+}
+
 // string_literal is a class for objects that contain a pointer to a C string.
 // This C string is not allocated in the heap memory managed by the garbage collector.
 
-static CLASS_OBJECT(string_literal, 0) = {
-    .clazz = { .size = 1, .start_index = SIZE_NO_POINTER, .name = "string",
-               .superclass = NULL, .array_type_name = NULL, .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
+static CLASS_OBJECT(string_literal, 3) = {
+    .body = { .s = 1, .i = SIZE_NO_POINTER, .cn = "string", .sc = NULL, .an = NULL, .pt = DEFAULT_PTABLE,
+              .mt = { .size = 3,
+                      .names = (const uint16_t[]){ /* startsWith */ 1, /* endsWith */ 2, /* substring */ 3, },
+                      .signatures = (const char* const[]){ "(s)b", "(s)b", "(ii)s" } },
+              .vtbl = { string_starts_with, string_ends_with, string_substring } }};
+
+static CLASS_OBJECT(class_String, 3) = {
+    .body = { .s = -1, .i = SIZE_NO_POINTER, .cn = "String", .sc = &object_class.clazz, .an = NULL, .pt = DEFAULT_PTABLE,
+              .mt = { .size = 3,
+                      .names = (const uint16_t[]){ /* startsWith */ 1, /* endsWith */ 2, /* substring */ 3, },
+                      .signatures = (const char* const[]){ "(s)b", "(s)b", "(ii)s" } },
+              .vtbl = { string_starts_with, string_ends_with, string_substring } }};
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
@@ -734,13 +800,216 @@ static bool gc_is_string_literal(value_t obj) {
 
 // returns a pointer to a char array in the C language.
 // this function is only used in test-code-generator.ts.
-const char* gc_string_literal_cstr(value_t obj) {
+static const char* gc_string_literal_cstr(value_t obj) {
     pointer_t str = value_to_ptr(obj);
     return (const char*)raw_value_to_ptr(str->body[0]);
 }
 
+// true if this is a String object.
+static bool gc_is_string_instance(value_t obj) {
+    return gc_get_class_of(obj) == &class_String.clazz;
+}
+
+// returns a pointer to a char array in the C language.
+// this function is only used in test-code-generator.ts.
+static const char* gc_string_instance_cstr(value_t obj) {
+    pointer_t str = value_to_ptr(obj);
+    return (const char*)&str->body[1];
+}
+
 bool gc_is_string_object(value_t obj) {
-    return gc_is_string_literal(obj);
+    return gc_is_string_literal(obj) || gc_is_string_instance(obj);
+}
+
+const char* gc_string_to_cstr(value_t obj) {
+    if (gc_is_string_literal(obj))
+        return gc_string_literal_cstr(obj);
+    else if (gc_is_string_instance(obj))
+        return gc_string_instance_cstr(obj);
+    else
+        return NULL;
+}
+
+static int32_t string_length_for_int(int32_t n) {
+    if (n == 0)
+        return 1;
+    else if (n < 0)
+        return 1 + string_length_for_int(-n);
+    else {
+        int32_t len = 0;
+        while (n > 0) {
+            len++;
+            n /= 10;
+        }
+        return len;
+    }
+}
+
+static char* int_to_str(char* p, int32_t n) {
+    if (n == 0) {
+        *p++ = '0';
+        *p = '\0';
+        return p;
+    }
+
+    if (n < 0) {
+        *p++ = '-';
+        n = -n;
+    }
+
+    int32_t len = string_length_for_int(n);
+    p += len;
+    char* q = p;
+    *q-- = '\0';
+    while (n > 0) {
+        *q-- = '0' + n % 10;
+        n /= 10;
+    }
+
+    return p;
+}
+
+static int32_t string_length_for_float(float f) {
+    if (isnan(f) || f == 0.0)
+        return 3;   // nan or 0.0
+    else if (f < 0.0)
+        return 1 + string_length_for_float(-f);
+    else {
+        int32_t n = (int32_t)f;
+        int32_t len = string_length_for_int(n) + 1;
+        int32_t digits = 0;
+        f -= n;
+        float limit = 0.000001;
+        if (f < limit)
+            digits = 1;
+        else
+            while (f >= limit && digits < 6) {
+                f *= 10;
+                f -= (int32_t)f;
+                digits++;
+                limit *= 10.0;
+            }
+
+        return len + digits;
+    }
+}
+
+static char* float_to_str(char* p, float f) {
+    if (isnan(f)) {
+        *p++ = 'n';
+        *p++ = 'a';
+        *p++ = 'n';
+        *p = '\0';
+        return p;
+    }
+
+    if (f == 0.0) {
+        *p++ = '0';
+        *p++ = '.';
+        *p++ = '0';
+        *p = '\0';
+        return p;
+    }
+
+    if (f < 0.0) {
+        *p++ = '-';
+        f = -f;
+    }
+
+    int32_t n = (int32_t)f;
+    p = int_to_str(p, n);
+    *p++ = '.';
+    f -= n;
+    float limit = 0.000001;
+    if (f < limit)
+        *p++ = '0';
+    else {
+        int32_t digits = 0;
+        while (f >= limit && digits < 6) {
+            f *= 10;
+            n = (int32_t)f;
+            *p++ = '0' + n;
+            f -= n;
+            limit *= 10.0;
+            digits++;
+        }
+    }
+
+    *p = '\0';
+    return p;
+}
+
+int32_t gc_string_length(value_t obj) {
+    if (gc_is_string_literal(obj))
+        return strlen(gc_string_literal_cstr(obj));
+    else if (gc_is_string_instance(obj))
+        return strlen(gc_string_instance_cstr(obj));
+    else if (is_int_value(obj))
+        return string_length_for_int(value_to_int(obj));
+    else if (is_float_value(obj))
+        return string_length_for_float(value_to_float(obj));
+    else if (is_bool_value(obj))
+        return value_to_bool(obj) ? 4 : 5; // true or false
+    else if (obj == VALUE_UNDEF)    // undefined or null
+        return 9; // undefined
+    else {
+        class_object* cls = gc_get_class_of(obj);
+        if (cls == NULL)
+            return 2;                     // ??
+        else
+            return strlen(cls->name) + 8; // <class class_name>
+    }
+}
+
+// converts a value to a C string, returns a pointer to the end of the string.
+// p: a pointer to a buffer.
+// obj: a value to be converted.
+char* gc_any_to_cstring(char* p, value_t obj) {
+    if (gc_is_string_literal(obj))
+        return stpcpy(p, gc_string_literal_cstr(obj));
+    else if (gc_is_string_instance(obj))
+        return stpcpy(p, gc_string_instance_cstr(obj));
+    else if (is_int_value(obj))
+        return int_to_str(p, value_to_int(obj));
+    else if (is_float_value(obj))
+        return float_to_str(p, value_to_float(obj));
+    else if (is_bool_value(obj))
+        return stpcpy(p, value_to_bool(obj) ? "true" : "false");
+    else if (obj == VALUE_UNDEF)
+        return stpcpy(p, "undefined");
+    else {
+        class_object* cls = gc_get_class_of(obj);
+        if (cls == NULL)
+            return stpcpy(p, "??");
+        else {
+            p = stpcpy(p, "<class ");
+            p = stpcpy(p, cls->name);
+            *p++ = '>';
+            *p = '\0';
+            return p;
+        }
+    }
+}
+
+// len: the length of the string excluding the null character.
+static pointer_t make_string_object(int32_t len) {
+    int32_t size = (len + 4) / 4;
+    pointer_t obj = allocate_heap(size + 1);
+    set_object_header(obj, &class_String.clazz);
+    obj->body[0] = size;
+    return obj;
+}
+
+value_t gc_new_String(value_t s1, value_t s2) {
+    ROOT_SET(rootset, 2)
+    rootset.values[0] = s1;
+    rootset.values[1] = s2;
+    int32_t len = gc_string_length(s1) + gc_string_length(s2);
+    pointer_t obj = make_string_object(len);
+    char* p = (char*)&obj->body[1];
+    gc_any_to_cstring(gc_any_to_cstring(p, s1), s2);
+    DELETE_ROOT_SET(rootset)
+    return ptr_to_value(obj);
 }
 
 // An int32_t array
@@ -1135,6 +1404,8 @@ int32_t get_all_array_length(value_t obj) {
             return value_to_ptr(obj)->body[1];
         else
             return value_to_ptr(obj)->body[0];
+    else if (gc_is_string_object(obj))
+        return gc_string_length(obj);
     else
         return -1;
 }
@@ -1190,6 +1461,7 @@ value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
     }
 }
 
+// this runs gc_write_barrier().
 value_t gc_safe_array_acc(value_t obj, int32_t index, char op, value_t value) {
     value_t left = gc_safe_array_get(obj, index);
     value_t new_value = VALUE_UNDEF;
@@ -1407,8 +1679,10 @@ value_t gc_dynamic_method_call(value_t obj, uint32_t index, uint32_t num, ...) {
     else {
         value_t r = ((value_t (*)(value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, value_t, float, float, float, float))fptr)
                         (obj, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10], args[11], fargs[0], fargs[1], fargs[2], fargs[3]);
-        if (t == 'i' || t == 'b')
+        if (t == 'i')
             return int_to_value(r);
+        else if (t == 'b')
+            return bool_to_value(r);
         else
             return r;
     }
@@ -1758,6 +2032,7 @@ extern CR_SECTION bool is_ptr_value(value_t v);
 
 extern CR_SECTION value_t bool_to_value(bool b);
 extern CR_SECTION bool value_to_bool(value_t v);
+extern CR_SECTION bool is_bool_value(value_t v);
 extern CR_SECTION bool safe_value_to_bool(value_t v);
 
 extern CR_SECTION value_t gc_new_object(const class_object* clazz);

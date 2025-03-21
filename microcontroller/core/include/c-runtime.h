@@ -160,6 +160,7 @@ extern value_t CR_SECTION any_add_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_subtract_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_multiply_assign(value_t* a, value_t b);
 extern value_t CR_SECTION any_divide_assign(value_t* a, value_t b);
+extern value_t CR_SECTION any_add_member(value_t obj, int index, value_t v);
 extern value_t CR_SECTION any_modulo_assign(value_t* a, value_t b);
 
 extern value_t CR_SECTION any_increment(value_t* expr);
@@ -227,9 +228,12 @@ extern value_t CR_SECTION gc_new_box(value_t value);
 extern value_t CR_SECTION gc_new_int_box(int32_t value);
 extern value_t CR_SECTION gc_new_float_box(float value);
 
-extern value_t  CR_SECTION gc_new_string(char* str);
-extern const char* CR_SECTION gc_string_literal_cstr(value_t obj);
+extern value_t CR_SECTION gc_new_string(char* str);
 extern bool CR_SECTION gc_is_string_object(value_t obj);
+extern const char* CR_SECTION gc_string_to_cstr(value_t obj);
+extern int32_t CR_SECTION gc_string_length(value_t obj);
+extern char* CR_SECTION gc_any_to_cstring(char* p, value_t obj);
+extern value_t CR_SECTION gc_new_String(value_t s1, value_t s2);
 
 extern value_t CR_SECTION safe_value_to_intarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_intarray(int32_t n, int32_t init_value);

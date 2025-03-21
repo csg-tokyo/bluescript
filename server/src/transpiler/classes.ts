@@ -2,7 +2,7 @@
 
 import { FunctionType, ObjectType, StaticType, isPrimitiveType, isSubtype,
          typeToString, encodeType,
-         ArrayType} from "./types"
+         ArrayType, StringType } from "./types"
 
 // Type for instances of a class
 export class InstanceType extends ObjectType {
@@ -211,6 +211,13 @@ export class InstanceType extends ObjectType {
   findConstructor() { return this.constructorFunction }
 }
 
+const builtinPropertiesAndMethods: string[]
+  = [ ArrayType.lengthProperty,     // 0
+      StringType.startsWithMethod,  // 1
+      StringType.endsWithMethod,    // 2
+      StringType.substringMethod,   // 3
+    ]
+
 export class ClassTable {
   private names
   private numOfNames
@@ -218,10 +225,28 @@ export class ClassTable {
 
   constructor() {
     this.names = new Map<string, number>()
-    this.numOfNames = 0
+    builtinPropertiesAndMethods.forEach((name, index) => this.names.set(name, index))
+    this.numOfNames = builtinPropertiesAndMethods.length
     this.rootClasses = []
-    const builtinMethods: string[] = [ArrayType.lengthMethod]
-    builtinMethods.forEach(name => { this.names.set(name, this.numOfNames++) })
+  }
+
+  // return all the property and method names.
+  propertyNames() { return this.names.entries() }
+
+  // adds a property or method name used in precompiled source code.
+  addPropertyName(name: string, id: number) {
+    let maxId = this.numOfNames
+    if (id >= maxId)
+      maxId = id + 1
+
+    const i = this.names.get(name)
+    if (i === undefined)
+      this.names.set(name, id)
+    else
+      if (i !== id)
+        throw new Error(`fatal: duplicate property/method name: ${name}, ${id}`)
+
+    this.numOfNames = maxId
   }
 
   // returns all the classes that do not inherit from another class.
@@ -244,6 +269,7 @@ export class ClassTable {
       this.rootClasses.push(clazz)
   }
 
+  // name is a property or method name.
   encodeName(name: string) {
     return this.names.get(name)
   }

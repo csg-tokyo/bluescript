@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from './utils'
 import * as visitor from './visitor'
 
-import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType, VectorClass } from './types'
+import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType, VectorClass, StringType } from './types'
 
 import {
   Integer, Float, BooleanT, StringT, Void, Null, Any,
@@ -78,21 +78,21 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   addBuiltinTypes(node: AST.Node, names: NameTable<Info>) {
-    const clazz = this.maker.instanceType(ByteArrayClass, objectType)
-    clazz.addMethod('constructor', new FunctionType(Void, [Integer, Integer]))
-    clazz.leafType = true
-    const success = names.record(ByteArrayClass, clazz, this.maker,
-                                 _ => { _.isTypeName = true; _.isExported = true })
-    this.assert(success, `internal error: cannot record ${ByteArrayClass} class`, node)
-    names.classTable().addClass(ByteArrayClass, clazz)
+    this.addBuiltinClass(names, node, ByteArrayClass, [Integer, Integer])
+    this.addBuiltinClass(names, node, VectorClass, [Integer, Any])
+  }
 
-    const clazz2 = this.maker.instanceType(VectorClass, objectType)
-    clazz2.addMethod('constructor', new FunctionType(Void, [Integer, Any]))
-    clazz2.leafType = true
-    const success2 = names.record(VectorClass, clazz2, this.maker,
-                                 _ => { _.isTypeName = true; _.isExported = true })
-    this.assert(success2, `internal error: cannot record ${VectorClass} class`, node)
-    names.classTable().addClass(VectorClass, clazz2)
+  // if constructorParams is undefined, this class may not be instantiated.
+  private addBuiltinClass(names: NameTable<Info>, node: AST.Node, typeName: string,
+                         constructorParams: StaticType[]) {
+    const clazz = this.maker.instanceType(typeName, objectType)
+    clazz.addMethod('constructor', new FunctionType(Void, constructorParams))
+    clazz.leafType = true
+    if (!names.record(typeName, clazz, this.maker,
+                      _ => { _.isTypeName = true; _.isExported = true }))
+      this.assert(false, `internal error: cannot record ${name} type`, node)
+
+    names.classTable().addClass(typeName, clazz)
   }
 
   file(node: AST.File, names: NameTable<Info>): void {
@@ -829,24 +829,31 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.result = BooleanT
     }
     else if (op === '+' || op === '-' || op === '*' || op === '/' || op === '**') {
-      this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
-        this.invalidOperandsMessage(op, left_type, right_type), node)
-      if (left_type === Any || right_type === Any) {
-          this.addCoercion(node.left, left_type)
-          this.addCoercion(node.right, right_type)
-          this.result = Any
-      }
-      else if (left_type === Float || right_type === Float) {
-        if (op === '**')
-          this.addStaticType(node, Float)
-
-        this.result = Float
+      if (op === '+' && (left_type === StringT || right_type === StringT)) {
+        this.addCoercion(node.left, left_type)
+        this.addCoercion(node.right, right_type)
+        this.result = StringT
       }
       else {
-        if (op === '**')
-          this.addStaticType(node, Integer)
+        this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
+                     this.invalidOperandsMessage(op, left_type, right_type), node)
+        if (left_type === Any || right_type === Any) {
+            this.addCoercion(node.left, left_type)
+            this.addCoercion(node.right, right_type)
+            this.result = Any
+        }
+        else if (left_type === Float || right_type === Float) {
+          if (op === '**')
+            this.addStaticType(node, Float)
 
-        this.result = Integer
+          this.result = Float
+        }
+        else {
+          if (op === '**')
+            this.addStaticType(node, Integer)
+
+          this.result = Integer
+        }
       }
     }
     else if (op === '%') {
@@ -929,6 +936,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             this.assert(false, `Type '${typeToString(right_type)}' is not assignable to type '${typeToString(left_type)}'`, node)
       }
     }
+    else if (op === '+=' && (left_type === StringT || left_type === Any)) {
+      this.addCoercion(node.left, StringT)
+      this.addCoercion(node.right, right_type)
+    }
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
       this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
         this.invalidOperandsMessage(op, left_type, right_type), node)
@@ -993,7 +1004,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     if (leftNode.computed)
       actualType = actualElementType(elementType)
     else
-      if (checked)
+      if (checked)    // if a property is boxed
         actualType = isPrimitiveType(elementType) ? Any : elementType
       else
         actualType = elementType
@@ -1010,6 +1021,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.addCoercion(node.left, actualType)
         this.addCoercion(node.right, rightType)
       }
+    else if (op === '+=' && (elementType === StringT || elementType === Any)) {
+      this.addCoercion(node.left, actualType)
+      this.addCoercion(node.right, rightType)
+    }
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
       this.assert((isNumeric(elementType) || elementType === Any) && (isNumeric(rightType) || rightType === Any),
         this.invalidOperandsMessage(op, elementType, rightType), node)
@@ -1288,7 +1303,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             const unboxed = type.unboxedProperties()
             return unboxed === undefined || unboxed <= typeAndIndex[1]
           }
-          else if (propertyName === ArrayType.lengthMethod && (type.name() === ByteArrayClass || type.name() === VectorClass)) {
+          else if (propertyName === ArrayType.lengthProperty && (type.name() === ByteArrayClass || type.name() === VectorClass)) {
             this.assert(readonly, 'cannot change .length', node.property)
             this.result = Integer
             return false  // an uboxed value.
@@ -1299,8 +1314,15 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             return true
           }
         }
+        else if (type === StringT) {
+          if (propertyName === StringType.lengthProperty) {
+            this.assert(readonly, 'cannot change .length', node.property)
+            this.result = Integer
+            return false  // an uboxed value.
+          }
+        }
         else if (type instanceof ArrayType) {
-          if (propertyName === ArrayType.lengthMethod) {
+          if (propertyName === ArrayType.lengthProperty) {
             this.assert(readonly, 'cannot change .length', node.property)
             this.result = Integer
             return false  // an uboxed value.
@@ -1342,6 +1364,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else if (type instanceof ArrayType) {
       // no method available
+    }
+    else if (type === StringT) {
+      const method = StringType.findMethod(propertyName)
+      if (method) {
+        this.result = method[0]
+        return true
+      }
     }
     else if (type === Any) {
       this.result = Any

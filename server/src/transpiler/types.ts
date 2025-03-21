@@ -1,7 +1,5 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
-import { InstanceType } from "./classes"
-
 export const Integer = 'integer'
 export const Float = 'float'
 export const BooleanT = 'boolean'
@@ -102,7 +100,9 @@ export class FunctionType extends CompositeType {
 }
 
 export class ArrayType extends ObjectType {
-  static readonly lengthMethod = 'length'
+  // see builtinPropertiesAndMethods in classes.ts
+  static readonly lengthProperty = 'length'
+
   elementType: StaticType
 
   constructor(element: StaticType) {
@@ -127,6 +127,32 @@ export class ArrayType extends ObjectType {
       return sameType(this.elementType, t.elementType)
 
     return false
+  }
+}
+
+// This class is used only for holding built-in method names.
+// see builtinPropertiesAndMethods in classes.ts
+export class StringType {
+  static readonly lengthProperty = ArrayType.lengthProperty
+
+  static readonly startsWithMethod = 'startsWith'
+  static readonly startsWithType = new FunctionType(BooleanT, [StringT])
+
+  static readonly endsWithMethod = 'endsWith'
+  static readonly endsWithType = new FunctionType(BooleanT, [StringT])
+
+  static readonly substringMethod = 'substring'
+  static readonly substringType = new FunctionType(StringT, [Integer, Integer])
+
+  static findMethod(name: string): [StaticType, number] | undefined {
+    if (name === 'startsWith')
+      return [this.startsWithType, 0]
+    else if (name === 'endsWith')
+      return [this.endsWithType, 1]
+    else if (name === 'substring')
+      return [this.substringType, 2]
+    else
+      return undefined
   }
 }
 

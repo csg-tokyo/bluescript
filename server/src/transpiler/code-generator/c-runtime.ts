@@ -267,6 +267,8 @@ export function arithmeticOpForAny(op: string) {
   }
 }
 
+export const anyAddMember = 'any_add_member'
+
 export function power(type: StaticType | undefined) {
   if (type === Float)
     return '(float)double_power('
@@ -339,8 +341,10 @@ export const getObjectPropertyAddress = 'get_obj_property_addr'
 
 export const setGlobalVariable = 'set_global_variable'
 
+export const getArrayOrStringLength = 'get_all_array_length'
+
 export function getAnyObjectProperty(name: string) {
-  if (name === ArrayType.lengthMethod)
+  if (name === ArrayType.lengthProperty)
     return 'get_anyobj_length_property'
   else
     return 'get_anyobj_property'
@@ -563,7 +567,7 @@ export function makeInstance(clazz: InstanceType) {
     return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
 }
 
-export function methodLookup(method: [StaticType, number, InstanceType], func: string) {
+export function methodLookup(method: [StaticType, number, InstanceType?], func: string) {
   return `((${funcTypeToCType(method[0])})gc_method_lookup(${func}, ${method[1]}))`
 }
 

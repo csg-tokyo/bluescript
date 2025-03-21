@@ -133,7 +133,7 @@ void mth_3_10010511511210897000Display(value_t self, value_t _str, int32_t _colo
   func_rootset.values[0] = self;
   func_rootset.values[1] = _str;
   {
-    char* text = gc_string_literal_cstr(_str);
+    char* text = gc_string_to_cstr(_str);
     display_text(text, (uint16_t)_color, (uint16_t)_background);
   }
   DELETE_ROOT_SET(func_rootset)
