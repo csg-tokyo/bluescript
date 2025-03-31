@@ -7,6 +7,7 @@ export const FILE_PATH = {
   LINKED_ELF: "./temp-files/code",
   STD_MODULES: "../modules/std/std.bs",
   MODULES: "../modules",
+  MODULE_NAME_TO_ID: "../modules/name_to_id.json",
   MCU_ELF: "../microcontroller/ports/esp32/build/bluescript.elf",
 };
 

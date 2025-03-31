@@ -21,20 +21,22 @@ const cProlog = `
 
 export default class Session {
   compileId: number = 0;
-  baseGlobalNames: GlobalVariableNameTable
-  modules: Map<string, GlobalVariableNameTable>
+  baseGlobalNames: GlobalVariableNameTable;
+  moduleIds: {[name: string]: string};
+  modules: Map<string, GlobalVariableNameTable>;
   shadowMemory: ShadowMemory;
   profiler: Profiler;
-  addresses: MemoryAddresses
+  addresses: MemoryAddresses;
 
   constructor(addresses: MemoryAddresses) {
     this.addresses = addresses;
-    const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULES}`).toString()
+    const bsString = fs.readFileSync(FILE_PATH.STD_MODULES).toString()
     const result = transpile(++this.compileId, bsString, undefined);
     this.baseGlobalNames = result.names;
     this.modules = new Map<string, GlobalVariableNameTable>()
     this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, addresses)
     this.profiler = new Profiler();
+    this.moduleIds = JSON.parse(fs.readFileSync(FILE_PATH.MODULE_NAME_TO_ID).toString());
   }
 
   public reset() {
@@ -132,7 +134,7 @@ export default class Session {
         return mod;
       else {
         const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
-        const moduleId = Session.moduleNameToId(fname);
+        const moduleId = this.readModuleId(fname);
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
         this.modules.set(fname, result.names);
         const compiler = new ModuleCompiler();
@@ -151,7 +153,7 @@ export default class Session {
         return mod;
       else {
         const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
-        const moduleId = Session.moduleNameToId(fname);
+        const moduleId = this.readModuleId(fname);
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
         this.modules.set(fname, result.names);
         const compiler = new ModuleCompiler();
@@ -183,11 +185,11 @@ export default class Session {
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start, compileId: -1}
   }
 
-  static moduleNameToId(fname: string):number {
-    let result = "";
-    for (let i = 0; i < fname.length; i++) {
-      result += fname.charCodeAt(i);
+  private readModuleId(name: string):string {
+    const moduleId = this.moduleIds[name];
+    if (moduleId === undefined) {
+      throw Error(`Cannot find module id corresponding to module name: ${name}`);
     }
-    return parseInt(result, 10) ?? 0;
+    return moduleId;
   }
 }
