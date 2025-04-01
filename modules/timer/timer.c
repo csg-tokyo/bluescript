@@ -11,8 +11,8 @@
 #define NUM_TIMERS    20
 
 extern CLASS_OBJECT(object_class, 1);
-void bluescript_main0_116105109101114();
-ROOT_SET_DECL(global_rootset0_116105109101114, NUM_TIMERS);
+void bluescript_main0_000004();
+ROOT_SET_DECL(global_rootset0_000004, NUM_TIMERS);
 
 
 
@@ -25,7 +25,7 @@ static int32_t find_unused_timer_id() {
     return -1;
 }
 
-int32_t fbody_116105109101114setInterval(value_t self, value_t _func, int32_t _delay) {
+int32_t fbody_000004setInterval(value_t self, value_t _func, int32_t _delay) {
   ROOT_SET_N(func_rootset,2,VALUE_UNDEF_2)
   func_rootset.values[1] = self;
   func_rootset.values[0] = _func;
@@ -34,7 +34,7 @@ int32_t fbody_116105109101114setInterval(value_t self, value_t _func, int32_t _d
     if (timer_id == -1) {
       runtime_error("** timer module error: all available timers have been used up. Please use clearTimeout or clearInterval.");
     }
-    set_global_variable(&global_rootset0_116105109101114.values[timer_id], _func);
+    set_global_variable(&global_rootset0_000004.values[timer_id], _func);
     esp_timer_handle_t timer;
     const esp_timer_create_args_t timer_args = {
         .callback = &bs_event_push_from_isr,
@@ -46,9 +46,9 @@ int32_t fbody_116105109101114setInterval(value_t self, value_t _func, int32_t _d
     { int32_t ret_value_ = (timer_id); DELETE_ROOT_SET(func_rootset); return ret_value_; }
   }
 }
-struct func_body _116105109101114setInterval = { fbody_116105109101114setInterval, "(()vi)i" };
+struct func_body _000004setInterval = { fbody_000004setInterval, "(()vi)i" };
 
-int32_t fbody_116105109101114setTimeout(value_t self, value_t _func, int32_t _delay) {
+int32_t fbody_000004setTimeout(value_t self, value_t _func, int32_t _delay) {
   ROOT_SET_N(func_rootset,2,VALUE_UNDEF_2)
   func_rootset.values[1] = self;
   func_rootset.values[0] = _func;
@@ -57,7 +57,7 @@ int32_t fbody_116105109101114setTimeout(value_t self, value_t _func, int32_t _de
     if (timer_id == -1) {
       runtime_error("** timer module error: all available timers have been used up. Please use clearTimeout or clearInterval.");
     }
-    set_global_variable(&global_rootset0_116105109101114.values[timer_id], _func);
+    set_global_variable(&global_rootset0_000004.values[timer_id], _func);
     esp_timer_handle_t timer;
     const esp_timer_create_args_t timer_args = {
         .callback = &bs_event_push_from_isr,
@@ -69,9 +69,9 @@ int32_t fbody_116105109101114setTimeout(value_t self, value_t _func, int32_t _de
     { int32_t ret_value_ = (timer_id); DELETE_ROOT_SET(func_rootset); return ret_value_; }
   }
 }
-struct func_body _116105109101114setTimeout = { fbody_116105109101114setTimeout, "(()vi)i" };
+struct func_body _000004setTimeout = { fbody_000004setTimeout, "(()vi)i" };
 
-void fbody_116105109101114clearInterval(value_t self, int32_t _timerId) {
+void fbody_000004clearInterval(value_t self, int32_t _timerId) {
   ROOT_SET_N(func_rootset,1,VALUE_UNDEF)
   func_rootset.values[0] = self;
   {
@@ -81,14 +81,14 @@ void fbody_116105109101114clearInterval(value_t self, int32_t _timerId) {
     esp_timer_handle_t timer = timer_handlers[_timerId];
     esp_timer_stop(timer);
     esp_timer_delete(timer);
-    global_rootset0_116105109101114.values[_timerId] = VALUE_UNDEF;
+    global_rootset0_000004.values[_timerId] = VALUE_UNDEF;
     timer_handlers[_timerId] = 0;
   }
   DELETE_ROOT_SET(func_rootset)
 }
-struct func_body _116105109101114clearInterval = { fbody_116105109101114clearInterval, "(i)v" };
+struct func_body _000004clearInterval = { fbody_000004clearInterval, "(i)v" };
 
-void fbody_116105109101114clearTimeout(value_t self, int32_t _timerId) {
+void fbody_000004clearTimeout(value_t self, int32_t _timerId) {
   ROOT_SET_N(func_rootset,1,VALUE_UNDEF)
   func_rootset.values[0] = self;
   {
@@ -97,22 +97,22 @@ void fbody_116105109101114clearTimeout(value_t self, int32_t _timerId) {
     }
     esp_timer_handle_t timer = timer_handlers[_timerId];
     esp_timer_delete(timer);
-    global_rootset0_116105109101114.values[_timerId] = VALUE_UNDEF;
+    global_rootset0_000004.values[_timerId] = VALUE_UNDEF;
     timer_handlers[_timerId] = 0;
   }
   DELETE_ROOT_SET(func_rootset)
 }
-struct func_body _116105109101114clearTimeout = { fbody_116105109101114clearTimeout, "(i)v" };
+struct func_body _000004clearTimeout = { fbody_000004clearTimeout, "(i)v" };
 
-float fbody_116105109101114getTimeMs(value_t self) {
+float fbody_000004getTimeMs(value_t self) {
   ROOT_SET_N(func_rootset,1,VALUE_UNDEF)
   func_rootset.values[0] = self;
   {
     { float ret_value_ = (esp_timer_get_time() / 1000.0); DELETE_ROOT_SET(func_rootset); return ret_value_; }
   }
 }
-struct func_body _116105109101114getTimeMs = { fbody_116105109101114getTimeMs, "()f" };
+struct func_body _000004getTimeMs = { fbody_000004getTimeMs, "()f" };
 
-void bluescript_main0_116105109101114() {
-  ROOT_SET_INIT(global_rootset0_116105109101114, 10)
+void bluescript_main0_000004() {
+  ROOT_SET_INIT(global_rootset0_000004, 10)
 }
