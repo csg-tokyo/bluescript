@@ -4,8 +4,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/**
+ * Initialize BLE.
+ */
 void bs_ble_init();
 
-void bs_ble_send_data(uint8_t *data, uint32_t len);
+
+/**
+ * Send string via BLE.
+ */
+void bs_ble_send_notification(uint8_t *value, uint32_t length);
 
 #endif /* __BS_BLE__ */

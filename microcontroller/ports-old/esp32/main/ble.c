@@ -475,11 +475,11 @@ void bs_ble_init(void)
     return;
 }
 
-void bs_ble_send_data(uint8_t *data, uint32_t len) {
+void bs_ble_send_notification(uint8_t *value, uint32_t length) {
     esp_ble_gatts_send_indicate(
         gl_profile_tab[PROFILE_SHELL_APP_ID].gatts_if, 
         gl_profile_tab[PROFILE_SHELL_APP_ID].conn_id, 
         gl_profile_tab[PROFILE_SHELL_APP_ID].char_handle, 
-        len, data, false
+        length, value, false
     );
 }
