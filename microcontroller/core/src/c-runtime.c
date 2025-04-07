@@ -1267,6 +1267,42 @@ value_t gc_new_vector(int32_t n, value_t init_value) {
     return ptr_to_value(obj);
 }
 
+inline static value_t* fast_vector_get(value_t obj, int32_t index) {
+    pointer_t objp = value_to_ptr(obj);
+    return &objp->body[index + 1];
+}
+
+inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_value) {
+    pointer_t objp = value_to_ptr(obj);
+    gc_write_barrier(objp, new_value);
+    objp->body[index + 1] = new_value;
+}
+
+static value_t duplicate_vector(int32_t n, int32_t offset, value_t vec) {
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = vec;
+    int32_t len = gc_vector_length(vec);
+    if (n < 0)
+        n = 0;
+    else if (n < len + offset)
+        n = len + offset;
+
+    pointer_t obj = allocate_heap(n + 1);
+    set_object_header(obj, &class_Vector.clazz);
+    obj->body[0] = n;
+    for (int i = 1; i <= offset; i++)
+        obj->body[i] = VALUE_UNDEF;
+
+    pointer_t src = value_to_ptr(vec);
+    memmove(&obj->body[offset + 1], &src->body[1], len * sizeof(value_t));
+
+    for (int i = len + offset + 1; i <= n; i++)
+        obj->body[i] = VALUE_UNDEF;
+
+    DELETE_ROOT_SET(rootset)
+    return ptr_to_value(obj);
+}
+
 int32_t gc_vector_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
     return objp->body[0];
@@ -1297,17 +1333,6 @@ value_t gc_vector_set(value_t obj, int32_t index, value_t new_value) {
     }
 }
 
-inline static value_t* fast_vector_get(value_t obj, int32_t index) {
-    pointer_t objp = value_to_ptr(obj);
-    return &objp->body[index + 1];
-}
-
-inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_value) {
-    pointer_t objp = value_to_ptr(obj);
-    gc_write_barrier(objp, new_value);
-    objp->body[index + 1] = new_value;
-}
-
 /* The given vector elements are not stored in a root set.
    A caller function must guarantee that they are reachable
    from the root.
@@ -1330,25 +1355,67 @@ bool gc_is_instance_of_array(value_t obj) {
     return IS_ARRAY_TYPE(clazz);
 }
 
-static CLASS_OBJECT(anyarray_object, 1) = {
-    .clazz = { .size = 2, .start_index = 1, .name = "any[]",
-               .superclass = &object_class.clazz, .array_type_name = "[a", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
+static CLASS_OBJECT(anyarray_object, 4) = {
+    .body = { .s = 2, .i = 1, .cn = "any[]", .sc = &object_class.clazz, .an = "[a", .pt = DEFAULT_PTABLE,
+              .mt = { .size = 4,
+                      .names = (const uint16_t[]){ /* push */ 4, /* pop */ 5, /* unshift */ 6, /* shift */ 7, },
+                      .signatures = (const char* const[]){ "(a)i", "()a", "(a)i", "()a" }},
+              .vtbl = { gc_array_push, gc_array_pop, gc_array_unshift, gc_array_shift } }};
 
 value_t safe_value_to_anyarray(bool nullable, value_t v) {
     return safe_value_to_value(nullable, &anyarray_object.clazz, v);
 }
+
+static inline int32_t real_array_length(int32_t n) { return ((n + 1) & ~7) + 7; }
 
 value_t gc_new_array(const class_object* clazz, int32_t n, value_t init_value) {
     ROOT_SET(rootset, 2)
     rootset.values[0] = init_value;
     pointer_t obj = gc_allocate_object(clazz == NULL ? &anyarray_object.clazz : clazz);
     rootset.values[1] = ptr_to_value(obj);
-    value_t vec = gc_new_vector(n, init_value);
+    const int32_t size = real_array_length(n);
+    value_t vec = gc_new_vector(size, init_value);
+    pointer_t vecp = value_to_ptr(vec);
+    if (init_value != VALUE_UNDEF)
+        for (int i = n + 1; i <= size; i++)
+            vecp->body[i] = VALUE_UNDEF;
+
     obj->body[1] = vec;
     // the length must be less than or equal to the length of the vector.
     obj->body[0] = n;
     DELETE_ROOT_SET(rootset)
     return ptr_to_value(obj);
+}
+
+static value_t gc_grow_array(value_t obj, int32_t addedElements, int32_t offset) {
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = obj;
+    pointer_t objp = value_to_ptr(obj);
+    int32_t n = objp->body[0];
+    int32_t new_n = n + addedElements;
+    value_t vec = objp->body[1];
+    pointer_t vecp = value_to_ptr(vec);
+    int32_t size = vecp->body[0];
+    if (new_n > size) {
+        int32_t new_size = real_array_length(new_n);
+        value_t new_vec = duplicate_vector(new_size, offset, vec);
+        objp->body[1] = new_vec;
+    }
+    else
+        if (offset > 0) {
+            memmove(&vecp->body[offset + 1], &vecp->body[1], n * sizeof(value_t));
+            for (int i = 1; i <= offset; i++)
+                vecp->body[i] = VALUE_UNDEF;
+        }
+        else if (offset < 0) {
+            memmove(&vecp->body[1], &vecp->body[1 - offset], (n + offset) * sizeof(value_t));
+            for (int i = n + offset + 1; i <= n; i++)
+                vecp->body[i] = VALUE_UNDEF;
+        }
+
+    objp->body[0] = new_n;
+    DELETE_ROOT_SET(rootset)
+    return obj;
 }
 
 /* The given array elements are not stored in a root set.
@@ -1388,13 +1455,58 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[0];
     if (0 <= index && index < len) {
-        gc_write_barrier(objp, new_value);
         fast_vector_set(objp->body[1], index, new_value);
         return new_value;
     } else {
         runtime_index_error(index, len, "Array.set");
         return 0;
     }
+}
+
+int32_t gc_array_push(value_t obj, value_t new_value) {
+    ROOT_SET(rootset, 2)
+    rootset.values[0] = obj;
+    rootset.values[1] = new_value;
+    gc_grow_array(obj, 1, 0);
+    pointer_t objp = value_to_ptr(obj);
+    int32_t len = objp->body[0];
+    fast_vector_set(objp->body[1], len - 1, new_value);
+    DELETE_ROOT_SET(rootset)
+    return len;
+}
+
+value_t gc_array_pop(value_t obj) {
+    pointer_t objp = value_to_ptr(obj);
+    int32_t len = objp->body[0];
+    if (len == 0)
+        return VALUE_UNDEF;
+
+    value_t value = gc_vector_get(objp->body[1], len - 1);
+    gc_vector_set(objp->body[1], len - 1, VALUE_UNDEF);
+    objp->body[0] = len - 1;
+    return value;
+}
+
+int32_t gc_array_unshift(value_t obj, value_t new_value) {
+    ROOT_SET(rootset, 2)
+    rootset.values[0] = obj;
+    rootset.values[1] = new_value;
+    gc_grow_array(obj, 1, 1);
+    pointer_t objp = value_to_ptr(obj);
+    fast_vector_set(objp->body[1], 0, new_value);
+    DELETE_ROOT_SET(rootset)
+    return objp->body[0];
+}
+
+value_t gc_array_shift(value_t obj) {
+    pointer_t objp = value_to_ptr(obj);
+    int32_t len = objp->body[0];
+    if (len == 0)
+        return VALUE_UNDEF;
+
+    value_t value = gc_vector_get(objp->body[1], 0);
+    gc_grow_array(obj, -1, -1);
+    return value;
 }
 
 int32_t get_all_array_length(value_t obj) {

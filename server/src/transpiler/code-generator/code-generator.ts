@@ -1512,6 +1512,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         return [mth, AST.isSuper(node.object)]
       }
     }
+    else if (receiverType instanceof ArrayType) {
+      const mth = receiverType.findMethod(propertyName)
+      if (mth) {
+        this.visit(node.object, env)
+        return [mth, false]
+      }
+    }
     else if (receiverType === StringT) {
       const mth = StringType.findMethod(propertyName)
       if (mth) {

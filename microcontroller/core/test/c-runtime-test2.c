@@ -284,6 +284,114 @@ void test_is_subtype_of() {
     Assert_true(sig == sig11 + 8);
 }
 
+void test_array_push() {
+    ROOT_SET(root_set, 1)
+    for (int i = 0; i < 16; i++) {
+        int real_len = real_array_length(i);
+        value_t arr = gc_new_array(&anyarray_object.clazz, i, int_to_value(i));
+        value_t arrvec = value_to_ptr(arr)->body[1];
+        Assert_equals(gc_array_length(arr), i);
+        Assert_equals(gc_vector_length(arrvec), real_len);
+        Assert_equals(value_to_ptr(arrvec)->body[0], real_len);
+        for (int j = 0; j < i; j++)
+            Assert_equals(*fast_vector_get(arrvec, j), int_to_value(i));
+        for (int j = i; j < real_len; ++j)
+            Assert_equals(*fast_vector_get(arrvec, j), VALUE_UNDEF);
+        if (i > 0)
+            gc_array_set(arr, 0, int_to_value(70 + i));
+        Assert_equals(value_to_ptr(arr)->body[0], i);
+        Assert_true(value_to_ptr(value_to_ptr(arr)->body[1])->body[0] >= i);
+
+        for (int j = 0; j < 10; j++) {
+            Assert_equals(gc_array_push(arr, int_to_value(90 + j)), i + j + 1);
+            Assert_equals(gc_array_length(arr), i + j + 1);
+            value_t vec = value_to_ptr(arr)->body[1];
+            int len = value_to_ptr(vec)->body[0];
+            if (i > 0)
+                Assert_equals(*fast_vector_get(vec, 0), int_to_value(70 + i));
+            for (int k = 1; k < i; k++)
+                Assert_equals(*fast_vector_get(vec, k), int_to_value(i));
+
+            Assert_true(len >= i + j + 1);
+            Assert_equals(*fast_vector_get(vec, i + j), int_to_value(90 + j));
+            for (int k = i + j + 1; k < len; k++)
+                Assert_equals(*fast_vector_get(vec, k), VALUE_UNDEF);
+        }
+    }
+
+    DELETE_ROOT_SET(root_set)
+}
+
+void test_array_pop() {
+    for (int i = 0; i < 16; i++) {
+        int real_len = real_array_length(i);
+        value_t arr = gc_new_array(&anyarray_object.clazz, i, int_to_value(i));
+        for (int j = 0; j < i; j++)
+            gc_array_set(arr, j, int_to_value(100 + j));
+        for (int j = 0; j < i; j++) {
+            Assert_equals(gc_array_pop(arr), int_to_value(100 + i - j - 1));
+            Assert_equals(gc_array_length(arr), i - j - 1);
+            value_t vec = value_to_ptr(arr)->body[1];
+            int len = value_to_ptr(vec)->body[0];
+            for (int k = 0; k < i - j - 1; k++)
+                Assert_equals(*fast_vector_get(vec, k), int_to_value(100 + k));
+            Assert_true(len >= i - j - 1);
+            for (int k = i - j - 1; k < len; k++)
+                Assert_equals(*fast_vector_get(vec, k), VALUE_UNDEF);
+        }
+        Assert_equals(gc_array_length(arr), 0);
+        Assert_equals(gc_array_pop(arr), VALUE_UNDEF);
+        Assert_equals(gc_array_length(arr), 0);
+    }
+}
+
+void test_array_unshift() {
+    for (int i = 0; i < 16; i++) {
+        int real_len = real_array_length(i);
+        value_t arr = gc_new_array(&anyarray_object.clazz, i, int_to_value(i));
+        for (int j = 0; j < i; j++)
+            gc_array_set(arr, j, int_to_value(100 + j));
+        for (int j = 0; j < 10; j++) {
+            Assert_equals(gc_array_unshift(arr, int_to_value(90 + j)), i + j + 1);
+            Assert_equals(gc_array_length(arr), i + j + 1);
+            value_t vec = value_to_ptr(arr)->body[1];
+            int len = value_to_ptr(vec)->body[0];
+            for (int k = 0; k < j + 1; k++)
+                Assert_equals(*fast_vector_get(vec, k), int_to_value(90 + j - k));
+
+            for (int k = j + 1; k < i + j + 1; k++)
+                Assert_equals(*fast_vector_get(vec, k), int_to_value(100 + k - j - 1));
+
+            Assert_true(len >= i + j + 1);
+            for (int k = i + j + 1; k < len; k++)
+                Assert_equals(*fast_vector_get(vec, k), VALUE_UNDEF);
+        }
+    }
+}
+
+void test_array_shift() {
+    for (int i = 0; i < 16; i++) {
+        int real_len = real_array_length(i);
+        value_t arr = gc_new_array(&anyarray_object.clazz, i, int_to_value(i));
+        for (int j = 0; j < i; j++)
+            gc_array_set(arr, j, int_to_value(100 + j));
+        for (int j = 0; j < i; j++) {
+            Assert_equals(gc_array_shift(arr), int_to_value(100 + j));
+            Assert_equals(gc_array_length(arr), i - j - 1);
+            value_t vec = value_to_ptr(arr)->body[1];
+            int len = value_to_ptr(vec)->body[0];
+            for (int k = 0; k < i - j - 1; k++)
+                Assert_equals(*fast_vector_get(vec, k), int_to_value(100 + k + j + 1));
+            Assert_true(len >= i - j - 1);
+            for (int k = i - j - 1; k < len; k++)
+                Assert_equals(*fast_vector_get(vec, k), VALUE_UNDEF);
+        }
+        Assert_equals(gc_array_length(arr), 0);
+        Assert_equals(gc_array_shift(arr), VALUE_UNDEF);
+        Assert_equals(gc_array_length(arr), 0);
+    }
+}
+
 void test_runtime_error2() {
     runtime_error("test_runtime_error2() thorws an error");
 }
@@ -305,6 +413,10 @@ int main() {
     test_string_literal();
     test_function_object();
     test_is_subtype_of();
+    test_array_push();
+    test_array_pop();
+    test_array_unshift();
+    test_array_shift();
     test_runtime_error();
     if (nerrors > 0) {
         printf("Test failed %d\n", nerrors);

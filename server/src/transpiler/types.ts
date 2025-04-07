@@ -102,6 +102,10 @@ export class FunctionType extends CompositeType {
 export class ArrayType extends ObjectType {
   // see builtinPropertiesAndMethods in classes.ts
   static readonly lengthProperty = 'length'
+  static readonly pushMethod = 'push'
+  static readonly popMethod = 'pop'
+  static readonly unshiftMethod = 'unshift'
+  static readonly shiftMethod = 'shift'
 
   elementType: StaticType
 
@@ -127,6 +131,19 @@ export class ArrayType extends ObjectType {
       return sameType(this.elementType, t.elementType)
 
     return false
+  }
+
+  findMethod(name: string): [StaticType, number] | undefined {
+    if (name === ArrayType.pushMethod)
+      return [new FunctionType(Integer, [this.elementType]), 0]
+    else if (name === ArrayType.popMethod)
+      return [new FunctionType(new UnionType([this.elementType, Null]), []), 1]
+    else if (name === ArrayType.unshiftMethod)
+      return [new FunctionType(Integer, [this.elementType]), 2]
+    else if (name === ArrayType.shiftMethod)
+      return [new FunctionType(new UnionType([this.elementType, Null]), []), 3]
+    else
+      return undefined
   }
 }
 
