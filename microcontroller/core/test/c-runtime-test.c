@@ -103,6 +103,23 @@ static value_t gc_new_vector2(int32_t n) {
     return gc_new_vector(n, VALUE_UNDEF);
 }
 
+static value_t gc_new_array3(int32_t n) {
+    ROOT_SET(root_set, 1)
+    root_set.values[0] = gc_new_vector2(n);
+    value_t obj = gc_new_vector2(1);
+    gc_vector_set(obj, 0, root_set.values[0]);
+    DELETE_ROOT_SET(root_set)
+    return obj;
+}
+
+static value_t gc_array3_get(value_t obj, int32_t index) {
+    return gc_vector_get(gc_vector_get(obj, 0), index);
+}
+
+static void gc_array3_set(value_t obj, int32_t index, value_t value) {
+    gc_vector_set(gc_vector_get(obj, 0), index, value);
+}
+
 // Test functions
 
 void test_converters() {
@@ -371,15 +388,15 @@ void test_gc_long_chain() {
     gc_initialize();
     value_t heap_size = heap_memory[2];
     ROOT_SET(root_set, 3);
-    value_t obj = gc_new_array2(2);
+    value_t obj = gc_new_array3(2);
     root_set.values[0] = obj;
     for (int i = 0; i < STACK_SIZE * 3; ++i) {
-        value_t obj2 = gc_new_array2(2);
+        value_t obj2 = gc_new_array3(2);
         root_set.values[1] = obj2;
-        value_t obj3 = gc_new_array2(1);
+        value_t obj3 = gc_new_array3(1);
         root_set.values[2] = obj3;
-        gc_array_set(obj2, 1, obj);
-        gc_array_set(obj2, 0, obj3);
+        gc_array3_set(obj2, 1, obj);
+        gc_array3_set(obj2, 0, obj3);
         obj = obj2;
         root_set.values[0] = obj;
         root_set.values[1] = VALUE_NULL;
@@ -390,9 +407,9 @@ void test_gc_long_chain() {
 
     int n = 0;
     while (obj != VALUE_UNDEF) {
-        value_t obj2 = *gc_array_get(obj, 1);
+        value_t obj2 = gc_array3_get(obj, 1);
         Assert_true(is_live_object(obj2));
-        obj = *gc_array_get(obj, 1);
+        obj = gc_array3_get(obj, 1);
         Assert_true(is_live_object(obj));
         n++;
     }

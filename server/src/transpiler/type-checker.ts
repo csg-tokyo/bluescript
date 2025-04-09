@@ -1363,7 +1363,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
     }
     else if (type instanceof ArrayType) {
-      // no method available
+      const method = type.findMethod(propertyName)
+      if (method) {
+        this.result = method[0]
+        return true
+      }
     }
     else if (type === StringT) {
       const method = StringType.findMethod(propertyName)

@@ -427,6 +427,8 @@ export function arrayFromSize(arrayType: ArrayType, env: VariableEnv) {
     return `gc_new_array(&${env.useArrayType(arrayType)[0]}.clazz, `
 }
 
+export const prefixOfarrayTypeNameInC = 'array_type'
+
 export function actualElementType(t: StaticType) {
   if (t === Integer)
     return Integer
@@ -580,8 +582,14 @@ export function isInstanceOf(t: InstanceType) {
 export function arrayTypeDeclaration(type: ArrayType, name: string, is_declared: boolean) {
   const typeName = typeToString(type)
   const arrayName = encodeType(type)
-  if (is_declared)
-    return `CLASS_OBJECT(${name}, 0) = { .body = { .s = 2, .i = 1, .cn = "${typeName}", .sc = &object_class.clazz, .an = "${arrayName}", .pt = { .size = 0, .offset = 0, .unboxed = 0, .prop_names = (void*)0, .unboxed_types = (void*)0 }, .vtbl = {}}};\n`
+  if (is_declared) {
+    const eType = encodeType(type.elementType)
+    const mt = `{ .size = 4,
+                  .names = (const uint16_t[]){ /* push */ 4, /* pop */ 5, /* unshift */ 6, /* shift */ 7, },
+                  .signatures = (const char* const[]){ "(${eType})i", "()|${eType}n", "(${eType})i", "()|${eType}n" }}`
+    const vtbl = `{ gc_array_push, gc_array_pop, gc_array_unshift, gc_array_shift }`
+    return `CLASS_OBJECT(${name}, 4) = { .body = { .s = 2, .i = 1, .cn = "${typeName}", .sc = &object_class.clazz, .an = "${arrayName}", .pt = { .size = 0, .offset = 0, .unboxed = 0, .prop_names = (void*)0, .unboxed_types = (void*)0 }, .mt = ${mt}, .vtbl = ${vtbl}}};\n`
+  }
   else
     return `extern CLASS_OBJECT(${name}, 0);\n`
 }

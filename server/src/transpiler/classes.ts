@@ -216,6 +216,10 @@ const builtinPropertiesAndMethods: string[]
       StringType.startsWithMethod,  // 1
       StringType.endsWithMethod,    // 2
       StringType.substringMethod,   // 3
+      ArrayType.pushMethod,         // 4
+      ArrayType.popMethod,          // 5
+      ArrayType.unshiftMethod,      // 6
+      ArrayType.shiftMethod,        // 7
     ]
 
 export class ClassTable {

@@ -1394,3 +1394,127 @@ test('string +=', () => {
                                              'foobar', 'foo123', 'bazbar', 'baz123',
                                              'bazxyz', 'baz123'].join('\n') + '\n')
 })
+
+test('string[]#push, pop, etc', () => {
+  const src = `
+  const str = ['one', 'two']
+  print(str.push('three'))
+  print(str.pop())
+  print(str.length)
+  print(str.unshift('zero'))
+  print(str.shift())
+  print(str.shift())
+  print(str.shift())
+  let s = str.shift()
+  if (s === undefined) {
+    print(s)
+  } else {
+    print(s.length)
+  }
+  const e = str.shift()
+  if (e !== undefined)
+    print(e)
+
+  const aa: any = str
+  print(aa.push('trois'))
+  print(aa.pop())    // pop() may return undefined.
+  const a = aa.pop()
+  print(a)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe(['3', 'three', 2, 3, 'zero', 'one', 'two', 'undefined', 1, 'trois', 'undefined'].join('\n') + '\n')
+
+  const src2 = `
+  const str = ['one', 'two']
+  print(str.push(3))  // type error
+  `
+
+  expect(() => compileAndRun(src2, destFile)).toThrow(/incompatible argument.*integer to string/)
+
+  const src3 = `
+  const str: any = ['one', 'two']
+  print(str.push(3))  // runtime error
+  `
+
+  expect(() => compileAndRun(src3, destFile)).toThrow(/runtime type error/)
+})
+
+test('any[]#push, pop, etc', () => {
+  const src = `
+  const ary: any[] = ['one', 'two', 3, true]
+  print(ary.push('three'))
+  print(ary.pop())
+  print(ary.length)
+  print(ary.unshift('zero'))
+  print(ary.shift())
+  print(ary.shift())
+  print(ary.shift())
+  print(ary.pop())
+  print(ary.pop())
+  let s = ary.pop()
+  print(typeof s)
+  print(s)
+  const e = ary.shift()
+  if (e !== undefined)
+    print(e)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe([5, 'three', 4, 5, 'zero', 'one', 'two', 'true', 3, 'any|undefined', 'undefined'].join('\n') + '\n')
+})
+
+test('Foo[]#push, pop, etc', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  const ary: Foo[] = [new Foo(1), new Foo(2), new Foo(3)]
+  print(ary.push(new Foo(4)))
+  print(ary.pop())
+  print(ary.length)
+  print(ary.unshift(new Foo(0)))
+  print(ary.shift())
+  print(ary.shift())
+  print(ary.shift())
+  print(ary.pop())
+  print(ary.pop())
+  let s = ary.pop()
+  print(typeof s)
+  print(s)
+  const e = ary.shift()
+  if (e !== undefined)
+    print(e)
+
+  const aa: any = ary
+  print(aa.push(new Foo(5)))
+  print(aa.pop())    // pop() may return undefined.
+  const a = aa.pop()
+  print(a)
+  `
+
+  const foo = '<class Foo>'
+  expect(compileAndRun(src, destFile)).toBe([4, foo, 3, 4, foo, foo, foo, foo, 'undefined', 'Foo|undefined', 'undefined',
+                                             1, foo, 'undefined'].join('\n') + '\n')
+
+  const src2 = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  const ary: Foo[] = [new Foo(1), new Foo(2), new Foo(3)]
+  print(ary.push(3))  // type error
+  `
+
+  expect(() => compileAndRun(src2, destFile)).toThrow(/incompatible argument.*integer to Foo/)
+
+  const src3 = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+  const ary: any = [new Foo(1), new Foo(2), new Foo(3)]
+  print(ary.push(3))  // runtime error
+  `
+
+  expect(() => compileAndRun(src3, destFile)).toThrow(/runtime type error/)
+})

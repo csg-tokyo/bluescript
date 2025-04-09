@@ -270,13 +270,18 @@ extern value_t CR_SECTION gc_make_array(const class_object* clazz, int32_t n, ..
 extern int32_t CR_SECTION gc_array_length(value_t obj);
 extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);
 extern value_t CR_SECTION gc_array_set(value_t obj, int32_t index, value_t new_value);
-extern bool CR_SECTION gc_is_anyarray(value_t v);
+
+extern int32_t gc_array_push(value_t obj, value_t new_value);
+extern value_t gc_array_pop(value_t obj);
+extern int32_t gc_array_unshift(value_t obj, value_t new_value);
+extern value_t gc_array_shift(value_t obj);
 
 extern int32_t CR_SECTION get_all_array_length(value_t obj);
 extern value_t CR_SECTION get_anyobj_length_property(value_t obj, int property);
 extern value_t CR_SECTION gc_safe_array_get(value_t obj, int32_t idx);
 extern value_t CR_SECTION gc_safe_array_set(value_t obj, int32_t idx, value_t new_value);
 extern value_t CR_SECTION gc_safe_array_acc(value_t obj, int32_t index, char op, value_t new_value);
+extern bool CR_SECTION gc_is_anyarray(value_t v);
 
 extern void CR_SECTION gc_init_rootset(struct gc_root_set* set, uint32_t length);
 extern void CR_SECTION gc_run();

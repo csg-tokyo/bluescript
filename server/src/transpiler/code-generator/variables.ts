@@ -6,7 +6,7 @@ import { NameTable, NameTableMaker, GlobalNameTable,
          BlockNameTable, FunctionNameTable, NameInfo,
          getNameTable } from '../names'
 import { ClassTable, InstanceType } from '../classes'
-import { rootSetVariable, getObjectProperty,
+import { rootSetVariable, prefixOfarrayTypeNameInC, getObjectProperty,
          getObjectPrimitiveProperty,
          getObjectPropertyAddress, setObjectProperty } from './c-runtime'
 
@@ -240,7 +240,7 @@ export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
     else {
       const found = this.findUsedArrayType(name)
       const info: [string, ArrayType, boolean]
-        = [ found ? found[0] : `array_type${arrayTypeIndex++}`, type, !found ]
+        = [ found ? found[0] : `${prefixOfarrayTypeNameInC}${arrayTypeIndex++}`, type, !found ]
       this.arrayTypes.set(name, info)
       return info
     }
