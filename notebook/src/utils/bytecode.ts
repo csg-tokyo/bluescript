@@ -13,6 +13,10 @@ export enum BYTECODE {
     RESULT_PROFILE
 }
 
+// The first 2 bytes indicate that the communication is a data transmission.
+const FIRST_HEADER_SIZE = 2;
+const FIRST_HEADER = [0x03, 0x00];
+
 const LOAD_HEADER_SIZE = 9;
 
 export class BytecodeBufferBuilder {
@@ -22,9 +26,9 @@ export class BytecodeBufferBuilder {
     private lastUnitRemain: number;
 
     constructor(unitSize: number) {
-        this.unitSize = unitSize;
+        this.unitSize = unitSize - FIRST_HEADER_SIZE;
         this.lastUnitRemain = unitSize;
-        this.lastUnit = Buffer.alloc(0);
+        this.lastUnit = Buffer.from(FIRST_HEADER);
     }
 
     public load(address: number, data: Buffer) {
@@ -45,14 +49,14 @@ export class BytecodeBufferBuilder {
                 this.lastUnit = Buffer.concat([this.lastUnit, header, body]);
 
                 this.units.push(this.lastUnit);
-                this.lastUnit = Buffer.alloc(0);
+                this.lastUnit = Buffer.from(FIRST_HEADER);
                 dataRemain -= loadSize;
                 offset += loadSize;
                 loadAddress += loadSize;
                 this.lastUnitRemain = this.unitSize;
             } else {
                 this.units.push(this.lastUnit);
-                this.lastUnit = Buffer.alloc(0);
+                this.lastUnit = Buffer.from(FIRST_HEADER);
                 this.lastUnitRemain = this.unitSize;
             }
         }
@@ -77,7 +81,7 @@ export class BytecodeBufferBuilder {
             this.lastUnit = Buffer.concat([this.lastUnit, header]);
         } else {
             this.units.push(this.lastUnit);
-            this.lastUnit = header;
+            this.lastUnit = Buffer.concat([Buffer.from(FIRST_HEADER), header]);
         }
         return this
     }
@@ -89,7 +93,7 @@ export class BytecodeBufferBuilder {
             this.lastUnit = Buffer.concat([this.lastUnit, header]);
         } else {
             this.units.push(this.lastUnit);
-            this.lastUnit = header;
+            this.lastUnit = Buffer.concat([Buffer.from(FIRST_HEADER), header]);
         }
         return this
     }
@@ -101,7 +105,7 @@ export class BytecodeBufferBuilder {
         // Reset
         this.lastUnitRemain = this.unitSize;
         this.units = [];
-        this.lastUnit = Buffer.alloc(0);
+        this.lastUnit = Buffer.from(FIRST_HEADER);
 
         return result;
     }

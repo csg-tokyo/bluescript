@@ -6,6 +6,6 @@
 
 void bs_ble_init();
 
-void bs_ble_send_data(uint8_t *data, uint32_t len);
+void bs_ble_send_buffer(uint8_t *buffer, uint32_t len);
 
 #endif /* __BS_BLE__ */

@@ -104,7 +104,9 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         for (const entryPoint of compileResult.result.entryPoints) {
             bytecodeBuilder.jump(entryPoint.id, entryPoint.address);
         }
-        const bluetoothTime = await bluetooth.current.sendBuffers(bytecodeBuilder.generate())
+        const bytecode = bytecodeBuilder.generate()
+        console.log(bytecode)
+        const bluetoothTime = await bluetooth.current.sendBuffers(bytecode)
         return bluetoothTime
     }
 
