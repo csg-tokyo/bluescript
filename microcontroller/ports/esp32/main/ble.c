@@ -36,7 +36,7 @@ static void gatts_profile_shell_event_handler(esp_gatts_cb_event_t event, esp_ga
 #define DEVICE_NAME            "BLUESCRIPT"
 
 #define GATTS_CHAR_VAL_LEN_MAX 0x40
-
+#define MAX_MTU_SIZE  512
 #define PREPARE_BUF_MAX_SIZE 1024
 
 static uint8_t char1_str[] = {0x11,0x22,0x33};
@@ -473,7 +473,7 @@ void bs_ble_init(void)
         return;
     }
 
-    esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(517);
+    esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(MAX_MTU_SIZE);
     if (local_mtu_ret){
         ESP_LOGE(GATTS_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
@@ -481,11 +481,14 @@ void bs_ble_init(void)
 }
 
 void bs_ble_send_buffer(uint8_t *buffer, uint32_t len) {
-    // TODO: MTUの大きさを超えた場合に対処
-    esp_ble_gatts_send_indicate(
-        gl_profile_tab[PROFILE_SHELL_APP_ID].gatts_if, 
-        gl_profile_tab[PROFILE_SHELL_APP_ID].conn_id, 
-        gl_profile_tab[PROFILE_SHELL_APP_ID].char_handle, 
-        len, buffer, false
-    );
+    if (len < MAX_MTU_SIZE) {
+        esp_ble_gatts_send_indicate(
+            gl_profile_tab[PROFILE_SHELL_APP_ID].gatts_if, 
+            gl_profile_tab[PROFILE_SHELL_APP_ID].conn_id, 
+            gl_profile_tab[PROFILE_SHELL_APP_ID].char_handle, 
+            len, buffer, false
+        );
+    } else {
+        ESP_LOGE(GATTS_TAG, "The buffer length exceeds the max MTU size.");
+    }   
 }
