@@ -5,6 +5,10 @@
 #include "../include/profiler.h"
 #include "../include/c-runtime.h"
 
+#ifndef TEST64
+#include "../include/protocol.h"
+#endif
+
 
 #define BS_PROFILER_TAG        "BS_PROFILER"
 
@@ -80,7 +84,7 @@ static void send_row(uint8_t fid, typeint_t* type_profile_row) {
 #ifdef TEST64
     printf("%s\n", s);
 #else 
-    bs_logger_push_profile(fid, s);
+    bs_protocol_write_profile(fid, s);
 #endif
 }
 

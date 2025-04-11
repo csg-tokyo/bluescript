@@ -20,8 +20,7 @@
 
 #include "sdkconfig.h"
 #include "include/ble.h"
-#include "include/shell.h"
-
+#include "protocol.h"
 
 
 #define GATTS_TAG "BS_BLE"
@@ -37,7 +36,7 @@ static void gatts_profile_shell_event_handler(esp_gatts_cb_event_t event, esp_ga
 #define DEVICE_NAME            "BLUESCRIPT"
 
 #define GATTS_CHAR_VAL_LEN_MAX 0x40
-
+#define MAX_MTU_SIZE  512
 #define PREPARE_BUF_MAX_SIZE 1024
 
 static uint8_t char1_str[] = {0x11,0x22,0x33};
@@ -190,7 +189,16 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 static void write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param) {
     esp_gatt_status_t status = ESP_GATT_OK;
     if (param->write.need_rsp) {
-        if (param->write.is_prep) {
+        if (!param->write.is_prep) {
+            uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
+            if (descr_value == 0x0001 || descr_value == 0x0002 || descr_value == 0x0000) {
+                ESP_LOGI(GATTS_TAG, "Received notification related value.");
+                esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, status, NULL);
+            } else if (descr_value == 0x0003) {
+                write_action_handler(param->write.value + 2, param->write.len - 2);
+                esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, status, NULL);
+            }
+        } else {
             if (param->write.offset > PREPARE_BUF_MAX_SIZE) {
                 status = ESP_GATT_INVALID_OFFSET;
             } else if ((param->write.offset + param->write.len) > PREPARE_BUF_MAX_SIZE) {
@@ -226,9 +234,6 @@ static void write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_
                    param->write.len);
             prepare_write_env->prepare_len += param->write.len;
 
-        } else {
-            write_action_handler(param->write.value, param->write.len);
-            esp_ble_gatts_send_response(gatts_if, param->write.conn_id, param->write.trans_id, status, NULL);
         }
     }
 }
@@ -239,7 +244,7 @@ static void exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_
         return;
     }
     if (prepare_write_env->prepare_buf) {
-        write_action_handler(prepare_write_env->prepare_buf, prepare_write_env->prepare_len);
+        write_action_handler(prepare_write_env->prepare_buf + 2, prepare_write_env->prepare_len - 2);
         free(prepare_write_env->prepare_buf);
         prepare_write_env->prepare_buf = NULL;
     }
@@ -412,7 +417,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
 }
 
 static void write_action_handler(uint8_t *value, int value_len) {
-    bs_shell_receptionist(value, value_len);
+    bs_protocol_read(value, value_len);
 }
 
 void bs_ble_init(void)
@@ -468,18 +473,22 @@ void bs_ble_init(void)
         return;
     }
 
-    esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(517);
+    esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(MAX_MTU_SIZE);
     if (local_mtu_ret){
         ESP_LOGE(GATTS_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
     return;
 }
 
-void bs_ble_send_notification(uint8_t *value, uint32_t length) {
-    esp_ble_gatts_send_indicate(
-        gl_profile_tab[PROFILE_SHELL_APP_ID].gatts_if, 
-        gl_profile_tab[PROFILE_SHELL_APP_ID].conn_id, 
-        gl_profile_tab[PROFILE_SHELL_APP_ID].char_handle, 
-        length, value, false
-    );
+void bs_ble_send_buffer(uint8_t *buffer, uint32_t len) {
+    if (len < MAX_MTU_SIZE) {
+        esp_ble_gatts_send_indicate(
+            gl_profile_tab[PROFILE_SHELL_APP_ID].gatts_if, 
+            gl_profile_tab[PROFILE_SHELL_APP_ID].conn_id, 
+            gl_profile_tab[PROFILE_SHELL_APP_ID].char_handle, 
+            len, buffer, false
+        );
+    } else {
+        ESP_LOGE(GATTS_TAG, "The buffer length exceeds the max MTU size.");
+    }   
 }

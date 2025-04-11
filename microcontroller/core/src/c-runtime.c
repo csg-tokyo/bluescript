@@ -75,6 +75,8 @@ static inline value_t raw_ptr_to_value(const void* v) { return (value_t)((uintpt
 
 #else
 
+#include "../include/protocol.h"
+
 static inline void* raw_value_to_ptr(value_t v) { return (void*)v; }
 static inline value_t raw_ptr_to_value(const void* v) { return (value_t)v; }
 
@@ -116,7 +118,7 @@ int32_t try_and_catch(void (*main_function)()) {
     if (setjmp(long_jump_buffer) != 0) {
         fputs(error_message, stderr);
 #ifndef TEST64
-        bs_logger_push_error(error_message);
+        bs_protocol_write_error(error_message);
 #endif
         return 1;
     }
