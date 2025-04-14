@@ -66,7 +66,7 @@ class CodeBuffer {
   }
 }
 
-function completer(line: string) {
+function completer(line: string): [string[], string] {
   const completions = '.quit .load print print_i32 performance_now function let const class'.split(' ')
   const hits = completions.filter((c) => c.startsWith(line))
   return hits.length ? [hits, line] : [[], '']
