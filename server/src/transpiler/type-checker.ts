@@ -1150,6 +1150,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           this.newObjectExpression(node, info.type, names)
           return
         }
+        else if (this.firstPass) {
+          this.result = Any
+          return
+        }
       }
       name = className.name
     }
@@ -1423,7 +1427,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.result = Integer
     else {
       const nameInfo = names.lookup(name)
-      if (this.assert(nameInfo !== undefined, `unknown type name: ${name}`, node)) {
+      if (nameInfo === undefined)
+        this.assert(this.firstPass, `unknown type name: ${name}`, node)
+      else {
         const info = nameInfo as NameInfo
         const isType = info.isTypeName
         if (this.assert(isType, `not a type name: ${name}`, node)) {

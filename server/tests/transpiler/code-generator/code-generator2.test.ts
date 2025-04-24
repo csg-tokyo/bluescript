@@ -1518,3 +1518,52 @@ test('Foo[]#push, pop, etc', () => {
 
   expect(() => compileAndRun(src3, destFile)).toThrow(/runtime type error/)
 })
+
+test.skip('multually recursive classes', () => {
+  const src = `
+  class Foo {
+    value: Bar
+    constructor(i: integer) { this.value = new Bar(i, this) }
+    get(): Bar { return this.value as Bar}
+  }
+
+  class Bar {
+    value: Foo
+    constructor(i: integer, f: Foo) {
+      if (i > 0)
+        this.value = new Foo(0)
+      else
+        this.value = f
+    }
+  }
+
+  function foo() {
+    const obj = new Foo(7)
+    print(obj.value)
+    print(obj.get().value)
+  }
+
+  foo()`
+
+  expect(compileAndRun(src, destFile)).toBe('<class Bar>\n<class Foo>\n')
+})
+
+test('a constructor instantiates itself', () => {
+  const src = `
+  class Foo {
+    boo: Boo;
+    constructor(boo: Boo) {
+      this.boo = boo
+    }
+  }
+
+  class Boo extends Foo {
+    x: number;
+    constructor(){
+      super(new Boo());
+      this.x = 3
+    }
+  }`
+
+  expect(compileAndRun(src, destFile)).toBe('')
+})
