@@ -53,6 +53,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   errorLog = new ErrorLog()
   protected result =  new CodeWriter()
   protected signatures = ''                   // function prototypes etc.
+  protected classObjectDeclarations = ''      // class objects.
   protected declarations = new CodeWriter()   // function declarations etc.
   private endWithReturn = false
   private initializerName: string           // the name of an initializer function
@@ -72,7 +73,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   getCode(header: string) {
-    return `${this.signatures}${header}${this.declarations.getCode()}${this.result.getCode()}`
+    return `${this.signatures}${header}${this.classObjectDeclarations}${this.declarations.getCode()}${this.result.getCode()}`
   }
 
   file(node: AST.File, env: VariableEnv): void {
@@ -439,7 +440,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         }
       }
 
-      this.declarations.write(cr.classDeclaration(clazz, env.table.classTable())).nl()
+      this.classObjectDeclarations += cr.classDeclaration(clazz, env.table.classTable()) + '\n'
 
       let defaultConstructor = true
       for (const mem of node.body.body) {
@@ -473,7 +474,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const prevResult = this.result
     this.result = this.declarations
-    this.functionBody(node, fenv, funcType, funcName)
+    const header = this.functionBody(node, fenv, funcType, funcName)
+    this.signatures += header + ';\n'
 
     const sig = this.makeParameterList(funcType, node, fenv, undefined, true)
     let args = 'self'
