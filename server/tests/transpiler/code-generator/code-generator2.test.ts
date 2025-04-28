@@ -1519,11 +1519,17 @@ test('Foo[]#push, pop, etc', () => {
   expect(() => compileAndRun(src3, destFile)).toThrow(/runtime type error/)
 })
 
-test.skip('multually recursive classes', () => {
+test('multually recursive classes', () => {
   const src = `
   class Foo {
     value: Bar
-    constructor(i: integer) { this.value = new Bar(i, this) }
+    constructor(i: integer) {
+      if (i > 0) {
+        this.value = new Bar(i, this)
+      } else {
+        this.value = new Bar(i, this)
+      }
+    }
     get(): Bar { return this.value as Bar}
   }
 
@@ -1546,6 +1552,38 @@ test.skip('multually recursive classes', () => {
   foo()`
 
   expect(compileAndRun(src, destFile)).toBe('<class Bar>\n<class Foo>\n')
+})
+
+test('wrong constructor', () => {
+  const src = `
+  class Foo {
+    value: Bar
+    constructor(i: integer) {
+      if (i > 0) {
+        this.value = new Bar(i, this)
+      }
+      this.value = new Bar(i, this)
+    }
+    get(): Bar { return this.value as Bar}
+  }
+
+  class Bar {
+    value: Foo
+    constructor(i: integer, f: Foo) {
+      if (i > 0)
+        this.value = new Foo(0)
+    }
+  }
+
+  function foo() {
+    const obj = new Foo(7)
+    print(obj.value)
+    print(obj.get().value)
+  }
+
+  foo()`
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/uninitialized property: value/)
 })
 
 test('a constructor instantiates itself', () => {

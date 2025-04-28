@@ -1601,6 +1601,10 @@ class ConstructorChecker<Info extends NameInfo> extends TypeChecker<Info> {
   private hasSuperCall: boolean
   private toplevel: number
   private properties: { [key: string]: boolean }
+  private thenBlock?: AST.Statement
+  private elseBlock?: AST.Statement | null
+  private thenProperties: { [key: string]: boolean } = {}
+  private elseProperties: { [key: string]: boolean } = {}
 
   constructor(checker: TypeChecker<Info>, clazz: InstanceType) {
     super(checker.maker)
@@ -1635,9 +1639,47 @@ class ConstructorChecker<Info extends NameInfo> extends TypeChecker<Info> {
   }
 
   ifStatement(node: AST.IfStatement, names: NameTable<Info>): void {
+    if (this.toplevel === 1 && this.thenBlock === undefined) {
+      this.thenBlock = node.consequent
+      this.elseBlock = node.alternate
+    }
+
     this.toplevel++
     super.ifStatement(node, names)
     this.toplevel--
+
+    if (this.thenBlock === node.consequent) {
+      for (const prop in this.properties)
+        if (this.properties[prop] === false)
+          if (this.thenProperties[prop] === true && this.elseProperties[prop] === true)
+            this.properties[prop] = true
+
+      this.thenProperties = this.elseProperties = {}
+      this.thenBlock = undefined
+      this.elseBlock = undefined
+    }
+  }
+
+  private exprOrBlockStatement<T>(node: T, names: NameTable<Info>, level: number,
+                                  f: (node: T, n: NameTable<Info>) => void): void {
+    const original = this.properties
+    const toplevel = this.toplevel
+    if (this.thenBlock === node || this.elseBlock === node) {
+      this.properties = {}
+      this.toplevel = 1 - level
+    }
+
+    this.toplevel += level
+    f(node, names)
+    this.toplevel -= level
+
+    if (this.thenBlock === node)
+      this.thenProperties = this.properties
+    else if (this.elseBlock === node)
+      this.elseProperties = this.properties
+
+    this.toplevel = toplevel
+    this.properties = original
   }
 
   forStatement(node: AST.ForStatement, names: NameTable<Info>): void {
@@ -1647,9 +1689,11 @@ class ConstructorChecker<Info extends NameInfo> extends TypeChecker<Info> {
   }
 
   blockStatement(node: AST.BlockStatement, names: NameTable<Info>): void {
-    this.toplevel++
-    super.blockStatement(node, names)
-    this.toplevel--
+    this.exprOrBlockStatement(node, names, 1, (blk, n) => super.blockStatement(blk, n))
+  }
+
+  expressionStatement(node: AST.ExpressionStatement, names: NameTable<Info>): void {
+    this.exprOrBlockStatement(node, names, 0, (expr, n) => super.expressionStatement(expr, n))
   }
 
   arrowFunctionExpression(node: AST.ArrowFunctionExpression, names: NameTable<Info>): void {
