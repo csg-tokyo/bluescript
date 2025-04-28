@@ -56,12 +56,12 @@ void bs_protocol_write_error(char* message) {
 
 void bs_protocol_write_profile(uint8_t fid, char* profile) {
     uint32_t len = strlen(profile);
-    uint32_t buffer_len = PROTOCOL_LEN + sizeof(uint8_t) + len + sizeof(uint8_t); // size of fid + len + size of null
+    uint32_t buffer_len = PROTOCOL_LEN + sizeof(uint8_t) + len; // size of fid + len + size of null
     uint8_t* buffer = (uint8_t*)malloc(buffer_len);
     if (buffer != NULL) {
         buffer[0] = PROTOCOL_PROFILE;
         buffer[1] = fid;
-        strcpy((char*)(buffer + PROTOCOL_LEN + sizeof(uint8_t)), profile);
+        memcpy((char*)(buffer + PROTOCOL_LEN + sizeof(uint8_t)), profile, strlen);
         send_buffer(buffer, buffer_len);
     } else {
         BS_LOG_ERROR("Could not get buffer.");

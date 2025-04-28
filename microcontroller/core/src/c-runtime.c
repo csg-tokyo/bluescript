@@ -533,7 +533,12 @@ static int get_anyobj_property2(const class_object* clazz, int property, char* t
     if (clazz == NULL)
         runtime_type_error("no such property is found");
 
+    // puts("get_anyobj_property2-1");
+    printf("clazz: %p\n", clazz);
+    // printf("clazz->table: %p\n", &(clazz->table));
+    // printf("clazz->table.size: %d\n", clazz->table.size);
     const uint16_t size = clazz->table.size;
+    // puts("get_anyobj_property2-2");
     const uint16_t* names = clazz->table.prop_names;
     for (int i = 0; i < size; i++)
         if (names[i] == property) {
@@ -558,17 +563,29 @@ value_t* get_obj_property_addr(value_t obj, int index) {
 }
 
 value_t get_anyobj_property(value_t obj, int property) {
+    // puts("get_anyobj_property1");
     class_object* clazz = gc_get_class_of(obj);
+    // puts("get_anyobj_property2");
     char type;
     int index = get_anyobj_property2(clazz, property, &type);
-    if (type == ' ')
+    // puts("get_anyobj_property3");
+    if (type == ' ') {
+        // puts("get_anyobj_property4");
         return get_obj_property(obj, index);
-    else if (type == 'i' || type == 'b')
+    }
+        
+    else if (type == 'i' || type == 'b') {
+        // puts("get_anyobj_property5");
         return int_to_value(*get_obj_int_property(obj, index));
-    else if (type == 'f')
+    }
+        
+    else if (type == 'f') {
+        // puts("get_anyobj_property6");
         return float_to_value(*get_obj_float_property(obj, index));
+    }
+        
     else {
-        runtime_type_error("get_anyobj_property");
+        // runtime_type_error("get_anyobj_property");
         return VALUE_UNDEF;
     }
 }
@@ -2108,6 +2125,7 @@ static void sweep_objects(uint32_t mark) {
 }
 
 void gc_run() {
+    puts("gc_run");
     gc_is_running = true;
     uint32_t mark = current_no_mark ? 0 : 1;
     mark_objects(gc_root_set_head, mark);

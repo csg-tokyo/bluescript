@@ -131,7 +131,11 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             setLatestCell((cell) => ({...cell, state: CellStateT.Executing, time: {compile: compileTime, send: bluetoothTime}}))
         } catch (error: any) {
             if (error instanceof CompileError) {
-                const errorStrings = error.messages.map(e => e.message)
+                const errorStrings = error.messages.map(m => {
+                    const line = m.location?.start.line
+                    const column = m.location?.start.column
+                    return `${m.message} in line ${line ? line : '??'} ${column ? `(column ${column})` : ''}`
+                })
                 setLatestCell((cell) => ({...cell, compileId:-1, state: CellStateT.UserWriting, compileError: errorStrings, time:undefined}))
             } else {
                 // TODO: 要修正

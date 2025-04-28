@@ -11,12 +11,11 @@ test("transpile", () => {
 
 const bsSrc1 = `
 
-
-function test(fn: () => void) {
-  fn();
+export function cos(f: float):float {
+    let result = 0.0;
+    code\`_result = cos(_f)\`;
+    return result;
 }
-
-test(() => {1 + 1})
 `
 
 test("playground", () => {
