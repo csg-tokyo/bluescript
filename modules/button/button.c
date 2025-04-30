@@ -1,6 +1,6 @@
 #include "driver/gpio.h"
 #include "c-runtime.h"
-#include "shell.h"
+#include "main-thread.h"
 #include "button.h"
 
 
@@ -28,7 +28,7 @@ void fbody_000001buttonOnPressed(value_t self, int32_t _buttonPin, value_t _call
         is_isr_installed = true;
     }
     set_global_variable(&global_rootset0_000001.values[_buttonPin], _callback);
-    gpio_isr_handler_add(_buttonPin, bs_event_push_from_isr, (void*)func_rootset.values[0]);
+    gpio_isr_handler_add(_buttonPin, bs_main_thread_set_event_from_isr, (void*)func_rootset.values[0]);
   }
   DELETE_ROOT_SET(func_rootset)
 }

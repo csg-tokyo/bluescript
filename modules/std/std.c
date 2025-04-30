@@ -24,7 +24,6 @@ void fbody_print(value_t self, value_t _value) {
     snprintf(message, sizeof(message), "%s\n", gc_string_to_cstr(_value));
   else {
     class_object* cls = gc_get_class_of(_value);
-    printf("clazz: %p\n", cls);
     if (cls == NULL)
       sprintf(message, "??\n");
     else

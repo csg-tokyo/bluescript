@@ -114,3 +114,11 @@ void bs_main_thread_set_event(value_t fn) {
     task_item.call_event.fn = fn;
     xQueueSend(task_item_queue, &task_item, portMAX_DELAY);
 }
+
+void bs_main_thread_set_event_from_isr(void* fn) {
+    portBASE_TYPE yield = pdFALSE;
+    task_item_u task_item;
+    task_item.call_event.task = TASK_CALL_EVENT;
+    task_item.call_event.fn = (value_t)fn;
+    xQueueSendFromISR(task_item_queue, &task_item, &yield);
+}

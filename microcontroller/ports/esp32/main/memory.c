@@ -79,8 +79,8 @@ void bs_memory_init() {
 void bs_memory_reset() {
     iram_reset();
     dram_reset();
-    iflash_reset();
-    dflash_reset();
+    // iflash_reset();
+    // dflash_reset();
 }
 
 

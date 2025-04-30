@@ -4,7 +4,7 @@
 #include "esp_timer.h"
 #include "esp_log.h"
 
-#include "shell.h"
+#include "main-thread.h"
 #include "timer.h"
 
 #define BS_TIMER_TAG  "BS_TIMER"
@@ -37,7 +37,7 @@ int32_t fbody_000004setInterval(value_t self, value_t _func, int32_t _delay) {
     set_global_variable(&global_rootset0_000004.values[timer_id], _func);
     esp_timer_handle_t timer;
     const esp_timer_create_args_t timer_args = {
-        .callback = &bs_event_push_from_isr,
+        .callback = &bs_main_thread_set_event_from_isr,
         .arg = (void*) func_rootset.values[0],
     };
     ESP_ERROR_CHECK(esp_timer_create(&timer_args, &timer));
@@ -60,7 +60,7 @@ int32_t fbody_000004setTimeout(value_t self, value_t _func, int32_t _delay) {
     set_global_variable(&global_rootset0_000004.values[timer_id], _func);
     esp_timer_handle_t timer;
     const esp_timer_create_args_t timer_args = {
-        .callback = &bs_event_push_from_isr,
+        .callback = &bs_main_thread_set_event_from_isr,
         .arg = (void*) func_rootset.values[0],
     };
     ESP_ERROR_CHECK(esp_timer_create(&timer_args, &timer));
