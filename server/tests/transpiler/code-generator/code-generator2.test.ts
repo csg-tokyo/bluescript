@@ -1605,3 +1605,17 @@ test('a constructor instantiates itself', () => {
 
   expect(compileAndRun(src, destFile)).toBe('')
 })
+
+test('an instance created by "new" is collected unintentionally', () => {
+  const src = `
+class Foo {}
+
+class Boo {
+  constructor(foo: Foo) {}
+}
+
+let boo = new Boo(new Foo())
+print(boo)`
+
+  expect(compileAndRun(src, destFile)).toBe('<class Boo>\n')
+})
