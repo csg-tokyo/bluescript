@@ -1406,7 +1406,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   thisExpression(node: AST.ThisExpression, env: VariableEnv): void {
-    this.result.write('self')
+    const info = env.table.lookup('this')
+    if (info !== undefined && info.isBoxed())
+      this.result.write(info.transpileBoxed(true))
+    else
+      this.result.write('self')
   }
 
   superExpression(node: AST.Super, env: VariableEnv): void {

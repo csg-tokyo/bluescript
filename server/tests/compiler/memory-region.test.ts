@@ -44,7 +44,7 @@ test('Test reusable memory region', () => {
   expect(memoryBlock2.sectionName).toBe('.iram2');
 
   // Free 2nd block
-  memoryRegion.free(section2.name);
+  memoryRegion.free(memoryBlock2.sectionId || 0);
 
   // Allocate 3rd block
   const section3: Section = {name: '.iram3', address: 0x000, size: 50, value: Buffer.from([])};
@@ -54,8 +54,8 @@ test('Test reusable memory region', () => {
   expect(memoryBlock3.sectionName).toBe('.iram3');
 
   // Free 1st and 3rd block
-  memoryRegion.free(section1.name);
-  memoryRegion.free(section3.name);
+  memoryRegion.free(memoryBlock1.sectionId || 0);
+  memoryRegion.free(memoryBlock3.sectionId || 0);
 
   // Allocate 4th block
   const section4: Section = {name: '.iram4', address: 0x000, size: 140, value: Buffer.from([])};
