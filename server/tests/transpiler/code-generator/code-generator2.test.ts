@@ -1619,3 +1619,39 @@ print(boo)`
 
   expect(compileAndRun(src, destFile)).toBe('<class Boo>\n')
 })
+
+test('"this" in a lambda function', () => {
+  const src = `
+  const func = () => { print(this) }
+  func()`
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/this.*not available.*line 2/)
+
+  const src2 = `
+  const func = function () { print(this) }
+  func()`
+
+  expect(() => compileAndRun(src2, destFile)).toThrow(/unsupported syntax.*line 2/)
+})
+
+test.only('"this" representing an enclosing object exists in a lambda function', () => {
+  const src = `
+class Foo {
+  foo() {
+    const self = this
+    return ()=>{
+      self.bar()
+      this.bar()
+    }
+  }
+
+  bar() {
+    print("bar")
+  }
+}
+
+new Foo().foo()()
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('bar\nbar\n')
+})
