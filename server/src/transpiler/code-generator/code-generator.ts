@@ -1384,27 +1384,33 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   newObjectExpression(node: AST.NewExpression, clazz: InstanceType, env: VariableEnv): void {
-    const maker = cr.makeInstance(clazz)
+    let numOfObjectArgs = 0
+    const maker = cr.makeInstance(clazz, () => {
+      numOfObjectArgs += 1
+      return `${cr.rootSetVariable(env.allocate())}=`
+    })
     const needsComma = !maker.endsWith('(')
     this.result.write(maker)
     const cons = clazz.findConstructor()
     if (cons !== undefined) {
       const params = cons.paramTypes
-      let numOfObjectArgs = 0
       for (let i = 0; i < node.arguments.length; i++) {
         if (needsComma || i > 0)
           this.result.write(', ')
         numOfObjectArgs += this.callExpressionArg(node.arguments[i], params[i], env)
       }
-
-      env.deallocate(numOfObjectArgs)
     }
 
+    env.deallocate(numOfObjectArgs)
     this.result.write(')')
   }
 
   thisExpression(node: AST.ThisExpression, env: VariableEnv): void {
-    this.result.write('self')
+    const info = env.table.lookup('this')
+    if (info !== undefined && info.isBoxed())
+      this.result.write(info.transpileBoxed(true))
+    else
+      this.result.write('self')
   }
 
   superExpression(node: AST.Super, env: VariableEnv): void {

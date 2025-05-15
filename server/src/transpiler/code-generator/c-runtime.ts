@@ -559,14 +559,14 @@ export function classDeclaration(clazz: InstanceType, classTable: ClassTable) {
     .body = { .s = ${size}, .i = ${start}, .cn = "${name}", .sc = ${superAddr} , .an = (void*)0, .pt = ${propTable}, .mt = ${methodTable}, .vtbl = { ${tableArray} }}};`
 }
 
-export function makeInstance(clazz: InstanceType) {
+export function makeInstance(clazz: InstanceType, func: () => string) {
   const name = clazz.name()
   if (name === ByteArrayClass)
     return 'gc_new_bytearray(false'
   else if (name === VectorClass)
     return 'gc_new_vector('
   else
-    return `${constructorNameInC(name)}(gc_new_object(&${classObjectNameInC(name)})`
+    return `${constructorNameInC(name)}(${func()}gc_new_object(&${classObjectNameInC(name)})`
 }
 
 export function methodLookup(method: [StaticType, number, InstanceType?], func: string) {
