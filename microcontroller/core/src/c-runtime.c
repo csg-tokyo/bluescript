@@ -2131,7 +2131,6 @@ uint32_t gc_test_run() {
 
 // when you modify this function, also modify ROOT_SET_N macro.
 void gc_init_rootset(struct gc_root_set* set, uint32_t length) {
-    puts("foooo");
     set->next = gc_root_set_head;
     if (length > 0) {
         gc_root_set_head = set;

@@ -30,7 +30,7 @@ void fbody_print(value_t self, value_t _value) {
       snprintf(message, sizeof(message), "<class %s>\n", cls->name);
   }
   printf(message);
-  // bs_protocol_write_log(message);
+  bs_protocol_write_log(message);
 }
 
 int32_t fbody_randInt(value_t self, int32_t _min, int32_t _max) {
