@@ -44,12 +44,14 @@ static void iflash_init() {
     iflash_partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, IFLASH_PARTITION_LABEL);
     esp_partition_mmap(iflash_partition, 0, iflash_partition->size, ESP_PARTITION_MMAP_INST, &mapped_iflash_address, &mapped_iflash_hdlr);
     BS_LOG_INFO("IFlash Address: 0x%x Mapped Address: %p Size: %d\n", (int)iflash_partition->address, mapped_iflash_address, (int)iflash_partition->size)
+    esp_partition_erase_range(iflash_partition, 0, iflash_partition->size);
 }
 
 static void dflash_init() {
     dflash_partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, DFLASH_PARTITION_LABEL);
     esp_partition_mmap(dflash_partition, 0, dflash_partition->size, ESP_PARTITION_MMAP_DATA, &mapped_dflash_address, &mapped_dflash_hdlr);
     BS_LOG_INFO("DFlash Address: 0x%x VAddress: %p Size: %d\n", (int)dflash_partition->address, mapped_dflash_address, (int)dflash_partition->size)
+    esp_partition_erase_range(dflash_partition, 0, dflash_partition->size);
 }
 
 static void iram_reset() {
