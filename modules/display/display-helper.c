@@ -3,6 +3,8 @@
 #include "esp_system.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 
 #define LCD_HOST    HSPI_HOST
@@ -508,3 +510,74 @@ uint8_t* get_font8x8_char(char chr) {
     return font8x8 + idx * 8;
 }
 
+void display_reset() {
+    gpio_set_level(PIN_NUM_BCKL, 0);
+    gpio_set_level(PIN_NUM_RST, 0);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+    gpio_set_level(PIN_NUM_RST, 1);
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+}
+
+void display_init() {
+    spi_init();
+    gpio_init();
+    display_reset();
+    int cmd = 0;
+    //Send all the commands
+    while (init_cmds[cmd].databytes!=0xff) {
+        spi_write_cmd(init_cmds[cmd].cmd);
+        spi_write_data(init_cmds[cmd].data, init_cmds[cmd].databytes&0x1F);
+        if (init_cmds[cmd].databytes&0x80) {
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
+        cmd++;
+    }
+
+    spi_write_cmd(MADCTL);
+    uint8_t data[16] = {0x08};
+    spi_write_data(data, 1&0x1F);
+    spi_write_cmd(DISPLAY_INVERSION_ON);
+    spi_write_cmd(WAKE);
+    vTaskDelay(120 / portTICK_PERIOD_MS);
+    spi_write_cmd(DISPLAY_ON);
+    gpio_set_level(PIN_NUM_BCKL, 1);
+}
+
+uint16_t display_color(int32_t r, int32_t g, int32_t b) {
+    uint16_t color = 0;
+    color |= ((r >> 3) << 11);
+    color |= ((g >> 2) << 5);
+    color |= ((b >> 3) << 0);
+    color = (color >> 8) | (color << 8); // big-endian
+    return color;
+}
+
+void display_fill(uint16_t color) {
+    display_draw(fill, color, color);
+}
+
+void display_show_heart_icon(uint16_t color, uint16_t background) {
+    display_draw(heart, color, background);
+}
+
+void display_show_small_heart_icon(uint16_t color, uint16_t background) {
+    display_draw(small_heart, color, background);
+}
+
+void display_show_happy_face_icon(uint16_t color, uint16_t background) {
+    display_draw(happy_face, color, background);
+}
+
+void display_show_sad_face_icon(uint16_t color, uint16_t background) {
+    display_draw(sad_face, color, background);
+}
+
+void display_show_string(char* str, uint16_t color, uint16_t background) {
+    display_text(str, color, background);
+}
+
+void display_show_integer(int32_t integer, uint16_t color, uint16_t background) {
+    char buff[12]; // Max num length + blank
+    sprintf(buff, "%ld", integer);
+    display_text(&buff, color, background);
+}
