@@ -88,7 +88,7 @@ export default class HttpServer {
             responseBody = {error: "Session have not started."}
             break;
           }
-          responseBody = this.session.InteractiveCompileWithProfiling(JSON.parse(requestBody).src);
+          responseBody = this.session.interactiveCompileWithProfiling(JSON.parse(requestBody).src);
           statusCode = 200;
           break;
         case "/jit-compile": {

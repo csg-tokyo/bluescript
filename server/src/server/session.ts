@@ -84,7 +84,7 @@ export default class Session {
     return  {result: this.shadowMemory.getUpdates(), compileTime:end-start, compileId: this.compileId}
   }
 
-  public InteractiveCompileWithProfiling(src: string) {
+  public interactiveCompileWithProfiling(src: string) {
     const start = performance.now();
     this.compileId += 1;
 

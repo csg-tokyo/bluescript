@@ -91,7 +91,7 @@ void main_thread(void *arg) {
 }
 
 void bs_main_thread_init() {
-    xTaskCreatePinnedToCore(main_thread, "bs_main_thread", 4096 * 16, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(main_thread, "bs_main_thread", 4096 * 16, NULL, 1, NULL, 0);
 }
 
 void bs_main_thread_reset() {
