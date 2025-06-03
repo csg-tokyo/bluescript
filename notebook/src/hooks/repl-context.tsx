@@ -195,7 +195,8 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         postExecutionCells.forEach(cell => src += `${cell.code}\n`);
         try {
             const compileResult = await network.compile(src);
-            const builderForDflash = new BytecodeBufferBuilder(dflash.state.size);
+            console.log("compileResult", compileResult);
+            const builderForDflash = new BytecodeBufferBuilder(dflash.state.size, false);
             const builder = new BytecodeBufferBuilder(MAX_MTU);
             compileResult.result.blocks.forEach(block => {
                 if (block.type === 'iflash')
@@ -205,6 +206,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             });
             compileResult.result.entryPoints.forEach(entry => builderForDflash.jump(entry.id, entry.address));
             const dflashBuffer = Buffer.concat(builderForDflash.generate());
+            console.log("dflashBuffer", dflashBuffer);
             const dflashHeader = Buffer.allocUnsafe(5);
             dflashHeader.writeUIntLE(1, 0, 1); // flash is written or not.
             dflashHeader.writeUIntLE(dflashBuffer.length, 1, 4); 

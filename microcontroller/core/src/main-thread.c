@@ -35,16 +35,30 @@ typedef union {
 
 static QueueHandle_t task_item_queue;
 
-static void main_thread_init() {
+static bool is_code_installed(bs_memory_layout_t* memory_layout) {
+    uint8_t* dflash_address = (uint8_t*)memory_layout->dflash_address;
+    return dflash_address[0] == 1;
+}
+
+static void main_thread_init(bs_memory_layout_t* memory_layout) {
     BS_LOG_INFO("Initialize main thread")
-    bs_memory_init();
     gc_initialize();
+    bs_memory_init();
+    bs_memory_get_layout(memory_layout);
     task_item_queue = xQueueCreate(TASK_ITEM_QUEUE_LENGTH, sizeof(task_item_u));
+    if (is_code_installed(memory_layout)) {
+        BS_LOG_INFO("Execute installed code");
+        uint32_t dram_code_length = *(uint32_t*)(memory_layout->dflash_address + 1);
+        bs_protocol_read((uint8_t*)memory_layout->dflash_address + 5, dram_code_length);
+    } else {
+        BS_LOG_INFO("Reset memory")
+        bs_memory_reset();
+    }
 }
 
 static void main_thread_reset() {
     BS_LOG_INFO("Reset main thread")
-    bs_memory_reset();
+    bs_memory_ram_reset();
     gc_initialize();
     xQueueReset(task_item_queue);
 }
@@ -63,7 +77,8 @@ static void task_call_event(value_t fn) {
 }
 
 void main_thread(void *arg) {
-    main_thread_init();
+    bs_memory_layout_t memory_layout;
+    main_thread_init(&memory_layout);
 
     while (true) {
         task_item_u task_item;
@@ -79,8 +94,6 @@ void main_thread(void *arg) {
                 break;
             case TASK_RESET:
                 main_thread_reset();
-                bs_memory_layout_t memory_layout;
-                bs_memory_get_layout(&memory_layout);
                 bs_protocol_write_memory_layout(&memory_layout);
                 break;
             default:
