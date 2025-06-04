@@ -76,6 +76,12 @@ void bs_memory_init() {
 }
 
 
+void bs_memory_ram_reset() {
+    iram_reset();
+    dram_reset();
+}
+
+
 void bs_memory_reset() {
     iram_reset();
     dram_reset();

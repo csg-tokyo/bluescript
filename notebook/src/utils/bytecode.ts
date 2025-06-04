@@ -25,10 +25,16 @@ export class BytecodeBufferBuilder {
     private lastUnit: Buffer;
     private lastUnitRemain: number;
 
-    constructor(unitSize: number) {
-        this.unitSize = unitSize - FIRST_HEADER_SIZE;
-        this.lastUnitRemain = unitSize;
-        this.lastUnit = Buffer.from(FIRST_HEADER);
+    constructor(unitSize: number, useFirstHeader = true) {
+        if (useFirstHeader) {
+            this.unitSize = unitSize - FIRST_HEADER_SIZE;
+            this.lastUnitRemain = this.unitSize;
+            this.lastUnit = Buffer.from(FIRST_HEADER);
+        } else {
+            this.unitSize = unitSize;
+            this.lastUnitRemain = this.unitSize;
+            this.lastUnit = Buffer.from([]);
+        }
     }
 
     public load(address: number, data: Buffer) {
@@ -141,7 +147,7 @@ export function bytecodeParser(data: DataView):ParseResult {
         // | cmd (1byte) | id (4byte) | exectime (4byte) |
         return {bytecode, id: data.getInt32(1, true), exectime:data.getFloat32(5, true)};
       case BYTECODE.RESULT_PROFILE:
-        let uint8arr = new Uint8Array(data.buffer, 2);
+        let uint8arr = new Uint8Array(data.buffer.slice(0, data.buffer.byteLength-1), 2);
         let textDecoder = new TextDecoder();
         return {bytecode:BYTECODE.RESULT_PROFILE, fid: data.getUint8(1), paramtypes:textDecoder.decode(uint8arr).split(", ")};
       default:

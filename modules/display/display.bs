@@ -1,5 +1,6 @@
 import type {integer} from "../../bs-utils"
 
+code`#include "display-helper.h"`
 
 export class Display {
     ICON_HEART: integer;
@@ -12,30 +13,38 @@ export class Display {
         this.ICON_SMALL_HEART = 1;
         this.ICON_HAPPY_FACE = 2;
         this.ICON_SAD_FACE = 3;
-        this.reset();
-    }
-
-    public reset() {
-
+        code`display_init()`;
     }
 
     public fill(color: integer) {
-
+        code`display_fill(_color)`;
     }
 
     public showIcon(icon: integer, color: integer, background: integer) {
-
+        if (icon === this.ICON_HEART)
+            code`display_show_heart_icon(_color, _background)`;
+        else if (icon === this.ICON_SMALL_HEART)
+            code`display_show_small_heart_icon(_color, _background)`;
+        else if (icon === this.ICON_HAPPY_FACE)
+            code`display_show_happy_face_icon(_color, _background)`;
+        else if (icon === this.ICON_SAD_FACE)
+            code`display_show_sad_face_icon(_color, _background)`;
+        else
+            code`runtime_error("** display module error: unknown icon.")`
     }
 
     public showString(str: string, color: integer, background: integer) {
-
+        code`char* text = gc_string_to_cstr(_str)`;
+        code`display_show_string(text, _color, _background)`;
     }
 
     public showInt(int: integer, color: integer, background: integer) {
-
+        code`display_show_integer(_int, _color, _background)`;
     }
     
     public color(r: integer, g: integer, b: integer):integer {
-        return 2;
+        const color = 0;
+        code`_color = display_color(_r, _g, _b)`;
+        return color;
     }
 }

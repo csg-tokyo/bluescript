@@ -14,6 +14,9 @@ void MD_SECTION_TEXT fbody_assert(value_t self, int32_t _test);
 int32_t MD_SECTION_TEXT fbody_abs(value_t self, int32_t _i);
 float MD_SECTION_TEXT fbody_fabs(value_t self, float _f);
 float MD_SECTION_TEXT fbody_sqrt(value_t self, float _f);
+float MD_SECTION_TEXT fbody_cos(value_t self, float _f);
+float MD_SECTION_TEXT fbody_sin(value_t self, float _f);
+void MD_SECTION_TEXT fbody_anyArrayCopy(value_t self, value_t _src, value_t _dest);
 
 extern MD_SECTION_DATA struct func_body _print;
 extern MD_SECTION_DATA struct func_body _randInt;
@@ -21,5 +24,9 @@ extern MD_SECTION_DATA struct func_body _assert;
 extern MD_SECTION_DATA struct func_body _abs;
 extern MD_SECTION_DATA struct func_body _fabs;
 extern MD_SECTION_DATA struct func_body _sqrt;
+extern MD_SECTION_DATA struct func_body _cos;
+extern MD_SECTION_DATA struct func_body _sin;
+extern MD_SECTION_DATA struct func_body _anyArrayCopy;
+
 
 #endif /* __BS_STD__ */

@@ -10,13 +10,11 @@ test("transpile", () => {
 })
 
 const bsSrc1 = `
-
-
-function test(fn: () => void) {
+function callFn(fn: ()=>void) {
   fn();
 }
 
-test(() => {1 + 1})
+callFn(()=> {1 + 1});
 `
 
 test("playground", () => {
