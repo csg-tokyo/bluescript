@@ -561,19 +561,17 @@ value_t get_anyobj_property(value_t obj, int property) {
     class_object* clazz = gc_get_class_of(obj);
     char type;
     int index = get_anyobj_property2(clazz, property, &type);
-    if (type == ' ') {
+    if (type == ' ')
         return get_obj_property(obj, index);
-    }
         
-    else if (type == 'i' || type == 'b') {
+    else if (type == 'i' || type == 'b')
         return int_to_value(*get_obj_int_property(obj, index));
-    }
         
-    else if (type == 'f') {
+    else if (type == 'f')
         return float_to_value(*get_obj_float_property(obj, index));
-    }
         
     else {
+        runtime_type_error("get_anyobj_property");
         return VALUE_UNDEF;
     }
 }
@@ -1817,7 +1815,6 @@ static uint16_t real_objsize(uint16_t length) {
 }
 
 static pointer_t no_more_memory() {
-    puts("memory exhausted");
     fputs("** memory exhausted **", stderr);
 #ifdef TEST64
     exit(1);
