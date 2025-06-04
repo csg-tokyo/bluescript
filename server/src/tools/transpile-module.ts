@@ -18,7 +18,6 @@ function readModuleId(moduleName: string) {
   if (moduleId === undefined) {
     throw Error(`Cannot find module id corresponding to module name: ${moduleName}`);
   }
-  console.log(moduleId);
   return moduleId;
 }
 

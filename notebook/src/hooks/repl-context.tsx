@@ -46,7 +46,7 @@ export const ReplContext = createContext<ReplContextT>({
 
 export default function ReplProvider({children}: {children: ReactNode}) {
     const [replState, setReplState] = useState<ReplStateT>('initial')
-    const [useJIT, setUseJIT] = useState(false)
+    const [useJIT, setUseJIT] = useState(true)
     const [latestCell, setLatestCell] = useState<CellT>({compileId: -1, code:'', state: CellStateT.UserWriting, time:undefined})
     const [postExecutionCells, setPostExecutionCells] = useState<CellT[]>([])
     const [output, setOutput] = useState<string[]>([])
@@ -195,7 +195,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         postExecutionCells.forEach(cell => src += `${cell.code}\n`);
         try {
             const compileResult = await network.compile(src);
-            console.log("compileResult", compileResult);
             const builderForDflash = new BytecodeBufferBuilder(dflash.state.size, false);
             const builder = new BytecodeBufferBuilder(MAX_MTU);
             compileResult.result.blocks.forEach(block => {
@@ -206,7 +205,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             });
             compileResult.result.entryPoints.forEach(entry => builderForDflash.jump(entry.id, entry.address));
             const dflashBuffer = Buffer.concat(builderForDflash.generate());
-            console.log("dflashBuffer", dflashBuffer);
             const dflashHeader = Buffer.allocUnsafe(5);
             dflashHeader.writeUIntLE(1, 0, 1); // flash is written or not.
             dflashHeader.writeUIntLE(dflashBuffer.length, 1, 4); 
