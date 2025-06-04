@@ -563,13 +563,10 @@ value_t get_anyobj_property(value_t obj, int property) {
     int index = get_anyobj_property2(clazz, property, &type);
     if (type == ' ')
         return get_obj_property(obj, index);
-        
     else if (type == 'i' || type == 'b')
         return int_to_value(*get_obj_int_property(obj, index));
-        
     else if (type == 'f')
         return float_to_value(*get_obj_float_property(obj, index));
-        
     else {
         runtime_type_error("get_anyobj_property");
         return VALUE_UNDEF;
