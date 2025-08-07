@@ -39,6 +39,3 @@ function main(cycle) {
         }
     }
 }
-
-
-main(3);
