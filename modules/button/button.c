@@ -7,7 +7,7 @@
 extern struct func_body _000001buttonOnPressed;
 extern CLASS_OBJECT(object_class, 1);
 void bluescript_main0_000001();
-ROOT_SET_DECL(global_rootset0_000001, 0);
+ROOT_SET_DECL(global_rootset0_000001, 40);
 
 #define ESP_INTR_FLAG_DEFAULT 0
 

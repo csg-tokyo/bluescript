@@ -78,7 +78,6 @@ static void task_call_event(value_t fn) {
 
 void main_thread(void *arg) {
     bs_memory_layout_t memory_layout;
-    bs_protocol_init();
     main_thread_init(&memory_layout);
 
     while (true) {
