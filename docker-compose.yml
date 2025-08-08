@@ -8,9 +8,9 @@ services:
     volumes:
       - ./server:/bluescript/server
       - /bluescript/server/node_modules
-      - /bluescript/server/temp-files
       - ./modules:/bluescript/modules
       - ./microcontroller:/bluescript/microcontroller
+      - ./benchmarks:/bluescript/benchmarks
     working_dir: /bluescript/server
     command: npm run dev
     ports:
