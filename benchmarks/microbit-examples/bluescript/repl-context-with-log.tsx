@@ -162,7 +162,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         if (latestCellRef.current.state === CellStateT.Executing) {
             updateCells();
             console.log(`compilation: ${latestCellRef.current.time?.compile}`);
-            console.log(`execution: ${latestCellRef.current.time?.execute}`);
+            console.log(`execution: ${exectime}`);
         } else {
             // Sometimes execution overtake screen drawing.
             setTimeout(() => {
@@ -171,7 +171,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                 } else {
                     updateCells();
                     console.log(`compilation: ${latestCellRef.current.time?.compile}`);
-                    console.log(`execution: ${latestCellRef.current.time?.execute}`);
+                    console.log(`execution: ${exectime}`);
                 }
             }, 500);
         }
