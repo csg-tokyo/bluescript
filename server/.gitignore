@@ -3,6 +3,6 @@ node_modules/
 package-lock.json
 .DS_Store
 .idea/
-!temp-files
 temp-files/*
+!/temp-files/.gitkeep
 a.out.dSYM/
