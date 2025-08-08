@@ -40,5 +40,3 @@ function main(cycle: integer) {
     }
 }
 
-
-main(3);

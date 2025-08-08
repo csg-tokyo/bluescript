@@ -579,5 +579,5 @@ void display_show_string(char* str, uint16_t color, uint16_t background) {
 void display_show_integer(int32_t integer, uint16_t color, uint16_t background) {
     char buff[12]; // Max num length + blank
     sprintf(buff, "%ld", integer);
-    display_text(&buff, color, background);
+    display_text(buff, color, background);
 }

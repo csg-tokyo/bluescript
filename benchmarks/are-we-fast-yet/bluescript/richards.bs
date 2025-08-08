@@ -1,0 +1,527 @@
+// This code is derived from "Are We Fast Yet?" benchmarks (https://github.com/smarr/are-we-fast-yet/).
+
+
+const NO_TASK = null;
+const NO_WORK = null;
+const IDLER = 0;
+const WORKER = 1;
+const HANDLER_A = 2;
+const HANDLER_B = 3;
+const DEVICE_A = 4;
+const DEVICE_B = 5;
+const NUM_TYPES = 6;
+
+const DEVICE_PACKET_KIND = 0;
+const WORK_PACKET_KIND = 1;
+
+const DATA_SIZE = 4;
+
+const TRACING = false;
+
+class RBObject {
+    append(packet: Packet|null, queueHead: Packet|null): Packet|null {
+        if (packet === null) {
+            return null;
+        } else {
+            packet.link = NO_WORK;
+            if (queueHead === null) {
+                return packet;
+            } else {
+                let mouse = queueHead;
+                while (true) {
+                    const link = mouse.link;
+                    if (link !== null) {
+                        mouse = link;
+                    } else {
+                        break;
+                    }
+                }
+                mouse.link = packet;
+                return queueHead;
+            }            
+        }
+        
+    }
+}
+
+class TaskState extends RBObject {
+    packetPending_: boolean;
+    taskWaiting_: boolean;
+    taskHolding_: boolean;
+
+    constructor() {
+        super();
+        this.packetPending_ = false;
+        this.taskWaiting_ = false;
+        this.taskHolding_ = false;
+    }
+
+    isPacketPending() { return this.packetPending_; }
+
+    isTaskHolding() { return this.taskHolding_; }
+
+    isTaskWaiting() { return this.taskWaiting_; }
+
+    setTaskHolding(b: boolean) { this.taskHolding_ = b; }
+
+    setTaskWaiting(b: boolean) { this.taskWaiting_ = b; }
+
+    setPacketPending(b: boolean) { this.packetPending_ = b; }
+
+    packetPending() {
+        this.packetPending_ = true;
+        this.taskWaiting_ = false;
+        this.taskHolding_ = false;
+    }
+
+    running() {
+        this.packetPending_ = false;
+        this.taskWaiting_ = false;
+        this.taskHolding_ = false;
+    }
+
+    waiting() {
+        this.packetPending_ = false;
+        this.taskHolding_ = false;
+        this.taskWaiting_ = true;
+    }
+
+    waitingWithPacket() {
+        this.taskHolding_ = false;
+        this.taskWaiting_ = true;
+        this.packetPending_ = true;
+    }
+
+    isTaskHoldingOrWaiting() {
+        return this.taskHolding_ || (!this.packetPending_ && this.taskWaiting_);
+    }
+
+    isWaitingWithPacket() {
+        return this.packetPending_ && this.taskWaiting_ && !this.taskHolding_;
+    }
+}
+
+class DeviceTaskDataRecord extends RBObject {
+    pending: Packet|null;
+
+    constructor() {
+        super();
+        this.pending = NO_WORK;
+    }
+}
+
+class HandlerTaskDataRecord extends RBObject {
+    workIn: Packet|null;
+    deviceIn: Packet|null;
+
+    constructor() {
+        super();
+        this.workIn = NO_WORK;
+        this.deviceIn = NO_WORK;
+    }
+
+    deviceInAdd(packet: Packet|null) {
+        this.deviceIn = this.append(packet, this.deviceIn);
+    }
+
+    workInAdd(packet: Packet|null) {
+        this.workIn = this.append(packet, this.workIn);
+    }
+}
+
+class IdleTaskDataRecord extends RBObject {
+    control: integer;
+    count: integer;
+
+    constructor() {
+        super();
+        this.control = 1;
+        this.count = 10000;
+    }
+}
+
+class Packet extends RBObject {
+    link: Packet|null;
+    identity: integer;
+    kind: integer;
+    datum: integer;
+    data: integer[];
+
+    constructor(link: Packet|null, identity: integer, kind: integer) {
+        super();
+        this.link = link;
+        this.identity = identity;
+        this.kind = kind;
+        this.datum = 0;
+        this.data = new Array<integer>(DATA_SIZE, 0);
+    }
+}
+
+class TaskControlBlock extends TaskState {
+    link: TaskControlBlock|null;
+    identity: integer;
+    priority: integer;
+    input: Packet|null;
+    handle: RBObject;
+    function: (work: Packet|null, word: RBObject) => any;
+
+    constructor(link: TaskControlBlock|null, 
+        identity:integer, 
+        priority: integer, 
+        initialWorkQueue: Packet|null, 
+        initialState: TaskState, 
+        privateData: RBObject, 
+        fn: (work: Packet|null, word: RBObject) => any) {
+        super();
+        this.link = link;
+        this.identity = identity;
+        this.priority = priority;
+        this.input = initialWorkQueue;
+        this.setPacketPending(initialState.isPacketPending());
+        this.setTaskWaiting(initialState.isTaskWaiting());
+        this.setTaskHolding(initialState.isTaskHolding());
+        this.handle = privateData;
+        this.function = fn;
+    }
+
+  addInputAndCheckPriority(packet: Packet|null, oldTask: TaskControlBlock) {
+    if (NO_WORK === this.input) {
+      this.input = packet;
+      this.setPacketPending(true);
+      if (this.priority > oldTask.priority) { return this; }
+    } else {
+      this.input = this.append(packet, this.input);
+    }
+    return oldTask;
+  }
+
+  runTask() {
+    let message: Packet| null;
+    if (this.isWaitingWithPacket()) {
+        message = this.input;
+        if (message === null)
+            this.input = null;
+        else
+            this.input = message.link;
+        if (NO_WORK === this.input) {
+            this.running();
+        } else {
+            this.packetPending();
+        }
+    } else {
+        message = NO_WORK;
+    }
+    return this.function(message, this.handle);
+  }
+}
+
+class WorkerTaskDataRecord extends RBObject {
+    destination: integer;
+    count: integer;
+
+    constructor() {
+        super();
+        this.destination = HANDLER_A;
+        this.count = 0;
+    }
+}
+
+class Scheduler extends RBObject {
+    layout: integer;
+    queuePacketCount: integer;
+    holdCount:integer;
+    taskTable: any[];
+    taskList: TaskControlBlock|null;
+    currentTask: TaskControlBlock|null;
+    currentTaskIdentity: integer;
+
+
+    constructor() {
+        super();
+
+        // init tracing
+        this.layout = 0;
+
+        // init scheduler
+        this.queuePacketCount = 0;
+        this.holdCount = 0;
+        this.taskTable = new Array<any>(NUM_TYPES, NO_TASK);
+        this.taskList = NO_TASK;
+
+        this.currentTask = null;
+        this.currentTaskIdentity = 0;
+    }
+
+    createDevice(identity: integer, priority: integer, workPacket: Packet|null, state: TaskState) {
+        const data = new DeviceTaskDataRecord();
+
+        this.createTask(identity, priority, workPacket, state, data, (workArg: Packet|null, wordArg: RBObject) => {
+            const dataRecord = wordArg as DeviceTaskDataRecord;
+            let functionWork = workArg;
+            if (functionWork === null) {
+                functionWork = dataRecord.pending
+                if (functionWork === null) {
+                    return this.markWaiting();
+                } else {
+                    dataRecord.pending = NO_WORK;
+                    return this.queuePacket(functionWork);
+                }
+            } else {
+                dataRecord.pending = functionWork;
+                if (TRACING) {
+                    this.trace(functionWork.datum);
+                }
+                return this.holdSelf();
+            }
+        });
+    }
+
+    createHandler(identity: integer, priority: integer, workPacket: Packet, state: TaskState) {
+        const data = new HandlerTaskDataRecord();
+        this.createTask(identity, priority, workPacket, state, data, (work: Packet|null, word: RBObject) => {
+            const dataRecord = word as HandlerTaskDataRecord;
+            if (null !== work) {
+                if (WORK_PACKET_KIND === work.kind) {
+                    dataRecord.workInAdd(work);
+                } else {
+                    dataRecord.deviceInAdd(work);
+                }
+            }
+
+            let workPacket_ = dataRecord.workIn;
+            if (workPacket_ === null) {
+                return this.markWaiting();
+            } else {
+                const count = workPacket_.datum;
+                if (count >= DATA_SIZE) {
+                    dataRecord.workIn = workPacket_.link;
+                    return this.queuePacket(workPacket_);
+                }
+                let devicePacket = dataRecord.deviceIn;
+                if (devicePacket === null) {
+                    return this.markWaiting();
+                } else {
+                    dataRecord.deviceIn = devicePacket.link;
+                    devicePacket.datum = workPacket_.data[count];
+                    workPacket_.datum = count + 1;
+                    return this.queuePacket(devicePacket);
+                }
+            }
+        });
+    }
+
+    createIdler(identity: integer, priority: integer, work: Packet|null, state: TaskState) {
+        const data = new IdleTaskDataRecord();
+        this.createTask(identity, priority, work, state, data, (workArg: Packet|null, wordArg: RBObject) => {
+            const dataRecord = wordArg as IdleTaskDataRecord;
+            dataRecord.count -= 1;
+            if (0 === dataRecord.count) {
+                return this.holdSelf();
+            }
+            if (0 === (dataRecord.control & 1)) {
+                dataRecord.control /= 2;
+                return this.release(DEVICE_A);
+            }
+            dataRecord.control = (dataRecord.control / 2) ^ 53256;
+            return this.release(DEVICE_B);
+        });
+    }
+
+    createPacket(link: Packet|null, identity: integer, kind: integer) {
+        return new Packet(link, identity, kind);
+    }
+
+    createTask(identity: integer, 
+        priority: integer, 
+        work: Packet|null, 
+        state: TaskState, 
+        data: RBObject, 
+        fn: (work: Packet | null, word: RBObject) => any
+    ) {
+        const t = new TaskControlBlock(
+            this.taskList,
+            identity,
+            priority,
+            work,
+            state,
+            data,
+            fn
+        );
+        this.taskList = t;
+        this.taskTable[identity] = t;
+    }
+
+    createWorker(identity: integer, priority: integer, workPacket: Packet, state: TaskState) {
+        const dataRecord = new WorkerTaskDataRecord();
+
+        this.createTask(
+        identity,
+        priority,
+        workPacket,
+        state,
+        dataRecord,
+        (work: Packet|null, word: RBObject) => {
+            const data = word as WorkerTaskDataRecord;
+            if (work === null) {
+                return this.markWaiting();
+            } else {
+                data.destination = (HANDLER_A === data.destination) ? HANDLER_B : HANDLER_A;
+                work.identity = data.destination;
+                work.datum = 0;
+                for (let i = 0; i < DATA_SIZE; i += 1) {
+                    data.count += 1;
+                    if (data.count > 26) { data.count = 1; }
+                    work.data[i] = 65 + data.count - 1;
+                }
+                return this.queuePacket(work);
+            }
+        }
+        );
+    }
+
+    start() {
+        const taskState1 = new TaskState();
+        taskState1.running();
+        this.createIdler(IDLER, 0, NO_WORK, taskState1);
+        let workQ = this.createPacket(NO_WORK, WORKER, WORK_PACKET_KIND);
+        workQ = this.createPacket(workQ, WORKER, WORK_PACKET_KIND);
+
+        const taskState2 = new TaskState();
+        taskState2.waitingWithPacket();
+        this.createWorker(WORKER, 1000, workQ, taskState2);
+        workQ = this.createPacket(NO_WORK, DEVICE_A, DEVICE_PACKET_KIND);
+        workQ = this.createPacket(workQ, DEVICE_A, DEVICE_PACKET_KIND);
+        workQ = this.createPacket(workQ, DEVICE_A, DEVICE_PACKET_KIND);
+
+        const taskState3 = new TaskState();
+        taskState3.waitingWithPacket();
+        this.createHandler(HANDLER_A, 2000, workQ, taskState3);
+        workQ = this.createPacket(NO_WORK, DEVICE_B, DEVICE_PACKET_KIND);
+        workQ = this.createPacket(workQ, DEVICE_B, DEVICE_PACKET_KIND);
+        workQ = this.createPacket(workQ, DEVICE_B, DEVICE_PACKET_KIND);
+
+        const taskState4 = new TaskState();
+        taskState4.waitingWithPacket();
+        this.createHandler(HANDLER_B, 3000, workQ, taskState4);
+        const taskState5 = new TaskState();
+        taskState5.waiting();
+        this.createDevice(DEVICE_A, 4000, NO_WORK, taskState5);
+        const taskState6 = new TaskState();
+        taskState2.waiting();
+        this.createDevice(DEVICE_B, 5000, NO_WORK, taskState6);
+
+        this.schedule();
+
+        return this.queuePacketCount === 23246 && this.holdCount === 9297;
+    }
+
+    findTask(identity: integer) {
+        const t = this.taskTable[identity] as TaskControlBlock|null;
+        return t;
+    }
+
+    holdSelf() {
+        this.holdCount += 1;
+        const currentTask = this.currentTask;
+        if (currentTask !== null) {
+            currentTask.setTaskHolding(true);
+            return currentTask.link;
+        }
+        return null;
+    }
+
+    queuePacket(packet: Packet): TaskControlBlock|null {
+        const t = this.findTask(packet.identity);
+        if (t === null) { 
+            return NO_TASK; 
+        } else {
+            const currentTask = this.currentTask;
+            if (currentTask === null) { 
+                return null 
+            } else {
+                this.queuePacketCount += 1;
+                packet.link = NO_WORK;
+                packet.identity = this.currentTaskIdentity;
+                return t.addInputAndCheckPriority(packet, currentTask);
+            }
+        }
+    }
+
+    release(identity: integer): TaskControlBlock|null {
+        const t = this.findTask(identity);
+        if (t === null) { 
+            return NO_TASK; 
+        } else {
+            t.setTaskHolding(false);
+            const currentTask = this.currentTask;
+            if (currentTask !== null) {
+                if (t.priority > currentTask.priority) {
+                    return t;
+                }
+            }
+            return this.currentTask;
+        }
+    }
+
+    trace(id: integer) {
+        this.layout -= 1;
+        if (0 >= this.layout) {
+            this.layout = 50;
+        }
+        print(id);
+    }
+
+    markWaiting(): TaskControlBlock|null {
+        const currentTask = this.currentTask;
+        if (currentTask !== null) {
+            currentTask.setTaskWaiting(true);
+            return currentTask;
+        }
+        return null;
+    }
+
+    schedule() {
+        this.currentTask = this.taskList;
+        let currentTask = this.currentTask;
+        while (true) {
+            // code`printf("queuePacketCount: %d\n", *get_obj_int_property(self, 1))`;
+            // code`printf("holdCount: %d\n", *get_obj_int_property(self, 2))`;
+            if (currentTask !== null) {
+                if (currentTask.isTaskHoldingOrWaiting()) {
+                    const currentTaskLink = currentTask.link;
+                    if (currentTaskLink !== null) {
+                        currentTask = currentTaskLink;
+                        this.currentTask = currentTask;
+                    } else {
+                        break;
+                    }
+                } else {
+                    this.currentTaskIdentity = currentTask.identity;
+                    if (TRACING) { this.trace(this.currentTaskIdentity); }
+                    const runTaskResult = currentTask.runTask();
+                    if (runTaskResult !== null) {
+                        currentTask = runTaskResult;
+                        this.currentTask = currentTask;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+        this.currentTask = currentTask;
+    }
+}
+
+function verifyResult(result: boolean) {
+    return result;
+}
+
+function benchmark(cycle: integer) {
+    for (let i = 0; i < cycle; i++) {
+        const scheduler = new Scheduler();
+        const result = scheduler.start();
+        assert(verifyResult(result));
+    }
+}

@@ -1,0 +1,1089 @@
+// This code is derived from "Are We Fast Yet?" benchmarks (https://github.com/smarr/are-we-fast-yet/).
+//
+// Copyright (c) 2001-2010, Purdue University. All rights reserved.
+// Copyright (C) 2015 Apple Inc. All rights reserved.
+// Copyright (c) 2024 Fumika Mochizuki.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+//  * Neither the name of the Purdue University nor the
+//    names of its contributors may be used to endorse or promote products
+//    derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
+// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+const INITIAL_SIZE = 10;
+
+function copyArray(src, dest) {
+  let srcLength = src.length;
+  for (let i = 0; i < srcLength; i++) {
+    dest[i] = src[i];
+  }
+}
+
+class VectorClass {
+    storage: any[];
+    firstIdx: integer;
+    lastIdx: integer;
+
+    constructor() {
+        this.storage = new Array<any>(INITIAL_SIZE, null as any);
+        this.firstIdx = 0;
+        this.lastIdx = 0;
+    }
+
+    at(idx: integer): any {
+        if (idx >= this.storage.length) { 
+            return null;
+        }
+        return this.storage[idx];
+    }
+
+  append(elem: any) {
+    if (this.lastIdx >= this.storage.length) {
+      // Copy storage to comply with rules, but don't extend storage
+      // TODO: コピー用のプリミティブ関数を作成する。
+        const newLength = this.storage.length * 2;
+        // this.storage = this.storage.slice();
+        const newStorage = new Array<any>(newLength, null as any);
+        copyArray(this.storage, newStorage);
+        this.storage = newStorage;
+        // this.storage.length = newLength;
+    }
+
+    this.storage[this.lastIdx] = elem;
+    this.lastIdx += 1;
+  }
+
+  isEmpty() {
+    return this.lastIdx === this.firstIdx;
+  }
+
+  forEach(fn: (elem: any)=>void) {
+    for (let i = this.firstIdx; i < this.lastIdx; i += 1) {
+        fn(this.storage[i]);
+    }
+  }
+
+  remove(obj: any) {
+    if (this.isEmpty()) {
+      return false;
+    }
+
+    const newArray = new Array(this.capacity());
+    let newLast = 0;
+    let found = false;
+
+    this.forEach((it) => {
+      if (it === obj) {
+        found = true;
+      } else {
+        newArray[newLast] = it;
+        newLast += 1;
+      }
+    });
+
+    this.storage = newArray;
+    this.lastIdx = newLast;
+    this.firstIdx = 0;
+    return found;
+  }
+
+  removeAll() {
+    this.firstIdx = 0;
+    this.lastIdx = 0;
+    this.storage = new Array(this.storage.length);
+  }
+
+  size() {
+    return this.lastIdx - this.firstIdx;
+  }
+
+  capacity() {
+    return this.storage.length;
+  }
+}
+
+class Vector2D {
+    x: float;
+    y: float;
+
+    constructor(x: float, y: float) {
+        this.x = x;
+        this.y = y;
+    }
+
+    plus(other: Vector2D) {
+        return new Vector2D(this.x + other.x, this.y + other.y);
+    }
+
+    minus(other: Vector2D) {
+        return new Vector2D(this.x - other.x, this.y - other.y);
+    }
+
+    compareNumbers(a: float, b: float) {
+        if (a === b) {
+        return 0;
+        }
+        if (a < b) {
+        return -1;
+        }
+        if (a > b) {
+        return 1;
+        }
+
+        // We say that NaN is smaller than non-NaN.
+        if (a === a) { // eslint-disable-line no-self-compare
+        return 1;
+        }
+        return -1;
+    }
+
+    compareTo(other: Vector2D) {
+        const result = this.compareNumbers(this.x, other.x);
+        if (result) {
+        return result;
+        }
+        return this.compareNumbers(this.y, other.y);
+    }
+}
+
+class Vector3D {
+    x: float;
+    y: float;
+    z: float;
+
+    constructor(x: float, y: float, z: float) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
+    plus(other: Vector3D) {
+        return new Vector3D(this.x + other.x, this.y + other.y, this.z + other.z);
+    }
+
+    minus(other: Vector3D) {
+        return new Vector3D(this.x - other.x, this.y - other.y, this.z - other.z);
+    }
+
+    dot(other: Vector3D) {
+        return this.x * other.x + this.y * other.y + this.z * other.z;
+    }
+
+    squaredMagnitude() {
+        return this.dot(this);
+    }
+
+    magnitude() {
+        return sqrt(this.squaredMagnitude());
+    }
+
+    times(amount: float) {
+        return new Vector3D(this.x * amount, this.y * amount, this.z * amount);
+    }
+}
+
+class Entry {
+    key: any;
+    value: any;
+  
+    constructor(key: any, value: any) {
+      this.key = key;
+      this.value = value;
+    }
+  }
+  
+class InsertResult {
+    isNewEntry: boolean;
+    newNode: Node|null;
+    oldValue: any;
+
+    constructor(isNewEntry: boolean, newNode: Node|null, oldValue: any) {
+        this.isNewEntry = isNewEntry;
+        this.newNode = newNode;
+        this.oldValue = oldValue;
+    }
+}
+
+function treeMinimum(x) {
+    let current = x;
+    // while (current.left) {
+    //   current = current.left;
+    // }
+    while (true) {
+      const currentLeft = current.left;
+      if (currentLeft !== null) {
+        current = currentLeft;
+      } else {
+        break;
+      }
+    }
+    return current;
+}
+
+class Node {
+    key: any;
+    value: any;
+    left: Node|null;
+    right: Node|null;
+    parent: Node|null;
+    color: string;
+
+    constructor(key: any, value: any) {
+        this.key = key;
+        this.value = value;
+        this.left = null;
+        this.right = null;
+        this.parent = null;
+        this.color = 'red';
+    }
+
+    successor(): Node|null {
+        let x: Node = this;
+        if (x.right !== null) {
+            return treeMinimum(x.right);
+        }
+
+        let y: Node|null = x.parent;
+        while (true) {
+            let yTmp = y;
+            if (y === null) {
+                break;
+            } else {
+                if (x !== y.right) {
+                    break;
+                } else {
+                    x = y;
+                    yTmp = y.parent;
+                }
+            }
+            y = yTmp;
+        }
+        return y;
+    }
+}
+
+class RedBlackTree {
+    root: Node|null;
+
+    constructor() {
+        this.root = null;
+    }
+
+    put(key: any, value: any): any {
+      // code`puts("Node1")`;
+      const insertionResult = this.treeInsert(key, value);
+      if (!insertionResult.isNewEntry) {
+        return insertionResult.oldValue;
+      }
+      // code`puts("Node2")`;
+
+      let x: Node = insertionResult.newNode as Node;
+      // code`puts("Node2-2")`;
+      let y: Node|null = null;
+      // code`puts("Node3")`;
+
+      while (x !== this.root && (x.parent as Node).color === 'red') {
+        let xParent: Node = x.parent as Node;
+        let xParentParent: Node = xParent.parent as Node;
+        // code`puts("Node4")`;
+        if (xParent === xParentParent.left) {
+          // code`puts("Node5")`;
+            y = xParentParent.right;
+            if (y !== null && (y as Node).color === 'red') {
+              // code`puts("Node6")`;
+              // Case 1
+              xParent.color = 'black';
+              (y as Node).color = 'black';
+              xParentParent.color = 'red';
+              x = xParentParent;
+            } else {
+              if (x === xParent.right) {
+                // code`puts("Node7")`;
+                  // Case 2
+                  x = xParent;
+                  this.leftRotate(x);
+                  xParent = x.parent as Node;
+                  xParentParent = xParent.parent as Node;
+              }
+              // Case 3
+              // code`puts("Node8")`;
+              xParent.color = 'black';
+              xParentParent.color = 'red';
+              this.rightRotate(xParentParent);
+            }
+        } else {
+            // Same as "then" clause with "right" and "left" exchanged.
+            // code`puts("Node9")`;
+            y = xParentParent.left;
+            if (y !== null && (y as Node).color === 'red') {
+              // code`puts("Node10")`;
+              // Case 1
+              xParent.color = 'black';
+              (y as Node).color = 'black';
+              xParentParent.color = 'red';
+              x = xParentParent;
+            } else {
+              if (x === xParent.left) {
+                // code`puts("Node11")`;
+                  // Case 2
+                  x = xParent;
+                  this.rightRotate(x);
+                  xParent = x.parent as Node;
+                  xParentParent = xParent.parent as Node;
+              }
+              // Case 3
+              // code`puts("Node12")`;
+              xParent.color = 'black';
+              xParentParent.color = 'red';
+              this.leftRotate(xParentParent);
+            }
+          }
+      }
+    // code`puts("Node13")`;
+    (this.root as Node).color = 'black';
+    // code`puts("Node14")`;
+    return null;
+  }
+
+  remove(key: any): any {
+    const z = this.findNode(key);
+    if (z === null) {
+      return null;
+    } else {
+        // Y is the node to be unlinked from the tree.
+        let y: Node = z; // dummy value.
+        if (z.left !== null || z.right !== null) {
+            y = z;
+        } else {
+            y = z.successor() as Node;
+        }
+
+        // Y is guaranteed to be non-null at this point.
+        let x: Node|null;
+        if (y.left) {
+            x = y.left;
+        } else {
+            x = y.right;
+        }
+
+        // X is the child of y which might potentially replace y in the tree. X might be null at
+        // this point.
+        let xParent: Node|null;
+        if (x !== null) {
+            x.parent = y.parent;
+            xParent = x.parent;
+        } else {
+            xParent = y.parent;
+        }
+
+        // TOREMOVE: 不安ポイント
+        let yParent = y.parent;
+        if (yParent === null) {
+            this.root = x;
+        } else if (y === yParent.left) {
+            yParent.left = x;
+        } else {
+            yParent.right = x;
+        }
+        
+
+        if (y !== z) {
+            if (y.color === 'black') {
+                this.removeFixup(x, xParent as Node);
+            }
+
+            y.parent = z.parent;
+            y.color = z.color;
+            y.left = z.left;
+            y.right = z.right;
+
+            const zLeft = z.left;
+            if (zLeft !== null) {
+                zLeft.parent = y;
+            }
+            const zRight = z.right;
+            if (zRight !== null) {
+                zRight.parent = y;
+            }
+            const zParent = z.parent;
+            if (zParent !== null) {
+                if (zParent.left === z) {
+                    zParent.left = y;
+                } else {
+                    zParent.right = y;
+                }
+            } else {
+                this.root = y;
+            }
+        } else if (y.color === 'black') {
+            this.removeFixup(x, xParent as Node);
+        }
+
+        return z.value;
+    }
+    
+  }
+
+  get(key: any): any {
+    const node = this.findNode(key);
+    if (node === null) {
+      return null;
+    } else {
+        return node.value;
+    }
+  }
+
+  forEach(callback: (e: Entry)=>void) {
+    if (this.root === null) {
+      return;
+    } else {
+      // code`puts("RedBlackTree-forEach1")`;
+        let current: Node|null = treeMinimum(this.root);
+        // code`puts("RedBlackTree-forEach2")`;
+        while (true) {
+            let currentTmp: Node|null = current;
+            if (current !== null) {
+              // code`puts("RedBlackTree-forEach3")`;
+                callback(new Entry(current.key, current.value));
+                currentTmp = current.successor();
+            } else {
+                break;
+            }
+            current = currentTmp;
+        }
+    }
+    // code`puts("RedBlackTree-forEach4")`;
+  }
+
+  findNode(key: any): Node|null {
+    let current = this.root;
+    while (true) {
+        let currentTmp: Node|null = null;
+        if (current !== null) {
+            const comparisonResult = key.compareTo(current.key);
+            currentTmp = current;
+            if (!comparisonResult) {
+                return current;
+            }
+            if (comparisonResult < 0) {
+                currentTmp = current.left;
+            } else {
+                currentTmp = current.right;
+            }
+        } else {
+            break;
+        }
+        current = currentTmp;
+    }
+    return null;
+  }
+
+  treeInsert(key: any, value: any) {
+    let y: Node|null = null;
+    let x = this.root;
+    // code`puts("treeInsert1")`;
+    while (true) {
+        let xTmp = x;
+        // code`puts("treeInsert2")`;
+        if (x !== null) {
+          // code`puts("treeInsert3")`;
+            y = x;
+            const comparisonResult = key.compareTo(x.key);
+            if (comparisonResult < 0) {
+              // code`puts("treeInsert4")`;
+                xTmp = x.left;
+            } else if (comparisonResult > 0) {
+              // code`puts("treeInsert5")`;
+                xTmp = x.right;
+            } else {
+              // code`puts("treeInsert5")`;
+                const oldValue = x.value;
+                x.value = value;
+                return new InsertResult(false, null, oldValue);
+            }
+            // code`puts("treeInsert6")`;
+        } else {
+          // code`puts("treeInsert7")`;
+            break;  
+        }
+        // code`puts("treeInsert8")`;
+        x = xTmp;
+    }
+
+    const z = new Node(key, value);
+    z.parent = y;
+    if (y === null) {
+      this.root = z;
+    } else if (key.compareTo(y.key) < 0) {
+      y.left = z;
+    } else {
+      y.right = z;
+    }
+    return new InsertResult(true, z, null);
+  }
+
+  leftRotate(x: Node) {
+    const y = x.right;
+
+    // Turn y's left subtree into x's right subtree.
+    if (y !== null) {
+        x.right = y.left;
+        const yLeft = y.left;
+        if (yLeft !== null) {
+            yLeft.parent = x;
+        }
+
+        // Link x's parent to y.
+        y.parent = x.parent;
+        const xParent = x.parent;
+        if (xParent === null) {
+            this.root = y;
+        } else if (x === xParent.left) {
+            xParent.left = y;
+        } else {
+            xParent.right = y;
+        }
+
+        // Put x on y's left.
+        y.left = x;
+        x.parent = y;
+    }
+    return y;
+  }
+
+  rightRotate(y: Node) {
+    const x = y.left;
+
+    // Turn x's right subtree into y's left subtree.
+    if (x !== null) {
+        y.left = x.right;
+        const xRight = x.right;
+        if (xRight !== null) {
+            xRight.parent = y;
+        }
+
+        // Link y's parent to x;
+        x.parent = y.parent;
+        const yParent = y.parent;
+        if (yParent === null) {
+            this.root = x;
+        } else if (y === yParent.left) {
+            yParent.left = x;
+        } else {
+            yParent.right = x;
+        }
+
+        x.right = y;
+        y.parent = x;
+    }
+    return x;
+  }
+
+  // x !== null && x.color !== 'black'
+  removeFixup(x: Node|null, xParent: Node) {
+    let w: Node = xParent; // dummy
+    let xTmp = x;
+    while (x !== this.root) {
+      if (x !== null) {
+        if (x.color !== 'black') {
+          if (x === xParent.left) {
+            // Note: the text points out that w cannot be null. The reason is not obvious from
+            // simply looking at the code; it comes about from the properties of the red-black
+            // tree.
+            w = xParent.right as Node;
+            if (w.color === 'red') {
+              // Case 1
+              w.color = 'black';
+              xParent.color = 'red';
+              this.leftRotate(xParent);
+              w = xParent.right as Node;
+            }
+            if ((w.left === null || (w.left as Node).color === 'black')
+              && (w.right === null || (w.right as Node).color === 'black')) {
+              // Case 2
+              w.color = 'red';
+              x = xParent;
+              xParent = x.parent as Node;
+            } else {
+              if (w.right === null || (w.right as Node).color === 'black') {
+                // Case 3
+                (w.left as Node).color = 'black';
+                w.color = 'red';
+                this.rightRotate(w);
+                w = xParent.right as Node;
+              }
+              // Case 4
+              w.color = xParent.color;
+              xParent.color = 'black';
+              const wRight = w.right;
+              if (wRight !== null) {
+                wRight.color = 'black';
+              }
+              this.leftRotate(xParent);
+              // x = this.root;
+              // xParent = (x as Node).parent as Node;
+              xTmp = this.root;
+              xParent = (xTmp as Node).parent as Node;
+            }
+          } else {
+            // Same as "then" clause with "right" and "left" exchanged.
+            w = xParent.left as Node;
+            if (w.color === 'red') {
+              // Case 1
+              w.color = 'black';
+              xParent.color = 'red';
+              this.rightRotate(xParent);
+              w = xParent.left as Node;
+            }
+            if ((w.right === null || (w.right as Node).color === 'black')
+              && (w.left === null || (w.left as Node).color === 'black')) {
+              // Case 2
+              w.color = 'red';
+              x = xParent;
+              xParent = x.parent as Node;
+            } else {
+              if (w.left === null || (w.left as Node).color === 'black') {
+                // Case 3
+                (w.right as Node).color = 'black';
+                w.color = 'red';
+                this.leftRotate(w);
+                w = xParent.left as Node;
+              }
+              // Case 4
+              w.color = xParent.color;
+              xParent.color = 'black';
+              const wLeft = w.left;
+              if (wLeft !== null) {
+                wLeft.color = 'black';
+              }
+              this.rightRotate(xParent);
+              // x = this.root;
+              // xParent = (x as Node).parent as Node;
+              xTmp = this.root;
+              xParent = (xTmp as Node).parent as Node;
+            }
+          }
+        } else { break; }
+      } else { break; }
+      x = xTmp;
+    }
+    if (x !== null) {
+      x.color = 'black';
+    }
+  }
+}
+
+class CallSign {
+  value: integer;
+
+  constructor(value: integer) {
+    this.value = value;
+  }
+
+  compareTo(other: CallSign) {
+    return this.value === other.value ? 0 : this.value < other.value ? -1 : 1;
+  }
+}
+
+class Collision {
+  aircraftA: CallSign;
+  aircraftB: CallSign;
+  position: Vector3D;
+
+
+  constructor(aircraftA: CallSign, aircraftB: CallSign, position: Vector3D) {
+    this.aircraftA = aircraftA;
+    this.aircraftB = aircraftB;
+    this.position = position;
+  }
+}
+
+const MIN_X = 0.0;
+const MIN_Y = 0.0;
+const MAX_X = 1000.0;
+const MAX_Y = 1000.0;
+const MIN_Z = 0.0;
+const MAX_Z = 10.0;
+const PROXIMITY_RADIUS = 1.0;
+const GOOD_VOXEL_SIZE = PROXIMITY_RADIUS * 2.0;
+
+function isInVoxel(voxel, motion) {
+  if (voxel.x > MAX_X
+    || voxel.x < MIN_X
+    || voxel.y > MAX_Y
+    || voxel.y < MIN_Y) {
+    return false;
+  }
+
+  const init = motion.posOne;
+  const fin = motion.posTwo;
+
+  const vS = GOOD_VOXEL_SIZE;
+  const r = PROXIMITY_RADIUS / 2.0;
+
+  const vX = voxel.x;
+  const x0 = init.x;
+  const xv = fin.x - init.x;
+
+  const vY = voxel.y;
+  const y0 = init.y;
+  const yv = fin.y - init.y;
+
+  let lowX = (vX - r - x0) / xv;
+  let highX = (vX + vS + r - x0) / xv;
+
+  if (xv < 0) {
+    const tmp = lowX;
+    lowX = highX;
+    highX = tmp;
+  }
+
+  let lowY = (vY - r - y0) / yv;
+  let highY = (vY + vS + r - y0) / yv;
+
+  if (yv < 0) {
+    const tmp = lowY;
+    lowY = highY;
+    highY = tmp;
+  }
+
+  return (((xv === 0.0 && vX <= x0 + r && x0 - r <= vX + vS) /* no motion in x */
+    || ((lowX <= 1.0 && 1.0 <= highX) || (lowX <= 0 && 0 <= highX)
+    || (0.0 <= lowX && highX <= 1.0)))
+    && ((yv === 0.0 && vY <= y0 + r && y0 - r <= vY + vS)
+           || /* no motion in y */ ((lowY <= 1.0 && 1.0 <= highY) || (lowY <= 0.0 && 0.0 <= highY)
+            || (0.0 <= lowY && highY <= 1.0)))
+          && (xv === 0.0 || yv === 0.0 /* no motion in x or y or both */
+           || (lowY <= highX && highX <= highY)
+           || (lowY <= lowX && lowX <= highY)
+           || (lowX <= lowY && highY <= highX)));
+}
+
+function putIntoMap(voxelMap, voxel, motion) {
+  let vec: any = voxelMap.get(voxel);
+  if (vec === null) {
+    vec = new VectorClass();
+    voxelMap.put(voxel, vec);
+  }
+  vec.append(motion);
+}
+
+const horizontal = new Vector2D(GOOD_VOXEL_SIZE, 0.0);
+const vertical = new Vector2D(0.0, GOOD_VOXEL_SIZE);
+
+function recurse(voxelMap, seen, nextVoxel, motion) {
+  if (!isInVoxel(nextVoxel, motion)) {
+    return;
+  }
+  if (seen.put(nextVoxel, true)) {
+    return;
+  }
+
+  putIntoMap(voxelMap, nextVoxel, motion);
+
+  recurse(voxelMap, seen, nextVoxel.minus(horizontal), motion);
+  recurse(voxelMap, seen, nextVoxel.plus(horizontal), motion);
+  recurse(voxelMap, seen, nextVoxel.minus(vertical), motion);
+  recurse(voxelMap, seen, nextVoxel.plus(vertical), motion);
+  recurse(voxelMap, seen, nextVoxel.minus(horizontal).minus(vertical), motion);
+  recurse(voxelMap, seen, nextVoxel.minus(horizontal).plus(vertical), motion);
+  recurse(voxelMap, seen, nextVoxel.plus(horizontal).minus(vertical), motion);
+  recurse(voxelMap, seen, nextVoxel.plus(horizontal).plus(vertical), motion);
+}
+
+function voxelHash(position) {
+  const dummy = (position.x as float) / GOOD_VOXEL_SIZE
+  // eslint-disable-next-line no-bitwise
+  const xDiv = ((position.x as float) / GOOD_VOXEL_SIZE) as integer;
+  // eslint-disable-next-line no-bitwise
+  const yDiv = ((position.y as float) / GOOD_VOXEL_SIZE) as integer;
+
+  const result = new Vector2D(GOOD_VOXEL_SIZE * xDiv, GOOD_VOXEL_SIZE * yDiv);
+
+  if (position.x < 0) {
+    result.x -= GOOD_VOXEL_SIZE;
+  }
+
+  if (position.y < 0) {
+    result.y -= GOOD_VOXEL_SIZE;
+  }
+
+  return result;
+}
+
+function drawMotionOnVoxelMap(voxelMap, motion) {
+  const seen = new RedBlackTree();
+  recurse(voxelMap, seen, voxelHash(motion.posOne), motion);
+}
+
+function reduceCollisionSet(motions) {
+  const voxelMap = new RedBlackTree();
+  motions.forEach((motion) => {drawMotionOnVoxelMap(voxelMap, motion)});
+
+  const result = new VectorClass();
+  voxelMap.forEach((e: Entry) => {
+    if (e.value.size() > 1) {
+      result.append(e.value);
+    }
+  });
+  return result;
+}
+
+class Motion {
+  callsign: CallSign;
+  posOne: Vector3D;
+  posTwo: Vector3D;
+
+  constructor(callsign: CallSign, posOne: Vector3D, posTwo: Vector3D) {
+    this.callsign = callsign;
+    this.posOne = posOne;
+    this.posTwo = posTwo;
+  }
+
+  delta() {
+    return this.posTwo.minus(this.posOne);
+  }
+
+  findIntersection(other: Motion): Vector3D|null {
+    const init1 = this.posOne;
+    const init2 = other.posOne;
+    const vec1 = this.delta();
+    const vec2 = other.delta();
+    const radius = PROXIMITY_RADIUS;
+
+    // this test is not geometrical 3-d intersection test, it takes the fact that the aircraft move
+    // into account ; so it is more like a 4d test
+    // (it assumes that both of the aircraft have a constant speed over the tested interval)
+
+    // we thus have two points,
+    // each of them moving on its line segment at constant speed ; we are looking
+    // for times when the distance between these two points is smaller than r
+
+    // vec1 is vector of aircraft 1
+    // vec2 is vector of aircraft 2
+
+    // a = (V2 - V1)^T * (V2 - V1)
+    const a = vec2.minus(vec1).squaredMagnitude();
+
+    if (a !== 0) {
+      // code`puts("findIntersection2")`;
+      // we are first looking for instances of time when the planes are exactly r from each other
+      // at least one plane is moving ; if the planes are moving in parallel,
+      // they do not have constant speed
+
+      // if the planes are moving in parallel, then
+      //   if the faster starts behind the slower, we can have 2, 1, or 0 solutions
+      //   if the faster plane starts in front of the slower, we can have 0 or 1 solutions
+
+      // if the planes are not moving in parallel, then
+
+      // point P1 = I1 + vV1
+      // point P2 = I2 + vV2
+      //   - looking for v, such that dist(P1,P2) = || P1 - P2 || = r
+
+      // it follows that || P1 - P2 || = sqrt( < P1-P2, P1-P2 > )
+      //   0 = -r^2 + < P1 - P2, P1 - P2 >
+      //  from properties of dot product
+      //   0 = -r^2 + <I1-I2,I1-I2> + v * 2<I1-I2, V1-V2> + v^2 *<V1-V2,V1-V2>
+      //   so we calculate a, b, c - and solve the quadratic equation
+      //   0 = c + bv + av^2
+
+      // b = 2 * <I1-I2, V1-V2>
+      const b = 2.0 * init1.minus(init2).dot(vec1.minus(vec2));
+
+      // c = -r^2 + (I2 - I1)^T * (I2 - I1)
+      const c = -radius * radius + init2.minus(init1).squaredMagnitude();
+
+      const discr = b * b - 4.0 * a * c;
+      if (discr < 0) {
+        return null;
+      }
+
+      const v1 = (-b - sqrt(discr)) / (2.0 * a);
+      const v2 = (-b + sqrt(discr)) / (2.0 * a);
+
+      if (v1 <= v2 && ((v1 <= 1.0 && 1.0 <= v2)
+                      || (v1 <= 0.0 && 0.0 <= v2)
+                      || (0.0 <= v1 && v2 <= 1.0))) {
+        // Pick a good "time" at which to report the collision.
+        let v:float;
+        if (v1 <= 0.0) {
+          // The collision started before this frame. Report it at the start of the frame.
+          v = 0.0;
+        } else {
+          // The collision started during this frame. Report it at that moment.
+          v = v1;
+        }
+
+        const result1 = init1.plus(vec1.times(v));
+        const result2 = init2.plus(vec2.times(v));
+
+        const result = result1.plus(result2).times(0.5);
+        if (result.x >= MIN_X
+          && result.x <= MAX_X
+          && result.y >= MIN_Y
+          && result.y <= MAX_Y
+          && result.z >= MIN_Z
+          && result.z <= MAX_Z) {
+          return result;
+        }
+      }
+
+      return null;
+    }
+
+    // the planes have the same speeds and are moving in parallel (or they are not moving at all)
+    // they  thus have the same distance all the time ; we calculate it from the initial point
+
+    // dist = || i2 - i1 || = sqrt(  ( i2 - i1 )^T * ( i2 - i1 ) )
+    const dist = init2.minus(init1).magnitude();
+    if (dist <= radius) {
+      return init1.plus(init2).times(0.5);
+    }
+
+    return null;
+  }
+}
+
+class CollisionDetector {
+  state: RedBlackTree;
+
+  constructor() {
+    this.state = new RedBlackTree();
+  }
+
+  handleNewFrame(frame: VectorClass) {
+    const motions = new VectorClass();
+    const seen = new RedBlackTree();
+
+    frame.forEach((aircraft) => {
+      let oldPosition = this.state.put(aircraft.callsign, aircraft.position);
+      const newPosition = aircraft.position;
+      seen.put(aircraft.callsign, true);
+
+      if (!oldPosition) {
+        oldPosition = newPosition;
+      }
+      motions.append(new Motion(aircraft.callsign, oldPosition, newPosition));
+    });
+
+    // Remove aircraft that are no longer present.
+    const toRemove = new VectorClass();
+    this.state.forEach((e: Entry) => {
+      if (!seen.get(e.key)) {
+        toRemove.append(e.key);
+      }
+    });
+
+    toRemove.forEach((e) => {this.state.remove(e)});
+
+    const allReduced = reduceCollisionSet(motions);
+    const collisions = new VectorClass();
+
+    allReduced.forEach((reduced) => {
+      for (let i = 0; i < reduced.size(); i += 1) {
+        const motion1 = reduced.at(i);
+        for (let j = i + 1; j < reduced.size(); j += 1) {
+          const motion2 = reduced.at(j);
+          const collision = motion1.findIntersection(motion2);
+          if (collision !== null) {
+            collisions.append(new Collision(motion1.callsign, motion2.callsign, collision));
+          }
+        }
+      }
+    });
+    const collisionsSize = collisions.size();
+    return collisions;
+  }
+}
+
+class Aircraft {
+  callsign: CallSign;
+  position: Vector3D;
+
+  constructor(callsign: CallSign, position: Vector3D) {
+    this.callsign = callsign;
+    this.position = position;
+  }
+}
+
+class Simulator {
+  aircraft: VectorClass;
+
+  constructor(numAircraft: integer) {
+    this.aircraft = new VectorClass();
+    for (let i = 0; i < numAircraft; i += 1) {
+      this.aircraft.append(new CallSign(i));
+    }
+  }
+
+  simulate(time: float) {
+    const frame = new VectorClass();
+    for (let i = 0; i < this.aircraft.size(); i += 2) {
+      const vector3d1 = new Vector3D(time, cos(time) * 2.0 + i * 3.0, 10.0);
+      frame.append(new Aircraft(
+        this.aircraft.at(i),
+        vector3d1
+      ));
+      const vector3d2 = new Vector3D(time, sin(time) * 2.0 + i * 3.0, 10.0)
+      frame.append(new Aircraft(
+        this.aircraft.at(i + 1),
+        vector3d2
+      ));
+    }
+    return frame;
+  }
+}
+
+function cd(numAircrafts) {
+  const numFrames = 200;
+  const simulator = new Simulator(numAircrafts);
+  const detector = new CollisionDetector();
+
+  let actualCollisions = 0;
+  for (let i = 0; i < numFrames; i += 1) {
+    const time = (i as float) / 10;
+    const collisions = detector.handleNewFrame(simulator.simulate(time));
+    actualCollisions += collisions.size();
+    // code`printf("actualCollisions: %d\n", _actualCollisions)`;
+  }
+  return actualCollisions;
+}
+
+function verifyResult(actualCollisions, numAircrafts) {
+  if (numAircrafts === 1000) { return actualCollisions === 14484; }
+  if (numAircrafts === 500) { return actualCollisions === 14484; }
+  if (numAircrafts === 250) { return actualCollisions === 10830; }
+  if (numAircrafts === 200) { return actualCollisions === 8655; }
+  if (numAircrafts === 100) { return actualCollisions === 4305; }
+  if (numAircrafts === 10) { return actualCollisions === 390; }
+  if (numAircrafts === 2) { return actualCollisions === 42; }
+
+  // process.stdout.write(`No verification result for ${numAircrafts} found`);
+  // process.stdout.write(`Result is: ${actualCollisions}`);
+  return false;
+}
+
+function benchmark(cycle) {
+  const innerIterations = 10;
+  for (let i = 0; i < cycle; i++) {
+    assert(verifyResult(cd(innerIterations), innerIterations));
+  }
+}
