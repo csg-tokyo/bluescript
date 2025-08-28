@@ -1,7 +1,3 @@
-import { integer, float, Array } from "../../../bluescript/modules/base";
-import { assert, abs, fabs, sqrt } from "../../../bluescript/modules/esp32/bluescript/utils";
-
-
 const DATA_LEN = 1024;
 const COEFFS_LEN = 256;
 
@@ -36,7 +32,7 @@ function fir(input: float[], output: float[]) {
 
 
 
-function main(cycle: integer) {
+function benchmark(cycle: integer) {
     for (let i = 0; i < cycle; i++) {
         const inData: float[] = new Array<float>(DATA_LEN, 0.0);
         const rez: float[] = new Array<float>(DATA_LEN, 0.0);

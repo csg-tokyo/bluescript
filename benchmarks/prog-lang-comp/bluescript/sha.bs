@@ -1,7 +1,3 @@
-import { integer, float, Array } from "../../../bluescript/modules/base";
-import { assert, abs, fabs, sqrt } from "../../../bluescript/modules/esp32/bluescript/utils";
-
-
 const BLOCK_SIZE = 32;
 const DATA_LEN = 1024;
 
@@ -155,7 +151,7 @@ function final(ctx:CTX, hash:integer[]) {
 }
 
 
-function main(cycle: integer) {
+function benchmark(cycle: integer) {
     for (let i = 0; i < cycle; i++) {
         let ctx = new CTX();
         let data = new Array<integer>(DATA_LEN, 0);
