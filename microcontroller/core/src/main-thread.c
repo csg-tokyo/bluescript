@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -15,7 +16,8 @@
 typedef enum {
     TASK_RESET,
     TASK_CALL_MAIN,
-    TASK_CALL_EVENT
+    TASK_CALL_EVENT,
+    TASK_SEND_PROFILE
 } task_t;
 
 typedef union {
@@ -31,6 +33,12 @@ typedef union {
         task_t task;
         value_t fn;
     } call_event;
+
+    struct task_send_profile {
+        task_t task;
+        uint8_t fid;
+        char* profile;
+    } send_profile;
 } task_item_u;
 
 static QueueHandle_t task_item_queue;
@@ -76,6 +84,12 @@ static void task_call_event(value_t fn) {
     ((void (*)(value_t))gc_function_object_ptr(fn, 0))(get_obj_property(fn, 2));
 }
 
+static void task_send_profile(uint8_t fid, char* profile) {
+    BS_LOG_INFO("Send profile")
+    bs_protocol_write_profile(fid, profile);
+    free(profile);
+}
+
 void main_thread(void *arg) {
     bs_memory_layout_t memory_layout;
     main_thread_init(&memory_layout);
@@ -91,6 +105,9 @@ void main_thread(void *arg) {
                 break;
             case TASK_CALL_EVENT:
                 task_call_event(task_item.call_event.fn);
+                break;
+            case TASK_SEND_PROFILE:
+                task_send_profile(task_item.send_profile.fid, task_item.send_profile.profile);
                 break;
             case TASK_RESET:
                 main_thread_reset();
@@ -133,5 +150,17 @@ void bs_main_thread_set_event_from_isr(void* fn) {
     task_item_u task_item;
     task_item.call_event.task = TASK_CALL_EVENT;
     task_item.call_event.fn = (value_t)fn;
+    xQueueSendFromISR(task_item_queue, &task_item, &yield);
+}
+
+void bs_main_thread_set_profile(uint8_t fid, char* profile) {
+    uint32_t len = strlen(profile) + 1;
+    char* profile2 = (char*)malloc(len);
+    strcpy(profile2, profile);
+    portBASE_TYPE yield = pdFALSE;
+    task_item_u task_item;
+    task_item.call_event.task = TASK_SEND_PROFILE;
+    task_item.send_profile.fid = fid;
+    task_item.send_profile.profile = profile2;
     xQueueSendFromISR(task_item_queue, &task_item, &yield);
 }

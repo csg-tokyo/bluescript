@@ -44,6 +44,7 @@ void bs_protocol_write_log(char* message) {
         buffer[0] = PROTOCOL_LOG;
         strcpy((char*)(buffer + PROTOCOL_LEN), message);
         send_buffer(buffer, buffer_len);
+        free(buffer);
     } else {
         BS_LOG_ERROR("Could not get buffer.")
     }
@@ -57,6 +58,7 @@ void bs_protocol_write_error(char* message) {
         buffer[0] = PROTOCOL_ERROR;
         strcpy((char*)(buffer + PROTOCOL_LEN), message);
         send_buffer(buffer, buffer_len);
+        free(buffer);
     } else {
         BS_LOG_ERROR("Could not get buffer.");
     }
@@ -71,6 +73,7 @@ void bs_protocol_write_profile(uint8_t fid, char* profile) {
         buffer[1] = fid;
         strcpy((char*)(buffer + PROTOCOL_LEN + sizeof(uint8_t)), profile);
         send_buffer(buffer, buffer_len);
+        free(buffer);
     } else {
         BS_LOG_ERROR("Could not get buffer.");
     }   
@@ -84,6 +87,7 @@ void bs_protocol_write_execution_time(int32_t id, float time) {
         *(int32_t*)(buffer+1) = id;
         *(float*)(buffer+5) = time;
         send_buffer(buffer, buffer_len);
+        free(buffer);
     } else {
         BS_LOG_ERROR("Could not get buffer.");
     }
@@ -103,6 +107,7 @@ void bs_protocol_write_memory_layout(bs_memory_layout_t* layout) {
         *(uint32_t*)(buffer+25) = (uint32_t)layout->dflash_address;
         *(uint32_t*)(buffer+29) = layout->dflash_size;
         send_buffer(buffer, buffer_len);
+        free(buffer);
     } else {
         BS_LOG_ERROR("Could not get buffer.");
     }

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define BS_SHOW_LOG
+// #define BS_SHOW_LOG
 
 int64_t bs_timer_get_time_us();
 
