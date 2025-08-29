@@ -1,5 +1,5 @@
-import { integer, float, Array } from "../../../../bluescript/modules/base";
-import { assert, abs, fabs, sqrt } from "../../../../bluescript/modules/esp32/bluescript/utils";
+// This code is derived from "Are We Fast Yet?" benchmarks (https://github.com/smarr/are-we-fast-yet/).
+
 
 // const ITERATIONS = 250000
 const ITERATIONS = 250
@@ -181,6 +181,4 @@ function benchmark(cycle: integer) {
   }
 }
 
-
-benchmark(3);
 

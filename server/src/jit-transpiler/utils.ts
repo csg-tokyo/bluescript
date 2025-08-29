@@ -2,7 +2,7 @@ import {
   identifier,
   isFunctionDeclaration,
   tsAnyKeyword,
-  tsArrayType, tsBooleanKeyword, tsFunctionType, tsStringKeyword, tSTypeAnnotation,
+  tsArrayType, tsBooleanKeyword, tsFunctionType, tsStringKeyword,
   tsTypeAnnotation,
   tsTypeReference, tsVoidKeyword
 } from "@babel/types";
@@ -128,7 +128,9 @@ export function convertAst(ast: AST.Node, profiler: Profiler) {
           return;
         clone.id.name = specializedFuncPrefix + name
         clone.params.forEach((p, i) => {
-          p.typeAnnotation = staticTypeToNode(specializedType.paramTypes[i])
+          if (!AST.isVoidPattern(p)) {
+            p.typeAnnotation = staticTypeToNode(specializedType.paramTypes[i])
+          }
         })
         clone.returnType = staticTypeToNode(specializedType.returnType)
         addSpecializedNode(statement, clone)

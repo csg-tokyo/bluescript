@@ -25,10 +25,16 @@ export class BytecodeBufferBuilder {
     private lastUnit: Buffer;
     private lastUnitRemain: number;
 
-    constructor(unitSize: number) {
-        this.unitSize = unitSize - FIRST_HEADER_SIZE;
-        this.lastUnitRemain = unitSize;
-        this.lastUnit = Buffer.from(FIRST_HEADER);
+    constructor(unitSize: number, useFirstHeader = true) {
+        if (useFirstHeader) {
+            this.unitSize = unitSize - FIRST_HEADER_SIZE;
+            this.lastUnitRemain = this.unitSize;
+            this.lastUnit = Buffer.from(FIRST_HEADER);
+        } else {
+            this.unitSize = unitSize;
+            this.lastUnitRemain = this.unitSize;
+            this.lastUnit = Buffer.from([]);
+        }
     }
 
     public load(address: number, data: Buffer) {

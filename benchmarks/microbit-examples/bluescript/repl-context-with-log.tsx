@@ -72,7 +72,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         try {
             await bluetooth.current.sendBuffers(bytecodeBuffer)
         } catch (error: any) {
-            // TODO: 要修正
             console.log(error)
             window.alert(`Failed to reset: ${error.message}`)
         }
@@ -90,7 +89,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             iflash.actions.reset(meminfo.iflash.address, meminfo.iflash.size)
             dflash.actions.reset(meminfo.dflash.address, meminfo.dflash.size)
         }).catch(e => {
-            // TODO: 要修正
             console.log(e)
             window.alert(`Failed to reset: ${e.message}`)
         });
@@ -120,10 +118,10 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     }
 
     const executeLatestCell = async () => {
+        console.log(`push execution button, current: ${performance.now()}`);
         setLatestCell((cell) => ({...cell, compileId:-1, state: CellStateT.Compiling, time:undefined}))
         try {
             const compileResult = useJIT ? await network.interactiveCompileWithProfiling(latestCell.code) : await network.interactiveCompile(latestCell.code)
-            console.log(compileResult)
             const compileTime = compileResult.compileTime
             setLatestCell((cell) => ({...cell, compileId: compileResult.compileId, state: CellStateT.Sending, time: {compile: compileTime}}))
             const bluetoothTime = await sendCompileResult(compileResult)
@@ -138,7 +136,6 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                 })
                 setLatestCell((cell) => ({...cell, compileId:-1, state: CellStateT.UserWriting, compileError: errorStrings, time:undefined}))
             } else {
-                // TODO: 要修正
                 console.log(error)
                 window.alert(`Failed to compile: ${error.message}`)
             }
@@ -164,6 +161,8 @@ export default function ReplProvider({children}: {children: ReactNode}) {
 
         if (latestCellRef.current.state === CellStateT.Executing) {
             updateCells();
+            console.log(`compilation: ${latestCellRef.current.time?.compile}`);
+            console.log(`execution: ${exectime}`);
         } else {
             // Sometimes execution overtake screen drawing.
             setTimeout(() => {
@@ -171,6 +170,8 @@ export default function ReplProvider({children}: {children: ReactNode}) {
                     window.alert(`Something wrong happend.`)
                 } else {
                     updateCells();
+                    console.log(`compilation: ${latestCellRef.current.time?.compile}`);
+                    console.log(`execution: ${exectime}`);
                 }
             }, 500);
         }
@@ -181,9 +182,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             const compileResult = await network.jitCompile(fid, paramtypes)
             await sendCompileResult(compileResult)
             setMemoryUpdates(compileResult)
-            console.log('JIT finish')
         } catch (error: any) {
-            // TODO: 要修正
             console.log(error)
             window.alert(`Failed to compile: ${error.message}`)
         }
@@ -224,21 +223,19 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         const parseResult = bytecodeParser(value);
         switch (parseResult.bytecode) {
             case BYTECODE.RESULT_LOG:
+                console.log(`receive output, current: ${performance.now()}`);
                 setOutput(output => [...output, parseResult.log])
                 break;
             case BYTECODE.RESULT_ERROR:
                 setRuntimeError(runtimeError => [...runtimeError, parseResult.error])
                 break;
             case BYTECODE.RESULT_MEMINFO:
-                console.log(parseResult.meminfo)
                 onResetComplete(parseResult.meminfo)
                 break;
             case BYTECODE.RESULT_EXECTIME: 
-                console.log("exectime", parseResult.id, parseResult.exectime);
                 onExecutionComplete(parseResult.id, parseResult.exectime)
                 break;
             case BYTECODE.RESULT_PROFILE: {
-                console.log("receive profile", parseResult.fid, parseResult.paramtypes);
                 jitCompile(parseResult.fid, parseResult.paramtypes)
                 break; 
             }

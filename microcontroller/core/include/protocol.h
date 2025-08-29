@@ -7,6 +7,10 @@
 
 #define CORE_TEXT_SECTION __attribute__((section(".core_text")))
 
+#define BS_PROTOCL_USE_BLUETOOTH
+
+void CORE_TEXT_SECTION bs_protocol_init(void);
+
 void CORE_TEXT_SECTION bs_protocol_write_log(char* message);
 
 void CORE_TEXT_SECTION bs_protocol_write_error(char* message);

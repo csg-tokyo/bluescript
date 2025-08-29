@@ -25,7 +25,15 @@ typedef enum {
 } protocol_t;
 
 static void send_buffer(uint8_t* buffer, uint32_t len) {
+#ifdef BS_PROTOCL_USE_BLUETOOTH
     bs_ble_send_buffer(buffer, len);
+#endif
+}
+
+void bs_protocol_init(void) {
+#ifdef BS_PROTOCL_USE_BLUETOOTH
+    bs_ble_init();
+#endif
 }
 
 void bs_protocol_write_log(char* message) {
