@@ -46,7 +46,7 @@ export const ReplContext = createContext<ReplContextT>({
 
 export default function ReplProvider({children}: {children: ReactNode}) {
     const [replState, setReplState] = useState<ReplStateT>('initial')
-    const [useJIT, setUseJIT] = useState(false)
+    const [useJIT, setUseJIT] = useState(true)
     const [latestCell, setLatestCell] = useState<CellT>({compileId: -1, code:'', state: CellStateT.UserWriting, time:undefined})
     const [postExecutionCells, setPostExecutionCells] = useState<CellT[]>([])
     const [output, setOutput] = useState<string[]>([])

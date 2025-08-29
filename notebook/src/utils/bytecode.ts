@@ -124,7 +124,7 @@ export function bytecodeParser(data: DataView):ParseResult {
     switch (bytecode) {
       case BYTECODE.RESULT_LOG:
         // | cmd (1byte) | log string |
-        return {bytecode, log:Buffer.from(data.buffer.slice(1)).toString()};
+        return {bytecode, log:Buffer.from(data.buffer.slice(1, data.buffer.byteLength - 1)).toString()};
       case BYTECODE.RESULT_ERROR:
         // | cmd (1byte) | log string |
         return {bytecode, error:Buffer.from(data.buffer.slice(1)).toString()}

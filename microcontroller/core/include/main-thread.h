@@ -16,4 +16,6 @@ void CORE_TEXT_SECTION bs_main_thread_set_event(value_t fn);
 
 void CORE_TEXT_SECTION bs_main_thread_set_event_from_isr(void* fn);
 
+void CORE_TEXT_SECTION bs_main_thread_set_profile(uint8_t fid, char* profile);
+
 #endif /* __BS_MAIN_THREAD__ */
