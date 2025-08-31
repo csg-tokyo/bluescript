@@ -16,12 +16,25 @@ jobs:
       - name: Create ZIP of 'microcontroller' directory
         run: zip -r release-microcontroller-${{ github.ref_name }}.zip microcontroller
 
-      - name: Upload ZIP to Release
+      - name: Create ZIP of 'modules' directory
+        run: zip -r release-modules-${{ github.ref_name }}.zip modules
+
+      - name: Upload microcontroller ZIP to Release
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./release-microcontroller-${{ github.ref_name }}.zip
           asset_name: release-microcontroller-${{ github.ref_name }}.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload modules ZIP to Release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./release-modules-${{ github.ref_name }}.zip
+          asset_name: release-modules-${{ github.ref_name }}.zip
           asset_content_type: application/zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
