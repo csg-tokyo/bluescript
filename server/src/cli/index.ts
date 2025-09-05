@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import { program } from 'commander';
-import setup from './cli/setup';
-import remove from './cli/remove';
-import flash from './cli/flash';
-import run from './cli/run';
-import createProject from './cli/create-project';
+import setup from './setup';
+import remove from './remove';
+import flash from './flash';
+import run from './run';
+import createProject from './create-project';
 
 const root = program
               .version('')
