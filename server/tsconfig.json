@@ -1,8 +1,9 @@
 {
     "compilerOptions": {
       "module": "commonjs",
-          "target": "es2015",
+      "target": "es2020",
       "outDir": "dist",
+      "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,
       "sourceMap": true,
           "strict": true

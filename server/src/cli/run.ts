@@ -1,12 +1,11 @@
 import { logger } from "./utils";
-import noble from '@abandonware/noble';
 import * as fs from 'fs';
-import { BSCRIPT_CONFIG_FILE_NAME } from "./constants";
+import { BSCRIPT_CONFIG_FILE_NAME, BSCRIPT_ENTRY_FILE_NAME } from "./constants";
 import { z, ZodError } from 'zod';
-
-const DEVICE_NAME = 'BLUESCRIPT';
-const SERVICE_UUID = '00ff';
-const CHARACTERISTIC_UUID = 'ff01';
+import BLE, {MAX_MTU} from "./ble";
+import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
+import { MemoryAddresses } from "../compiler/shadow-memory";
+import Session from "../server/session";
 
 const BsConfigSchema = z.object({
   name: z.string().min(1),
@@ -19,11 +18,11 @@ const BsConfigSchema = z.object({
 type BsConfig = z.infer<typeof BsConfigSchema>;
 
 export default async function run() {
-    const bsConfig = readSettings();
     try {
+        const bsConfig = readSettings();
         switch (bsConfig.device.kind) {
             case 'esp32':
-                await runESP32();
+                await runESP32(bsConfig.device.name);
                 break;
             case 'host':
                 logger.warn('Not impelented yet.');
@@ -36,12 +35,13 @@ export default async function run() {
         logger.error('Failed to run the project.');
         process.exit(1);
     }
+    process.exit(0);
 }
 
 
 function readSettings(): BsConfig {
     const configFilePath = `./${BSCRIPT_CONFIG_FILE_NAME}`;
-    if (fs.existsSync(configFilePath)) {
+    if (!fs.existsSync(configFilePath)) {
         logger.error(`Cannot find file ${configFilePath}.`);
         throw new Error();
     }
@@ -59,70 +59,52 @@ function readSettings(): BsConfig {
     }
 }
 
+async function runESP32(deviceName: string) {
+    const entryFilePath = `./${BSCRIPT_ENTRY_FILE_NAME}`;
+    try {
+        const bsSrc = fs.readFileSync(entryFilePath, 'utf-8');
+        const ble = new BLE(deviceName);
+        await ble.connect();
+        await ble.startSubscribe();
+        const addresses = await initDevice(ble);
 
-async function runESP32(name: string = "BLUESCRIPT") {
-    await new Promise<void>((resolve) => {
-        noble.on('stateChange', (state) => {
-        if (state === 'poweredOn') {
-            resolve();
-        }
-        });
-    });
-
-    console.log('[Bluetooth] Start scanning...');
-    await noble.startScanningAsync();
-
-    noble.on('discover', async (peripheral) => {
-        // デバイス名が一致するかチェック
-        if (peripheral.advertisement.localName === DEVICE_NAME) {
-            console.log(`[Found] Found target device: ${DEVICE_NAME}`);
-            
-            // スキャンを停止
-            await noble.stopScanningAsync();
-            
-            try {
-                // デバイスに接続
-                console.log(`[Connect] Connecting to ${peripheral.address}...`);
-                await peripheral.connectAsync();
-                console.log('[Connect] Connected!');
-
-                // サービスとキャラクタリスティックを発見
-                const { services, characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(
-                    [SERVICE_UUID],
-                    [CHARACTERISTIC_UUID]
-                );
-                
-                console.log('[Discover] Discovered services and characteristics.');
-
-                if (characteristics.length > 0) {
-                    const targetCharacteristic = characteristics[0];
-                    console.log(`[Characteristic] Found: ${targetCharacteristic.uuid}`);
-
-                    // キャラクタリスティックからデータを読み取る
-                    const data = await targetCharacteristic.readAsync();
-                    
-                    // データはBuffer形式で返ってくるので、適切に解釈する
-                    // 例: 8ビット符号なし整数として読み取る
-                    const value = data.readUInt8(0);
-                    console.log(`[Read] Read data: ${data.toString('hex')}, Value: ${value}`);
-                } else {
-                    console.log('[Characteristic] Target characteristic not found.');
-                }
-
-                // デバイスから切断
-                console.log('[Disconnect] Disconnecting...');
-                await peripheral.disconnectAsync();
-                console.log('[Disconnect] Disconnected.');
-                
-                // プログラムを終了
-                process.exit(0);
-
-            } catch (error) {
-                console.error('[Error]', error);
-                await peripheral.disconnectAsync();
-                process.exit(1);
-            }
-        }
-    });
+        console.log(addresses);
+        await ble.disconnect();
+    } catch(error) {
+        throw new Error();
+    }
+    
+    // compile
+    // send
+    // monitor
 }
 
+async function initDevice(ble: BLE): Promise<MemoryAddresses> {
+    logger.info('Initializing device...')
+    const buffs = new BytecodeBufferGenerator(MAX_MTU).reset().generate();
+    try {
+        await ble.writeBuffers(buffs);
+        const addresses = await new Promise<MemoryAddresses>((resolve, reject) => {
+            try {
+                ble.addTempNotificationHandler((data) => {
+                    const parseResult = bytecodeParser(data);
+                    if (parseResult.bytecode === BYTECODE.RESULT_MEMINFO) {
+                        resolve(parseResult.meminfo);
+                    }
+                });
+            } catch (error) {
+                logger.error(`Failed to receive memory addresses. ${error}`);
+                reject()
+            }
+        });
+        return addresses;
+    } catch (error) {
+        logger.error('Failed to initialize.');
+        throw new Error()
+    }
+}
+
+function compile(bsSrc: string, addresses: MemoryAddresses) {
+    const session = new Session(addresses);
+    
+}

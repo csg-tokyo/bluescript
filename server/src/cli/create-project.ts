@@ -27,6 +27,6 @@ export default function createProject(name: string) {
         logger.success("Successfully created a new project.");
     } catch (error) {
         logger.error("Failed to create a new project.");
-        throw new Error();
+        process.exit(1);
     }
 }
