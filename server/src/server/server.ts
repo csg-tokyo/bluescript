@@ -1,4 +1,5 @@
 import * as http from "http";
+import * as path from "path";
 import {Buffer} from "node:buffer";
 import {ErrorLog} from "../transpiler/utils";
 import Session from "./session";
@@ -61,7 +62,13 @@ export default class HttpServer {
       requestBody = await this.getRequestBody(request);
       switch (request.url) {
         case "/reset":
-          this.session = new Session(JSON.parse(requestBody));
+          this.session = new Session(
+            JSON.parse(requestBody),
+            path.resolve(__dirname, './../../temp-files'),
+            path.resolve(__dirname, '../../../modules'),
+            path.resolve(__dirname, '../../../microcontroller'),
+            ''
+          );
           statusCode = 200;
           break;
         case "/compile":
@@ -112,15 +119,6 @@ export default class HttpServer {
           statusCode = 200;
           break;
         }
-        case "/dummy-compile":
-          if (this.session === undefined) {
-            statusCode = 400;
-            responseBody = {error: "Session have not started."}
-            break;
-          }
-          responseBody = this.session.dummyExecute();
-          statusCode = 200;
-          break;
         case "/check":
           const cmd_result = execSync("ls ../microcontroller/ports/esp32/build/").toString();
           responseBody = {cmd_result};

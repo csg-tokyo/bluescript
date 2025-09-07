@@ -1,6 +1,6 @@
-import { logger } from "./utils";
+import { createDirectory, directoryExists, logger } from "./utils";
 import * as fs from 'fs';
-import { BSCRIPT_CONFIG_FILE_NAME, BSCRIPT_ENTRY_FILE_NAME } from "./constants";
+import { BSCRIPT_BUILD_DIR, BSCRIPT_CONFIG_FILE_NAME, BSCRIPT_ENTRY_FILE_NAME, BSCRIPT_MODULES_DIR, BSCRIPT_RUNTIME_DIR, COMPILER_DIR, ESP_IDF_TOOL_JSON } from "./constants";
 import { z, ZodError } from 'zod';
 import BLE, {MAX_MTU} from "./ble";
 import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
@@ -42,7 +42,7 @@ export default async function run() {
 function readSettings(): BsConfig {
     const configFilePath = `./${BSCRIPT_CONFIG_FILE_NAME}`;
     if (!fs.existsSync(configFilePath)) {
-        logger.error(`Cannot find file ${configFilePath}.`);
+        logger.error(`Cannot find file ${configFilePath}. Run 'create-project' command.`);
         throw new Error();
     }
     try {
@@ -67,6 +67,7 @@ async function runESP32(deviceName: string) {
         await ble.connect();
         await ble.startSubscribe();
         const addresses = await initDevice(ble);
+        compile(addresses, bsSrc);
 
         console.log(addresses);
         await ble.disconnect();
@@ -104,7 +105,34 @@ async function initDevice(ble: BLE): Promise<MemoryAddresses> {
     }
 }
 
-function compile(bsSrc: string, addresses: MemoryAddresses) {
-    const session = new Session(addresses);
-    
+function compile(addresses: MemoryAddresses, bsSrc: string) {
+    try {
+        const buildDir = `./${BSCRIPT_BUILD_DIR}`;
+        if (!directoryExists(buildDir)) {
+            createDirectory(buildDir, true);
+        }
+        const session = new Session(
+            addresses,
+            buildDir,
+            BSCRIPT_MODULES_DIR,
+            BSCRIPT_RUNTIME_DIR,
+            getCompilerDir()
+        );
+        const compileResult = session.compile(bsSrc);
+        console.log(compileResult);
+    } catch (error) {
+        logger.error(`Failed to compile: ${error}`);
+    }
+}
+
+function getCompilerDir():string {
+    try {
+        const fileContent = fs.readFileSync(ESP_IDF_TOOL_JSON, 'utf-8');
+        const jsonData = JSON.parse(fileContent);
+        const xtensaEspElfVersion = jsonData.tools.find((t:any) => t.name === 'xtensa-esp-elf').versions[0].name;
+        return COMPILER_DIR(xtensaEspElfVersion);
+    } catch (error) {
+        logger.error(`Faild to read ${ESP_IDF_TOOL_JSON}: ${error}`);
+    }
+    return '';
 }

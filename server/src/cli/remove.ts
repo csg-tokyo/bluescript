@@ -1,5 +1,5 @@
 import { logger, directoryExists, deleteDirectory } from "./utils";
-import { BSCRIPT_DIR, ESP32_DIR } from "./constants";
+import { BSCRIPT_DIR, ESP_DIR } from "./constants";
 
 export default async function remove(device: string) {
     switch (device) {
@@ -20,7 +20,7 @@ export default async function remove(device: string) {
 
 
 function removeESP32() {
-    removeDeviceSetup(ESP32_DIR);
+    removeDeviceSetup(ESP_DIR);
 }
 
 function removeAll() {

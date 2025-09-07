@@ -3,10 +3,12 @@ import * as os from 'os';
 
 
 export const BSCRIPT_DIR = expandTilde('~/bscript');
-export const ESP32_DIR = `${BSCRIPT_DIR}/esp`;
-export const BSCRIPT_FIRMWARE_DIR = `${BSCRIPT_DIR}/microcontroller`;
+export const ESP_DIR = `${BSCRIPT_DIR}/esp`;
+export const COMPILER_DIR = (version: string) => `${expandTilde('~/.espressif')}/tools/xtensa-esp-elf/${version}/xtensa-esp-elf/bin/`
+export const ESP_IDF_TOOL_JSON = `${ESP_DIR}/esp-idf/tools/tools.json`
+export const BSCRIPT_RUNTIME_DIR = `${BSCRIPT_DIR}/microcontroller`;
 export const BSCRIPT_MODULES_DIR = `${BSCRIPT_DIR}/modules`;
-export const BSCRIPT_FIRMWARE_ZIP_URL = 'https://github.com/csg-tokyo/bluescript/releases/download/v1.1.4/release-microcontroller-v1.1.4.zip';
+export const BSCRIPT_RUNTIME_ZIP_URL = 'https://github.com/csg-tokyo/bluescript/releases/download/v1.1.4/release-microcontroller-v1.1.4.zip';
 export const BSCRIPT_MODULES_ZIP_URL = 'https://github.com/csg-tokyo/bluescript/releases/download/v1.1.4/release-modules-v1.1.4.zip';
 
 export const BSCRIPT_CONFIG_FILE_NAME = 'bsconfig.json';

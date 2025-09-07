@@ -42,16 +42,16 @@ async function setupESP32() {
 
 async function downloadAndUnzipBlueScriptCode() {
     logger.info('Downloading BlueScript code.');
-    if (directoryExists(CONSTANTS.BSCRIPT_FIRMWARE_DIR)) {
-        logger.info(`Found existing ${CONSTANTS.BSCRIPT_FIRMWARE_DIR}. Deleting...`);
-        deleteDirectory(CONSTANTS.BSCRIPT_FIRMWARE_DIR);
+    if (directoryExists(CONSTANTS.BSCRIPT_RUNTIME_DIR)) {
+        logger.info(`Found existing ${CONSTANTS.BSCRIPT_RUNTIME_DIR}. Deleting...`);
+        deleteDirectory(CONSTANTS.BSCRIPT_RUNTIME_DIR);
     }
     if (directoryExists(CONSTANTS.BSCRIPT_MODULES_DIR)) {
         logger.info(`Found existing ${CONSTANTS.BSCRIPT_MODULES_DIR}. Deleting...`);
         deleteDirectory(CONSTANTS.BSCRIPT_MODULES_DIR);
     }
     try {
-        await downloadAndUnzip(CONSTANTS.BSCRIPT_FIRMWARE_ZIP_URL, CONSTANTS.BSCRIPT_DIR);
+        await downloadAndUnzip(CONSTANTS.BSCRIPT_RUNTIME_ZIP_URL, CONSTANTS.BSCRIPT_DIR);
         await downloadAndUnzip(CONSTANTS.BSCRIPT_MODULES_ZIP_URL, CONSTANTS.BSCRIPT_DIR);
     } catch (error) {
         throw new Error();
@@ -79,20 +79,20 @@ async function installEspidfPrerequisitePakages() {
 async function setupEspidf() {
     logger.info(`Start setting up ESP-IDF ${ESP_IDF_VERSION}.`);
     try {
-        if (directoryExists(CONSTANTS.ESP32_DIR)) {
-            logger.info(`${CONSTANTS.ESP32_DIR} already exists.`);
+        if (directoryExists(CONSTANTS.ESP_DIR)) {
+            logger.info(`${CONSTANTS.ESP_DIR} already exists.`);
             logger.info(`Skip cloning ESP-IDF. If you don't want to skip this step, run 'bscript remove esp32'.`);
         } else {
-            createDirectory(CONSTANTS.ESP32_DIR, true);
+            createDirectory(CONSTANTS.ESP_DIR, true);
             if (!isPackageInstalled('git')) {
                 logger.error('Cannot find git command. Please install git.');
                 throw new Error();
             }
             logger.info(`Cloning ESP-IDF ${ESP_IDF_VERSION}. This may take a while ...`);
-            await executeCommand(`git clone -b ${ESP_IDF_VERSION} --recursive ${ESP_IDF_GIT_REPO}`, CONSTANTS.ESP32_DIR);
+            await executeCommand(`git clone -b ${ESP_IDF_VERSION} --recursive ${ESP_IDF_GIT_REPO}`, CONSTANTS.ESP_DIR);
         }
         logger.info(`Installing packages for ESP-IDF. This may take a while ...`);
-        await executeCommand(`${CONSTANTS.ESP32_DIR}/esp-idf/install.sh`);
+        await executeCommand(`${CONSTANTS.ESP_DIR}/esp-idf/install.sh`);
         logger.success(`Setting up ESP-IDF was completed.`);
     } catch (error) {
         logger.error(`Failed to setup ESP-IDF ${ESP_IDF_VERSION}`);

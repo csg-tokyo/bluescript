@@ -1,4 +1,4 @@
-import { BSCRIPT_FIRMWARE_DIR, ESP32_DIR } from "./constants";
+import { BSCRIPT_RUNTIME_DIR, ESP_DIR } from "./constants";
 import { logger, getHostOSType, executeCommand } from "./utils";
 
 export default async function flash(device: string, port: string) {
@@ -19,8 +19,8 @@ async function flashESP32(port: string) {
     const osType = getHostOSType();
     try {
         if (osType === 'macos') {
-            const exportPath = `${ESP32_DIR}/esp-idf/export.sh`;
-            const cwd = `${BSCRIPT_FIRMWARE_DIR}/ports/esp32`
+            const exportPath = `${ESP_DIR}/esp-idf/export.sh`;
+            const cwd = `${BSCRIPT_RUNTIME_DIR}/ports/esp32`
             await executeCommand(`source ${exportPath} && idf.py build flash -p ${port}`, cwd);
         } else {
             logger.warn("Not implemented yet.");

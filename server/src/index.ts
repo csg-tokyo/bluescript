@@ -26,8 +26,8 @@ root.command('remove')
   });
 
 root.command('flash')
-  .description('flash firmware to the specified device')
-  .argument('<device>', 'device to flash firmware')
+  .description('flash runtime to the specified device')
+  .argument('<device>', 'device to flash runtime')
   .option('-p, --port <port>', 'serial port')
   .action(async (device, options: { port: string })=>{
     await flash(device, options.port);
