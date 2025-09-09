@@ -1,6 +1,6 @@
 import { createDirectory, directoryExists, logger } from "./utils";
 import * as fs from 'fs';
-import { BSCRIPT_BUILD_DIR, BSCRIPT_CONFIG_FILE_NAME, BSCRIPT_ENTRY_FILE_NAME, BSCRIPT_MODULES_DIR, BSCRIPT_RUNTIME_DIR, COMPILER_DIR, ESP_IDF_TOOL_JSON } from "./constants";
+import * as CONSTANTS from './constants';
 import { z, ZodError } from 'zod';
 import chalk from 'chalk';
 import BLE, {MAX_MTU} from "./ble";
@@ -25,7 +25,7 @@ export default async function run() {
         const bsConfig = readSettings();
         switch (bsConfig.device.kind) {
             case 'esp32':
-                await runESP32(bsConfig.device.name, bsConfig.runtimeDir, bsConfig.modulesDir);
+                await runESP32(bsConfig);
                 break;
             case 'host':
                 logger.warn('Not impelented yet.');
@@ -43,7 +43,7 @@ export default async function run() {
 
 
 function readSettings(): BsConfig {
-    const configFilePath = `./${BSCRIPT_CONFIG_FILE_NAME}`;
+    const configFilePath = `./${CONSTANTS.BSCRIPT_CONFIG_FILE_NAME}`;
     if (!fs.existsSync(configFilePath)) {
         logger.error(`Cannot find file ${configFilePath}. Run 'create-project' command.`);
         throw new Error();
@@ -62,18 +62,15 @@ function readSettings(): BsConfig {
     }
 }
 
-async function runESP32(deviceName: string, 
-    runtimeDir = BSCRIPT_RUNTIME_DIR, 
-    modulesDir = BSCRIPT_MODULES_DIR
-) {
-    const entryFilePath = `./${BSCRIPT_ENTRY_FILE_NAME}`;
+async function runESP32(bsConfig: BsConfig) {
+    const entryFilePath = `./${CONSTANTS.BSCRIPT_ENTRY_FILE_NAME}`;
     try {
         const bsSrc = fs.readFileSync(entryFilePath, 'utf-8');
-        const ble = new BLE(deviceName);
+        const ble = new BLE(bsConfig.device.name);
         await ble.connect();
         await ble.startSubscribe();
         const addresses = await initDevice(ble);
-        const compileResult = compile(addresses, bsSrc, runtimeDir, modulesDir);
+        const compileResult = compile(addresses, bsSrc, bsConfig);
         await sendAndExecute(compileResult, ble);
         await ble.disconnect();
     } catch(error) {
@@ -106,19 +103,18 @@ async function initDevice(ble: BLE): Promise<MemoryAddresses> {
     }
 }
 
-function compile(addresses: MemoryAddresses, bsSrc: string, 
-    runtimeDir: string, modulesDir: string):MemoryUpdate {
+function compile(addresses: MemoryAddresses, bsSrc: string, bsConfig: BsConfig):MemoryUpdate {
     logger.info('Compiling...');
     try {
-        const buildDir = `./${BSCRIPT_BUILD_DIR}`;
+        const buildDir = `./${CONSTANTS.BSCRIPT_BUILD_DIR}`;
         if (!directoryExists(buildDir)) {
             createDirectory(buildDir, true);
         }
         const session = new Session(
             addresses,
             buildDir,
-            modulesDir,
-            runtimeDir,
+            bsConfig.modulesDir ?? CONSTANTS.BSCRIPT_MODULES_DIR,
+            bsConfig.runtimeDir ?? CONSTANTS.BSCRIPT_RUNTIME_DIR,
             getCompilerDir()
         );
         const compileResult = session.compile(bsSrc);
@@ -131,12 +127,12 @@ function compile(addresses: MemoryAddresses, bsSrc: string,
 
 function getCompilerDir():string {
     try {
-        const fileContent = fs.readFileSync(ESP_IDF_TOOL_JSON, 'utf-8');
+        const fileContent = fs.readFileSync(CONSTANTS.ESP_IDF_TOOL_JSON, 'utf-8');
         const jsonData = JSON.parse(fileContent);
         const xtensaEspElfVersion = jsonData.tools.find((t:any) => t.name === 'xtensa-esp-elf').versions[0].name;
-        return COMPILER_DIR(xtensaEspElfVersion);
+        return CONSTANTS.COMPILER_DIR(xtensaEspElfVersion);
     } catch (error) {
-        logger.error(`Faild to read ${ESP_IDF_TOOL_JSON}: ${error}`);
+        logger.error(`Faild to read ${CONSTANTS.ESP_IDF_TOOL_JSON}: ${error}`);
     }
     return '';
 }
@@ -172,10 +168,10 @@ async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<vo
                 });
             } catch (error) {
                 logger.error(`Failed to receive execution time: ${error}`);
-                reject()
+                reject();
             }
         });
-        logger.info(`Execution Time: ${executionTime} ms`);
+        logger.info(`Execution Time: ${Math.round(executionTime * 100) / 100} ms`);
         ble.removeNotificationHanlder();
     } catch (error) {
         logger.error(`Failed to execute code: ${error}`);
