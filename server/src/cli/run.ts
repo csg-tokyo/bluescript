@@ -2,9 +2,10 @@ import { createDirectory, directoryExists, logger } from "./utils";
 import * as fs from 'fs';
 import { BSCRIPT_BUILD_DIR, BSCRIPT_CONFIG_FILE_NAME, BSCRIPT_ENTRY_FILE_NAME, BSCRIPT_MODULES_DIR, BSCRIPT_RUNTIME_DIR, COMPILER_DIR, ESP_IDF_TOOL_JSON } from "./constants";
 import { z, ZodError } from 'zod';
+import chalk from 'chalk';
 import BLE, {MAX_MTU} from "./ble";
 import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
-import { MemoryAddresses } from "../compiler/shadow-memory";
+import { MemoryAddresses, MemoryUpdate } from "../compiler/shadow-memory";
 import Session from "../server/session";
 
 const BsConfigSchema = z.object({
@@ -13,6 +14,8 @@ const BsConfigSchema = z.object({
     kind: z.enum(['esp32', 'host']),
     name: z.string(),
   }),
+  runtimeDir: z.string().optional(),
+  modulesDir: z.string().optional()
 });
 
 type BsConfig = z.infer<typeof BsConfigSchema>;
@@ -22,7 +25,7 @@ export default async function run() {
         const bsConfig = readSettings();
         switch (bsConfig.device.kind) {
             case 'esp32':
-                await runESP32(bsConfig.device.name);
+                await runESP32(bsConfig.device.name, bsConfig.runtimeDir, bsConfig.modulesDir);
                 break;
             case 'host':
                 logger.warn('Not impelented yet.');
@@ -59,7 +62,10 @@ function readSettings(): BsConfig {
     }
 }
 
-async function runESP32(deviceName: string) {
+async function runESP32(deviceName: string, 
+    runtimeDir = BSCRIPT_RUNTIME_DIR, 
+    modulesDir = BSCRIPT_MODULES_DIR
+) {
     const entryFilePath = `./${BSCRIPT_ENTRY_FILE_NAME}`;
     try {
         const bsSrc = fs.readFileSync(entryFilePath, 'utf-8');
@@ -67,17 +73,12 @@ async function runESP32(deviceName: string) {
         await ble.connect();
         await ble.startSubscribe();
         const addresses = await initDevice(ble);
-        compile(addresses, bsSrc);
-
-        console.log(addresses);
+        const compileResult = compile(addresses, bsSrc, runtimeDir, modulesDir);
+        await sendAndExecute(compileResult, ble);
         await ble.disconnect();
     } catch(error) {
         throw new Error();
     }
-    
-    // compile
-    // send
-    // monitor
 }
 
 async function initDevice(ble: BLE): Promise<MemoryAddresses> {
@@ -105,7 +106,9 @@ async function initDevice(ble: BLE): Promise<MemoryAddresses> {
     }
 }
 
-function compile(addresses: MemoryAddresses, bsSrc: string) {
+function compile(addresses: MemoryAddresses, bsSrc: string, 
+    runtimeDir: string, modulesDir: string):MemoryUpdate {
+    logger.info('Compiling...');
     try {
         const buildDir = `./${BSCRIPT_BUILD_DIR}`;
         if (!directoryExists(buildDir)) {
@@ -114,14 +117,15 @@ function compile(addresses: MemoryAddresses, bsSrc: string) {
         const session = new Session(
             addresses,
             buildDir,
-            BSCRIPT_MODULES_DIR,
-            BSCRIPT_RUNTIME_DIR,
+            modulesDir,
+            runtimeDir,
             getCompilerDir()
         );
         const compileResult = session.compile(bsSrc);
-        console.log(compileResult);
+        return compileResult.result;
     } catch (error) {
         logger.error(`Failed to compile: ${error}`);
+        throw new Error();
     }
 }
 
@@ -135,4 +139,45 @@ function getCompilerDir():string {
         logger.error(`Faild to read ${ESP_IDF_TOOL_JSON}: ${error}`);
     }
     return '';
+}
+
+async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<void> {
+    logger.info("Sending...");
+    const bytecodeGenerator = new BytecodeBufferGenerator(MAX_MTU);
+    for (const block of compileResult.blocks) {
+        bytecodeGenerator.load(block.address, Buffer.from(block.data, "hex"));
+    }
+    for (const entryPoint of compileResult.entryPoints) {
+        bytecodeGenerator.jump(entryPoint.id, entryPoint.address);
+    }
+    try {
+        await ble.writeBuffers(bytecodeGenerator.generate());
+    } catch (error) {
+        logger.error(`Faild to send code: ${error}`);
+    }
+
+    logger.info('Executing...');
+    try {
+        const executionTime = await new Promise<number>((resolve, reject) => {
+            try {
+                ble.setNotificationHandler((data) => {
+                    const parseResult = bytecodeParser(data);
+                    if (parseResult.bytecode === BYTECODE.RESULT_EXECTIME) {
+                        resolve(parseResult.exectime);
+                    } else if (parseResult.bytecode === BYTECODE.RESULT_LOG) {
+                        process.stdout.write(parseResult.log);
+                    } else if (parseResult.bytecode === BYTECODE.RESULT_ERROR) {
+                        process.stdout.write(chalk.red.bold(parseResult.error));
+                    }
+                });
+            } catch (error) {
+                logger.error(`Failed to receive execution time: ${error}`);
+                reject()
+            }
+        });
+        logger.info(`Execution Time: ${executionTime} ms`);
+        ble.removeNotificationHanlder();
+    } catch (error) {
+        logger.error(`Failed to execute code: ${error}`);
+    }
 }

@@ -1,6 +1,5 @@
 import {ElfReader, Section, Symbol} from "./elf-reader";
 import * as fs from "fs";
-import * as path from "path";
 import { FILE_PATH } from "../constants";
 
 const align4 = (value: number) => (value + 3) & ~3;
@@ -14,7 +13,7 @@ export type MemoryAddresses = {
 
 type MemoryType = 'iram' | 'dram' | 'iflash' | 'dflash';
 
-type MemoryUpdate = {
+export type MemoryUpdate = {
   blocks: {type: MemoryType, address: number, data: string}[],
   entryPoints: {id: number, address: number}[]
 }
