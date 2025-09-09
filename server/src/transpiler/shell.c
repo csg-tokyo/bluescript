@@ -42,14 +42,14 @@ static int ends_with(char* filename, char c) {
         return filename[len - 1] == c;
 }
 
-void do_logging(char* msg) {
+static void do_logging(char* msg) {
     FILE* fptr = fopen("log.txt", "a");
     fputs(msg, fptr);
     fputs("\n", fptr);
     fclose(fptr);
 }
 
-char prompt[] = "\x1b[1;94m> \x1b[0m";
+static char prompt[] = "\x1b[1;94m> \x1b[0m";
 
 int main() {
     char libname[64];

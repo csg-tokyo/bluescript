@@ -22,7 +22,6 @@ function performance_now(): integer { return 0 }
 
 export function buildShell() {
   const srcdir = 'src/transpiler'
-  console.log(execSync("pwd").toString())
   execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeC} ${srcdir}/shell-builtins.c`)
   execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${srcdir}/shell.c ${dir}/c-runtime.so -lm -ldl`)
 }
@@ -72,28 +71,12 @@ function completer(line: string): [string[], string] {
   return hits.length ? [hits, line] : [[], '']
 }
 
-function loadSourceFile(line: string) {
-  if (!line.startsWith('.load '))
-    return line
-
-  const cmd = line.split(' ')
-  try {
-    const src = fs.readFileSync(cmd[1])
-    return src.toString('utf-8')
-  }
-  catch (e) {
-    process.stdout.write(`Error: no such file: ${cmd[1]}\n`)
-    return ''
-  }
-}
-
 class Transpiler {
   shell: ChildProcessWithoutNullStreams
   baseGlobalNames: GlobalVariableNameTable
   sessionId: number
   moduleId: number
   modules: Map<string, GlobalVariableNameTable>
-  shellCommands: string
   libs: string
   sources: string
 
@@ -102,7 +85,6 @@ class Transpiler {
     this.sessionId = 0
     this.moduleId = 0
     this.modules = new Map<string, GlobalVariableNameTable>()
-    this.shellCommands = ''
     this.libs = `${dir}/c-runtime.so`
     this.sources = ''
 
@@ -110,7 +92,25 @@ class Transpiler {
     this.baseGlobalNames = result.names
   }
 
-  transpile(src: string, globalNames: GlobalVariableNameTable) {
+
+  tryEvaluate(code: string, globalNames: GlobalVariableNameTable, consoleDev: readline.Interface) {
+    try {
+      return this.evaluate(code, globalNames)
+      // don't call consoleDev.prompt() here.
+      // the prompt is printed in shell.c.
+    }
+    catch (e) {
+      if (e instanceof ErrorLog)
+        process.stdout.write(e.toString())
+      else
+        process.stdout.write('Error: compilation failure\n')
+
+      consoleDev.prompt()
+      return globalNames
+    }
+  }
+
+  evaluate(src: string, globalNames: GlobalVariableNameTable) {
     const compile = (src: string, fileName: string) => {
       fs.writeFileSync(`${fileName}.c`, prologCcode + src)
 
@@ -144,21 +144,46 @@ class Transpiler {
         const result = transpile(this.sessionId, program, this.baseGlobalNames, importer, this.moduleId)
         this.modules.set(fname, result.names)
         compile(result.code, fileName)
-        this.shellCommands += `${fileName}.so\n${result.main}\n`
+        shellCommands += `${fileName}.so\n${result.main}\n`
         return result.names
       }
     }
 
-    this.shellCommands = ''
+    let shellCommands = ''
     this.sessionId += 1
     const fileName = `${dir}/bscript${this.sessionId}`
     const result = transpile(this.sessionId, src, globalNames, importer)
     compile(result.code, fileName)
     this.shell.stdin.cork()
-    this.shell.stdin.write(`${this.shellCommands}${fileName}.so\n${result.main}\n`)
+    this.shell.stdin.write(`${shellCommands}${fileName}.so\n${result.main}\n`)
     process.nextTick(() => this.shell.stdin.uncork())
     return result.names
   }
+}
+
+function loadSourceFile(line: string) {
+  if (!line.startsWith('.load '))
+    return line
+
+  const cmd = line.split(' ')
+  try {
+    const src = fs.readFileSync(cmd[1])
+    return src.toString('utf-8')
+  }
+  catch (e) {
+    process.stdout.write(`Error: no such file: ${cmd[1]}\n`)
+    return ''
+  }
+}
+
+function loadAndRun(globalNames: GlobalVariableNameTable, transpiler: Transpiler, consoleDev: readline.Interface) {
+  for (const source of process.argv.slice(2)) {
+    const code = loadSourceFile(`.load ${source}`)
+    if (code !== '')
+      globalNames = transpiler.tryEvaluate(code, globalNames, consoleDev)
+  }
+
+  return globalNames
 }
 
 export async function mainLoop() {
@@ -171,6 +196,10 @@ export async function mainLoop() {
     let globalNames = transpiler.baseGlobalNames
     consoleDev.setPrompt(prompt)
     consoleDev.prompt()
+    if (process.argv.length >= 3) {
+      process.stdout.write('\n')
+      globalNames = loadAndRun(globalNames, transpiler, consoleDev)
+    }
 
     const codeBuffer = new CodeBuffer()
     for await (const oneline of consoleDev) {
@@ -194,20 +223,7 @@ export async function mainLoop() {
         break
       }
 
-      try {
-        globalNames = transpiler.transpile(line, globalNames)
-        // don't call consoleDev.prompt() here.
-        // the prompt is printed in shell.c.
-      }
-      catch (e) {
-        if (e instanceof ErrorLog)
-          process.stdout.write(e.toString())
-        else
-          process.stdout.write('Error: compilation failure\n')
-
-        consoleDev.prompt()
-      }
-
+      globalNames = transpiler.tryEvaluate(line, globalNames, consoleDev)
       if (finished >= 0)
             break
     }
@@ -216,12 +232,15 @@ export async function mainLoop() {
     (transpiler.libs + transpiler.sources).split(' ').forEach(name => fs.rmSync(name))
 }
 
+console.log(execSync("pwd").toString())
+
 buildShell()
 
 process.stdout.write(`\x1b[1;94mBlueScript Shell\x1b[0m
-  print(v: any), print_i32(v: integer), and performance_now() are available.
+  # npm run shell <source file> ...
   Type '.load <file name>' to load a source file.
   Type '.quit' or 'Ctrl-D' to exit.
+  print(v: any), print_i32(v: integer), and performance_now() are available.
 `)
 
 mainLoop()
