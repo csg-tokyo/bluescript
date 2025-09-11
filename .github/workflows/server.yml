@@ -1,0 +1,38 @@
+name: Run server tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-server-cli:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Run tests for /server/tests/cli
+        working-directory: ./server
+        run: npm test -- tests/cli
+
+      - name: Run tests for /server/tests/transpiler
+        working-directory: ./server
+        run: npm test -- tests/transpiler
+
+      - name: Run tests for /server/tests/jit-transpiler
+        working-directory: ./server
+        run: npm test -- tests/jit-transpiler

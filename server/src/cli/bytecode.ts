@@ -12,14 +12,17 @@ export enum BYTECODE {
     RESULT_PROFILE
 }
 
-// The first 2 bytes indicate that the communication is a data transmission.
+// Headers
 const FIRST_HEADER_SIZE = 2;
-const FIRST_HEADER = [0x03, 0x00];
+const FIRST_HEADER = Buffer.from([0x03, 0x00]);
 
-const LOAD_HEADER_SIZE = 9;
+// Command sizes
+const LOAD_HEADER_SIZE = 9;   // cmd(1) + address(4) + size(4)
+const JUMP_HEADER_SIZE = 9;   // cmd(1) + id(4) + address(4)
+const RESET_HEADER_SIZE = 1;  // cmd(1)
 
 export class BytecodeBufferGenerator {
-    private readonly unitSize:number;
+    private readonly unitSize: number;
     private units: Buffer[] = [];
     private lastUnit: Buffer;
     private lastUnitRemain: number;
@@ -27,130 +30,156 @@ export class BytecodeBufferGenerator {
     constructor(unitSize: number, useFirstHeader = true) {
         if (useFirstHeader) {
             this.unitSize = unitSize - FIRST_HEADER_SIZE;
-            this.lastUnitRemain = this.unitSize;
             this.lastUnit = Buffer.from(FIRST_HEADER);
         } else {
             this.unitSize = unitSize;
-            this.lastUnitRemain = this.unitSize;
             this.lastUnit = Buffer.from([]);
         }
+        this.lastUnitRemain = this.unitSize;
     }
 
-    public load(address: number, data: Buffer) {
-        let dataRemain = data.length;
-        let offset = 0;
-        let loadAddress = address;
-        while (true) {
-            if (LOAD_HEADER_SIZE + dataRemain <= this.lastUnitRemain) {
-                const header = this.createLoadHeader(BYTECODE.LOAD, loadAddress, dataRemain);
-                const body = data.subarray(offset);
-                this.lastUnit = Buffer.concat([this.lastUnit, header, body]);
-                this.lastUnitRemain -= LOAD_HEADER_SIZE + dataRemain
-                break;
-            } else if (LOAD_HEADER_SIZE < this.lastUnitRemain) {
-                const loadSize = (this.lastUnitRemain - LOAD_HEADER_SIZE) & ~0b11; // 4 byte align
-                const header = this.createLoadHeader(BYTECODE.LOAD, loadAddress, loadSize);
-                const body = data.subarray(offset, offset+loadSize);
-                this.lastUnit = Buffer.concat([this.lastUnit, header, body]);
-
-                this.units.push(this.lastUnit);
-                this.lastUnit = Buffer.from(FIRST_HEADER);
-                dataRemain -= loadSize;
-                offset += loadSize;
-                loadAddress += loadSize;
-                this.lastUnitRemain = this.unitSize;
-            } else {
-                this.units.push(this.lastUnit);
-                this.lastUnit = Buffer.from(FIRST_HEADER);
-                this.lastUnitRemain = this.unitSize;
-            }
+    private _flushUnit() {
+        if (this.lastUnit.length > FIRST_HEADER_SIZE) {
+            this.units.push(this.lastUnit);
         }
-        return this
+        this.lastUnit = Buffer.from(FIRST_HEADER);
+        this.lastUnitRemain = this.unitSize;
     }
 
-    private createLoadHeader(loadCmd: number, address: number, size: number) {
+    private _appendToCurrentUnit(data: Buffer) {
+        this.lastUnit = Buffer.concat([this.lastUnit, data]);
+        this.lastUnitRemain -= data.length;
+    }
+
+    private _createLoadHeader(loadCmd: number, address: number, size: number) {
         const header = Buffer.allocUnsafe(LOAD_HEADER_SIZE);
-        header.writeUIntLE(loadCmd, 0, 1); // cmd
-        header.writeUIntLE(address, 1, 4); // address
-        header.writeUIntLE(size, 5, 4); // size
+        header.writeUInt8(loadCmd, 0);       // cmd(1)
+        header.writeUInt32LE(address, 1);    // address(4)
+        header.writeUInt32LE(size, 5);       // size(4)
         return header;
     }
 
-
-    public jump(id: number, address: number) {
-        const header = Buffer.allocUnsafe(9);
-        header.writeUIntLE(BYTECODE.JUMP, 0, 1); // cmd
-        header.writeIntLE(id, 1, 4); // id
-        header.writeUIntLE(address, 5, 4); // address
-        if (5 <= this.lastUnitRemain) {
-            this.lastUnit = Buffer.concat([this.lastUnit, header]);
-        } else {
-            this.units.push(this.lastUnit);
-            this.lastUnit = Buffer.concat([Buffer.from(FIRST_HEADER), header]);
+    private _appendCommand(commandData: Buffer) {
+        if (commandData.length > this.lastUnitRemain) {
+            this._flushUnit();
         }
-        return this
+        this._appendToCurrentUnit(commandData);
+        return this;
     }
 
+    public load(address: number, data: Buffer) {
+        let dataOffset = 0;
+        let currentAddress = address;
+
+        while (dataOffset < data.length) {
+            if (this.lastUnitRemain < LOAD_HEADER_SIZE) {
+                this._flushUnit();
+            }
+
+            const dataRemain = data.length - dataOffset;
+            const availableSpaceForData = (this.lastUnitRemain - LOAD_HEADER_SIZE) & ~0b11; // 4 byte align
+
+            let chunkSize = Math.min(dataRemain, availableSpaceForData);
+            if (chunkSize <= 0) {
+                this._flushUnit();
+                continue;
+            }
+
+            const header = this._createLoadHeader(BYTECODE.LOAD, currentAddress, chunkSize);
+            const chunk = data.subarray(dataOffset, dataOffset + chunkSize);
+
+            this._appendToCurrentUnit(header);
+            this._appendToCurrentUnit(chunk);
+
+            dataOffset += chunkSize;
+            currentAddress += chunkSize;
+        }
+        return this;
+    }
+
+    public jump(id: number, address: number) {
+        const header = Buffer.allocUnsafe(JUMP_HEADER_SIZE);
+        header.writeUInt8(BYTECODE.JUMP, 0);     // cmd(1)
+        header.writeInt32LE(id, 1);              // id(4)
+        header.writeUInt32LE(address, 5);        // address(4)
+        return this._appendCommand(header);
+    }
 
     public reset() {
         const header = Buffer.from([BYTECODE.RESET]);
-        if (1 <= this.lastUnitRemain) {
-            this.lastUnit = Buffer.concat([this.lastUnit, header]);
-        } else {
-            this.units.push(this.lastUnit);
-            this.lastUnit = Buffer.concat([Buffer.from(FIRST_HEADER), header]);
-        }
-        return this
+        return this._appendCommand(header);
     }
 
-    public generate() {
-        this.units.push(this.lastUnit);
+    public generate(): Buffer[] {
+        if (this.lastUnit.length > FIRST_HEADER_SIZE) {
+            this.units.push(this.lastUnit);
+        }
         const result = this.units;
 
-        // Reset
-        this.lastUnitRemain = this.unitSize;
+        // Reset state
         this.units = [];
         this.lastUnit = Buffer.from(FIRST_HEADER);
+        this.lastUnitRemain = this.unitSize;
 
         return result;
     }
 }
 
-type ParseResult = 
-    {bytecode:BYTECODE.RESULT_LOG, log:string} | 
+
+export type ParseResult =
+    {bytecode:BYTECODE.RESULT_LOG, log:string} |
     {bytecode:BYTECODE.RESULT_ERROR, error:string} |
     {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemoryAddresses} |
     {bytecode:BYTECODE.RESULT_EXECTIME, id: number, exectime:number} |
     {bytecode:BYTECODE.RESULT_PROFILE, fid:number, paramtypes:string[]} |
-    {bytecode:BYTECODE.NONE}
+    {bytecode:BYTECODE.NONE};
 
-export function bytecodeParser(buffer: Buffer):ParseResult {
-    const data = new DataView(buffer.buffer);
-    const bytecode = data.getUint8(0);
+const textDecoder = new TextDecoder();
+
+export function bytecodeParser(buffer: Buffer): ParseResult {
+    if (buffer.length === 0) {
+        return { bytecode: BYTECODE.NONE };
+    }
+
+    const bytecode = buffer.readUInt8(0);
+    let offset = 1;
+
     switch (bytecode) {
-      case BYTECODE.RESULT_LOG:
-        // | cmd (1byte) | log string |
-        return {bytecode, log:Buffer.from(data.buffer.slice(1, data.buffer.byteLength - 1)).toString()};
-      case BYTECODE.RESULT_ERROR:
-        // | cmd (1byte) | log string |
-        return {bytecode, error:Buffer.from(data.buffer.slice(1)).toString()}
-      case BYTECODE.RESULT_MEMINFO:
-          // | cmd (1byte) | iram address (4byte) | iram size (4byte) | dram address | dram size | iflash address | iflash size | dflash address | dflash size |
-          const meminfo = {
-            iram:{address:data.getUint32(1, true), size:data.getUint32(5, true)},
-            dram:{address:data.getUint32(9, true), size:data.getUint32(13, true)},
-            iflash:{address:data.getUint32(17, true), size:data.getUint32(21, true)},
-            dflash:{address:data.getUint32(25, true), size:data.getUint32(29, true)},
-          }
-          return {bytecode, meminfo};
-      case BYTECODE.RESULT_EXECTIME:
-        // | cmd (1byte) | id (4byte) | exectime (4byte) |
-        return {bytecode, id: data.getInt32(1, true), exectime:data.getFloat32(5, true)};
-      case BYTECODE.RESULT_PROFILE:
-        let uint8arr = new Uint8Array(data.buffer.slice(0, data.buffer.byteLength-1), 2);
-        let textDecoder = new TextDecoder();
-        return {bytecode:BYTECODE.RESULT_PROFILE, fid: data.getUint8(1), paramtypes:textDecoder.decode(uint8arr).split(", ")};
-      default:
-        return {bytecode:BYTECODE.NONE}
+        case BYTECODE.RESULT_LOG: {
+            const end = buffer[buffer.length - 1] === 0 ? buffer.length - 1 : buffer.length;
+            const log = buffer.toString('utf-8', offset, end);
+            return { bytecode, log };
+        }
+        case BYTECODE.RESULT_ERROR: {
+            const end = buffer[buffer.length - 1] === 0 ? buffer.length - 1 : buffer.length;
+            const error = buffer.toString('utf-8', offset, end);
+            return { bytecode, error };
+        }
+        case BYTECODE.RESULT_MEMINFO: {
+            const readMemInfo = () => {
+                const address = buffer.readUInt32LE(offset); offset += 4;
+                const size = buffer.readUInt32LE(offset); offset += 4;
+                return { address, size };
+            };
+            const meminfo = {
+                iram: readMemInfo(),
+                dram: readMemInfo(),
+                iflash: readMemInfo(),
+                dflash: readMemInfo(),
+            };
+            return { bytecode, meminfo };
+        }
+        case BYTECODE.RESULT_EXECTIME: {
+            const id = buffer.readInt32LE(offset); offset += 4;
+            const exectime = buffer.readFloatLE(offset); offset += 4;
+            return { bytecode, id, exectime };
+        }
+        case BYTECODE.RESULT_PROFILE: {
+            const fid = buffer.readUInt8(offset); offset += 1;
+            const paramStr = textDecoder.decode(buffer.subarray(offset, buffer.length - 1));
+            return { bytecode, fid, paramtypes: paramStr ? paramStr.split(", ") : [] };
+        }
+        default:
+            return { bytecode: BYTECODE.NONE };
     }
 }

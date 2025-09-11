@@ -30,6 +30,14 @@ export const logger = {
   success(message: string): void {
     console.log(chalk.green.bold('SUCCESS:'), message);
   },
+
+  bsLog(message: string): void {
+    process.stdout.write(message);
+  },
+
+  bsError(message: string): void {
+    process.stdout.write(chalk.red.bold(message));
+  }
 };
 
 

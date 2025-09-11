@@ -2,7 +2,6 @@ import { createDirectory, directoryExists, logger } from "./utils";
 import * as fs from 'fs';
 import * as CONSTANTS from './constants';
 import { z, ZodError } from 'zod';
-import chalk from 'chalk';
 import BLE, {MAX_MTU} from "./ble";
 import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
 import { MemoryAddresses, MemoryUpdate } from "../compiler/shadow-memory";
@@ -58,7 +57,7 @@ function readSettings(): BsConfig {
         } else {
             logger.error(`Failed to read ${configFilePath}.`);
         }
-        throw new Error();
+        throw error;
     }
 }
 
@@ -74,7 +73,7 @@ async function runESP32(bsConfig: BsConfig) {
         await sendAndExecute(compileResult, ble);
         await ble.disconnect();
     } catch(error) {
-        throw new Error();
+        throw error;
     }
 }
 
@@ -99,7 +98,7 @@ async function initDevice(ble: BLE): Promise<MemoryAddresses> {
         return addresses;
     } catch (error) {
         logger.error('Failed to initialize.');
-        throw new Error()
+        throw error;
     }
 }
 
@@ -121,7 +120,7 @@ function compile(addresses: MemoryAddresses, bsSrc: string, bsConfig: BsConfig):
         return compileResult.result;
     } catch (error) {
         logger.error(`Failed to compile: ${error}`);
-        throw new Error();
+        throw error;
     }
 }
 
@@ -133,8 +132,8 @@ function getCompilerDir():string {
         return CONSTANTS.COMPILER_DIR(xtensaEspElfVersion);
     } catch (error) {
         logger.error(`Faild to read ${CONSTANTS.ESP_IDF_TOOL_JSON}: ${error}`);
+        throw error;
     }
-    return '';
 }
 
 async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<void> {
@@ -147,9 +146,14 @@ async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<vo
         bytecodeGenerator.jump(entryPoint.id, entryPoint.address);
     }
     try {
-        await ble.writeBuffers(bytecodeGenerator.generate());
+        const buffs = bytecodeGenerator.generate();
+        const buffLength = buffs.reduce((sum, buf) => sum + buf.length, 0);
+        const startSending = performance.now();
+        await ble.writeBuffers(buffs);
+        logger.info(`Sent ${buffLength} bytes in ${Math.round((performance.now() - startSending) * 100) / 100} ms.`);
     } catch (error) {
         logger.error(`Faild to send code: ${error}`);
+        throw error;
     }
 
     logger.info('Executing...');
@@ -161,9 +165,9 @@ async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<vo
                     if (parseResult.bytecode === BYTECODE.RESULT_EXECTIME) {
                         resolve(parseResult.exectime);
                     } else if (parseResult.bytecode === BYTECODE.RESULT_LOG) {
-                        process.stdout.write(parseResult.log);
+                        logger.bsLog(parseResult.log);
                     } else if (parseResult.bytecode === BYTECODE.RESULT_ERROR) {
-                        process.stdout.write(chalk.red.bold(parseResult.error));
+                        logger.bsError(parseResult.error);
                     }
                 });
             } catch (error) {
@@ -175,5 +179,6 @@ async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<vo
         ble.removeNotificationHanlder();
     } catch (error) {
         logger.error(`Failed to execute code: ${error}`);
+        throw error;
     }
 }

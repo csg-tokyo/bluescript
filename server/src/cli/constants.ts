@@ -1,6 +1,8 @@
 import * as path from 'path';
 import * as os from 'os';
 
+export const ESP_IDF_VERSION = 'v5.4'
+export const ESP_IDF_GIT_REPO = 'https://github.com/espressif/esp-idf.git'
 
 export const BSCRIPT_DIR = expandTilde('~/bscript');
 export const ESP_DIR = `${BSCRIPT_DIR}/esp`;

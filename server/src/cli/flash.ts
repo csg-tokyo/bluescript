@@ -2,16 +2,21 @@ import { BSCRIPT_RUNTIME_DIR, ESP_DIR } from "./constants";
 import { logger, getHostOSType, executeCommand } from "./utils";
 
 export default async function flash(device: string, port: string) {
-    switch (device) {
-        case 'esp32':
-            await flashESP32(port);
-            break;
-        case 'host':
-            logger.warn('Not impelented yet.');
-            break;
-        default:
-            logger.warn('Unknown device.');
-            break;
+    try {
+        switch (device) {
+            case 'esp32':
+                await flashESP32(port);
+                break;
+            case 'host':
+                logger.warn('Not impelented yet.');
+                break;
+            default:
+                logger.warn('Unknown device.');
+                break;
+        }
+    } catch (error) {
+        logger.error('Failed to flash the project.');
+        process.exit(1);
     }
 }
 
@@ -28,6 +33,6 @@ async function flashESP32(port: string) {
         }
     } catch (error) {
         logger.error('Failed to flash to esp32.');
-        process.exit(1);
+        throw error;
     }
 }

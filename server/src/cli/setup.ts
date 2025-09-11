@@ -2,23 +2,26 @@ import { getHostOSType, directoryExists, createDirectory, logger, executeCommand
 import * as CONSTANTS from './constants';
 import { execSync } from "child_process";
 import axios from 'axios';
-import extract from 'extract-zip'; 
+import extract from 'extract-zip';
 import * as fs from 'fs';
 
-const ESP_IDF_VERSION = 'v5.4'
-const ESP_IDF_GIT_REPO = 'https://github.com/espressif/esp-idf.git'
 
 export default async function setup(device: string) {
-    switch (device) {
-        case 'esp32':
-            await setupESP32();
-            break;
-        case 'host':
-            logger.warn('Not impelented yet.');
-            break;
-        default:
-            logger.warn('Unknown device.');
-            break;
+    try {
+        switch (device) {
+            case 'esp32':
+                await setupESP32();
+                break;
+            case 'host':
+                logger.warn('Not implemented yet.');
+                break;
+            default:
+                logger.warn('Unknown device.');
+                break;
+        }
+    } catch (error) {
+        logger.error('Failed to setup the project.');
+        process.exit(1);
     }
 }
 
@@ -27,7 +30,7 @@ async function setupESP32() {
     try {
         if (osType === 'macos') {
             createDirectory(CONSTANTS.BSCRIPT_DIR, true);
-            await installEspidfPrerequisitePakages();
+            await installEspidfPrerequisitePackages();
             await setupEspidf();
             await downloadAndUnzipBlueScriptCode();
         } else {
@@ -36,7 +39,7 @@ async function setupESP32() {
         }
     } catch (error) {
         logger.error('Failed to setup for esp32.');
-        process.exit(1);
+        throw error;
     }
 }
 
@@ -54,30 +57,32 @@ async function downloadAndUnzipBlueScriptCode() {
         await downloadAndUnzip(CONSTANTS.BSCRIPT_RUNTIME_ZIP_URL, CONSTANTS.BSCRIPT_DIR);
         await downloadAndUnzip(CONSTANTS.BSCRIPT_MODULES_ZIP_URL, CONSTANTS.BSCRIPT_DIR);
     } catch (error) {
-        throw new Error();
+        throw error;
     }
 }
 
-async function installEspidfPrerequisitePakages() {
+async function installEspidfPrerequisitePackages() {
     logger.info('Installing prerequisite packages for ESP-IDF. This may take a while ...');
     if (isPackageInstalled('brew')) {
+        logger.info(`Using brew to install packages.`);
         await installPackage('brew', 'cmake');
         await installPackage('brew', 'ninja');
         await installPackage('brew', 'dfu-util');
         await installPackage('brew', 'ccache');
     } else if (isPackageInstalled('port')) {
+        logger.info(`Using port to install packages.`);
         await installPackage('port', 'cmake');
         await installPackage('port', 'ninja');
         await installPackage('port', 'dfu-util');
-        await installPackage('port', 'ccache');  
+        await installPackage('port', 'ccache');
     } else {
-        logger.error('Failed to install prerequisite packages. Please setup Homebrew or MacPorts and try again.');
-        throw new Error();
+        logger.error('Failed to install prerequisite packages. Please install Homebrew or MacPorts and try again.');
+        throw new Error('No package manager found.');
     }
 }
 
 async function setupEspidf() {
-    logger.info(`Start setting up ESP-IDF ${ESP_IDF_VERSION}.`);
+    logger.info(`Start setting up ESP-IDF ${CONSTANTS.ESP_IDF_VERSION}.`);
     try {
         if (directoryExists(CONSTANTS.ESP_DIR)) {
             logger.info(`${CONSTANTS.ESP_DIR} already exists.`);
@@ -88,15 +93,15 @@ async function setupEspidf() {
                 logger.error('Cannot find git command. Please install git.');
                 throw new Error();
             }
-            logger.info(`Cloning ESP-IDF ${ESP_IDF_VERSION}. This may take a while ...`);
-            await executeCommand(`git clone -b ${ESP_IDF_VERSION} --recursive ${ESP_IDF_GIT_REPO}`, CONSTANTS.ESP_DIR);
+            logger.info(`Cloning ESP-IDF ${CONSTANTS.ESP_IDF_VERSION}. This may take a while ...`);
+            await executeCommand(`git clone -b ${CONSTANTS.ESP_IDF_VERSION} --recursive ${CONSTANTS.ESP_IDF_GIT_REPO}`, CONSTANTS.ESP_DIR);
         }
         logger.info(`Installing packages for ESP-IDF. This may take a while ...`);
         await executeCommand(`${CONSTANTS.ESP_DIR}/esp-idf/install.sh`);
         logger.success(`Setting up ESP-IDF was completed.`);
     } catch (error) {
-        logger.error(`Failed to setup ESP-IDF ${ESP_IDF_VERSION}`);
-        throw new Error();
+        logger.error(`Failed to setup ESP-IDF ${CONSTANTS.ESP_IDF_VERSION}: ${error}`);
+        throw error;
     }
 }
 
@@ -114,7 +119,7 @@ async function downloadAndUnzip(url: string, outputDir: string) {
         logger.success(`Successfully downloaded and extracted to ${outputDir}.`);
     } catch (error) {
         logger.error(`Failed to download and unzip: ${error}.`);
-        throw new Error();
+        throw error;
     }
 }
 
@@ -137,8 +142,8 @@ async function installPackage(packageManagerCommand: string, packageName: string
         await executeCommand(`${packageManagerCommand} install ${packageName}`);
         logger.success(`The installation of ${packageName} was completed.`)
     } catch (error) {
-        logger.error(`Failed to install ${packageName} via ${packageManagerCommand}.`);
-        throw new Error();
+        logger.error(`Failed to install ${packageName} via ${packageManagerCommand}: ${error}`);
+        throw error;
     }
 }
 
