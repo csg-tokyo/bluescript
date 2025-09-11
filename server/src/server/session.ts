@@ -1,5 +1,6 @@
 import {GlobalVariableNameTable} from "../transpiler/code-generator/variables";
 import * as fs from "fs";
+import * as path from "path";
 import {FILE_PATH} from "../constants";
 import {transpile} from "../transpiler/code-generator/code-generator";
 import {Profiler} from "../jit-transpiler/profiler";
@@ -12,10 +13,10 @@ import {Compiler, InteractiveCompiler, ModuleCompiler} from "../compiler/compile
 import {ShadowMemory, MemoryAddresses} from "../compiler/shadow-memory";
 
 
-const cProlog = `
+const C_PROLOG = (cRuntimePath: string, profilerPath: string) => `
 #include <stdint.h>
-#include "../${FILE_PATH.C_RUNTIME_H}"
-#include "../${FILE_PATH.PROFILER_H}"
+#include "${cRuntimePath}"
+#include "${profilerPath}"
 `
 
 
@@ -28,23 +29,41 @@ export default class Session {
   profiler: Profiler;
   addresses: MemoryAddresses;
 
-  constructor(addresses: MemoryAddresses) {
+  private readonly BUILE_DIR: string;
+  private readonly MODULES_DIR: string;
+  private readonly RUNTIME_DIR: string;
+  private readonly COMPILER_DIR: string;
+
+  private readonly C_PROLOG: string;
+
+  constructor(addresses: MemoryAddresses, 
+    buildDir: string, 
+    modulesDir: string, 
+    runtimeDir: string,
+    compilerDir: string
+  ) {
+    this.BUILE_DIR = buildDir;
+    this.MODULES_DIR = modulesDir;
+    this.RUNTIME_DIR = runtimeDir;
+    this.COMPILER_DIR = compilerDir;
+    this.C_PROLOG = C_PROLOG(FILE_PATH.C_RUNTIME_H(runtimeDir), FILE_PATH.PROFILER_H(runtimeDir));
+
     this.addresses = addresses;
-    const bsString = fs.readFileSync(FILE_PATH.STD_MODULES).toString()
+    const bsString = fs.readFileSync(FILE_PATH.STD_MODULES(modulesDir)).toString()
     const result = transpile(++this.compileId, bsString, undefined);
     this.baseGlobalNames = result.names;
     this.modules = new Map<string, GlobalVariableNameTable>()
-    this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, addresses)
+    this.shadowMemory = new ShadowMemory(runtimeDir, addresses)
     this.profiler = new Profiler();
-    this.moduleIds = JSON.parse(fs.readFileSync(FILE_PATH.MODULE_NAME_TO_ID).toString());
+    this.moduleIds = JSON.parse(fs.readFileSync(FILE_PATH.MODULE_NAME_TO_ID(modulesDir)).toString());
   }
 
   public reset() {
-    const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULES}`).toString()
+    const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULES(this.MODULES_DIR)}`).toString()
     const result = transpile(++this.compileId, bsString, undefined);
     this.baseGlobalNames = result.names;
     this.modules = new Map<string, GlobalVariableNameTable>();
-    this.shadowMemory = new ShadowMemory(FILE_PATH.MCU_ELF, this.addresses);
+    this.shadowMemory = new ShadowMemory(this.RUNTIME_DIR, this.addresses);
     this.profiler = new Profiler();
   }
 
@@ -60,8 +79,8 @@ export default class Session {
     this.baseGlobalNames = tResult.names;
 
     // Compile
-    const cString = cProlog + tResult.code;
-    const compiler = new Compiler();
+    const cString = this.C_PROLOG + tResult.code;
+    const compiler = new Compiler(this.BUILE_DIR, this.COMPILER_DIR);
     compiler.compile(this.shadowMemory, this.compileId, cString, entryPointName);
     const end = performance.now();
     return  {result: this.shadowMemory.getUpdates(), compileTime:end-start}
@@ -77,8 +96,8 @@ export default class Session {
     this.baseGlobalNames = tResult.names;
 
     // Compile
-    const cString = cProlog + tResult.code;
-    const compiler = new InteractiveCompiler();
+    const cString = this.C_PROLOG + tResult.code;
+    const compiler = new InteractiveCompiler(this.BUILE_DIR, this.COMPILER_DIR);
     compiler.compile(this.shadowMemory, this.compileId, cString, entryPointName);
     const end = performance.now();
     return  {result: this.shadowMemory.getUpdates(), compileTime:end-start, compileId: this.compileId}
@@ -92,10 +111,10 @@ export default class Session {
     const tResult = this.transpileForJIT(src)
     const entryPointName = tResult.main;
     this.baseGlobalNames = tResult.names;
-    const cString = cProlog + tResult.code;
+    const cString = this.C_PROLOG + tResult.code;
 
     // Compile
-    const compiler = new InteractiveCompiler();
+    const compiler = new InteractiveCompiler(this.BUILE_DIR, this.COMPILER_DIR);
     compiler.compile(this.shadowMemory, this.compileId, cString, entryPointName);
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start, compileId: this.compileId}
@@ -114,10 +133,10 @@ export default class Session {
     const tResult = this.transpileForJIT(func.src)
     const entryPointName = tResult.main;
     this.baseGlobalNames = tResult.names;
-    const cString = cProlog + tResult.code;
+    const cString = this.C_PROLOG + tResult.code;
 
     // Compile
-    const compiler = new InteractiveCompiler();
+    const compiler = new InteractiveCompiler(this.BUILE_DIR, this.COMPILER_DIR);
     compiler.compile(this.shadowMemory, this.compileId, cString, entryPointName);
     const end = performance.now();
     return {result: this.shadowMemory.getUpdates(), compileTime:end-start, compileId: this.compileId}
@@ -133,11 +152,11 @@ export default class Session {
       if (mod)
         return mod;
       else {
-        const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
+        const ffi = fs.readFileSync(path.join(this.MODULES_DIR, fname, `${fname}.bs`)).toString();
         const moduleId = this.readModuleId(fname);
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
         this.modules.set(fname, result.names);
-        const compiler = new ModuleCompiler();
+        const compiler = new ModuleCompiler(this.BUILE_DIR, this.COMPILER_DIR);
         compiler.compile(this.shadowMemory, -1, fname, result.main);
         return result.names;
       }
@@ -152,11 +171,11 @@ export default class Session {
       if (mod)
         return mod;
       else {
-        const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
+        const ffi = fs.readFileSync(path.join(this.MODULES_DIR, fname, `${fname}.bs`)).toString();
         const moduleId = this.readModuleId(fname);
         const result = transpile(0, ffi, this.baseGlobalNames, importer, moduleId);
         this.modules.set(fname, result.names);
-        const compiler = new ModuleCompiler();
+        const compiler = new ModuleCompiler(this.BUILE_DIR, this.COMPILER_DIR);
         compiler.compile(this.shadowMemory, -1, fname, result.main);
         return result.names;
       }
@@ -173,16 +192,6 @@ export default class Session {
     const ast = runBabelParser(src, 1);
     convertAst(ast, this.profiler);
     return  jitTranspile(this.compileId, ast, typeChecker, codeGenerator, this.baseGlobalNames)
-  }
-
-  public dummyExecute() {
-    const start = performance.now();
-    // Compile
-    const cSrc = fs.readFileSync('./temp-files/dummy-code.c').toString()
-    const compiler = new InteractiveCompiler();
-    compiler.compile(this.shadowMemory, -1, cSrc, 'bluescript_main6_')
-    const end = performance.now();
-    return {result: this.shadowMemory.getUpdates(), compileTime:end-start, compileId: -1}
   }
 
   private readModuleId(name: string):string {

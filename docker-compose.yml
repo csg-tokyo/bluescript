@@ -12,7 +12,7 @@ services:
       - ./microcontroller:/bluescript/microcontroller
       - ./benchmarks:/bluescript/benchmarks
     working_dir: /bluescript/server
-    command: npm run dev
+    command: npm run server
     ports:
       - "8080:8080"
 

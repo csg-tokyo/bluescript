@@ -16,7 +16,8 @@
         "no-unnecessary-initializer": false,
         "prefer-const": false,
         "no-shadowed-variable": false,
-        "ban-types": false
+        "ban-types": false,
+        "indent": [true, 4]
     },
     "rulesDirectory": []
 }

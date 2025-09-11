@@ -9,11 +9,13 @@ const cProlog = `
 #include "c-runtime.h"
 `
 
+const MODULES_DIR = '../modules'
+
 const modules: Map<string, GlobalVariableNameTable> = new Map();
 let globalNameTable = transpile(0, '').names;
 
 function readModuleId(moduleName: string) {
-  const moduleIds: {[name: string]: string} = JSON.parse(fs.readFileSync(FILE_PATH.MODULE_NAME_TO_ID).toString());
+  const moduleIds: {[name: string]: string} = JSON.parse(fs.readFileSync(FILE_PATH.MODULE_NAME_TO_ID(MODULES_DIR)).toString());
   const moduleId = moduleIds[moduleName];
   if (moduleId === undefined) {
     throw Error(`Cannot find module id corresponding to module name: ${moduleName}`);
@@ -27,7 +29,7 @@ function main(moduleName: string) {
     if (mod)
       return mod;
     else {
-      const ffi = fs.readFileSync(`${FILE_PATH.MODULES}/${fname}/${fname}.bs`).toString();
+      const ffi = fs.readFileSync(`${MODULES_DIR}/${fname}/${fname}.bs`).toString();
       const moduleId = readModuleId(fname);
       const result = transpile(0, ffi, globalNameTable, importer, moduleId);
       modules.set(fname, result.names);
@@ -35,9 +37,9 @@ function main(moduleName: string) {
     }
   }
 
-  const src = fs.readFileSync(`${FILE_PATH.MODULES}/${moduleName}/${moduleName}.bs`).toString()
+  const src = fs.readFileSync(`${MODULES_DIR}/${moduleName}/${moduleName}.bs`).toString()
   const result = transpile(0, src, globalNameTable, importer, readModuleId(moduleName)).code
-  fs.writeFileSync(`${FILE_PATH.MODULES}/${moduleName}/${moduleName}.c`, cProlog + result)
+  fs.writeFileSync(`${MODULES_DIR}/${moduleName}/${moduleName}.c`, cProlog + result)
   console.log('done')
 }
 
