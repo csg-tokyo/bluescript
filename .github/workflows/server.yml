@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: /server/package-lock.json
+          cache-dependency-path: '**/server/package-lock.json'
 
       - name: Install dependencies
         working-directory: ./server
