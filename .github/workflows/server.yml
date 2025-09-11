@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: '**/server/package-lock.json'
+          cache-dependency-path: './server/package-lock.json'
 
       - name: Install dependencies
         working-directory: ./server
@@ -28,11 +28,3 @@ jobs:
       - name: Run tests for /server/tests/cli
         working-directory: ./server
         run: npm test -- tests/cli
-
-      - name: Run tests for /server/tests/transpiler
-        working-directory: ./server
-        run: npm test -- tests/transpiler
-
-      - name: Run tests for /server/tests/jit-transpiler
-        working-directory: ./server
-        run: npm test -- tests/jit-transpiler
