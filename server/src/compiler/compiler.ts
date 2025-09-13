@@ -8,23 +8,36 @@ import {
   LinkerScriptMemoryRegion,
   LinkerScriptSection
 } from "./linker-script";
+import { FILE_PATH } from "../constants";
 
 
 const EXTERNAL_SYMBOL_SECTION = '.external_symbols'
 
 
 export class Compiler {
-  protected readonly C_FILE = './temp-files/code.c';
-  protected readonly OBJ_FILE = './temp-files/code.o';
-  protected readonly LINKER_SCRIPT = './temp-files/linkerscript.ld';
-  protected readonly LINKED_ELF = './temp-files/code';
+  protected readonly C_FILE:string;
+  protected readonly OBJ_FILE: string;
+  protected readonly LINKER_SCRIPT: string;
+  protected readonly LINKED_ELF: string;
+  protected readonly GCC;
+  protected readonly LD;
+
   protected readonly DATA_SECTIONS = ['.data', '.data.*', '.rodata', '.rodata.*', '.bss', '.bss.*', '.dram*'];
   protected readonly EXECUTABLE_SECTIONS = ['.literal', '.text', '.literal.*', '.text.*', '.iram*'];
   protected readonly IRAM_SECTION_NAME = '.iram';
   protected readonly DRAM_SECTION_NAME = '.dram';
   protected readonly FLASH_SECTION_NAME = '.flash';
+  
 
-  constructor(protected compilerPath = '') {}
+  constructor(buildDir: string, compilerDir = '') {
+    this.C_FILE = FILE_PATH.C_FILE(buildDir);
+    this.OBJ_FILE = FILE_PATH.OBJ_FILE(buildDir);
+    this.LINKER_SCRIPT = FILE_PATH.LINKER_SCRIPT(buildDir);
+    this.LINKED_ELF = FILE_PATH.LINKED_ELF(buildDir);
+
+    this.GCC = FILE_PATH.GCC(compilerDir);
+    this.LD = FILE_PATH.LD(compilerDir);
+  }
 
   compile(shadowMemory: ShadowMemory, compileId: number, src: string, entryPointName: string) {
     const objFile = this._compile(src);
@@ -34,7 +47,7 @@ export class Compiler {
 
   protected _compile(src: string) {
     fs.writeFileSync(this.C_FILE, src);
-    execSync(`${this.compilerPath}xtensa-esp32-elf-gcc -c -O2 ${this.C_FILE} -o ${this.OBJ_FILE} -w -fno-common -ffunction-sections -mtext-section-literals -mlongcalls -fno-zero-initialized-in-bss`);
+    execSync(`${this.GCC} -c -O2 ${this.C_FILE} -o ${this.OBJ_FILE} -w -fno-common -ffunction-sections -mtext-section-literals -mlongcalls -fno-zero-initialized-in-bss`);
     return new ElfReader(this.OBJ_FILE);
   }
 
@@ -93,7 +106,7 @@ export class Compiler {
 
   protected _link(linkerScript: LinkerScript) {
     linkerScript.save(this.LINKER_SCRIPT)
-    execSync(`${this.compilerPath}xtensa-esp32-elf-ld -o ${this.LINKED_ELF} -T ${this.LINKER_SCRIPT}`);
+    execSync(`${this.LD} -o ${this.LINKED_ELF} -T ${this.LINKER_SCRIPT}`);
     return new ElfReader(this.LINKED_ELF);
   }
 
@@ -126,9 +139,8 @@ export class Compiler {
 
 
 export class InteractiveCompiler extends Compiler {
-
-  constructor(protected compilerPath = '') {
-    super(compilerPath);
+  constructor(buildDir:string, compilerDir = '') {
+    super(buildDir, compilerDir);
   }
 
   compile(shadowMemory: ShadowMemory, compileId: number, src: string, entryPointName: string) {
@@ -231,12 +243,13 @@ export class InteractiveCompiler extends Compiler {
 }
 
 export class ModuleCompiler extends Compiler {
-  protected readonly MODULE_LINKER_SCRIPT = './temp-files/module-linkerscript.ld';
-  private readonly MODULE_LINKED_ELF = './temp-files/module-code';
+  protected readonly MODULE_LINKER_SCRIPT: string;
+  protected readonly MODULE_LINKED_ELF: string;
 
-
-  constructor(protected compilerPath: string = '') {
-    super(compilerPath)
+  constructor(buildDir: string, compilerDir = '') {
+    super(buildDir, compilerDir);
+    this.MODULE_LINKER_SCRIPT = FILE_PATH.MODULE_LINKER_SCRIPT(buildDir);
+    this.MODULE_LINKED_ELF = FILE_PATH.MODULE_LINKED_ELF(buildDir);
   }
 
   override compile(shadowMemory: ShadowMemory, compileId: number, moduleName: string, entryPointName: string) {
@@ -254,7 +267,7 @@ export class ModuleCompiler extends Compiler {
 
   override _link(linkerScript: LinkerScript) {
     linkerScript.save(this.MODULE_LINKER_SCRIPT);
-    execSync(`${this.compilerPath}xtensa-esp32-elf-ld -o ${this.MODULE_LINKED_ELF} -T ${this.MODULE_LINKER_SCRIPT} --gc-sections`);
+    execSync(`${this.LD} -o ${this.MODULE_LINKED_ELF} -T ${this.MODULE_LINKER_SCRIPT} --gc-sections`);
     return new ElfReader(this.MODULE_LINKED_ELF);
   }
 
