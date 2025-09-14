@@ -1561,11 +1561,23 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {
     // embedded native C code
-    const src = node.quasi.quasis[0].value.raw
+    let quasi = node.quasi
+    const prevResult = this.result
     if (env instanceof GlobalEnv)
-      this.signatures += `${src}\n`
-    else
-      this.result.write(src)
+      this.result = this.result.copy()
+
+    let i = 0
+    for (const q of quasi.quasis) {
+      this.result.write(q.value.raw)
+      // the type checker allows only identifiers as quasi.expressions.
+      if (i < quasi.expressions.length)
+        this.visit(quasi.expressions[i++], env)
+    }
+
+    if (env instanceof GlobalEnv) {
+      this.signatures += this.result.getCode() + '\n'
+      this.result = prevResult
+    }
   }
 
   tsAsExpression(node: AST.TSAsExpression, env: VariableEnv): void {

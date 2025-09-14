@@ -1392,8 +1392,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, names: NameTable<Info>): void {
     this.assert(AST.isIdentifier(node.tag) && node.tag.name === 'code',
                 'a tagged template is not supported', node)
-    this.assert(node.quasi.expressions.length === 0 && node.quasi.quasis.length === 1,
-                'string interpolation is not supported', node)
+    for (const e of node.quasi.expressions) {
+      if (!AST.isIdentifier(e))
+        this.assert(false, 'only a variable name can be embedded in native code', e)
+      else
+        this.assert(names.lookup(e.name) !== undefined, `unknown variable: ${e.name}`, e)
+    }
+
     this.result = Void
   }
 
