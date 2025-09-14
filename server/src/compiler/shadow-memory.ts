@@ -1,5 +1,6 @@
 import {ElfReader, Section, Symbol} from "./elf-reader";
 import * as fs from "fs";
+import { FILE_PATH } from "../constants";
 
 const align4 = (value: number) => (value + 3) & ~3;
 
@@ -12,7 +13,7 @@ export type MemoryAddresses = {
 
 type MemoryType = 'iram' | 'dram' | 'iflash' | 'dflash';
 
-type MemoryUpdate = {
+export type MemoryUpdate = {
   blocks: {type: MemoryType, address: number, data: string}[],
   entryPoints: {id: number, address: number}[]
 }
@@ -25,16 +26,17 @@ export class ShadowMemory {
   public readonly dram: MemoryRegion;
   public readonly flash: MemoryRegion;
   public readonly symbols:Map<string, Symbol> = new Map<string, Symbol>();
-  public readonly componentsInfo = new ESPIDFComponentsInfo();
+  public readonly componentsInfo: ESPIDFComponentsInfo;
   private updates: MemoryUpdate = {blocks: [], entryPoints: []};
   private freeableIramSection: Map<compileIdT, sectionIdT[]> = new Map();
 
-  constructor(bsRuntimePath: string, addresses: MemoryAddresses) {
-    const bsRuntime = new ElfReader(bsRuntimePath);
-    bsRuntime.readAllSymbols().forEach(symbol => {this.symbols.set(symbol.name, symbol)});
+  constructor(runtimeDir: string, addresses: MemoryAddresses) {
+    const runtimeElfReader = new ElfReader(FILE_PATH.RUNTIME_ELF(runtimeDir));
+    runtimeElfReader.readAllSymbols().forEach(symbol => {this.symbols.set(symbol.name, symbol)});
     this.iram = new ReusableMemoryRegion('IRAM', addresses.iram.address, addresses.iram.size);
     this.dram = new MemoryRegion('DRAM', addresses.dram.address, addresses.dram.size);
     this.flash = new MemoryRegion('Flash', addresses.iflash.address, addresses.iflash.size);
+    this.componentsInfo = new ESPIDFComponentsInfo(runtimeDir);
   }
 
   freeIram(compileId: compileIdT) {
@@ -197,14 +199,15 @@ export class MemoryBlock {
 }
 
 class ESPIDFComponentsInfo {
-  static DEPENDENCIES_FILE_PATH = '../microcontroller/ports/esp32/build/project_description.json'
-  static COMPONENTS_PATH_PREFIX = /^.*microcontroller\/ports\/esp32\/build/
-  static RELATIVE_PATH_COMMON = '../microcontroller/ports/esp32/build'
+  private readonly COMPONENTS_PATH_PREFIX = /^.*microcontroller/
 
   private dependenciesInfo: {[key: string]: {file: string, reqs: string[], priv_reqs: string[]}}
+  private readonly RUNTIME_DIR: string;
 
-  constructor() {
-    this.dependenciesInfo = JSON.parse(fs.readFileSync(ESPIDFComponentsInfo.DEPENDENCIES_FILE_PATH).toString()).build_component_info
+  constructor(runtimeDir: string) {
+    this.RUNTIME_DIR = runtimeDir;
+    const dependenciesFile = FILE_PATH.DEPENDENCIES_FILE(runtimeDir);
+    this.dependenciesInfo = JSON.parse(fs.readFileSync(dependenciesFile).toString()).build_component_info;
   }
 
   public getComponentsPath(rootComponent: string): string[] {
@@ -219,17 +222,17 @@ class ESPIDFComponentsInfo {
         this.dependenciesInfo[curr].reqs.filter((r:string) => !visited.has(r))
       )
       if (this.dependenciesInfo[curr].file !== undefined && this.dependenciesInfo[curr].file !== '')
-        componentPaths.push(this.convertAbsoluteToRelative(this.dependenciesInfo[curr].file))
+        componentPaths.push(this.convertRuntimeDirPath(this.dependenciesInfo[curr].file))
     }
     return componentPaths
   }
 
   public getComponentPath(componentName: string) {
-    return this.convertAbsoluteToRelative(this.dependenciesInfo[componentName].file)
+    return this.convertRuntimeDirPath(this.dependenciesInfo[componentName].file)
   }
 
-  private convertAbsoluteToRelative(absolutePath: string) {
-    return absolutePath.replace(ESPIDFComponentsInfo.COMPONENTS_PATH_PREFIX, ESPIDFComponentsInfo.RELATIVE_PATH_COMMON)
+  private convertRuntimeDirPath(absolutePath: string) {
+    return absolutePath.replace(this.COMPONENTS_PATH_PREFIX, this.RUNTIME_DIR);
   }
 }
 
