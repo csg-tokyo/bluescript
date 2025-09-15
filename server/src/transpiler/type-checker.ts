@@ -21,6 +21,7 @@ import {
   addCoercionFlag, getNameTable
 } from './names'
 import { InstanceType } from './classes'
+import { code } from './shell-builtins'
 
 export const codeTagFunction = 'code'
 
@@ -126,7 +127,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         const info = imported.lookup(name)
         const sourceFile = node.source.value
         if (info === undefined) {
-          this.assert(false, `'${name}' is not found in ${sourceFile}`, spec)
+          this.assert(name === codeTagFunction, `'${name}' is not found in ${sourceFile}`, spec)
         }
         else {
           this.assert(info.isExported, `'${name}' is declared but not exported in ${sourceFile}`, spec)
