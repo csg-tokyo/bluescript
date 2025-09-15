@@ -2,6 +2,7 @@
 
 import { transpile } from './code-generator/code-generator'
 import * as fs from 'fs'
+import * as path from 'path'
 import { execSync, spawn } from 'child_process'
 import * as readline from 'node:readline/promises'
 import { ErrorLog } from './utils'
@@ -18,7 +19,7 @@ const shellC = 'src/transpiler/shell.c'
 
 export function buildShell(): [number, GlobalVariableNameTable, string] {
   const sessionId = 1
-  const src = loadSourceFile(`.load ${shellBuiltins}.ts`)
+  const src = loadSourceFile(`${shellBuiltins}.ts`)
   const result = transpile(sessionId, src)
   const cFile = `${dir}/${shellBuiltins.split('/').pop()}.c`
   fs.mkdirSync(dir, { recursive: true })
@@ -94,9 +95,9 @@ class Transpiler {
   }
 
 
-  tryEvaluate(code: string, globalNames: GlobalVariableNameTable, consoleDev: readline.Interface) {
+  tryEvaluate(code: string, dirname: string, globalNames: GlobalVariableNameTable, consoleDev: readline.Interface) {
     try {
-      return this.evaluate(code, globalNames)
+      return this.evaluate(code, dirname, globalNames)
       // don't call consoleDev.prompt() here.
       // the prompt is printed in shell.c.
     }
@@ -111,7 +112,7 @@ class Transpiler {
     }
   }
 
-  evaluate(src: string, globalNames: GlobalVariableNameTable) {
+  evaluate(src: string, dirname: string, globalNames: GlobalVariableNameTable) {
     const compile = (src: string, fileName: string) => {
       fs.writeFileSync(`${fileName}.c`, prologCcode + src)
 
@@ -133,7 +134,8 @@ class Transpiler {
       }
     }
 
-    const importer = (fname: string) => {
+    const importer = (baseName: string) => (name: string) => {
+      const fname = path.isAbsolute(name) ? name : path.join(baseName, name)
       const mod = this.modules.get(fname)
       if (mod)
         return mod
@@ -142,7 +144,7 @@ class Transpiler {
         this.moduleId += 1
         this.sessionId += 1
         const fileName = `${dir}/bscript${this.sessionId}_${this.moduleId}`
-        const result = transpile(this.sessionId, program, this.baseGlobalNames, importer, this.moduleId)
+        const result = transpile(this.sessionId, program, this.baseGlobalNames, importer(path.dirname(fname)), this.moduleId)
         this.modules.set(fname, result.names)
         compile(result.code, fileName)
         shellCommands += `${fileName}.so\n${result.main}\n`
@@ -153,7 +155,7 @@ class Transpiler {
     let shellCommands = ''
     this.sessionId += 1
     const fileName = `${dir}/bscript${this.sessionId}`
-    const result = transpile(this.sessionId, src, globalNames, importer)
+    const result = transpile(this.sessionId, src, globalNames, importer(dirname))
     compile(result.code, fileName)
     this.shell.stdin.cork()
     this.shell.stdin.write(`${shellCommands}${fileName}.so\n${result.main}\n`)
@@ -162,26 +164,22 @@ class Transpiler {
   }
 }
 
-function loadSourceFile(line: string) {
-  if (!line.startsWith('.load '))
-    return line
-
-  const cmd = line.split(' ')
+function loadSourceFile(file: string) {
   try {
-    const src = fs.readFileSync(cmd[1])
+    const src = fs.readFileSync(file)
     return src.toString('utf-8')
   }
   catch (e) {
-    process.stdout.write(`Error: no such file: ${cmd[1]}\n`)
+    process.stdout.write(`Error: no such file: ${file}\n`)
     return ''
   }
 }
 
 function loadAndRun(globalNames: GlobalVariableNameTable, transpiler: Transpiler, consoleDev: readline.Interface) {
   for (const source of process.argv.slice(2)) {
-    const code = loadSourceFile(`.load ${source}`)
+    const code = loadSourceFile(source)
     if (code !== '')
-      globalNames = transpiler.tryEvaluate(code, globalNames, consoleDev)
+      globalNames = transpiler.tryEvaluate(code, path.dirname(source), globalNames, consoleDev)
   }
 
   return globalNames
@@ -214,7 +212,13 @@ export async function mainLoop() {
         continue
       }
 
-      line = loadSourceFile(line)
+      let dirname = '.'
+      if (line.startsWith('.load ')) {
+        const file = line.split(' ')[1]
+        line = loadSourceFile(file)
+        dirname = path.dirname(file)
+      }
+
       if (line === '') {
         consoleDev.prompt()
         continue
@@ -225,7 +229,7 @@ export async function mainLoop() {
         break
       }
 
-      globalNames = transpiler.tryEvaluate(line, globalNames, consoleDev)
+      globalNames = transpiler.tryEvaluate(line, dirname, globalNames, consoleDev)
       if (finished >= 0)
             break
     }
