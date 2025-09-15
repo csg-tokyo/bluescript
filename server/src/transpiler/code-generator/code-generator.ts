@@ -7,7 +7,7 @@ import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StringT,  UnionType, VectorClass, StringType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
-import { typecheck } from '../type-checker'
+import TypeChecker, { typecheck, codeTagFunction } from '../type-checker'
 import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
@@ -654,6 +654,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   functionDeclaration(node: AST.FunctionDeclaration, env: VariableEnv): void {
     const funcName = (node.id as AST.Identifier).name
+    if (funcName === codeTagFunction)
+      if (node.params.length === 2 && AST.isRestElement(node.params[1]))
+        return  // ignore the function declaration for tag function "code".
+
     this.functionBodyDeclaration(node, funcName, env)
   }
 

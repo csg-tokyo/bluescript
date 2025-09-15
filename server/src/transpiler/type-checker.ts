@@ -22,6 +22,9 @@ import {
 } from './names'
 import { InstanceType } from './classes'
 
+export const codeTagFunction = 'code'
+
+
 // entry point for just running a type checker
 export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable,
                                importer?: (file: string) => NameTable<NameInfo>) {
@@ -621,6 +624,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   functionDeclaration(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
+    if (node.id?.name === codeTagFunction)
+      if (node.params.length === 2 && AST.isRestElement(node.params[1]))
+        return  // ignore the function declaration for tag function "code".
+
     this.assert(names.isGlobal(), 'a nested function is not available', node)
     if (this.firstPass)
       this.functionDeclarationPass1(node, node.id, names)
@@ -702,7 +709,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
                      names: NameTable<Info>): StaticType[] {
     const paramTypes: StaticType[] = []
     for (const param of node.params) {
-      this.assert(AST.isIdentifier(param), 'bad parameter name', node)
+      if (!AST.isIdentifier(param)) {
+        const msg = AST.isRestElement(param) ? 'rest parameter is not supported'
+                    : AST.isAssignmentPattern(param) ? 'default parameter is not supported'
+                    : 'bad parameter'
+        this.assert(false, msg, param)
+        continue
+      }
+
       const id = param as AST.Identifier
       const varName = id.name
       let varType: StaticType = Any

@@ -13,17 +13,20 @@ const cRuntimeH = "../microcontroller/core/include/c-runtime.h"
 const cRuntimeC = "../microcontroller/core/src/c-runtime.c"
 const prologCcode = `#include "../${cRuntimeH}"
 `
+const shellBuiltins = 'src/transpiler/shell-builtins'
+const shellC = 'src/transpiler/shell.c'
 
-const prolog = `// predefined native functions
-function print(m: any) {}
-function print_i32(m: integer) {}
-function performance_now(): integer { return 0 }
-`
+export function buildShell(): [number, GlobalVariableNameTable, string] {
+  const sessionId = 1
+  const src = loadSourceFile(`.load ${shellBuiltins}.ts`)
+  const result = transpile(sessionId, src)
+  const cFile = `${dir}/${shellBuiltins.split('/').pop()}.c`
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(cFile, prologCcode + result.code)
 
-export function buildShell() {
-  const srcdir = 'src/transpiler'
-  execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeC} ${srcdir}/shell-builtins.c`)
-  execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${srcdir}/shell.c ${dir}/c-runtime.so -lm -ldl`)
+  execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeC} ${cFile}`)
+  execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${shellC} ${dir}/c-runtime.so -lm -ldl`)
+  return [sessionId, result.names, cFile]
 }
 
 function makeShell(closer: (code: number) => void) {
@@ -80,16 +83,14 @@ class Transpiler {
   libs: string
   sources: string
 
-  constructor(shell: ChildProcessWithoutNullStreams) {
+  constructor(sessionId: number, names: GlobalVariableNameTable, srcFile: string, shell: ChildProcessWithoutNullStreams) {
     this.shell = shell
-    this.sessionId = 0
+    this.sessionId = sessionId
     this.moduleId = 0
     this.modules = new Map<string, GlobalVariableNameTable>()
     this.libs = `${dir}/c-runtime.so`
-    this.sources = ''
-
-    const result = transpile(++this.sessionId, prolog)
-    this.baseGlobalNames = result.names
+    this.sources = srcFile
+    this.baseGlobalNames = names
   }
 
 
@@ -187,12 +188,13 @@ function loadAndRun(globalNames: GlobalVariableNameTable, transpiler: Transpiler
 }
 
 export async function mainLoop() {
+    const [sessionId, names, fileName] = buildShell()
     const prompt = '\x1b[1;94m> \x1b[0m'
     const consoleDev = readline.createInterface(process.stdin, process.stdout, completer)
     let finished = -1
     const shell = makeShell(code => { finished = code ? code : 1 })
 
-    const transpiler = new Transpiler(shell)
+    const transpiler = new Transpiler(sessionId, names, fileName, shell)
     let globalNames = transpiler.baseGlobalNames
     consoleDev.setPrompt(prompt)
     consoleDev.prompt()
@@ -229,12 +231,10 @@ export async function mainLoop() {
     }
 
     shell.stdin.end();
-    (transpiler.libs + transpiler.sources).split(' ').forEach(name => fs.rmSync(name))
+    `${transpiler.libs} ${transpiler.sources}`.split(' ').forEach(name => fs.rmSync(name))
 }
 
 console.log(execSync("pwd").toString())
-
-buildShell()
 
 process.stdout.write(`\x1b[1;94mBlueScript Shell\x1b[0m
   # npm run shell <source file> ...
