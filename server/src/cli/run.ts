@@ -1,27 +1,14 @@
-import { createDirectory, directoryExists, logger } from "./utils";
+import { logger, readBsConfig, BsConfig} from "./utils";
 import * as fs from 'fs';
-import * as CONSTANTS from './constants';
-import { z, ZodError } from 'zod';
 import BLE, {MAX_MTU} from "./ble";
 import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
 import { MemoryAddresses, MemoryUpdate } from "../compiler/shadow-memory";
-import Session from "../server/session";
+import { PACKAGE_PATH } from "./path";
 
-const BsConfigSchema = z.object({
-  name: z.string().min(1),
-  device: z.object({
-    kind: z.enum(['esp32', 'host']),
-    name: z.string(),
-  }),
-  runtimeDir: z.string().optional(),
-  modulesDir: z.string().optional()
-});
-
-type BsConfig = z.infer<typeof BsConfigSchema>;
 
 export default async function run() {
     try {
-        const bsConfig = readSettings();
+        const bsConfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE('./'));
         switch (bsConfig.device.kind) {
             case 'esp32':
                 await runESP32(bsConfig);
@@ -40,37 +27,15 @@ export default async function run() {
     process.exit(0);
 }
 
-
-function readSettings(): BsConfig {
-    const configFilePath = `./${CONSTANTS.BSCRIPT_CONFIG_FILE_NAME}`;
-    if (!fs.existsSync(configFilePath)) {
-        logger.error(`Cannot find file ${configFilePath}. Run 'create-project' command.`);
-        throw new Error();
-    }
-    try {
-        const fileContent = fs.readFileSync(configFilePath, 'utf-8');
-        const jsonData = JSON.parse(fileContent);
-        return BsConfigSchema.parse(jsonData);
-    } catch (error) {
-        if (error instanceof ZodError) {
-            logger.error(`Failed to parse ${configFilePath}: ${z.treeifyError(error)}`)
-        } else {
-            logger.error(`Failed to read ${configFilePath}.`);
-        }
-        throw error;
-    }
-}
-
 async function runESP32(bsConfig: BsConfig) {
-    const entryFilePath = `./${CONSTANTS.BSCRIPT_ENTRY_FILE_NAME}`;
     try {
-        const bsSrc = fs.readFileSync(entryFilePath, 'utf-8');
+        const bsSrc = fs.readFileSync(PACKAGE_PATH.ENTRY_FILE('./'), 'utf-8');
         const ble = new BLE(bsConfig.device.name);
         await ble.connect();
-        await ble.startSubscribe();
-        const addresses = await initDevice(ble);
-        const compileResult = compile(addresses, bsSrc, bsConfig);
-        await sendAndExecute(compileResult, ble);
+        // await ble.startSubscribe();
+        // const addresses = await initDevice(ble);
+        // const compileResult = compile(addresses, bsSrc, bsConfig);
+        // await sendAndExecute(compileResult, ble);
         await ble.disconnect();
     } catch(error) {
         throw error;
@@ -102,39 +67,27 @@ async function initDevice(ble: BLE): Promise<MemoryAddresses> {
     }
 }
 
-function compile(addresses: MemoryAddresses, bsSrc: string, bsConfig: BsConfig):MemoryUpdate {
-    logger.info('Compiling...');
-    try {
-        const buildDir = `./${CONSTANTS.BSCRIPT_BUILD_DIR}`;
-        if (!directoryExists(buildDir)) {
-            createDirectory(buildDir, true);
-        }
-        const session = new Session(
-            addresses,
-            buildDir,
-            bsConfig.modulesDir ?? CONSTANTS.BSCRIPT_MODULES_DIR,
-            bsConfig.runtimeDir ?? CONSTANTS.BSCRIPT_RUNTIME_DIR,
-            getCompilerDir()
-        );
-        const compileResult = session.compile(bsSrc);
-        return compileResult.result;
-    } catch (error) {
-        logger.error(`Failed to compile: ${error}`);
-        throw error;
-    }
-}
-
-function getCompilerDir():string {
-    try {
-        const fileContent = fs.readFileSync(CONSTANTS.ESP_IDF_TOOL_JSON, 'utf-8');
-        const jsonData = JSON.parse(fileContent);
-        const xtensaEspElfVersion = jsonData.tools.find((t:any) => t.name === 'xtensa-esp-elf').versions[0].name;
-        return CONSTANTS.COMPILER_DIR(xtensaEspElfVersion);
-    } catch (error) {
-        logger.error(`Faild to read ${CONSTANTS.ESP_IDF_TOOL_JSON}: ${error}`);
-        throw error;
-    }
-}
+// function compile(addresses: MemoryAddresses, bsSrc: string, bsConfig: BsConfig):MemoryUpdate {
+//     logger.info('Compiling...');
+//     try {
+//         const buildDir = `./${CONSTANTS.BSCRIPT_BUILD_DIR}`;
+//         if (!directoryExists(buildDir)) {
+//             createDirectory(buildDir, true);
+//         }
+//         const session = new Session(
+//             addresses,
+//             buildDir,
+//             bsConfig.modulesDir ?? CONSTANTS.BSCRIPT_MODULES_DIR,
+//             bsConfig.runtimeDir ?? CONSTANTS.BSCRIPT_RUNTIME_DIR,
+//             getCompilerDir()
+//         );
+//         const compileResult = session.compile(bsSrc);
+//         return compileResult.result;
+//     } catch (error) {
+//         logger.error(`Failed to compile: ${error}`);
+//         throw error;
+//     }
+// }
 
 async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<void> {
     logger.info("Sending...");

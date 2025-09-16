@@ -23,9 +23,8 @@ export type PackageConfig = {
 
 export type CompilerConfig = {
     dirs: {
-        packages: string,
         runtime: string,
-        compileToolchain: string
+        compilerToolchain: string
         std: string
     }
 };
@@ -66,10 +65,11 @@ const MODULE_PATH = (pkg: PackageConfig, relativePath: string) => path.normalize
 const MODULE_C_PATH = (dir: string, moduleName: string) => path.join(dir, `bs_${moduleName}.c`);
 const ARCHIVE_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.build, `lib${pkg.name}.a`);
 const MAKEFILE_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.dist, 'Makefile');
-const RUNTIME_ELF_PATH = (runtimeDir: string) => path.join(runtimeDir, 'ports/esp32/build/bluescript.elf');
 const LINKER_SCRIPT = (pkg: PackageConfig) => path.join(pkg.dirs.build, "linkerscript.ld");
-const LD_PATH = (toolChainDir: string) => path.join(toolChainDir, 'xtensa-esp32-elf-ld');
 const LINKED_ELF_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.build, `${pkg.name}.elf`);
+const STD_MODULE_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.std, 'index.bs');
+const LD_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.compilerToolchain, 'xtensa-esp32-elf-ld');
+const RUNTIME_ELF_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.runtime, 'ports/esp32/build/bluescript.elf');
 
 
 class Compiler {
@@ -107,7 +107,7 @@ class Compiler {
 
     private _transpile() {
         let compileId = 0;
-        const stdSrc = fs.readFileSync(path.join(this.config.dirs.std, 'index.bs'), 'utf-8');
+        const stdSrc = fs.readFileSync(STD_MODULE_PATH(this.config), 'utf-8');
         const nameTable = transpile(++compileId, stdSrc, undefined).names;
         const modules = new Map<string, GlobalVariableNameTable>(); // <path, nameTable>
         const subModuleEntryPoints: string[] = []
@@ -174,7 +174,7 @@ class Compiler {
             try {
                 this.logger.info(`Compiling ${pkg.name}...`);
                 const makefile = generateMakefile(
-                    this.config.dirs.compileToolchain,
+                    this.config.dirs.compilerToolchain,
                     pkg,
                     [...this.espidfComponents.getIncludeDirs(pkg.dependencies), ...commonIncludeDirs],
                     ARCHIVE_PATH(pkg)
@@ -191,7 +191,7 @@ class Compiler {
     private async _link(mainPackage: PackageConfig, subPackages: PackageConfig[], mainEntryPoint: string) {
         this.logger.info(`Linking...`);
         try {
-            const elfReader = new ElfReader(RUNTIME_ELF_PATH(this.config.dirs.runtime));
+            const elfReader = new ElfReader(RUNTIME_ELF_PATH(this.config));
             const symbolsInRuntime = elfReader.readAllSymbols().map(symbol => ({name: symbol.name, address: symbol.address}));
             const linkerscript = generateLinkerScript(
                 ARCHIVE_PATH(mainPackage),
@@ -201,7 +201,7 @@ class Compiler {
                 mainEntryPoint
             );
             fs.writeFileSync(LINKER_SCRIPT(mainPackage), linkerscript);
-            await executeCommand(`${LD_PATH(this.config.dirs.compileToolchain)} -o ${LINKED_ELF_PATH(mainPackage)} -T ${LINKER_SCRIPT(mainPackage)}`);
+            await executeCommand(`${LD_PATH(this.config)} -o ${LINKED_ELF_PATH(mainPackage)} -T ${LINKER_SCRIPT(mainPackage)}`);
         } catch (error) {
             this.logger.error(`Failed to link: ${error}`);
             throw error;

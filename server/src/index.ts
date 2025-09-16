@@ -40,6 +40,13 @@ root.command('create-project')
     createProject(name);
   });
 
+root.command('install')
+  .description('install a package')
+  .argument('<name>', 'package name')
+  .action((name: string)=>{
+    
+  });
+
 root.command('run')
   .description('run BlueScript code')
   .action(async () => {

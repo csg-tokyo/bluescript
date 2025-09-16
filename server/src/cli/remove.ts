@@ -1,6 +1,7 @@
-import { logger, directoryExists, deleteDirectory } from "./utils";
-import { BSCRIPT_DIR, ESP_DIR } from "./constants";
-import { ca } from "zod/v4/locales/index.cjs";
+import { ESP_IDF_PATH, GLOBAL_PATH } from "./path";
+import { logger } from "./utils";
+import * as fs from 'fs';
+
 
 export default async function remove(device: string) {
     try {
@@ -26,17 +27,17 @@ export default async function remove(device: string) {
 
 
 function removeESP32() {
-    removeDeviceSetup(ESP_DIR);
+    removeDeviceSetup(ESP_IDF_PATH.ROOT());
 }
 
 function removeAll() {
-    removeDeviceSetup(BSCRIPT_DIR);
+    removeDeviceSetup(GLOBAL_PATH.BSCRIPT_DIR());
 }
 
 function removeDeviceSetup(dirPath: string) {
-    if (directoryExists(dirPath)) {
+    if (fs.existsSync(dirPath)) {
         logger.info(`Deleting ${dirPath}.`);
-        deleteDirectory(dirPath);
+        fs.rmSync(dirPath, { recursive: true, force: true });
         logger.success(`Successfully delte ${dirPath}.`);
     } else {
         logger.info(`${dirPath} does not exit.`);

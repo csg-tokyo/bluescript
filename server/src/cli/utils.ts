@@ -2,9 +2,10 @@ import * as os from 'os';
 import * as fs from 'fs';
 import chalk from 'chalk';
 import { spawn } from "child_process";
+import { z, ZodError } from 'zod';
+
 
 type HostOSType = 'macos' | 'linux' | 'windows' | 'unknown';
-
 
 export function getHostOSType():HostOSType {
     const platform = os.platform();
@@ -13,6 +14,7 @@ export function getHostOSType():HostOSType {
     if (platform === 'win32') return 'windows';
     return 'unknown';
 }
+
 
 export const logger = {
   error(message: string): void {
@@ -41,25 +43,37 @@ export const logger = {
 };
 
 
-export function directoryExists(dirPath: string): boolean {
-  try {
-    const stats = fs.statSync(dirPath);
-    return stats.isDirectory();
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      return false;
+const BsConfigSchema = z.object({
+  name: z.string().min(1),
+  device: z.object({
+    kind: z.enum(['esp32', 'host']),
+    name: z.string(),
+  }),
+  runtimeDir: z.string().optional(),
+  modulesDir: z.string().optional()
+});
+
+export type BsConfig = z.infer<typeof BsConfigSchema>;
+
+export function readBsConfig(path: string): BsConfig {
+    if (!fs.existsSync(path)) {
+        logger.error(`Cannot find file ${path}. Run 'create-project' command.`);
+        throw new Error();
     }
-    return false;
-  }
+    try {
+        const fileContent = fs.readFileSync(path, 'utf-8');
+        const jsonData = JSON.parse(fileContent);
+        return BsConfigSchema.parse(jsonData);
+    } catch (error) {
+        if (error instanceof ZodError) {
+            logger.error(`Failed to parse ${path}: ${z.treeifyError(error)}`)
+        } else {
+            logger.error(`Failed to read ${path}.`);
+        }
+        throw error;
+    }
 }
 
-export function createDirectory(dirPath: string, recursive: boolean) {
-    fs.mkdirSync(dirPath, {recursive});
-}
-
-export function deleteDirectory(dirPath: string) {
-    fs.rmSync(dirPath, { recursive: true, force: true });
-}
 
 export function executeCommand(command: string, cwd?: string): Promise<void> {
   return new Promise((resolve, reject) => {
