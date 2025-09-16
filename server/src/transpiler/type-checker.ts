@@ -21,6 +21,10 @@ import {
   addCoercionFlag, getNameTable
 } from './names'
 import { InstanceType } from './classes'
+import { code } from './shell-builtins'
+
+export const codeTagFunction = 'code'
+
 
 // entry point for just running a type checker
 export function runTypeChecker(ast: AST.Node, names: BasicGlobalNameTable,
@@ -123,7 +127,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         const info = imported.lookup(name)
         const sourceFile = node.source.value
         if (info === undefined) {
-          this.assert(false, `'${name}' is not found in ${sourceFile}`, spec)
+          this.assert(name === codeTagFunction, `'${name}' is not found in ${sourceFile}`, spec)
         }
         else {
           this.assert(info.isExported, `'${name}' is declared but not exported in ${sourceFile}`, spec)
@@ -621,6 +625,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   functionDeclaration(node: AST.FunctionDeclaration, names: NameTable<Info>): void {
+    if (node.id?.name === codeTagFunction)
+      if (node.params.length === 2 && AST.isRestElement(node.params[1]))
+        return  // ignore the function declaration for tag function "code".
+
     this.assert(names.isGlobal(), 'a nested function is not available', node)
     if (this.firstPass)
       this.functionDeclarationPass1(node, node.id, names)
@@ -702,7 +710,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
                      names: NameTable<Info>): StaticType[] {
     const paramTypes: StaticType[] = []
     for (const param of node.params) {
-      this.assert(AST.isIdentifier(param), 'bad parameter name', node)
+      if (!AST.isIdentifier(param)) {
+        const msg = AST.isRestElement(param) ? 'rest parameter is not supported'
+                    : AST.isAssignmentPattern(param) ? 'default parameter is not supported'
+                    : 'bad parameter'
+        this.assert(false, msg, param)
+        continue
+      }
+
       const id = param as AST.Identifier
       const varName = id.name
       let varType: StaticType = Any
@@ -1392,8 +1407,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, names: NameTable<Info>): void {
     this.assert(AST.isIdentifier(node.tag) && node.tag.name === 'code',
                 'a tagged template is not supported', node)
-    this.assert(node.quasi.expressions.length === 0 && node.quasi.quasis.length === 1,
-                'string interpolation is not supported', node)
+    for (const e of node.quasi.expressions) {
+      if (!AST.isIdentifier(e))
+        this.assert(false, 'only a variable name can be embedded in native code', e)
+      else
+        this.assert(names.lookup(e.name) !== undefined, `unknown variable: ${e.name}`, e)
+    }
+
     this.result = Void
   }
 

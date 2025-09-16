@@ -7,7 +7,7 @@ import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StringT,  UnionType, VectorClass, StringType } from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
-import { typecheck } from '../type-checker'
+import TypeChecker, { typecheck, codeTagFunction } from '../type-checker'
 import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
@@ -654,6 +654,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   functionDeclaration(node: AST.FunctionDeclaration, env: VariableEnv): void {
     const funcName = (node.id as AST.Identifier).name
+    if (funcName === codeTagFunction)
+      if (node.params.length === 2 && AST.isRestElement(node.params[1]))
+        return  // ignore the function declaration for tag function "code".
+
     this.functionBodyDeclaration(node, funcName, env)
   }
 
@@ -1561,11 +1565,23 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   taggedTemplateExpression(node: AST.TaggedTemplateExpression, env: VariableEnv): void {
     // embedded native C code
-    const src = node.quasi.quasis[0].value.raw
+    let quasi = node.quasi
+    const prevResult = this.result
     if (env instanceof GlobalEnv)
-      this.signatures += `${src}\n`
-    else
-      this.result.write(src)
+      this.result = this.result.copy()
+
+    let i = 0
+    for (const q of quasi.quasis) {
+      this.result.write(q.value.raw)
+      // the type checker allows only identifiers as quasi.expressions.
+      if (i < quasi.expressions.length)
+        this.visit(quasi.expressions[i++], env)
+    }
+
+    if (env instanceof GlobalEnv) {
+      this.signatures += this.result.getCode() + '\n'
+      this.result = prevResult
+    }
   }
 
   tsAsExpression(node: AST.TSAsExpression, env: VariableEnv): void {
