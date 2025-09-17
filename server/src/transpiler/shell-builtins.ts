@@ -1,15 +1,14 @@
 // Copyright (C) 2024- Shigeru Chiba.  All rights reserved.
 
-/*
-  Before compiling shell.c, compile this file and build c-runtime.so.
+// builtin functions for the shell.  No toplevel statements are allowed.
 
-  cd BlueScript/server
-  cc -shared -fPIC -DTEST64 -o temp-files/c-runtime.so temp-files/shell-builtins.c ../esp32/components/c-runtime/c-runtime.c
-*/
+export type integer = number;
+export type float = number;
+export function code(strings: any, ... keys: any[]) {}
 
+code`
 #include <stdio.h>
 #include <time.h>
-#include "../../../microcontroller/core/include/c-runtime.h"
 
 // builtin functions
 
@@ -48,27 +47,28 @@ static void print_value(value_t m) {
     }
   }
 }
+`
 
-static void fbody_print(value_t self, value_t m) {
-  print_value(m);
-  putchar('\n');
+export function print(v: any) {
+  code`print_value(${v})`
+  code`putchar('\n')`
 }
 
-static void fbody_print_i32(value_t self, int32_t i) {
-  printf("%d\n", i);
+export function print_i32(i: integer) {
+  code`printf("%d\n", ${i})`
 }
 
-/* in msec */
-static int32_t fbody_performance_now(value_t self) {
+// in msec.
+export function performance_now(): integer {
+  let t: integer = 0
+  code`
   static struct timespec ts0 = { 0, -1 };
   struct timespec ts;
   if (ts0.tv_nsec < 0)
     clock_gettime(CLOCK_REALTIME, &ts0);
 
   clock_gettime(CLOCK_REALTIME, &ts);
-  return (int32_t)((ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000);
+  ${t} = (int32_t)((ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000);
+  `
+  return t
 }
-
-struct _print { void (*fptr)(value_t, value_t); const char* sig; } _print = { fbody_print, "(a)v" };
-struct _print_i32 { void (*fptr)(value_t, int32_t); const char* sig; } _print_i32 = { fbody_print_i32, "(i)v" };
-struct _performance_now { int32_t (*fptr)(value_t); const char* sig; } _performance_now = { fbody_performance_now, "()i" };

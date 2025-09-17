@@ -2417,7 +2417,7 @@ code\`#include <math.h>\`
 
 function sqrt(x: float): float {
   let r: float
-  code\`_r = sqrt(_x)\`
+  code\`\${r} = sqrt(\${x})\`
   return r
 }
 
@@ -2425,6 +2425,29 @@ print(sqrt(9.0))
 `
 
   expect(compileAndRun(src)).toBe('3.000000\n')
+})
+
+test('more complex native code', () => {
+  const src = `
+let gv: float = 1.5
+code\`float reader2() { return \${gv} + 1.1; }\`
+
+function cond(c: boolean, then: any, otherwise: any): any {
+  let r: any
+  code\`if (\${c}) \${r} = \${then}; else \${r} = \${otherwise};\`
+  return r
+}
+
+function reader(): float {
+  let r: float
+  code\`\${r} = \${gv} + reader2();\`
+  return r
+}
+
+print(cond(true, reader(), 1))
+`
+
+  expect(compileAndRun(src)).toBe('4.100000\n')
 })
 
 test('name scope', () => {

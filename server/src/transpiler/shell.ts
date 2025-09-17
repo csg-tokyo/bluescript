@@ -2,6 +2,7 @@
 
 import { transpile } from './code-generator/code-generator'
 import * as fs from 'fs'
+import * as path from 'path'
 import { execSync, spawn } from 'child_process'
 import * as readline from 'node:readline/promises'
 import { ErrorLog } from './utils'
@@ -13,17 +14,20 @@ const cRuntimeH = "../microcontroller/core/include/c-runtime.h"
 const cRuntimeC = "../microcontroller/core/src/c-runtime.c"
 const prologCcode = `#include "../${cRuntimeH}"
 `
+const shellBuiltins = 'src/transpiler/shell-builtins'
+const shellC = 'src/transpiler/shell.c'
 
-const prolog = `// predefined native functions
-function print(m: any) {}
-function print_i32(m: integer) {}
-function performance_now(): integer { return 0 }
-`
+export function buildShell(): [number, GlobalVariableNameTable, string] {
+  const sessionId = 1
+  const src = loadSourceFile(`${shellBuiltins}.ts`)
+  const result = transpile(sessionId, src)
+  const cFile = `${dir}/${shellBuiltins.split('/').pop()}.c`
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(cFile, prologCcode + result.code)
 
-export function buildShell() {
-  const srcdir = 'src/transpiler'
-  execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeC} ${srcdir}/shell-builtins.c`)
-  execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${srcdir}/shell.c ${dir}/c-runtime.so -lm -ldl`)
+  execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${dir}/c-runtime.so ${cRuntimeC} ${cFile}`)
+  execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${shellC} ${dir}/c-runtime.so -lm -ldl`)
+  return [sessionId, result.names, cFile]
 }
 
 function makeShell(closer: (code: number) => void) {
@@ -80,22 +84,20 @@ class Transpiler {
   libs: string
   sources: string
 
-  constructor(shell: ChildProcessWithoutNullStreams) {
+  constructor(sessionId: number, names: GlobalVariableNameTable, srcFile: string, shell: ChildProcessWithoutNullStreams) {
     this.shell = shell
-    this.sessionId = 0
+    this.sessionId = sessionId
     this.moduleId = 0
     this.modules = new Map<string, GlobalVariableNameTable>()
     this.libs = `${dir}/c-runtime.so`
-    this.sources = ''
-
-    const result = transpile(++this.sessionId, prolog)
-    this.baseGlobalNames = result.names
+    this.sources = srcFile
+    this.baseGlobalNames = names
   }
 
 
-  tryEvaluate(code: string, globalNames: GlobalVariableNameTable, consoleDev: readline.Interface) {
+  tryEvaluate(code: string, dirname: string, globalNames: GlobalVariableNameTable, consoleDev: readline.Interface) {
     try {
-      return this.evaluate(code, globalNames)
+      return this.evaluate(code, dirname, globalNames)
       // don't call consoleDev.prompt() here.
       // the prompt is printed in shell.c.
     }
@@ -110,7 +112,7 @@ class Transpiler {
     }
   }
 
-  evaluate(src: string, globalNames: GlobalVariableNameTable) {
+  evaluate(src: string, dirname: string, globalNames: GlobalVariableNameTable) {
     const compile = (src: string, fileName: string) => {
       fs.writeFileSync(`${fileName}.c`, prologCcode + src)
 
@@ -132,7 +134,8 @@ class Transpiler {
       }
     }
 
-    const importer = (fname: string) => {
+    const importer = (baseName: string) => (name: string) => {
+      const fname = path.isAbsolute(name) ? name : path.join(baseName, name)
       const mod = this.modules.get(fname)
       if (mod)
         return mod
@@ -141,7 +144,7 @@ class Transpiler {
         this.moduleId += 1
         this.sessionId += 1
         const fileName = `${dir}/bscript${this.sessionId}_${this.moduleId}`
-        const result = transpile(this.sessionId, program, this.baseGlobalNames, importer, this.moduleId)
+        const result = transpile(this.sessionId, program, this.baseGlobalNames, importer(path.dirname(fname)), this.moduleId)
         this.modules.set(fname, result.names)
         compile(result.code, fileName)
         shellCommands += `${fileName}.so\n${result.main}\n`
@@ -152,7 +155,7 @@ class Transpiler {
     let shellCommands = ''
     this.sessionId += 1
     const fileName = `${dir}/bscript${this.sessionId}`
-    const result = transpile(this.sessionId, src, globalNames, importer)
+    const result = transpile(this.sessionId, src, globalNames, importer(dirname))
     compile(result.code, fileName)
     this.shell.stdin.cork()
     this.shell.stdin.write(`${shellCommands}${fileName}.so\n${result.main}\n`)
@@ -161,38 +164,35 @@ class Transpiler {
   }
 }
 
-function loadSourceFile(line: string) {
-  if (!line.startsWith('.load '))
-    return line
-
-  const cmd = line.split(' ')
+function loadSourceFile(file: string) {
   try {
-    const src = fs.readFileSync(cmd[1])
+    const src = fs.readFileSync(file)
     return src.toString('utf-8')
   }
   catch (e) {
-    process.stdout.write(`Error: no such file: ${cmd[1]}\n`)
+    process.stdout.write(`Error: no such file: ${file}\n`)
     return ''
   }
 }
 
 function loadAndRun(globalNames: GlobalVariableNameTable, transpiler: Transpiler, consoleDev: readline.Interface) {
   for (const source of process.argv.slice(2)) {
-    const code = loadSourceFile(`.load ${source}`)
+    const code = loadSourceFile(source)
     if (code !== '')
-      globalNames = transpiler.tryEvaluate(code, globalNames, consoleDev)
+      globalNames = transpiler.tryEvaluate(code, path.dirname(source), globalNames, consoleDev)
   }
 
   return globalNames
 }
 
 export async function mainLoop() {
+    const [sessionId, names, fileName] = buildShell()
     const prompt = '\x1b[1;94m> \x1b[0m'
     const consoleDev = readline.createInterface(process.stdin, process.stdout, completer)
     let finished = -1
     const shell = makeShell(code => { finished = code ? code : 1 })
 
-    const transpiler = new Transpiler(shell)
+    const transpiler = new Transpiler(sessionId, names, fileName, shell)
     let globalNames = transpiler.baseGlobalNames
     consoleDev.setPrompt(prompt)
     consoleDev.prompt()
@@ -212,7 +212,13 @@ export async function mainLoop() {
         continue
       }
 
-      line = loadSourceFile(line)
+      let dirname = '.'
+      if (line.startsWith('.load ')) {
+        const file = line.split(' ')[1]
+        line = loadSourceFile(file)
+        dirname = path.dirname(file)
+      }
+
       if (line === '') {
         consoleDev.prompt()
         continue
@@ -223,18 +229,16 @@ export async function mainLoop() {
         break
       }
 
-      globalNames = transpiler.tryEvaluate(line, globalNames, consoleDev)
+      globalNames = transpiler.tryEvaluate(line, dirname, globalNames, consoleDev)
       if (finished >= 0)
             break
     }
 
     shell.stdin.end();
-    (transpiler.libs + transpiler.sources).split(' ').forEach(name => fs.rmSync(name))
+    `${transpiler.libs} ${transpiler.sources}`.split(' ').forEach(name => fs.rmSync(name))
 }
 
 console.log(execSync("pwd").toString())
-
-buildShell()
 
 process.stdout.write(`\x1b[1;94mBlueScript Shell\x1b[0m
   # npm run shell <source file> ...
