@@ -1,49 +1,56 @@
-import { MemoryLayout, ShadowMemory } from "./compiler2";
+import { ShadowMemory } from "./compiler2";
 
 
 export default function generateLinkerScript(
-    targetFile: string,
-    inputFiles: string[], 
+    targetFiles: string[],
+    inputFiles: string[],
     shadowMemory: ShadowMemory, 
     externalSymbols: {name: string, address: number}[],
     entryPointName: string
 ): string {
     const iramMemory = new MemoryRegion(
-      shadowMemory.iram.name, 
+      "IRAM", 
       [new MemoryAttribute('executable'), new MemoryAttribute('allocatable')], 
       shadowMemory.iram.address, 
       1000000
     );
     const dramMemory = new MemoryRegion(
-      shadowMemory.dram.name, 
+      "DRAM", 
       [new MemoryAttribute('read/write'), new MemoryAttribute('allocatable')], 
       shadowMemory.dram.address, 
       1000000
     );
     const iflashMemory = new MemoryRegion(
-      shadowMemory.iflash.name, 
+      "IFlash", 
       [new MemoryAttribute('executable')], 
       shadowMemory.iflash.address, 
       1000000
     );
     const dflashMemory = new MemoryRegion(
-      shadowMemory.dflash.name, 
+      "DFlash", 
       [new MemoryAttribute('readonly')], 
       shadowMemory.dflash.address, 
       1000000
     );
     const externalMemory = new MemoryRegion('EXTERNAL', [new MemoryAttribute('executable')], 0, 0);
 
-    const iramSection = new Section('.iram', iramMemory)
-        .section(targetFile, ['.iram*'], true)
-        .align(4);
-    const dramSection = new Section('.dram', dramMemory)
-        .section(targetFile, ['.data', '.data.*', '.bss', '.bss.*', '.dram*'], true)
-    const iflashSection = new Section('.iflash', iflashMemory)
-        .section(targetFile, ['.literal', '.text', '.literal.*', '.text.*'], true)
-        .align(4);
-    const dflashSection = new Section('.dflash', dflashMemory)
-        .section(targetFile, ['.rodata', '.rodata.*'], true)
+    const iramSection = new Section(shadowMemory.iram.name, iramMemory)
+      .section("*", ['.iram*'], false);
+    const dramSection = new Section(shadowMemory.dram.name, dramMemory)
+      .section("*", ['.data', '.data.*', '.bss', '.bss.*', '.dram*'], false);
+    const iflashSection = new Section(shadowMemory.iflash.name, iflashMemory)
+      .section("*", ['.literal', '.text', '.literal.*', '.text.*'], false);
+    const dflashSection = new Section(shadowMemory.dflash.name, dflashMemory)
+      .section("*", ['.rodata', '.rodata.*'], false);
+    for (const targetFile of targetFiles) {
+      iramSection.section(targetFile, ['.iram*'], true);
+      dramSection.section(targetFile, ['.data', '.data.*', '.bss', '.bss.*', '.dram*'], true);
+      iflashSection.section(targetFile, ['.literal', '.text', '.literal.*', '.text.*'], true);
+      dflashSection.section(targetFile, ['.rodata', '.rodata.*'], true);
+    }
+    iramSection.align(4);
+    iflashSection.align(4);
+    
     const externalSection = new Section('.external', externalMemory);
     for (const sym of externalSymbols) {
         externalSection.symbol(sym.name, sym.address);

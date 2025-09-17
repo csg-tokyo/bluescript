@@ -49,7 +49,7 @@ export default class Session {
     this.C_PROLOG = C_PROLOG(FILE_PATH.C_RUNTIME_H(runtimeDir), FILE_PATH.PROFILER_H(runtimeDir));
 
     this.addresses = addresses;
-    const bsString = fs.readFileSync(FILE_PATH.STD_MODULES(modulesDir)).toString()
+    const bsString = fs.readFileSync(FILE_PATH.STD_MODULE(modulesDir)).toString()
     const result = transpile(++this.compileId, bsString, undefined);
     this.baseGlobalNames = result.names;
     this.modules = new Map<string, GlobalVariableNameTable>()
@@ -59,7 +59,7 @@ export default class Session {
   }
 
   public reset() {
-    const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULES(this.MODULES_DIR)}`).toString()
+    const bsString = fs.readFileSync(`${FILE_PATH.STD_MODULE(this.MODULES_DIR)}`).toString()
     const result = transpile(++this.compileId, bsString, undefined);
     this.baseGlobalNames = result.names;
     this.modules = new Map<string, GlobalVariableNameTable>();

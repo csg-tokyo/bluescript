@@ -15,16 +15,17 @@ export type PackageConfig = {
     espIdfComponents: string[],
     dependencies: string[],
     dirs: {
-        src: string,
+        root: string,
         dist: string,
-        build: string
+        build: string,
+        packages: string,
     }
 }
 
 export type CompilerConfig = {
     dirs: {
         runtime: string,
-        compilerToolchain: string
+        compilerToolchain: string,
         std: string
     }
 };
@@ -46,10 +47,10 @@ export class ShadowMemory {
     public dflash: MemoryRegion;
 
     constructor(memoryLayout: MemoryLayout) {
-        this.iram = {name: 'IRAM', ...memoryLayout.iram};
-        this.dram = {name: 'DRAM', ...memoryLayout.dram};
-        this.iflash = {name: 'IFlash', ...memoryLayout.iflash};
-        this.dflash = {name: 'DFlash', ...memoryLayout.dflash};
+        this.iram = {name: '.iram', ...memoryLayout.iram};
+        this.dram = {name: '.dram', ...memoryLayout.dram};
+        this.iflash = {name: '.iflash', ...memoryLayout.iflash};
+        this.dflash = {name: '.dflash', ...memoryLayout.dflash};
     }
 }
 
@@ -61,7 +62,7 @@ export type ExecutableBinary = {
     entryPoints: {id: number, address: number}[]
 }
 
-const MODULE_PATH = (pkg: PackageConfig, relativePath: string) => path.normalize(path.join(pkg.dirs.src, `${relativePath}.bs`));
+const MODULE_PATH = (pkg: PackageConfig, relativePath: string) => path.normalize(path.join(pkg.dirs.root, `${relativePath}.bs`));
 const MODULE_C_PATH = (dir: string, moduleName: string) => path.join(dir, `bs_${moduleName}.c`);
 const ARCHIVE_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.build, `lib${pkg.name}.a`);
 const MAKEFILE_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.dist, 'Makefile');
@@ -70,9 +71,13 @@ const LINKED_ELF_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.build, `${pkg
 const STD_MODULE_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.std, 'index.bs');
 const LD_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.compilerToolchain, 'xtensa-esp32-elf-ld');
 const RUNTIME_ELF_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.runtime, 'ports/esp32/build/bluescript.elf');
+const C_PROLOG = (compilerConfig: CompilerConfig) => `
+#include <stdint.h>
+#include "${path.join(compilerConfig.dirs.runtime, '/core/include/c-runtime.h')}"
 
+`
 
-class Compiler {
+export class Compiler {
     private config: CompilerConfig;
     private espidfComponents: ESPIDFComponents;
     private memory: ShadowMemory;
@@ -110,10 +115,9 @@ class Compiler {
         const stdSrc = fs.readFileSync(STD_MODULE_PATH(this.config), 'utf-8');
         const nameTable = transpile(++compileId, stdSrc, undefined).names;
         const modules = new Map<string, GlobalVariableNameTable>(); // <path, nameTable>
-        const subModuleEntryPoints: string[] = []
+        const subModuleEntryPoints: string[] = [];
 
         const mp = this.packageReader('main');
-        if (mp === undefined) { throw new Error('Could not find main package.'); }
         const mainPackage: PackageConfig = mp;
         const visitedPackages: PackageConfig[] = [];
         let currentPackage: PackageConfig = mainPackage;
@@ -146,18 +150,19 @@ class Compiler {
                 modules.set(modulePath, result.names);
                 subModuleEntryPoints.push(result.main);
                 // Save C code
-                const cSaveDir = path.join(currentPackage.dirs.dist, path.parse(relativePath).base);
+                const cSaveDir = path.join(currentPackage.dirs.dist, path.parse(relativePath).root);
                 fs.mkdirSync(cSaveDir, {recursive: true});
-                fs.writeFileSync(MODULE_C_PATH(cSaveDir, path.parse(relativePath).name), result.code);
+                fs.writeFileSync(MODULE_C_PATH(cSaveDir, path.parse(relativePath).name), C_PROLOG(this.config) + result.code);
                 return result.names;
             }
         }
     
         try {
             this.logger.info('Transpiling...');
+            fs.mkdirSync(mainPackage.dirs.dist, {recursive: true});
             const mainSrc = fs.readFileSync(MODULE_PATH(mainPackage, './index'), 'utf-8');
             const result = transpile(++compileId, mainSrc, nameTable, importer);
-            fs.writeFileSync(MODULE_C_PATH(mainPackage.dirs.dist, 'index'), result.code);
+            fs.writeFileSync(MODULE_C_PATH(mainPackage.dirs.dist, 'index'), C_PROLOG(this.config) + result.code);
             return {mainPackage, subPackages: visitedPackages, mainEntryPoint: result.main, subModuleEntryPoints};
         } catch (error) {
             this.logger.error(`Failed to transpile: ${error}`);
@@ -180,7 +185,7 @@ class Compiler {
                     ARCHIVE_PATH(pkg)
                 );
                 fs.writeFileSync(MAKEFILE_PATH(pkg), makefile);
-                await executeCommand('make', pkg.dirs.dist);
+                await executeCommand('make', pkg.dirs.dist, false);
             } catch (error) {
                 this.logger.error(`Failed to compile ${pkg.name}: ${error}`);
                 throw error;
@@ -191,24 +196,25 @@ class Compiler {
     private async _link(mainPackage: PackageConfig, subPackages: PackageConfig[], mainEntryPoint: string) {
         this.logger.info(`Linking...`);
         try {
+            const cwd = process.cwd();
             const elfReader = new ElfReader(RUNTIME_ELF_PATH(this.config));
             const symbolsInRuntime = elfReader.readAllSymbols().map(symbol => ({name: symbol.name, address: symbol.address}));
             const linkerscript = generateLinkerScript(
-                ARCHIVE_PATH(mainPackage),
-                this._getArchives(mainPackage, subPackages),
+                [path.relative(cwd, ARCHIVE_PATH(mainPackage)), ...subPackages.map(pkg=>path.relative(cwd, ARCHIVE_PATH(pkg)))],
+                this._getArchivesWithEspComponents(mainPackage, subPackages).map(ar => path.relative(cwd, ar)),
                 this.memory,
                 symbolsInRuntime,
                 mainEntryPoint
             );
             fs.writeFileSync(LINKER_SCRIPT(mainPackage), linkerscript);
-            await executeCommand(`${LD_PATH(this.config)} -o ${LINKED_ELF_PATH(mainPackage)} -T ${LINKER_SCRIPT(mainPackage)}`);
+            await executeCommand(`${LD_PATH(this.config)} -o ${LINKED_ELF_PATH(mainPackage)} -T ${LINKER_SCRIPT(mainPackage)} --gc-sections`, cwd);
         } catch (error) {
             this.logger.error(`Failed to link: ${error}`);
             throw error;
         }
     }
 
-    private _getArchives(mainPackage: PackageConfig, subPackages: PackageConfig[]): string[] {
+    private _getArchivesWithEspComponents(mainPackage: PackageConfig, subPackages: PackageConfig[]): string[] {
         const espArchivesFromMain = this.espidfComponents.getArchiveFilePaths(mainPackage.espIdfComponents);
         const resultArchives = [ARCHIVE_PATH(mainPackage), ...espArchivesFromMain];
         const visitedEspArchives = new Set(espArchivesFromMain);
@@ -264,6 +270,7 @@ class ESPIDFComponents {
     private readonly COMPONENTS_PATH_PREFIX = /^.*microcontroller/;
     private readonly COMMON_COMPONENTS = ["cxx", "newlib", "freertos", "esp_hw_support", "heap", "log", "soc", "hal", "esp_rom", "esp_common", "esp_system"];
     private readonly RUNTIME_DIR: string; 
+    private readonly SDK_CONFIG_DIR: string;
 
     private dependenciesInfo: {
         [key: string]: {
@@ -276,6 +283,7 @@ class ESPIDFComponents {
 
     constructor(runtimeDir: string) {
         this.RUNTIME_DIR = runtimeDir;
+        this.SDK_CONFIG_DIR = path.join(runtimeDir, 'ports/esp32/build/config');
         const dependenciesFile = FILE_PATH.DEPENDENCIES_FILE(runtimeDir);
         this.dependenciesInfo = JSON.parse(fs.readFileSync(dependenciesFile).toString()).build_component_info;
         this.commonIncludeDirs = this.getIncludeDirs(this.COMMON_COMPONENTS);
@@ -290,6 +298,7 @@ class ESPIDFComponents {
                 includeDirs.push(path.join(component.dir, dir));
             }
         }
+        includeDirs.push(this.SDK_CONFIG_DIR);
         return includeDirs;
     }
 
@@ -320,28 +329,30 @@ class ESPIDFComponents {
 }
 
 
-function executeCommand(command: string, cwd?: string): Promise<void> {
+function executeCommand(command: string, cwd?: string, showStdout:boolean=true): Promise<void> {
   return new Promise((resolve, reject) => {
     const executeProcess = spawn(command, {shell: true, cwd});
 
     executeProcess.stdout.on('data', (data) => {
-      process.stdout.write(data.toString());
+        if (showStdout) {
+            process.stdout.write(data.toString());
+        }
     });
 
     executeProcess.stderr.on('data', (data) => {
-      process.stderr.write(data.toString());
+        process.stderr.write(data.toString());
     });
 
     executeProcess.on('error', (err) => {
-      reject(new Error(`Failed to setup process: ${err.message}`));
+        reject(new Error(`Failed to execute ${command}: ${err.message}`));
     });
 
     executeProcess.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Failed to execute ${command}. Code: ${code}`));
-      }
+        if (code === 0) {
+            resolve();
+        } else {
+            reject(new Error(`Failed to execute ${command}. Code: ${code}`));
+        }
     });
   });
 }

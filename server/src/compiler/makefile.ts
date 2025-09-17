@@ -13,21 +13,22 @@ CC := $(TOOLCHAIN_PREFIX)gcc
 AR := $(TOOLCHAIN_PREFIX)ar
 
 # === Directory settings ===
-SRC_DIR := ${pkgConfig.dirs.src}
+SRC_DIR := ${pkgConfig.dirs.root}
 DIST_DIR  := ${pkgConfig.dirs.dist}
 BUILD_DIR := ${pkgConfig.dirs.build}
+PACKAGES_DIR := ${pkgConfig.dirs.packages}
 
 TARGET := ${targetFilePath}
 
 # === Check for illegal file name prefixes ===
-ILLEGAL_PREFIX_FILES := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -type f -name "bs_*.c" -print)
+ILLEGAL_PREFIX_FILES := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -path $(PACKAGES_DIR) -prune -o -type f -name "bs_*.c" -print)
 ifneq ($(ILLEGAL_PREFIX_FILES),)
   $(error ERROR: You cannot use 'bs_' prefix for C source file names. Please remove or rename the following files: \
          $(ILLEGAL_PREFIX_FILES))
 endif
 
 # === Source and object file settings ===
-ORIG_SOURCES := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -type f -name "*.c" -print)
+ORIG_SOURCES := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -path $(PACKAGES_DIR) -prune -o -type f -name "*.c" -print)
 DIST_SOURCES := $(foreach src,$(ORIG_SOURCES), \
     $(subst $(SRC_DIR),$(DIST_DIR), $(src)) \
 )

@@ -1,4 +1,4 @@
-import { MemoryAddresses } from "../compiler/shadow-memory";
+import { MemoryLayout } from "../compiler/compiler2";
 
 export enum BYTECODE {
     NONE,
@@ -129,7 +129,7 @@ export class BytecodeBufferGenerator {
 export type ParseResult =
     {bytecode:BYTECODE.RESULT_LOG, log:string} |
     {bytecode:BYTECODE.RESULT_ERROR, error:string} |
-    {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemoryAddresses} |
+    {bytecode:BYTECODE.RESULT_MEMINFO, meminfo:MemoryLayout} |
     {bytecode:BYTECODE.RESULT_EXECTIME, id: number, exectime:number} |
     {bytecode:BYTECODE.RESULT_PROFILE, fid:number, paramtypes:string[]} |
     {bytecode:BYTECODE.NONE};

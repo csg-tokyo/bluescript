@@ -3,8 +3,9 @@ import * as fs from 'fs';
 import { GLOBAL_PATH, PACKAGE_PATH } from "./path";
 
 export default function installPackage(packageName: string) {
-    logger.error(`Installing ${packageName}...`);
+    logger.info(`Installing ${packageName}...`);
     try {
+        fs.mkdirSync(PACKAGE_PATH.LOCAL_PACKAGES_DIR('./'), {recursive: true});
         const srcDir = PACKAGE_PATH.SUB_PACKAGE_DIR(GLOBAL_PATH.PACKAGES_DIR(), packageName);
         if (!fs.existsSync(srcDir)) {
             throw new Error(`Cannot find ${packageName}`);

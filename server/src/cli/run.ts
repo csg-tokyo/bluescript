@@ -2,8 +2,9 @@ import { logger, readBsConfig, BsConfig} from "./utils";
 import * as fs from 'fs';
 import BLE, {MAX_MTU} from "./ble";
 import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
-import { MemoryAddresses, MemoryUpdate } from "../compiler/shadow-memory";
-import { PACKAGE_PATH } from "./path";
+import { ESP_IDF_PATH, GLOBAL_PATH, PACKAGE_PATH } from "./path";
+import { CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "../compiler/compiler2";
+import { Compiler } from "../compiler/compiler2";
 
 
 export default async function run() {
@@ -21,7 +22,7 @@ export default async function run() {
                 break;
         }
     } catch (error) {
-        logger.error('Failed to run the project.');
+        logger.error(`Failed to run the project: ${error}`);
         process.exit(1);
     }
     process.exit(0);
@@ -29,25 +30,27 @@ export default async function run() {
 
 async function runESP32(bsConfig: BsConfig) {
     try {
+        // TODO: flashが終わっているかの確認を入れる。
         const bsSrc = fs.readFileSync(PACKAGE_PATH.ENTRY_FILE('./'), 'utf-8');
         const ble = new BLE(bsConfig.device.name);
         await ble.connect();
-        // await ble.startSubscribe();
-        // const addresses = await initDevice(ble);
-        // const compileResult = compile(addresses, bsSrc, bsConfig);
-        // await sendAndExecute(compileResult, ble);
+        await ble.startSubscribe();
+        const memoryLayout = await initDevice(ble);
+        const executableBinary = await compile(bsConfig, memoryLayout);
+        console.log(executableBinary)
+        await sendAndExecute(ble, executableBinary);
         await ble.disconnect();
     } catch(error) {
         throw error;
     }
 }
 
-async function initDevice(ble: BLE): Promise<MemoryAddresses> {
+async function initDevice(ble: BLE): Promise<MemoryLayout> {
     logger.info('Initializing device...')
     const buffs = new BytecodeBufferGenerator(MAX_MTU).reset().generate();
     try {
         await ble.writeBuffers(buffs);
-        const addresses = await new Promise<MemoryAddresses>((resolve, reject) => {
+        const memoryLayout = await new Promise<MemoryLayout>((resolve, reject) => {
             try {
                 ble.addTempNotificationHandler((data) => {
                     const parseResult = bytecodeParser(data);
@@ -56,46 +59,63 @@ async function initDevice(ble: BLE): Promise<MemoryAddresses> {
                     }
                 });
             } catch (error) {
-                logger.error(`Failed to receive memory addresses. ${error}`);
+                logger.error(`Failed to receive memory layout. ${error}`);
                 reject()
             }
         });
-        return addresses;
+        return memoryLayout;
     } catch (error) {
         logger.error('Failed to initialize.');
         throw error;
     }
 }
 
-// function compile(addresses: MemoryAddresses, bsSrc: string, bsConfig: BsConfig):MemoryUpdate {
-//     logger.info('Compiling...');
-//     try {
-//         const buildDir = `./${CONSTANTS.BSCRIPT_BUILD_DIR}`;
-//         if (!directoryExists(buildDir)) {
-//             createDirectory(buildDir, true);
-//         }
-//         const session = new Session(
-//             addresses,
-//             buildDir,
-//             bsConfig.modulesDir ?? CONSTANTS.BSCRIPT_MODULES_DIR,
-//             bsConfig.runtimeDir ?? CONSTANTS.BSCRIPT_RUNTIME_DIR,
-//             getCompilerDir()
-//         );
-//         const compileResult = session.compile(bsSrc);
-//         return compileResult.result;
-//     } catch (error) {
-//         logger.error(`Failed to compile: ${error}`);
-//         throw error;
-//     }
-// }
+async function compile(bsConfig: BsConfig, memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
+    logger.info('Compiling...');
+    const compilerConfig = getCompilerConfig(bsConfig);
+    const compiler = new Compiler(memoryLayout, compilerConfig, packageReader, logger);
+    return await compiler.compile();
+}
 
-async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<void> {
-    logger.info("Sending...");
-    const bytecodeGenerator = new BytecodeBufferGenerator(MAX_MTU);
-    for (const block of compileResult.blocks) {
-        bytecodeGenerator.load(block.address, Buffer.from(block.data, "hex"));
+function getCompilerConfig(bsConfig: BsConfig): CompilerConfig {
+    return {
+        dirs: {
+            runtime: bsConfig.dirs?.runtime ?? GLOBAL_PATH.RUNTIME_DIR(),
+            compilerToolchain: ESP_IDF_PATH.XTENSA_GCC_DIR(),
+            std: PACKAGE_PATH.SUB_PACKAGE_DIR(bsConfig.dirs?.packages ?? GLOBAL_PATH.PACKAGES_DIR(), 'std'),
+        }
     }
-    for (const entryPoint of compileResult.entryPoints) {
+}
+
+function packageReader(packageName: string): PackageConfig {
+    const cwd = process.cwd();
+    const packageRoot = packageName === 'main' ? cwd : PACKAGE_PATH.SUB_PACKAGE_DIR(PACKAGE_PATH.LOCAL_PACKAGES_DIR(cwd), packageName);
+    try {
+        const bsConfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE(packageRoot));
+        return {
+            name: packageName,
+            espIdfComponents: bsConfig.espIdfComponents ?? [],
+            dependencies: bsConfig.dependencies ?? [],
+            dirs: {
+                root: packageRoot,
+                dist: PACKAGE_PATH.DIST_DIR(packageRoot),
+                build: PACKAGE_PATH.BUILD_DIR(packageRoot),
+                packages: PACKAGE_PATH.LOCAL_PACKAGES_DIR(packageRoot)
+            }
+        }
+    } catch (error) {
+        throw new Error(`Faild to read ${packageName}: ${error?.toString()}`);
+    }
+}
+
+async function sendAndExecute(ble: BLE, executableBinary: ExecutableBinary) {
+    logger.info("Sending...");
+    const bytecodeGenerator = new BytecodeBufferGenerator(MAX_MTU)
+        .load(executableBinary.iram.address, executableBinary.iram.data)
+        .load(executableBinary.dram.address, executableBinary.dram.data)
+        .load(executableBinary.iflash.address, executableBinary.iflash.data)
+        .load(executableBinary.dflash.address, executableBinary.dflash.data);
+    for (const entryPoint of executableBinary.entryPoints) {
         bytecodeGenerator.jump(entryPoint.id, entryPoint.address);
     }
     try {
@@ -115,7 +135,7 @@ async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<vo
             try {
                 ble.setNotificationHandler((data) => {
                     const parseResult = bytecodeParser(data);
-                    if (parseResult.bytecode === BYTECODE.RESULT_EXECTIME) {
+                    if (parseResult.bytecode === BYTECODE.RESULT_EXECTIME && parseResult.id >= 0) {
                         resolve(parseResult.exectime);
                     } else if (parseResult.bytecode === BYTECODE.RESULT_LOG) {
                         logger.bsLog(parseResult.log);

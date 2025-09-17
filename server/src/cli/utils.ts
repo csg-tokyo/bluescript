@@ -49,15 +49,19 @@ const BsConfigSchema = z.object({
     kind: z.enum(['esp32', 'host']),
     name: z.string(),
   }),
-  runtimeDir: z.string().optional(),
-  modulesDir: z.string().optional()
+  dirs: z.object({
+    runtime: z.string().optional(),
+    packages: z.string().optional(),
+  }).optional(),
+  dependencies: z.array(z.string()).optional(),
+  espIdfComponents: z.array(z.string()).optional(),
 });
 
 export type BsConfig = z.infer<typeof BsConfigSchema>;
 
 export function readBsConfig(path: string): BsConfig {
     if (!fs.existsSync(path)) {
-        logger.error(`Cannot find file ${path}. Run 'create-project' command.`);
+        logger.error(`Cannot find file ${path}.`);
         throw new Error();
     }
     try {
@@ -66,7 +70,7 @@ export function readBsConfig(path: string): BsConfig {
         return BsConfigSchema.parse(jsonData);
     } catch (error) {
         if (error instanceof ZodError) {
-            logger.error(`Failed to parse ${path}: ${z.treeifyError(error)}`)
+            logger.error(`Failed to parse ${path}: ${error.issues}`)
         } else {
             logger.error(`Failed to read ${path}.`);
         }

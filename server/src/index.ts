@@ -6,6 +6,7 @@ import remove from './cli/remove';
 import flash from './cli/flash';
 import run from './cli/run';
 import createProject from './cli/create-project';
+import installPackage from './cli/install';
 
 const root = program
               .version('')
@@ -44,7 +45,7 @@ root.command('install')
   .description('install a package')
   .argument('<name>', 'package name')
   .action((name: string)=>{
-    
+    installPackage(name);
   });
 
 root.command('run')
