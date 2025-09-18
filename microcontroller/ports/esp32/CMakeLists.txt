@@ -7,10 +7,6 @@ cmake_minimum_required(VERSION 3.16)
 set(EXTRA_COMPONENT_DIRS  
         "../../core" 
         "../../../modules/std" 
-        "../../../modules/gpio" 
-        "../../../modules/timer" 
-        "../../../modules/display"
-        "../../../modules/button"
     )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

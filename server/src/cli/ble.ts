@@ -94,7 +94,7 @@ export default class BLE {
         await noble.stopScanningAsync();
         this.peripheral = peripheral;
 
-        logger.info(`[Bluetooth] Found target device: ${this.deviceName} (${peripheral.address})`);
+        logger.info(`[Bluetooth] Found target device: ${this.deviceName}`);
 
         this.peripheral.once('disconnect', () => {
             if (this.state !== 'disconnecting') {

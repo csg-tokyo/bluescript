@@ -1,36 +1,95 @@
-import * as fs from "fs";
+import { ShadowMemory } from "./compiler";
 
 
-export class LinkerScript {
-  private commands: LinkerScriptCommand[] = [];
+export default function generateLinkerScript(
+    targetFiles: string[],
+    inputFiles: string[],
+    shadowMemory: ShadowMemory, 
+    externalSymbols: {name: string, address: number}[],
+    entryPointName: string
+): string {
+    const iramMemory = new MemoryRegion(
+      "IRAM", 
+      [new MemoryAttribute('executable'), new MemoryAttribute('allocatable')], 
+      shadowMemory.iram.address, 
+      1000000
+    );
+    const dramMemory = new MemoryRegion(
+      "DRAM", 
+      [new MemoryAttribute('read/write'), new MemoryAttribute('allocatable')], 
+      shadowMemory.dram.address, 
+      1000000
+    );
+    const iflashMemory = new MemoryRegion(
+      "IFlash", 
+      [new MemoryAttribute('executable')], 
+      shadowMemory.iflash.address, 
+      1000000
+    );
+    const dflashMemory = new MemoryRegion(
+      "DFlash", 
+      [new MemoryAttribute('readonly')], 
+      shadowMemory.dflash.address, 
+      1000000
+    );
+    const externalMemory = new MemoryRegion('EXTERNAL', [new MemoryAttribute('executable')], 0, 0);
 
-  input(files: string[]) { this.commands.push(new LinkerScriptInput(files)); return this; }
-  entry(entry: string) { this.commands.push(new LinkerScriptEntry(entry)); return this; }
-  sections(sections: LinkerScriptSection[]) { this.commands.push(new LinkerScriptSections(sections)); return this; }
-  memory(regions: LinkerScriptMemoryRegion[]) { this.commands.push(new LinkerScriptMemory(regions)); return this; }
+    const iramSection = new Section(shadowMemory.iram.name, iramMemory)
+      .section("*", ['.iram*'], false);
+    const dramSection = new Section(shadowMemory.dram.name, dramMemory)
+      .section("*", ['.data', '.data.*', '.bss', '.bss.*', '.dram*'], false);
+    const iflashSection = new Section(shadowMemory.iflash.name, iflashMemory)
+      .section("*", ['.literal', '.text', '.literal.*', '.text.*'], false);
+    const dflashSection = new Section(shadowMemory.dflash.name, dflashMemory)
+      .section("*", ['.rodata', '.rodata.*'], false);
+    for (const targetFile of targetFiles) {
+      iramSection.section(targetFile, ['.iram*'], true);
+      dramSection.section(targetFile, ['.data', '.data.*', '.bss', '.bss.*', '.dram*'], true);
+      iflashSection.section(targetFile, ['.literal', '.text', '.literal.*', '.text.*'], true);
+      dflashSection.section(targetFile, ['.rodata', '.rodata.*'], true);
+    }
+    iramSection.align(4);
+    iflashSection.align(4);
+    
+    const externalSection = new Section('.external', externalMemory);
+    for (const sym of externalSymbols) {
+        externalSection.symbol(sym.name, sym.address);
+    }
+
+    return new LinkerScript()
+        .group(inputFiles)
+        .entry(entryPointName)
+        .memory([iramMemory, dramMemory, iflashMemory, dflashMemory, externalMemory])
+        .sections([iramSection, dramSection, iflashSection, dflashSection, externalSection])
+        .toString();
+}
+
+class LinkerScript {
+  private commands: Command[] = [];
+
+  group(files: string[]) { this.commands.push(new Group(files)); return this; }
+  entry(entry: string) { this.commands.push(new Entry(entry)); return this; }
+  sections(sections: Section[]) { this.commands.push(new Sections(sections)); return this; }
+  memory(regions: MemoryRegion[]) { this.commands.push(new Memory(regions)); return this; }
 
   toString() {
     return this.commands.map(c => c.toString()).join('\n');
   }
-
-  save(path: string) {
-    fs.writeFileSync(path, this.toString());
-  }
 }
 
-interface LinkerScriptCommand {
+interface Command {
   toString():string;
 }
 
-class LinkerScriptInput implements LinkerScriptCommand {
+class Group implements Command {
   constructor(private files: string[]) {}
 
-  toString(indent?: number): string {
-    return `INPUT(${this.files.join(' ')})`;
+  toString(): string {
+    return `GROUP(${this.files.join(' ')})`;
   }
 }
 
-class LinkerScriptEntry implements LinkerScriptCommand {
+class Entry implements Command {
   constructor(private entry: string) {}
 
   toString(): string {
@@ -38,8 +97,8 @@ class LinkerScriptEntry implements LinkerScriptCommand {
   }
 }
 
-class LinkerScriptMemory implements LinkerScriptCommand {
-  constructor(private regions: LinkerScriptMemoryRegion[]) {}
+class Memory implements Command {
+  constructor(private regions: MemoryRegion[]) {}
 
   toString(): string {
     return `
@@ -50,8 +109,8 @@ ${this.regions.map(r => `${r.toString(1)}`).join('\n')}
   }
 }
 
-class LinkerScriptSections implements LinkerScriptCommand {
-  constructor(private sections: LinkerScriptSection[]) {}
+class Sections implements Command {
+  constructor(private sections: Section[]) {}
 
   toString(): string {
     return `
@@ -62,9 +121,9 @@ ${this.sections.map(s => `${s.toString(1)}`).join('\n\n')}
   }
 }
 
-export class LinkerScriptMemoryRegion implements LinkerScriptCommand {
+class MemoryRegion implements Command {
   constructor(private name: string,
-              private attributes: LinerScriptMemoryAttribute[],
+              private attributes: MemoryAttribute[],
               private address: number,
               private size: number) {}
 
@@ -75,7 +134,7 @@ export class LinkerScriptMemoryRegion implements LinkerScriptCommand {
   }
 }
 
-export class LinerScriptMemoryAttribute {
+class MemoryAttribute {
   constructor(private attr: 'readonly' | 'read/write' | 'executable' | 'allocatable') {}
 
   toString() {
@@ -93,10 +152,10 @@ export class LinerScriptMemoryAttribute {
 }
 
 
-export class LinkerScriptSection implements LinkerScriptCommand {
+class Section implements Command {
   private commands: string[] = [];
 
-  constructor(private name: string, private memory: LinkerScriptMemoryRegion) {}
+  constructor(private name: string, private memory: MemoryRegion) {}
 
   align(align: number) {
     this.commands.push(`. = ALIGN(${Math.round(align)});`);
@@ -124,3 +183,4 @@ ${this.commands.map(comm => `${'\t'.repeat(indent + 1)}${comm}`).join('\n')}
 ${'\t'.repeat(indent)}} > ${this.memory.getName()}`
   }
 }
+

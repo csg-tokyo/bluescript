@@ -1,4 +1,4 @@
-import { MemoryLayout } from "../compiler/compiler2";
+import { MemoryLayout } from "../compiler/compiler";
 
 export enum BYTECODE {
     NONE,

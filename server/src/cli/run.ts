@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import BLE, {MAX_MTU} from "./ble";
 import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
 import { ESP_IDF_PATH, GLOBAL_PATH, PACKAGE_PATH } from "./path";
-import { CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "../compiler/compiler2";
-import { Compiler } from "../compiler/compiler2";
+import { CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "../compiler/compiler";
+import { Compiler } from "../compiler/compiler";
 
 
 export default async function run() {

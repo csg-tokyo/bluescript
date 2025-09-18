@@ -1,4 +1,4 @@
-import { PackageConfig } from "./compiler2";
+import { PackageConfig } from "./compiler";
 
 export default function generateMakefile(
     compilerToolchainDir: string,
