@@ -28,3 +28,7 @@ jobs:
       - name: Run tests for /server/tests/cli
         working-directory: ./server
         run: npm test -- tests/cli
+
+      - name: Run tests for /server/tests/compiler
+        working-directory: ./server
+        run: npm test -- tests/compiler
