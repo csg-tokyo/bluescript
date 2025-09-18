@@ -37,7 +37,6 @@ async function runESP32(bsConfig: BsConfig) {
         await ble.startSubscribe();
         const memoryLayout = await initDevice(ble);
         const executableBinary = await compile(bsConfig, memoryLayout);
-        console.log(executableBinary)
         await sendAndExecute(ble, executableBinary);
         await ble.disconnect();
     } catch(error) {
@@ -111,10 +110,10 @@ function packageReader(packageName: string): PackageConfig {
 async function sendAndExecute(ble: BLE, executableBinary: ExecutableBinary) {
     logger.info("Sending...");
     const bytecodeGenerator = new BytecodeBufferGenerator(MAX_MTU)
-        .load(executableBinary.iram.address, executableBinary.iram.data)
-        .load(executableBinary.dram.address, executableBinary.dram.data)
-        .load(executableBinary.iflash.address, executableBinary.iflash.data)
-        .load(executableBinary.dflash.address, executableBinary.dflash.data);
+    if (executableBinary.iram) bytecodeGenerator.load(executableBinary.iram.address, executableBinary.iram.data);
+    if (executableBinary.dram) bytecodeGenerator.load(executableBinary.dram.address, executableBinary.dram.data);
+    if (executableBinary.iflash) bytecodeGenerator.load(executableBinary.iflash.address, executableBinary.iflash.data);
+    if (executableBinary.dflash) bytecodeGenerator.load(executableBinary.dflash.address, executableBinary.dflash.data);
     for (const entryPoint of executableBinary.entryPoints) {
         bytecodeGenerator.jump(entryPoint.id, entryPoint.address);
     }

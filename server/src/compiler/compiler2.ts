@@ -55,10 +55,10 @@ export class ShadowMemory {
 }
 
 export type ExecutableBinary = {
-    iram: {address: number, data: Buffer},
-    dram: {address: number, data: Buffer},
-    iflash: {address: number, data: Buffer},
-    dflash: {address: number, data: Buffer},
+    iram?: {address: number, data: Buffer},
+    dram?: {address: number, data: Buffer},
+    iflash?: {address: number, data: Buffer},
+    dflash?: {address: number, data: Buffer},
     entryPoints: {id: number, address: number}[]
 }
 
@@ -251,12 +251,11 @@ export class Compiler {
         }
         subEntryPointNames.forEach(epn => setEntryPoint(-1, epn));
         setEntryPoint(0, mainEntryPointName);
-        const emptyBuffer = Buffer.from([]);
         return {
-            iram: {address: this.memory.iram.address, data: iramSection?.value ?? emptyBuffer},
-            dram: {address: this.memory.dram.address, data: dramSection?.value ?? emptyBuffer},
-            iflash: {address: this.memory.iflash.address, data: iflashSection?.value ?? emptyBuffer},
-            dflash: {address: this.memory.dflash.address, data: dflashSection?.value ?? emptyBuffer},
+            iram: iramSection ? {address: iramSection.address, data: iramSection.value} : undefined,
+            dram: dramSection ? {address: dramSection.address, data: dramSection.value} : undefined,
+            iflash: iflashSection ? {address: iflashSection.address, data: iflashSection.value} : undefined,
+            dflash: dflashSection ? {address: dflashSection.address, data: dflashSection.value} : undefined,
             entryPoints
         }
     }

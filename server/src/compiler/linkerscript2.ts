@@ -57,7 +57,7 @@ export default function generateLinkerScript(
     }
 
     return new LinkerScript()
-        .input(inputFiles)
+        .group(inputFiles)
         .entry(entryPointName)
         .memory([iramMemory, dramMemory, iflashMemory, dflashMemory, externalMemory])
         .sections([iramSection, dramSection, iflashSection, dflashSection, externalSection])
@@ -67,7 +67,7 @@ export default function generateLinkerScript(
 class LinkerScript {
   private commands: Command[] = [];
 
-  input(files: string[]) { this.commands.push(new Input(files)); return this; }
+  group(files: string[]) { this.commands.push(new Group(files)); return this; }
   entry(entry: string) { this.commands.push(new Entry(entry)); return this; }
   sections(sections: Section[]) { this.commands.push(new Sections(sections)); return this; }
   memory(regions: MemoryRegion[]) { this.commands.push(new Memory(regions)); return this; }
@@ -81,11 +81,11 @@ interface Command {
   toString():string;
 }
 
-class Input implements Command {
+class Group implements Command {
   constructor(private files: string[]) {}
 
   toString(): string {
-    return `INPUT(${this.files.join(' ')})`;
+    return `GROUP(${this.files.join(' ')})`;
   }
 }
 
