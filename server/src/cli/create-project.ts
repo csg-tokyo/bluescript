@@ -1,9 +1,9 @@
-import { BSCRIPT_ENTRY_FILE_NAME, BSCRIPT_CONFIG_FILE_NAME } from "./constants";
-import { logger, createDirectory, directoryExists } from "./utils";
+import { PACKAGE_PATH } from "./path";
+import { logger } from "./utils";
 import * as fs from 'fs';
 
 const BS_TEMPLATE = `print("Hello world!");\n`;
-const BS_SETTINGS = (projectName: string) => `
+const DEFAULT_BSCONFIG = (projectName: string) => `
 {
     "name": "${projectName}",
     "device": {
@@ -15,15 +15,15 @@ const BS_SETTINGS = (projectName: string) => `
 `
 
 export default function createProject(name: string) {
-    const dirPath = `./${name}`;
+    const rootPath = `./${name}`;
     try {
-        if (directoryExists(dirPath)) {
+        if (fs.existsSync(rootPath)) {
             logger.info("A project with the specified name already exists.");
             return;
         }
-        createDirectory(dirPath, true);
-        fs.writeFileSync(`${dirPath}/${BSCRIPT_ENTRY_FILE_NAME}`, BS_TEMPLATE);
-        fs.writeFileSync(`${dirPath}/${BSCRIPT_CONFIG_FILE_NAME}`, BS_SETTINGS(name));
+        fs.mkdirSync(rootPath, {recursive: true});
+        fs.writeFileSync(PACKAGE_PATH.ENTRY_FILE(rootPath), BS_TEMPLATE);
+        fs.writeFileSync(PACKAGE_PATH.BSCONFIG_FILE(rootPath), DEFAULT_BSCONFIG(name));
         logger.success("Successfully created a new project.");
     } catch (error) {
         logger.error("Failed to create a new project.");

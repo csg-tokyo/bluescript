@@ -7,8 +7,6 @@ import { beforeEach, afterEach, describe, expect, it } from '@jest/globals';
 
 const mockUtils = {
     getHostOSType: jest.fn(),
-    directoryExists: jest.fn(),
-    createDirectory: jest.fn(),
     logger: {
         info: jest.fn(),
         warn: jest.fn(),
@@ -16,7 +14,6 @@ const mockUtils = {
         success: jest.fn(),
     },
     executeCommand: jest.fn<(command: string, cwd?: string) => Promise<void>>(),
-    deleteDirectory: jest.fn(),
 };
 jest.mock('../../src/cli/utils', () => mockUtils);
 
