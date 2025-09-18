@@ -1,5 +1,5 @@
 import { BytecodeBufferGenerator, bytecodeParser, BYTECODE } from '../../src/cli/bytecode';
-import { MemoryAddresses } from "../../src/compiler/shadow-memory";
+import { MemoryLayout } from "../../src/compiler/compiler";
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
 const FIRST_HEADER = Buffer.from([0x03, 0x00]);
@@ -170,7 +170,7 @@ describe('bytecodeParser', () => {
 
         expect(result.bytecode).toBe(BYTECODE.RESULT_MEMINFO);
         if (result.bytecode === BYTECODE.RESULT_MEMINFO) {
-            const expected: MemoryAddresses = {
+            const expected: MemoryLayout = {
                 iram: { address: 0x1000, size: 0x100 },
                 dram: { address: 0x2000, size: 0x200 },
                 iflash: { address: 0x3000, size: 0x300 },

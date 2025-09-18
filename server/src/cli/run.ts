@@ -31,7 +31,6 @@ export default async function run() {
 async function runESP32(bsConfig: BsConfig) {
     try {
         // TODO: flashが終わっているかの確認を入れる。
-        const bsSrc = fs.readFileSync(PACKAGE_PATH.ENTRY_FILE('./'), 'utf-8');
         const ble = new BLE(bsConfig.device.name);
         await ble.connect();
         await ble.startSubscribe();

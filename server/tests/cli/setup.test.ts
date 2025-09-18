@@ -4,8 +4,6 @@ const mockProcessExit = jest.spyOn(process, 'exit').mockImplementation((() => {}
 
 const mockUtils = {
     getHostOSType: jest.fn(),
-    directoryExists: jest.fn(),
-    createDirectory: jest.fn(),
     logger: {
         info: jest.fn(),
         warn: jest.fn(),
@@ -13,7 +11,6 @@ const mockUtils = {
         success: jest.fn(),
     },
     executeCommand: jest.fn<(command: string, cwd?: string) => Promise<void>>(),
-    deleteDirectory: jest.fn(),
 };
 jest.mock('../../src/cli/utils', () => mockUtils);
 
@@ -32,7 +29,9 @@ jest.mock('extract-zip', () => mockExtract);
 
 const mockFs = {
     writeFileSync: jest.fn(),
+    existsSync: jest.fn<(path:string) => boolean>(),
     rmSync: jest.fn(),
+    mkdirSync: jest.fn(),
 };
 jest.mock('fs', () => mockFs);
 
@@ -67,7 +66,7 @@ describe('ESP32 Setup Script', () => {
                 if (command === 'which git') return;
                 throw new Error('command not found');
             });
-            mockUtils.directoryExists.mockReturnValue(false);
+            mockFs.existsSync.mockReturnValue(false);
             mockUtils.executeCommand.mockResolvedValue(undefined);
             mockAxiosGet.mockResolvedValue({ data: Buffer.from('zip data') });
             mockExtract.mockResolvedValue(undefined);
@@ -124,7 +123,7 @@ describe('ESP32 Setup Script', () => {
                 throw new Error('command not found');
             });
             mockAxiosGet.mockResolvedValue({ data: Buffer.from('zip data') });
-            mockUtils.directoryExists.mockImplementation((path: any) => path.endsWith('/esp')); // /espディレクトリだけ存在
+            mockFs.existsSync.mockImplementation((path: any) => path.endsWith('/esp')); // /espディレクトリだけ存在
 
             // Execute
             await setup('esp32');
