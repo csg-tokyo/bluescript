@@ -93,7 +93,7 @@ class ShellTranspiler extends Transpiler {
   }
 
   stopShell() {
-      this.shell.stdin.end();
+      this.shell.stdin.end()
   }
 
   evaluate(code: string, dirname: string, globalNames: GlobalVariableNameTable, consoleDev: readline.Interface) {
