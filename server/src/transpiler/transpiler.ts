@@ -24,13 +24,13 @@ export abstract class Transpiler {
       return fs.readFileSync(fname).toString('utf-8')
     }
     catch (e) {
-      throw `cannot find a module ${fname}`
+      throw new Error(`cannot find a module ${fname}`)
     }
   }
 
   getBaseGlobalNames() {
     if (!this.baseGlobalNames)
-      throw 'baseGlobalNames is not set'
+      throw new Error('baseGlobalNames is not set')
 
     return this.baseGlobalNames
   }
