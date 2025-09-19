@@ -1,27 +1,15 @@
-import { createDirectory, directoryExists, logger } from "./utils";
+import { logger, readBsConfig, BsConfig} from "./utils";
 import * as fs from 'fs';
-import * as CONSTANTS from './constants';
-import { z, ZodError } from 'zod';
 import BLE, {MAX_MTU} from "./ble";
 import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
-import { MemoryAddresses, MemoryUpdate } from "../compiler/shadow-memory";
-import Session from "../server/session";
+import { ESP_IDF_PATH, GLOBAL_PATH, PACKAGE_PATH } from "./path";
+import { CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "../compiler/compiler";
+import { Compiler } from "../compiler/compiler";
 
-const BsConfigSchema = z.object({
-  name: z.string().min(1),
-  device: z.object({
-    kind: z.enum(['esp32', 'host']),
-    name: z.string(),
-  }),
-  runtimeDir: z.string().optional(),
-  modulesDir: z.string().optional()
-});
-
-type BsConfig = z.infer<typeof BsConfigSchema>;
 
 export default async function run() {
     try {
-        const bsConfig = readSettings();
+        const bsConfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE('./'));
         switch (bsConfig.device.kind) {
             case 'esp32':
                 await runESP32(bsConfig);
@@ -34,55 +22,33 @@ export default async function run() {
                 break;
         }
     } catch (error) {
-        logger.error('Failed to run the project.');
+        logger.error(`Failed to run the project: ${error}`);
         process.exit(1);
     }
     process.exit(0);
 }
 
-
-function readSettings(): BsConfig {
-    const configFilePath = `./${CONSTANTS.BSCRIPT_CONFIG_FILE_NAME}`;
-    if (!fs.existsSync(configFilePath)) {
-        logger.error(`Cannot find file ${configFilePath}. Run 'create-project' command.`);
-        throw new Error();
-    }
-    try {
-        const fileContent = fs.readFileSync(configFilePath, 'utf-8');
-        const jsonData = JSON.parse(fileContent);
-        return BsConfigSchema.parse(jsonData);
-    } catch (error) {
-        if (error instanceof ZodError) {
-            logger.error(`Failed to parse ${configFilePath}: ${z.treeifyError(error)}`)
-        } else {
-            logger.error(`Failed to read ${configFilePath}.`);
-        }
-        throw error;
-    }
-}
-
 async function runESP32(bsConfig: BsConfig) {
-    const entryFilePath = `./${CONSTANTS.BSCRIPT_ENTRY_FILE_NAME}`;
     try {
-        const bsSrc = fs.readFileSync(entryFilePath, 'utf-8');
+        // TODO: flashが終わっているかの確認を入れる。
         const ble = new BLE(bsConfig.device.name);
         await ble.connect();
         await ble.startSubscribe();
-        const addresses = await initDevice(ble);
-        const compileResult = compile(addresses, bsSrc, bsConfig);
-        await sendAndExecute(compileResult, ble);
+        const memoryLayout = await initDevice(ble);
+        const executableBinary = await compile(bsConfig, memoryLayout);
+        await sendAndExecute(ble, executableBinary);
         await ble.disconnect();
     } catch(error) {
         throw error;
     }
 }
 
-async function initDevice(ble: BLE): Promise<MemoryAddresses> {
+async function initDevice(ble: BLE): Promise<MemoryLayout> {
     logger.info('Initializing device...')
     const buffs = new BytecodeBufferGenerator(MAX_MTU).reset().generate();
     try {
         await ble.writeBuffers(buffs);
-        const addresses = await new Promise<MemoryAddresses>((resolve, reject) => {
+        const memoryLayout = await new Promise<MemoryLayout>((resolve, reject) => {
             try {
                 ble.addTempNotificationHandler((data) => {
                     const parseResult = bytecodeParser(data);
@@ -91,58 +57,63 @@ async function initDevice(ble: BLE): Promise<MemoryAddresses> {
                     }
                 });
             } catch (error) {
-                logger.error(`Failed to receive memory addresses. ${error}`);
+                logger.error(`Failed to receive memory layout. ${error}`);
                 reject()
             }
         });
-        return addresses;
+        return memoryLayout;
     } catch (error) {
         logger.error('Failed to initialize.');
         throw error;
     }
 }
 
-function compile(addresses: MemoryAddresses, bsSrc: string, bsConfig: BsConfig):MemoryUpdate {
+async function compile(bsConfig: BsConfig, memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
     logger.info('Compiling...');
-    try {
-        const buildDir = `./${CONSTANTS.BSCRIPT_BUILD_DIR}`;
-        if (!directoryExists(buildDir)) {
-            createDirectory(buildDir, true);
+    const compilerConfig = getCompilerConfig(bsConfig);
+    const compiler = new Compiler(memoryLayout, compilerConfig, packageReader, logger);
+    return await compiler.compile();
+}
+
+function getCompilerConfig(bsConfig: BsConfig): CompilerConfig {
+    return {
+        dirs: {
+            runtime: bsConfig.dirs?.runtime ?? GLOBAL_PATH.RUNTIME_DIR(),
+            compilerToolchain: ESP_IDF_PATH.XTENSA_GCC_DIR(),
+            std: PACKAGE_PATH.SUB_PACKAGE_DIR(bsConfig.dirs?.packages ?? GLOBAL_PATH.PACKAGES_DIR(), 'std'),
         }
-        const session = new Session(
-            addresses,
-            buildDir,
-            bsConfig.modulesDir ?? CONSTANTS.BSCRIPT_MODULES_DIR,
-            bsConfig.runtimeDir ?? CONSTANTS.BSCRIPT_RUNTIME_DIR,
-            getCompilerDir()
-        );
-        const compileResult = session.compile(bsSrc);
-        return compileResult.result;
-    } catch (error) {
-        logger.error(`Failed to compile: ${error}`);
-        throw error;
     }
 }
 
-function getCompilerDir():string {
+function packageReader(packageName: string): PackageConfig {
+    const cwd = process.cwd();
+    const packageRoot = packageName === 'main' ? cwd : PACKAGE_PATH.SUB_PACKAGE_DIR(PACKAGE_PATH.LOCAL_PACKAGES_DIR(cwd), packageName);
     try {
-        const fileContent = fs.readFileSync(CONSTANTS.ESP_IDF_TOOL_JSON, 'utf-8');
-        const jsonData = JSON.parse(fileContent);
-        const xtensaEspElfVersion = jsonData.tools.find((t:any) => t.name === 'xtensa-esp-elf').versions[0].name;
-        return CONSTANTS.COMPILER_DIR(xtensaEspElfVersion);
+        const bsConfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE(packageRoot));
+        return {
+            name: packageName,
+            espIdfComponents: bsConfig.espIdfComponents ?? [],
+            dependencies: bsConfig.dependencies ?? [],
+            dirs: {
+                root: packageRoot,
+                dist: PACKAGE_PATH.DIST_DIR(packageRoot),
+                build: PACKAGE_PATH.BUILD_DIR(packageRoot),
+                packages: PACKAGE_PATH.LOCAL_PACKAGES_DIR(packageRoot)
+            }
+        }
     } catch (error) {
-        logger.error(`Faild to read ${CONSTANTS.ESP_IDF_TOOL_JSON}: ${error}`);
-        throw error;
+        throw new Error(`Faild to read ${packageName}: ${error?.toString()}`);
     }
 }
 
-async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<void> {
+async function sendAndExecute(ble: BLE, executableBinary: ExecutableBinary) {
     logger.info("Sending...");
-    const bytecodeGenerator = new BytecodeBufferGenerator(MAX_MTU);
-    for (const block of compileResult.blocks) {
-        bytecodeGenerator.load(block.address, Buffer.from(block.data, "hex"));
-    }
-    for (const entryPoint of compileResult.entryPoints) {
+    const bytecodeGenerator = new BytecodeBufferGenerator(MAX_MTU)
+    if (executableBinary.iram) bytecodeGenerator.load(executableBinary.iram.address, executableBinary.iram.data);
+    if (executableBinary.dram) bytecodeGenerator.load(executableBinary.dram.address, executableBinary.dram.data);
+    if (executableBinary.iflash) bytecodeGenerator.load(executableBinary.iflash.address, executableBinary.iflash.data);
+    if (executableBinary.dflash) bytecodeGenerator.load(executableBinary.dflash.address, executableBinary.dflash.data);
+    for (const entryPoint of executableBinary.entryPoints) {
         bytecodeGenerator.jump(entryPoint.id, entryPoint.address);
     }
     try {
@@ -162,7 +133,7 @@ async function sendAndExecute(compileResult: MemoryUpdate, ble: BLE): Promise<vo
             try {
                 ble.setNotificationHandler((data) => {
                     const parseResult = bytecodeParser(data);
-                    if (parseResult.bytecode === BYTECODE.RESULT_EXECTIME) {
+                    if (parseResult.bytecode === BYTECODE.RESULT_EXECTIME && parseResult.id >= 0) {
                         resolve(parseResult.exectime);
                     } else if (parseResult.bytecode === BYTECODE.RESULT_LOG) {
                         logger.bsLog(parseResult.log);

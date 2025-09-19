@@ -1,9 +1,11 @@
 import noble, { Characteristic, Peripheral } from '@abandonware/noble';
 import { Buffer } from "node:buffer";
 import { logger } from "./utils";
-import { BLE_SERVICE_UUID, BLE_CHARACTERISTIC_UUID } from './constants';
 
 export const MAX_MTU = 495;
+
+const SERVICE_UUID = '00ff';
+const CHARACTERISTIC_UUID = 'ff01';
 
 type BleState = 'disconnected' | 'connecting' | 'connected' | 'disconnecting';
 
@@ -77,7 +79,7 @@ export default class BLE {
         await this._waitForPoweredOn();
 
         logger.info(`[Bluetooth] Scanning for ${this.deviceName}...`);
-        await noble.startScanningAsync([BLE_SERVICE_UUID], false);
+        await noble.startScanningAsync([SERVICE_UUID], false);
 
         const peripheral = await new Promise<Peripheral>((resolve) => {
             const discoverHandler = (p: Peripheral) => {
@@ -92,7 +94,7 @@ export default class BLE {
         await noble.stopScanningAsync();
         this.peripheral = peripheral;
 
-        logger.info(`[Bluetooth] Found target device: ${this.deviceName} (${peripheral.address})`);
+        logger.info(`[Bluetooth] Found target device: ${this.deviceName}`);
 
         this.peripheral.once('disconnect', () => {
             if (this.state !== 'disconnecting') {
@@ -108,8 +110,8 @@ export default class BLE {
         logger.info('[Bluetooth] Connected.');
 
         const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(
-            [BLE_SERVICE_UUID],
-            [BLE_CHARACTERISTIC_UUID]
+            [SERVICE_UUID],
+            [CHARACTERISTIC_UUID]
         );
 
         if (characteristics.length === 0) {

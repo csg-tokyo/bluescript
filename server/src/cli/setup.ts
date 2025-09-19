@@ -1,9 +1,9 @@
-import { getHostOSType, directoryExists, createDirectory, logger, executeCommand, deleteDirectory } from "./utils";
-import * as CONSTANTS from './constants';
+import { getHostOSType, logger, executeCommand } from "./utils";
 import { execSync } from "child_process";
 import axios from 'axios';
 import extract from 'extract-zip';
 import * as fs from 'fs';
+import { ESP_IDF_PATH, GLOBAL_PATH, ZIP_URL } from "./path";
 
 
 export default async function setup(device: string) {
@@ -29,7 +29,7 @@ async function setupESP32() {
     const osType = getHostOSType();
     try {
         if (osType === 'macos') {
-            createDirectory(CONSTANTS.BSCRIPT_DIR, true);
+            fs.mkdirSync(GLOBAL_PATH.BSCRIPT_DIR(), {recursive: true});
             await installEspidfPrerequisitePackages();
             await setupEspidf();
             await downloadAndUnzipBlueScriptCode();
@@ -45,17 +45,18 @@ async function setupESP32() {
 
 async function downloadAndUnzipBlueScriptCode() {
     logger.info('Downloading BlueScript code.');
-    if (directoryExists(CONSTANTS.BSCRIPT_RUNTIME_DIR)) {
-        logger.info(`Found existing ${CONSTANTS.BSCRIPT_RUNTIME_DIR}. Deleting...`);
-        deleteDirectory(CONSTANTS.BSCRIPT_RUNTIME_DIR);
+    if (fs.existsSync(GLOBAL_PATH.RUNTIME_DIR())) {
+        logger.info(`Found existing ${GLOBAL_PATH.RUNTIME_DIR()}. Deleting...`);
+        fs.rmSync(GLOBAL_PATH.RUNTIME_DIR(), { recursive: true, force: true });
     }
-    if (directoryExists(CONSTANTS.BSCRIPT_MODULES_DIR)) {
-        logger.info(`Found existing ${CONSTANTS.BSCRIPT_MODULES_DIR}. Deleting...`);
-        deleteDirectory(CONSTANTS.BSCRIPT_MODULES_DIR);
+    if (fs.existsSync(GLOBAL_PATH.PACKAGES_DIR())) {
+        logger.info(`Found existing ${GLOBAL_PATH.PACKAGES_DIR()}. Deleting...`);
+        fs.rmSync(GLOBAL_PATH.PACKAGES_DIR(), { recursive: true, force: true });
     }
     try {
-        await downloadAndUnzip(CONSTANTS.BSCRIPT_RUNTIME_ZIP_URL, CONSTANTS.BSCRIPT_DIR);
-        await downloadAndUnzip(CONSTANTS.BSCRIPT_MODULES_ZIP_URL, CONSTANTS.BSCRIPT_DIR);
+        const version = 'v1.1.4';
+        await downloadAndUnzip(ZIP_URL.RUNTIME(version), GLOBAL_PATH.BSCRIPT_DIR());
+        await downloadAndUnzip(ZIP_URL.PACKAGES(version), GLOBAL_PATH.BSCRIPT_DIR());
     } catch (error) {
         throw error;
     }
@@ -82,25 +83,27 @@ async function installEspidfPrerequisitePackages() {
 }
 
 async function setupEspidf() {
-    logger.info(`Start setting up ESP-IDF ${CONSTANTS.ESP_IDF_VERSION}.`);
+    const version = ESP_IDF_PATH.VERSION;
+    const root = ESP_IDF_PATH.ROOT();
+    logger.info(`Start setting up ESP-IDF ${version}.`);
     try {
-        if (directoryExists(CONSTANTS.ESP_DIR)) {
-            logger.info(`${CONSTANTS.ESP_DIR} already exists.`);
+        if (fs.existsSync(root)) {
+            logger.info(`${root} already exists.`);
             logger.info(`Skip cloning ESP-IDF. If you don't want to skip this step, run 'bscript remove esp32'.`);
         } else {
-            createDirectory(CONSTANTS.ESP_DIR, true);
+            fs.mkdirSync(root, {recursive: true});
             if (!isPackageInstalled('git')) {
                 logger.error('Cannot find git command. Please install git.');
                 throw new Error();
             }
-            logger.info(`Cloning ESP-IDF ${CONSTANTS.ESP_IDF_VERSION}. This may take a while ...`);
-            await executeCommand(`git clone -b ${CONSTANTS.ESP_IDF_VERSION} --recursive ${CONSTANTS.ESP_IDF_GIT_REPO}`, CONSTANTS.ESP_DIR);
+            logger.info(`Cloning ESP-IDF ${version}. This may take a while ...`);
+            await executeCommand(`git clone -b ${version} --recursive ${ESP_IDF_PATH.GIT_REPO}`, root);
         }
         logger.info(`Installing packages for ESP-IDF. This may take a while ...`);
-        await executeCommand(`${CONSTANTS.ESP_DIR}/esp-idf/install.sh`);
+        await executeCommand(ESP_IDF_PATH.INSTALL_FILE());
         logger.success(`Setting up ESP-IDF was completed.`);
     } catch (error) {
-        logger.error(`Failed to setup ESP-IDF ${CONSTANTS.ESP_IDF_VERSION}: ${error}`);
+        logger.error(`Failed to setup ESP-IDF ${version}: ${error}`);
         throw error;
     }
 }

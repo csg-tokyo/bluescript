@@ -1,310 +1,359 @@
-import {MemoryBlock, ShadowMemory} from "./shadow-memory";
-import {ElfReader, SECTION_TYPE, Symbol} from "./elf-reader";
+import { GlobalVariableNameTable } from "../transpiler/code-generator/variables";
+import { transpile } from "../transpiler/code-generator/code-generator";
 import * as fs from "fs";
-import {execSync} from "child_process";
-import {
-  LinerScriptMemoryAttribute,
-  LinkerScript,
-  LinkerScriptMemoryRegion,
-  LinkerScriptSection
-} from "./linker-script";
-import { FILE_PATH } from "../constants";
+import * as path from "path";
+import {Buffer} from "node:buffer";
+import { spawn } from "child_process";
+import generateLinkerScript from "./linker-script";
+import generateMakefile from "./makefile";
+import { ElfReader } from "./elf-reader";
 
 
-const EXTERNAL_SYMBOL_SECTION = '.external_symbols'
+export type PackageConfig = {
+    name: string,
+    espIdfComponents: string[],
+    dependencies: string[],
+    dirs: {
+        root: string,
+        dist: string,
+        build: string,
+        packages: string,
+    }
+}
 
+export type CompilerConfig = {
+    dirs: {
+        runtime: string,
+        compilerToolchain: string,
+        std: string
+    }
+};
+
+export type MemoryLayout = {
+    iram:{address:number, size:number},
+    dram:{address:number, size:number},
+    iflash:{address:number, size:number},
+    dflash:{address:number, size:number},
+}
+
+
+type MemoryRegion = {name: string, address: number, size: number}
+
+export class ShadowMemory {
+    public iram: MemoryRegion;
+    public dram: MemoryRegion;
+    public iflash: MemoryRegion;
+    public dflash: MemoryRegion;
+
+    constructor(memoryLayout: MemoryLayout) {
+        this.iram = {name: '.iram', ...memoryLayout.iram};
+        this.dram = {name: '.dram', ...memoryLayout.dram};
+        this.iflash = {name: '.iflash', ...memoryLayout.iflash};
+        this.dflash = {name: '.dflash', ...memoryLayout.dflash};
+    }
+}
+
+export type ExecutableBinary = {
+    iram?: {address: number, data: Buffer},
+    dram?: {address: number, data: Buffer},
+    iflash?: {address: number, data: Buffer},
+    dflash?: {address: number, data: Buffer},
+    entryPoints: {id: number, address: number}[]
+}
+
+const MODULE_PATH = (pkg: PackageConfig, relativePath: string) => path.normalize(path.join(pkg.dirs.root, `${relativePath}.bs`));
+const MODULE_C_PATH = (dir: string, moduleName: string) => path.join(dir, `bs_${moduleName}.c`);
+const ARCHIVE_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.build, `lib${pkg.name}.a`);
+const MAKEFILE_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.dist, 'Makefile');
+const LINKER_SCRIPT = (pkg: PackageConfig) => path.join(pkg.dirs.build, "linkerscript.ld");
+const LINKED_ELF_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.build, `${pkg.name}.elf`);
+const STD_MODULE_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.std, 'index.bs');
+const LD_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.compilerToolchain, 'xtensa-esp32-elf-ld');
+const RUNTIME_ELF_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.runtime, 'ports/esp32/build/bluescript.elf');
+const C_PROLOG = (compilerConfig: CompilerConfig) => `
+#include <stdint.h>
+#include "${path.join(compilerConfig.dirs.runtime, '/core/include/c-runtime.h')}"
+
+`
 
 export class Compiler {
-  protected readonly C_FILE:string;
-  protected readonly OBJ_FILE: string;
-  protected readonly LINKER_SCRIPT: string;
-  protected readonly LINKED_ELF: string;
-  protected readonly GCC;
-  protected readonly LD;
+    private config: CompilerConfig;
+    private espidfComponents: ESPIDFComponents;
+    private memory: ShadowMemory;
+    private packageReader: (name: string) => PackageConfig;
+    private logger: {
+            info: (message: string) => void,
+            error: (message: string) => void
+    };
 
-  protected readonly DATA_SECTIONS = ['.data', '.data.*', '.rodata', '.rodata.*', '.bss', '.bss.*', '.dram*'];
-  protected readonly EXECUTABLE_SECTIONS = ['.literal', '.text', '.literal.*', '.text.*', '.iram*'];
-  protected readonly IRAM_SECTION_NAME = '.iram';
-  protected readonly DRAM_SECTION_NAME = '.dram';
-  protected readonly FLASH_SECTION_NAME = '.flash';
-  
+    constructor(
+        memoryLayout: MemoryLayout, 
+        config: CompilerConfig, 
+        packageReader: (name: string) => PackageConfig,
+        logger: {
+            info: (message: string) => void,
+            error: (message: string) => void
+        }
+    ) {
+        this.config = config;
+        this.espidfComponents = new ESPIDFComponents(config.dirs.runtime);
+        this.memory = new ShadowMemory(memoryLayout);
+        this.packageReader = packageReader;
+        this.logger = logger;
+    }
 
-  constructor(buildDir: string, compilerDir = '') {
-    this.C_FILE = FILE_PATH.C_FILE(buildDir);
-    this.OBJ_FILE = FILE_PATH.OBJ_FILE(buildDir);
-    this.LINKER_SCRIPT = FILE_PATH.LINKER_SCRIPT(buildDir);
-    this.LINKED_ELF = FILE_PATH.LINKED_ELF(buildDir);
+    public async compile(): Promise<ExecutableBinary> {
+        const {mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints} = this._transpile();
+        await this._compile(mainPackage, subPackages);
+        await this._link(mainPackage, subPackages, mainEntryPoint);
+        return this._generateExecutableBinary(mainPackage, mainEntryPoint, subModuleEntryPoints);
+    }
 
-    this.GCC = FILE_PATH.GCC(compilerDir);
-    this.LD = FILE_PATH.LD(compilerDir);
-  }
+    private _transpile() {
+        let compileId = 0;
+        const stdSrc = fs.readFileSync(STD_MODULE_PATH(this.config), 'utf-8');
+        const nameTable = transpile(++compileId, stdSrc, undefined).names;
+        const modules = new Map<string, GlobalVariableNameTable>(); // <path, nameTable>
+        const subModuleEntryPoints: string[] = [];
 
-  compile(shadowMemory: ShadowMemory, compileId: number, src: string, entryPointName: string) {
-    const objFile = this._compile(src);
-    const linkedElf = this.link(shadowMemory, objFile, entryPointName);
-    this.load(shadowMemory, compileId, linkedElf, entryPointName)
-  }
+        const mp = this.packageReader('main');
+        const mainPackage: PackageConfig = mp;
+        const visitedPackages: PackageConfig[] = [];
+        let currentPackage: PackageConfig = mainPackage;
 
-  protected _compile(src: string) {
-    fs.writeFileSync(this.C_FILE, src);
-    execSync(`${this.GCC} -c -O2 ${this.C_FILE} -o ${this.OBJ_FILE} -w -fno-common -ffunction-sections -mtext-section-literals -mlongcalls -fno-zero-initialized-in-bss`);
-    return new ElfReader(this.OBJ_FILE);
-  }
+        const importer = (fname: string) => {
+            let relativePath: string;
+            if (!fname.startsWith('.')) {
+                let pkg = visitedPackages.find(p => p.name === fname)
+                if (!pkg) { // not visited package
+                    currentPackage = this.packageReader(fname);
+                    visitedPackages.push(currentPackage);
+                }
+                relativePath = './index';
+            } else {
+                relativePath = fname;
+            }
 
-  protected link(shadowMemory: ShadowMemory, objFile: ElfReader, entryPointName: string) {
-    const externalSymbols = this.readExternalSymbols(shadowMemory, objFile);
-    const linkerScript = this.generateLinkerScript(shadowMemory, externalSymbols, objFile, entryPointName);
-    const linkedElf = this._link(linkerScript);
-    this.allocateDram(shadowMemory, linkedElf);
-    this.allocateFlash(shadowMemory, linkedElf);
-    return linkedElf;
-  }
+            const modulePath = MODULE_PATH(currentPackage, relativePath);
+            const mod = modules.get(modulePath);
+            if (mod)
+                return mod;
+            else {
+                if (!fs.existsSync(modulePath)) {
+                    throw new Error(`Cannot find ${modulePath}`);
+                }
+                // Transpile
+                const src = fs.readFileSync(modulePath).toString();
+                const id = ++compileId;
+                const result = transpile(id, src, nameTable, importer, id);
+                modules.set(modulePath, result.names);
+                subModuleEntryPoints.push(result.main);
+                // Save C code
+                const cSaveDir = path.join(currentPackage.dirs.dist, path.parse(relativePath).root);
+                fs.mkdirSync(cSaveDir, {recursive: true});
+                fs.writeFileSync(MODULE_C_PATH(cSaveDir, path.parse(relativePath).name), C_PROLOG(this.config) + result.code);
+                return result.names;
+            }
+        }
+    
+        try {
+            this.logger.info('Transpiling...');
+            fs.mkdirSync(mainPackage.dirs.dist, {recursive: true});
+            const mainSrc = fs.readFileSync(MODULE_PATH(mainPackage, './index'), 'utf-8');
+            const result = transpile(++compileId, mainSrc, nameTable, importer);
+            fs.writeFileSync(MODULE_C_PATH(mainPackage.dirs.dist, 'index'), C_PROLOG(this.config) + result.code);
+            return {mainPackage, subPackages: visitedPackages, mainEntryPoint: result.main, subModuleEntryPoints};
+        } catch (error) {
+            this.logger.error(`Failed to transpile: ${error}`);
+            throw error;
+        }  
+    }
 
-  protected readExternalSymbols(shadowMemory: ShadowMemory, objFile: ElfReader) {
-    const externalSymbols: Symbol[] = [];
-    objFile.readExternalSymbols().forEach(symbol => {
-      const definedSymbol = shadowMemory.symbols.get(symbol.name);
-      if (definedSymbol !== undefined)
-        externalSymbols.push(definedSymbol);
-    });
-    return externalSymbols;
-  }
+    private async _compile(mainPackage: PackageConfig, subPackages: PackageConfig[]) {
+        this.logger.info('Compiling with GCC...');
 
-  protected generateLinkerScript(shadowMemory: ShadowMemory, externalSymbols: Symbol[], objFile: ElfReader, entryPointName: string):LinkerScript {
-    const dramMemory = new LinkerScriptMemoryRegion(
-      'DRAM',
-      [new LinerScriptMemoryAttribute('read/write'), new LinerScriptMemoryAttribute('readonly')],
-      shadowMemory.dram.getNextAddress(),
-      1000000);
-    const flashMemory = new LinkerScriptMemoryRegion(
-      'FLASH',
-      [new LinerScriptMemoryAttribute('executable')],
-      shadowMemory.flash.getNextAddress(),
-      1000000);
-    const externalSymbolMemory = new LinkerScriptMemoryRegion(
-      'EXTERNAL_SYMBOLS',
-      [new LinerScriptMemoryAttribute('executable')],
-      0, 0)
-    const memories = [dramMemory, flashMemory, externalSymbolMemory];
-    const externalSymbolSection = new LinkerScriptSection(EXTERNAL_SYMBOL_SECTION, externalSymbolMemory);
-    externalSymbols.forEach(symbol => {
-      externalSymbolSection.symbol(symbol.name, symbol.address);
-    });
-    const sections = [
-      new LinkerScriptSection(this.DRAM_SECTION_NAME, dramMemory)
-        .section(objFile.filePath, this.DATA_SECTIONS),
-      new LinkerScriptSection(this.FLASH_SECTION_NAME, flashMemory)
-        .section(objFile.filePath, this.EXECUTABLE_SECTIONS),
-      externalSymbolSection
-    ];
-    return new LinkerScript()
-      .input([objFile.filePath])
-      .memory(memories)
-      .sections(sections)
-      .entry(entryPointName)
-  }
+        // Compile each package with make.
+        const commonIncludeDirs = this.espidfComponents.commonIncludeDirs;
+        for (const pkg of [mainPackage, ...subPackages]) {
+            try {
+                this.logger.info(`Compiling ${pkg.name}...`);
+                const makefile = generateMakefile(
+                    this.config.dirs.compilerToolchain,
+                    pkg,
+                    [...this.espidfComponents.getIncludeDirs(pkg.dependencies), ...commonIncludeDirs],
+                    ARCHIVE_PATH(pkg)
+                );
+                fs.writeFileSync(MAKEFILE_PATH(pkg), makefile);
+                await executeCommand('make', pkg.dirs.dist, false);
+            } catch (error) {
+                this.logger.error(`Failed to compile ${pkg.name}: ${error}`);
+                throw error;
+            }
+        }
+    }
 
-  protected _link(linkerScript: LinkerScript) {
-    linkerScript.save(this.LINKER_SCRIPT)
-    execSync(`${this.LD} -o ${this.LINKED_ELF} -T ${this.LINKER_SCRIPT}`);
-    return new ElfReader(this.LINKED_ELF);
-  }
+    private async _link(mainPackage: PackageConfig, subPackages: PackageConfig[], mainEntryPoint: string) {
+        this.logger.info(`Linking...`);
+        try {
+            const cwd = process.cwd();
+            const elfReader = new ElfReader(RUNTIME_ELF_PATH(this.config));
+            const symbolsInRuntime = elfReader.readAllSymbols().map(symbol => ({name: symbol.name, address: symbol.address}));
+            const linkerscript = generateLinkerScript(
+                [path.relative(cwd, ARCHIVE_PATH(mainPackage)), ...subPackages.map(pkg=>path.relative(cwd, ARCHIVE_PATH(pkg)))],
+                this._getArchivesWithEspComponents(mainPackage, subPackages).map(ar => path.relative(cwd, ar)),
+                this.memory,
+                symbolsInRuntime,
+                mainEntryPoint
+            );
+            fs.writeFileSync(LINKER_SCRIPT(mainPackage), linkerscript);
+            await executeCommand(`${LD_PATH(this.config)} -o ${LINKED_ELF_PATH(mainPackage)} -T ${LINKER_SCRIPT(mainPackage)} --gc-sections`, cwd);
+        } catch (error) {
+            this.logger.error(`Failed to link: ${error}`);
+            throw error;
+        }
+    }
 
-  protected allocateDram(shadowMemory: ShadowMemory, elf: ElfReader) {
-    const dramSection = elf.readSectionByName(this.DRAM_SECTION_NAME);
-    if (dramSection !== undefined)
-      shadowMemory.dram.allocate(dramSection);
-  }
+    private _getArchivesWithEspComponents(mainPackage: PackageConfig, subPackages: PackageConfig[]): string[] {
+        const espArchivesFromMain = this.espidfComponents.getArchiveFilePaths(mainPackage.espIdfComponents);
+        const resultArchives = [ARCHIVE_PATH(mainPackage), ...espArchivesFromMain];
+        const visitedEspArchives = new Set(espArchivesFromMain);
+        const reversedPackages = subPackages.reverse();
+        const addEspArchive = (espArchive: string) => {
+            if (!visitedEspArchives.has(espArchive)) {
+                resultArchives.push(espArchive);
+                visitedEspArchives.add(espArchive);
+            }
+        }
+        for (const pkg of reversedPackages) {
+            resultArchives.push(ARCHIVE_PATH(pkg));
+            const espArchivesFromPkg = this.espidfComponents.getArchiveFilePaths(pkg.espIdfComponents);
+            espArchivesFromPkg.forEach(ar => addEspArchive(ar));
+        }
+        this.espidfComponents.commonArchiveFilePaths.forEach(ar => addEspArchive(ar));
+        return resultArchives;
+    }
 
-  protected allocateFlash(shadowMemory: ShadowMemory, elf: ElfReader) {
-    const flashSection = elf.readSectionByName(this.FLASH_SECTION_NAME);
-    if (flashSection !== undefined)
-      shadowMemory.flash.allocate(flashSection);
-  }
-
-  protected load(shadowMemory: ShadowMemory, compileId:number, linkedElf: ElfReader, entryPointName: string) {
-    const dramSection = linkedElf.readSectionByName(this.DRAM_SECTION_NAME);
-    const flashSection = linkedElf.readSectionByName(this.FLASH_SECTION_NAME);
-    linkedElf.readDefinedSymbols().forEach(symbol => {
-      shadowMemory.symbols.set(symbol.name, symbol);
-    });
-    const entryPoint = shadowMemory.symbols.get(entryPointName)?.address;
-    if (entryPoint === undefined)
-      throw new Error(`Cannot find entry point: ${entryPointName}`);
-    shadowMemory.loadToDram(dramSection !== undefined ? [dramSection]: []);
-    shadowMemory.loadToIFlash(flashSection !== undefined ? [flashSection]: []);
-    shadowMemory.loadEntryPoint(compileId, entryPoint);
-  }
+    private _generateExecutableBinary(
+        mainPackage: PackageConfig, mainEntryPointName: string, subEntryPointNames: string[]
+    ): ExecutableBinary {
+        const linkedElf = new ElfReader(LINKED_ELF_PATH(mainPackage));
+        const definedSymbols = linkedElf.readDefinedSymbols();
+        const iramSection = linkedElf.readSectionByName(this.memory.iram.name);
+        const dramSection = linkedElf.readSectionByName(this.memory.dram.name);
+        const iflashSection = linkedElf.readSectionByName(this.memory.iflash.name);
+        const dflashSection = linkedElf.readSectionByName(this.memory.dflash.name);
+        const entryPoints: {id: number, address: number}[] = [];
+        const setEntryPoint = (id: number, name: string) => {
+            const symbol = definedSymbols.find(s => s.name === name);
+            if (symbol) { entryPoints.push({id, address: symbol.address}); }
+            else { throw new Error(`Cannot find ${name} in executable elf.`) }
+        }
+        subEntryPointNames.forEach(epn => setEntryPoint(-1, epn));
+        setEntryPoint(0, mainEntryPointName);
+        return {
+            iram: iramSection ? {address: iramSection.address, data: iramSection.value} : undefined,
+            dram: dramSection ? {address: dramSection.address, data: dramSection.value} : undefined,
+            iflash: iflashSection ? {address: iflashSection.address, data: iflashSection.value} : undefined,
+            dflash: dflashSection ? {address: dflashSection.address, data: dflashSection.value} : undefined,
+            entryPoints
+        }
+    }
 }
 
 
-export class InteractiveCompiler extends Compiler {
-  constructor(buildDir:string, compilerDir = '') {
-    super(buildDir, compilerDir);
-  }
+class ESPIDFComponents {
+    public readonly commonIncludeDirs: string[];
+    public readonly commonArchiveFilePaths: string[];
 
-  compile(shadowMemory: ShadowMemory, compileId: number, src: string, entryPointName: string) {
-    const objFile = this._compile(src);
-    const linkedElf = this.interactiveLink(shadowMemory, compileId, objFile, entryPointName);
-    this.load(shadowMemory, compileId, linkedElf, entryPointName)
-  }
+    private readonly COMPONENTS_PATH_PREFIX = /^.*microcontroller/;
+    private readonly COMMON_COMPONENTS = ["cxx", "newlib", "freertos", "esp_hw_support", "heap", "log", "soc", "hal", "esp_rom", "esp_common", "esp_system"];
+    private readonly RUNTIME_DIR: string; 
+    private readonly SDK_CONFIG_DIR: string;
 
-  protected interactiveLink(shadowMemory: ShadowMemory, compileId: number, objFile: ElfReader, entryPointName: string) {
-    this.registerFreeableFuncSections(shadowMemory, compileId, objFile);
-    const iramMemoryBlocks = this.allocateIram(shadowMemory, objFile);
-    this.registerFreeableEntryPoint(shadowMemory, compileId, entryPointName);
-    const externalSymbols = this.readExternalSymbols(shadowMemory, objFile);
-    const linkerScript = this.generateInteractiveLinkerScript(shadowMemory, iramMemoryBlocks, externalSymbols, objFile, entryPointName);
-    const linkedElf = this._link(linkerScript);
-    this.allocateDram(shadowMemory, linkedElf);
-    return linkedElf;
-  }
+    private dependenciesInfo: {
+        [key: string]: {
+            file: string,
+            dir: string,
+            reqs: string[], 
+            priv_reqs: string[],
+            include_dirs: string[]
+    }};
 
-  protected load(shadowMemory: ShadowMemory, compileId:number, linkedElf: ElfReader, entryPointName: string) {
-    const iramSections = linkedElf
-      .readSectionsStartWith(this.IRAM_SECTION_NAME)
-      .filter(section => section.size !== 0);
-    linkedElf.readDefinedSymbols().forEach(symbol => {
-      shadowMemory.symbols.set(symbol.name, symbol);
-    });
-    shadowMemory.loadToIram(iramSections);
-    const dramSection = linkedElf.readSectionByName(this.DRAM_SECTION_NAME);
-    shadowMemory.loadToDram(dramSection !== undefined ? [dramSection]: []);
-    const entryPoint = shadowMemory.symbols.get(entryPointName)?.address;
-    if (entryPoint === undefined)
-      throw new Error(`Cannot find entry point: ${entryPointName}`);
-    shadowMemory.loadEntryPoint(compileId, entryPoint);
-  }
+    constructor(runtimeDir: string) {
+        this.RUNTIME_DIR = runtimeDir;
+        this.SDK_CONFIG_DIR = path.join(runtimeDir, 'ports/esp32/build/config');
+        const dependenciesFile = path.join(runtimeDir, 'ports/esp32/build/project_description.json');
+        this.dependenciesInfo = JSON.parse(fs.readFileSync(dependenciesFile).toString()).build_component_info;
+        this.commonIncludeDirs = this.getIncludeDirs(this.COMMON_COMPONENTS);
+        this.commonArchiveFilePaths = this.getArchiveFilePaths(this.COMMON_COMPONENTS);
+    }
 
-  private registerFreeableFuncSections(shadowMemory: ShadowMemory, compileId: number, objFile: ElfReader) {
-    const funcSymbols = objFile.readFunctions();
-    funcSymbols.forEach(symbol => {
-      if (shadowMemory.symbols.has(symbol.name))
-        shadowMemory.setFreeableIramSection(compileId, this.funcNameToSectionName(symbol.name))
-    });
-  }
+    public getIncludeDirs(rootComponentNames: string[]) {
+        const components = this._getComponents(rootComponentNames);
+        const includeDirs:string[] = [];
+        for (const component of components) {
+            for (const dir of component.include_dirs) {
+                includeDirs.push(path.join(component.dir, dir));
+            }
+        }
+        includeDirs.push(this.SDK_CONFIG_DIR);
+        return includeDirs;
+    }
 
-  private registerFreeableEntryPoint(shadowMemory: ShadowMemory, compileId: number, entryPoint: string) {
-    shadowMemory.setFreeableIramSection(compileId, this.funcNameToSectionName(entryPoint));
-  }
+    public getArchiveFilePaths(rootComponentNames: string[]) {
+        return this._getComponents(rootComponentNames).map(c => c.file);
+    }
 
-  private generateInteractiveLinkerScript(
-    shadowMemory: ShadowMemory, iramBlocks: MemoryBlock[],
-    externalSymbols: Symbol[], objFile: ElfReader, entryPointName: string) {
-    const memories: LinkerScriptMemoryRegion[] = [];
-    const sections: LinkerScriptSection[] = [];
-    const externalSymbolMemory = new LinkerScriptMemoryRegion(
-      'EXTERNAL_SYMBOLS',
-      [new LinerScriptMemoryAttribute('executable')],
-      0, 0
-    );
-    const externalSymbolSection = new LinkerScriptSection(EXTERNAL_SYMBOL_SECTION, externalSymbolMemory);
-    externalSymbols.forEach(symbol => {
-      externalSymbolSection.symbol(symbol.name, symbol.address);
-    });
-    memories.push(externalSymbolMemory);
-    sections.push(externalSymbolSection);
+    private _getComponents(rootComponentNames: string[]) {
+        let tmp = [...rootComponentNames];
+        let visited = new Set<string>();
+        const components = [];
+        while(tmp.length > 0) {
+        let curr = tmp.shift() as string;
+        visited.add(curr)
+        tmp = tmp.concat(
+            this.dependenciesInfo[curr].priv_reqs.filter((r:string) => !visited.has(r)),
+            this.dependenciesInfo[curr].reqs.filter((r:string) => !visited.has(r))
+        );
+        if (this.dependenciesInfo[curr].file !== undefined && this.dependenciesInfo[curr].file !== '')
+            components.push(this.dependenciesInfo[curr]);
+        }
+        return components;
+    }
 
-    iramBlocks.forEach((block , index) => {
-      const memoryRegion = new LinkerScriptMemoryRegion(
-        `IRAM${index}`,
-        [new LinerScriptMemoryAttribute('executable')],
-        block.address, block.size);
-      const section = new LinkerScriptSection(`${this.IRAM_SECTION_NAME}${index}`, memoryRegion)
-        .section(objFile.filePath, [block.sectionName ?? ''])
-        .align(4);
-      memories.push(memoryRegion);
-      sections.push(section);
-    });
-    const dramMemory = new LinkerScriptMemoryRegion(
-      'DRAM',
-      [new LinerScriptMemoryAttribute('read/write'), new LinerScriptMemoryAttribute('readonly')],
-      shadowMemory.dram.getNextAddress(),
-      1000000);
-    memories.push(dramMemory);
-    sections.push(new LinkerScriptSection(this.DRAM_SECTION_NAME, dramMemory)
-      .section(objFile.filePath, this.DATA_SECTIONS))
-
-    return new LinkerScript()
-      .input([objFile.filePath])
-      .entry(entryPointName)
-      .memory(memories)
-      .sections(sections)
-  }
-
-  private allocateIram(shadowMemory: ShadowMemory, objFile: ElfReader) {
-    const executableSections = objFile.readSections(SECTION_TYPE.EXECUTABLE).filter(section => section.size !== 0);
-    return executableSections.map(section => shadowMemory.iram.allocate(section));
-  }
-
-  private funcNameToSectionName(funcName: string) {
-    return `.text.${funcName}`;
-  }
+    private _convertRuntimeDirPath(absolutePath: string) {
+        return absolutePath.replace(this.COMPONENTS_PATH_PREFIX, this.RUNTIME_DIR);
+    }
 }
 
-export class ModuleCompiler extends Compiler {
-  protected readonly MODULE_LINKER_SCRIPT: string;
-  protected readonly MODULE_LINKED_ELF: string;
 
-  constructor(buildDir: string, compilerDir = '') {
-    super(buildDir, compilerDir);
-    this.MODULE_LINKER_SCRIPT = FILE_PATH.MODULE_LINKER_SCRIPT(buildDir);
-    this.MODULE_LINKED_ELF = FILE_PATH.MODULE_LINKED_ELF(buildDir);
-  }
+function executeCommand(command: string, cwd?: string, showStdout:boolean=true): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const executeProcess = spawn(command, {shell: true, cwd});
 
-  override compile(shadowMemory: ShadowMemory, compileId: number, moduleName: string, entryPointName: string) {
-    const executableElf = this.moduleLink(shadowMemory, moduleName, entryPointName);
-    this.load(shadowMemory, compileId, executableElf, entryPointName)
-  }
-
-  private moduleLink(shadowMemory: ShadowMemory, moduleName: string, entryPointName: string): ElfReader {
-    const linkerScript = this.generateModuleLinkerScript(shadowMemory, moduleName, entryPointName);
-    const linkedElf = this._link(linkerScript);
-    this.allocateDram(shadowMemory, linkedElf);
-    this.allocateFlash(shadowMemory, linkedElf);
-    return linkedElf;
-  }
-
-  override _link(linkerScript: LinkerScript) {
-    linkerScript.save(this.MODULE_LINKER_SCRIPT);
-    execSync(`${this.LD} -o ${this.MODULE_LINKED_ELF} -T ${this.MODULE_LINKER_SCRIPT} --gc-sections`);
-    return new ElfReader(this.MODULE_LINKED_ELF);
-  }
-
-  private generateModuleLinkerScript(shadowMemory: ShadowMemory, moduleName: string, entryPointName: string) {
-    const moduleObjFile = shadowMemory.componentsInfo.getComponentPath(moduleName)
-    const dramMemory = new LinkerScriptMemoryRegion(
-      'DRAM',
-      [new LinerScriptMemoryAttribute('read/write'), new LinerScriptMemoryAttribute('readonly')],
-      shadowMemory.dram.getNextAddress(),
-      1000000);
-    const flashMemory = new LinkerScriptMemoryRegion(
-      'FLASH',
-      [new LinerScriptMemoryAttribute('executable')],
-      shadowMemory.flash.getNextAddress(),
-      1000000);
-    const externalSymbolMemory = new LinkerScriptMemoryRegion(
-      'EXTERNAL_SYMBOLS',
-      [new LinerScriptMemoryAttribute('executable')],
-      0, 0)
-    const memories = [dramMemory, flashMemory, externalSymbolMemory];
-    const externalSymbolSection = new LinkerScriptSection(EXTERNAL_SYMBOL_SECTION, externalSymbolMemory);
-    shadowMemory.symbols.forEach(symbol => {
-      externalSymbolSection.symbol(symbol.name, symbol.address);
+    executeProcess.stdout.on('data', (data) => {
+        if (showStdout) {
+            process.stdout.write(data.toString());
+        }
     });
-    const sections = [
-      new LinkerScriptSection(this.DRAM_SECTION_NAME, dramMemory)
-        .section(moduleObjFile, this.DATA_SECTIONS, true)
-        .section('*', this.DATA_SECTIONS),
-      new LinkerScriptSection(this.FLASH_SECTION_NAME, flashMemory)
-        .section(moduleObjFile, this.EXECUTABLE_SECTIONS, true)
-        .section('*', this.EXECUTABLE_SECTIONS),
-      externalSymbolSection
-    ];
-    return new LinkerScript()
-      .input(shadowMemory.componentsInfo.getComponentsPath(moduleName))
-      .memory(memories)
-      .sections(sections)
-      .entry(entryPointName)
-  }
+
+    executeProcess.stderr.on('data', (data) => {
+        process.stderr.write(data.toString());
+    });
+
+    executeProcess.on('error', (err) => {
+        reject(new Error(`Failed to execute ${command}: ${err.message}`));
+    });
+
+    executeProcess.on('close', (code) => {
+        if (code === 0) {
+            resolve();
+        } else {
+            reject(new Error(`Failed to execute ${command}. Code: ${code}`));
+        }
+    });
+  });
 }
+
+
+
