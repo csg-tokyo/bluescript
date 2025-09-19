@@ -39,9 +39,13 @@ export abstract class Transpiler {
 
   abstract compileCode(code: string, main: string): void
 
+  normalizedPathName(name: string, baseName: string) {
+    return path.isAbsolute(name) ? name : path.join(baseName, name);
+  }
+
   makeImporter(baseName: string) {
     return (name: string) => {
-      const fname = path.isAbsolute(name) ? name : path.join(baseName, name)
+      const fname = this.normalizedPathName(name, baseName)
       const mod = this.modules.get(fname)
       if (mod)
         return mod
