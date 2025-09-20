@@ -12,6 +12,7 @@ import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMak
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
 import { InstanceType } from '../classes'
+import { ar } from 'zod/locales'
 
 /*
   Transpile BlueScript code.
@@ -382,14 +383,19 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   returnStatement(node: AST.ReturnStatement, env: VariableEnv): void {
-    this.returnStatementArg(node, node.argument, env)
+    this.returnStatementWithArg(node, node.argument, env)
   }
 
-  private returnStatementArg(node: AST.Node, argument: AST.Expression | null | undefined, env: VariableEnv): void {
+  private returnStatementWithArg(node: AST.Node, argument: AST.Expression | null | undefined, env: VariableEnv): void {
     this.result.nl()
     if (argument) {
       const retType = env.returnType()
-      if (retType !== null && retType !== undefined) {
+      if (retType === Void) {
+        this.result.write('{ ')
+        this.visit(argument, env)
+        this.result.write(`; ${cr.deleteRootSet(env.getNumOfVars())}; return; }`)
+      }
+      else if (retType !== null && retType !== undefined) {
         const typeAndVar = cr.typeToCType(retType, cr.returnValueVariable)
         const type = this.needsCoercion(argument)
         if (type)
@@ -716,7 +722,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     this.result.nl()
     if (AST.isExpression(node.body))
-      this.returnStatementArg(node, node.body, fenv)
+      this.returnStatementWithArg(node, node.body, fenv)
     else
       this.visit(node.body, fenv)
 
