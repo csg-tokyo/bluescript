@@ -1634,7 +1634,7 @@ test('"this" in a lambda function', () => {
   expect(() => compileAndRun(src2, destFile)).toThrow(/unsupported syntax.*line 2/)
 })
 
-test.only('"this" representing an enclosing object exists in a lambda function', () => {
+test('"this" representing an enclosing object exists in a lambda function', () => {
   const src = `
 class Foo {
   foo() {

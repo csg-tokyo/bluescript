@@ -567,6 +567,18 @@ test('arrow function with a free variable', () => {
   expect(compileAndRun(src)).toBe('213\n')
 })
 
+test('arrow function without a return value', () => {
+  const src = `
+  const foo = (n: integer) => { print(n); return }
+  const bar = (n: integer) => { print(n) }
+  const baz = (n: integer) => print(n)
+  foo(3)
+  bar(4)
+  baz(5)`
+
+  expect(compileAndRun(src)).toBe('3\n4\n5\n')
+})
+
 test('redefinition of a const function', () => {
   const src1 = 'const foo = (a: number): number => a + 1'
 
