@@ -2462,6 +2462,37 @@ print(cond(true, reader(), 1))
   expect(compileAndRun(src)).toBe('4.100000\n')
 })
 
+test("native code with this object's property access", () => {
+  const src = `
+  class Foo {
+    x: integer
+    constructor(x) { this.x = x }
+    foo() {
+      let r: integer
+      code\`\${r} = \${this.x} + 2;\`
+      return r
+    }
+  }
+  
+  print(new Foo(100).foo())
+  `
+
+  expect(compileAndRun(src)).toBe('102\n')
+
+  const src2 = `
+  class Bar {
+    x: integer
+    constructor(x) { this.x = x }
+    bar() {
+      let r: integer
+      code\`\${r} = \${this.y} + 7;\`
+      return r
+    }
+  }`
+
+  expect(() => compileAndRun(src2)).toThrow(/unknown property name: y in line 7/)
+})
+
 test('name scope', () => {
   const src = `
   function func1() {
