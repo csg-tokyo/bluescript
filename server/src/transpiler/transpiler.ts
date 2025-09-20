@@ -1,3 +1,5 @@
+// Copyright (C) 2024- Shigeru Chiba.  All rights reserved.
+
 import * as fs from 'fs'
 import * as path from 'path'
 import { GlobalVariableNameTable } from "./code-generator/variables";
