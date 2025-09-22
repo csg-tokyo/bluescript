@@ -567,6 +567,18 @@ test('arrow function with a free variable', () => {
   expect(compileAndRun(src)).toBe('213\n')
 })
 
+test('arrow function without a return value', () => {
+  const src = `
+  const foo = (n: integer) => { print(n); return }
+  const bar = (n: integer) => { print(n) }
+  const baz = (n: integer) => print(n)
+  foo(3)
+  bar(4)
+  baz(5)`
+
+  expect(compileAndRun(src)).toBe('3\n4\n5\n')
+})
+
 test('redefinition of a const function', () => {
   const src1 = 'const foo = (a: number): number => a + 1'
 
@@ -2448,6 +2460,37 @@ print(cond(true, reader(), 1))
 `
 
   expect(compileAndRun(src)).toBe('4.100000\n')
+})
+
+test("native code with this object's property access", () => {
+  const src = `
+  class Foo {
+    x: integer
+    constructor(x) { this.x = x }
+    foo() {
+      let r: integer
+      code\`\${r} = \${this.x} + 2;\`
+      return r
+    }
+  }
+  
+  print(new Foo(100).foo())
+  `
+
+  expect(compileAndRun(src)).toBe('102\n')
+
+  const src2 = `
+  class Bar {
+    x: integer
+    constructor(x) { this.x = x }
+    bar() {
+      let r: integer
+      code\`\${r} = \${this.y} + 7;\`
+      return r
+    }
+  }`
+
+  expect(() => compileAndRun(src2)).toThrow(/unknown property name: y in line 7/)
 })
 
 test('name scope', () => {

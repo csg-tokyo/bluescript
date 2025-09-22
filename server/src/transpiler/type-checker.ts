@@ -1408,10 +1408,15 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.assert(AST.isIdentifier(node.tag) && node.tag.name === 'code',
                 'a tagged template is not supported', node)
     for (const e of node.quasi.expressions) {
-      if (!AST.isIdentifier(e))
-        this.assert(false, 'only a variable name can be embedded in native code', e)
-      else
+      if (AST.isIdentifier(e))
         this.assert(names.lookup(e.name) !== undefined, `unknown variable: ${e.name}`, e)
+      else if (AST.isMemberExpression(e)) {
+        this.assert(!e.computed && AST.isIdentifier(e.property) && AST.isThisExpression(e.object),
+                    "only this object's property can be embedded in native code", e)
+        this.visit(e, names)
+      }
+      else
+        this.assert(false, "only a variable or this object's property can be embedded in native code", e)
     }
 
     this.result = Void
