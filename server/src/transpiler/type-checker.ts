@@ -214,7 +214,6 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       return
     }
 
-    // const nameInfo = names.lookup(node.name)
     if (nameInfo !== undefined) {
       if (this.assert(!nameInfo.isTypeName, `bad use of type name: ${node.name}`, node)) {
         this.result = nameInfo.type
