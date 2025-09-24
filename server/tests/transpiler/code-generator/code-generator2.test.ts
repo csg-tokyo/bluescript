@@ -1727,3 +1727,27 @@ test('wrong enum type', () => {
   const src8 = `enum Color { Red = 0, Green = 3, Red = 5}`
   expect(() => { compileAndRun(src8, destFile) }).toThrow(/duplicate enum member.*Red/)
 })
+
+test('imort an enum type', () => {
+  const modules = [
+    { name: 'color', source: `
+      export enum Color { Red = 0, Green = 1, Blue = 2}
+      ` }
+  ]
+
+  const src = `
+  import { Color } from 'color'
+
+  function foo(c: Color) {
+    print(c)
+    print(typeof c)
+  }
+
+  foo(Color.Red)
+  foo(Color.Green)
+  foo(Color.Blue)`
+
+  const imp = new Importer(modules)
+  expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe(
+    [0, 'Color', 1, 'Color', 2, 'Color'].join('\n') + '\n')
+})
