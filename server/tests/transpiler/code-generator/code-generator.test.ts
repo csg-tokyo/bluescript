@@ -757,6 +757,13 @@ test('++ operator for arrays', () => {
   foo([3, 2], [7, 'foo'])
 `
   expect(compileAndRun(src)).toBe('4\n4\n3\n7\n8\n')
+
+  const src2 = `
+    let aa = [1, 2, 3]
+    aa.length++
+  `
+
+  expect(() => compileAndRun(src2)).toThrow(/cannot change .length.*line 3/)
 })
 
 test('equality operators', () => {

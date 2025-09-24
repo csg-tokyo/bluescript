@@ -12,7 +12,7 @@ export const ByteArrayClass = 'Uint8Array'    // Uint8Array is also used as byte
 export const VectorClass = 'Vector'
 
 export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' |
-  ObjectType | FunctionType | UnionType
+  ObjectType | FunctionType | UnionType | EnumType
 
 export function isBuiltinTypeName(name: string) {
   return name === Integer || name === Float || name === BooleanT || name === Void || name === StringT || name === Null ||
@@ -21,11 +21,38 @@ export function isBuiltinTypeName(name: string) {
 
 export function isPrimitiveType(type: StaticType) {
   // unless String, Null, FunctionType, Any, or object type
-  return type === Integer || type === Float || type === BooleanT || type === Void
+  return type === Integer || type === Float || type === BooleanT || type === Void || (type instanceof EnumType)
 }
 
 export function isNumeric(t: StaticType) {
-  return t === Integer || t === Float
+  return t === Integer || t === Float || (t instanceof EnumType)
+}
+
+export function isEnum(t: StaticType) {
+  return t instanceof EnumType
+}
+
+export class EnumType {
+  name: string
+  members: Map<string, number>
+
+  constructor(name: string) {
+    this.name = name
+    this.members = new Map<string, number>()
+  }
+
+  addMember(name: string, value: number) {
+    if (this.members.has(name))
+      return false
+    else {
+      this.members.set(name, value)
+      return true
+    }
+  }
+
+  getMember(name: string) {
+    return this.members.get(name)
+  }
 }
 
 // the common super class of ObjectType and FunctionType
@@ -255,12 +282,15 @@ export function typeToString(type: StaticType): string {
     return type.sourceName()
   else if (type === Null)
     return 'undefined'
+  else if (type instanceof EnumType)
+    return type.name
   else
     return type
 }
 
 // When this function is modified,
-// next_type_in_signature() in c-runtime.c must be modified accordingly.
+// get/set/acc_anyobj_property(), gc_dynamic_method_call(), and is_subtype_of()
+// in c-runtime.c must be modified accordingly.
 export function encodeType(type: StaticType): string {
   switch (type) {
   case Integer:
@@ -286,6 +316,8 @@ export function encodeType(type: StaticType): string {
       return `'${type.name()}'`
     else if (type instanceof UnionType)
       return '|' + type.types.map(e => encodeType(e)).join('')
+    else if (type instanceof EnumType)
+      return 'i'  // enums are represented as integers
     else
       throw new Error(`cannot encode: ${typeToString(type)}`)
   }
@@ -308,6 +340,8 @@ export function isSubtype(subtype: StaticType, type: StaticType): boolean {
     return subtype === BooleanT
   else if (subtype instanceof CompositeType)
     return subtype.isSubtypeOf(type)
+  else if (subtype instanceof EnumType)
+    return type === Integer || type === Float
   else
     return false
 }

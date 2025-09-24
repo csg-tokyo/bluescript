@@ -8,9 +8,9 @@ import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType, Vect
 
 import {
   Integer, Float, BooleanT, StringT, Void, Null, Any,
-  ObjectType, FunctionType, objectType,
+  EnumType, ObjectType, FunctionType, objectType,
   typeToString, isSubtype, isConsistent, commonSuperType,
-  isNumeric, isBuiltinTypeName
+  isNumeric,  isEnum, isBuiltinTypeName
 } from './types'
 
 import { actualElementType } from './code-generator/c-runtime'
@@ -21,7 +21,6 @@ import {
   addCoercionFlag, getNameTable
 } from './names'
 import { InstanceType } from './classes'
-import { code } from './shell-builtins'
 
 export const codeTagFunction = 'code'
 
@@ -205,12 +204,17 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   identifier(node: AST.Identifier, names: NameTable<Info>): void {
-    if (node.name === 'undefined') {
+    const nameInfo = this.isUndefined(node) ? undefined : names.lookup(node.name)
+    this.identifierWithInfo(node, nameInfo)
+  }
+
+  private identifierWithInfo(node: AST.Identifier, nameInfo: Info | undefined): void {
+    if (this.isUndefined(node)) {
       this.result = Null
       return
     }
 
-    const nameInfo = names.lookup(node.name)
+    // const nameInfo = names.lookup(node.name)
     if (nameInfo !== undefined) {
       if (this.assert(!nameInfo.isTypeName, `bad use of type name: ${node.name}`, node)) {
         this.result = nameInfo.type
@@ -538,6 +542,61 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.functionDeclarationPass2(node, names)
   }
 
+  tsEnumDeclaration(node: AST.TSEnumDeclaration, names: NameTable<Info>): void {
+    if (!this.firstPass)
+      return
+
+    const enumName = node.id.name
+    this.assert(!isBuiltinTypeName(enumName), `bad enum name: ${enumName}`, node)
+
+    const enumType = new EnumType(enumName)
+    this.assert(names.isGlobal(), 'an enum must be declared at top level', node)
+    for (const member of node.members) {
+      const name = member.id
+      if (!AST.isIdentifier(name)) {
+        this.assert(false, 'enum member must be an identifier', member)
+        break
+      }
+
+      const init = member.initializer
+      let value = this.evaluateIntLiteral(init)
+
+      if (value !== undefined && init !== undefined && init !== null) {
+        this.visit(init, names)
+        if (this.result === Integer)
+          if (enumType.addMember(name.name, value))
+            continue
+          else {
+            this.assert(false, `duplicate enum member: ${name.name}`, member)
+            break
+          }
+      }
+
+      this.assert(false, `enum member "${name.name}" must be initialized with an integer literal`, member)
+      break
+    }
+
+    const success = names.record(enumName, enumType, this.maker,
+                                 _ => { _.isTypeName = true; _.isExported = this.inExport })
+    this.assert(success, `'${enumName}' has already been declared`, node)
+    this.result = enumType
+  }
+
+  private evaluateIntLiteral(expr: AST.Expression | null | undefined): number | undefined {
+    let value: number | undefined = undefined
+    if (AST.isNumericLiteral(expr))
+      value = expr.value
+    else if (AST.isUnaryExpression(expr) && AST.isNumericLiteral(expr.argument))
+      if (expr.operator === '-')
+        value = -expr.argument.value
+      else if (expr.operator === '+')
+          value = expr.argument.value
+      else if (expr.operator === '~')
+        value = ~expr.argument.value
+
+    return value
+  }
+
   variableDeclaration(node: AST.VariableDeclaration, names: NameTable<Info>): void {
     if (this.isConstFunctionDeclaration(node, names))
       return
@@ -592,7 +651,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       varType = Any
 
     if (!node.init)
-      this.assert(isPrimitiveType(varType) || varType === Any || varType instanceof UnionType,
+      this.assert((isPrimitiveType(varType) && !isEnum(varType)) || varType === Any || varType instanceof UnionType,
                   'a variable must have an initial value', node)
 
     if (!alreadyDeclared) {
@@ -768,7 +827,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     else if (op === '~') {
       // this.result must be integer or any-type.
       // It must not be an array type or a function type.
-      this.assert(this.result === Integer || this.result === Any,
+      this.assert(this.result === Integer || this.result === Any || isEnum(this.result),
         this.invalidOperandMessage(op, this.result), node)
       this.result = Integer
     }
@@ -883,7 +942,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.result = Integer
     }
     else if (op === '|' || op === '^' || op === '&' || op === '<<' || op === '>>' || op === '>>>') {
-      this.assert(left_type === Integer && right_type === Integer,
+      this.assert(left_type === Integer && right_type === Integer || isEnum(left_type) && isEnum(right_type),
                   this.invalidOperandsMessage(op, left_type, right_type), node)
       this.result = Integer
     }
@@ -972,7 +1031,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
     }
     else if (op === '|=' || op === '^=' || op === '&=' || op === '%=' || op === '<<=' || op === '>>=')
-      this.assert(left_type === Integer && right_type === Integer,
+      this.assert(left_type === Integer && right_type === Integer || isEnum(left_type) && isEnum(right_type),
                   this.invalidOperandsMessage(op, left_type, right_type), node)
     else  // '||=', '&&=', '>>>=', '**=', op === '??='
       this.assert(false, `not supported operator '${op}'`, node)
@@ -1001,8 +1060,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   memberAssignmentExpression(node: AST.AssignmentExpression, leftNode: AST.MemberExpression, names: NameTable<Info>): void {
-    this.assertLvalue(leftNode, names)
-    const checked = this.checkMemberExpr(leftNode, false, names)
+    const checked = this.assertLvalue(leftNode, names)
     if (!checked && leftNode.computed) {    // if an array type is unknown
       this.visit(node.right, names)
       this.result = Any
@@ -1191,7 +1249,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     const args = node.arguments
     if (this.assert(args.length === 2 || (args.length === 1 && (etype === Integer || etype === Float
-                                                                || etype === BooleanT || etype === Any)),
+                                                                || etype === BooleanT || etype === Any || isEnum(etype))),
                     'wrong number of arguments', node)) {
       this.callExpressionArg(args[0], Integer, names)
       if (args.length === 2)
@@ -1277,89 +1335,121 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   // This returns false when the given expression is an array access but the array type
   // is unknown.  It also returns false when the given expression is a property access
   // like a.b and the property is unboxed.  Otherwise, it returns true.
+  // when the given expression is an enum member, this method returns true.
   private checkMemberExpr(node: AST.MemberExpression, readonly: boolean, names: NameTable<Info>) {
     this.assert(AST.isExpression(node.object), 'not supported object', node.object)
-    if (node.computed) {
-      // an array access like a[b]
-      this.assert(AST.isExpression(node.property), 'a wrong index expression', node.property)
-      this.visit(node.property, names)
-      this.assert(this.firstPass || this.result === Integer || this.result === Any,
+    if (node.computed)
+      return this.checkArrayAccessExpr(node, readonly, names)
+    else
+      return this.checkObjMemberExpr(node, readonly, names)
+  }
+
+  // an array access like a[b]
+  private checkArrayAccessExpr(node: AST.MemberExpression, readonly: boolean, names: NameTable<Info>) {
+    this.assert(AST.isExpression(node.property), 'a wrong index expression', node.property)
+    this.visit(node.property, names)
+    this.assert(this.firstPass || this.result === Integer || this.result === Any,
                 'an array index must be an integer', node.property)
-      this.addCoercionIfAny(node.property, this.result)
-      this.visit(node.object, names)
-      this.addStaticType(node.object, this.result)
-      if (this.result instanceof ArrayType) {
-        this.result = this.result.elementType
-        this.addStaticType(node, this.result)
-      }
-      else if (this.result instanceof InstanceType && this.result.name() === ByteArrayClass) {
-        this.addStaticType(node, Integer)
-        this.result = Integer
-      }
-      else if (this.result instanceof InstanceType && this.result.name() === VectorClass) {
-        this.addStaticType(node, Any)
-        this.result = Any
-      }
-      else {
-        this.assert(this.firstPass || this.result === Any, 'an element access to a non-array', node.object)
-        this.addStaticType(node, Any)
-        this.result = Any
-        // false if this is an array access but the array object type is unknown since this path is the first one.
-        return !this.firstPass
-      }
+    this.addCoercionIfAny(node.property, this.result)
+    this.visit(node.object, names)
+    this.addStaticType(node.object, this.result)
+    if (this.result instanceof ArrayType) {
+      this.result = this.result.elementType
+      this.addStaticType(node, this.result)
+    }
+    else if (this.result instanceof InstanceType && this.result.name() === ByteArrayClass) {
+      this.addStaticType(node, Integer)
+      this.result = Integer
+    }
+    else if (this.result instanceof InstanceType && this.result.name() === VectorClass) {
+      this.addStaticType(node, Any)
+      this.result = Any
     }
     else {
-      // a property access like a.b
-      if (AST.isIdentifier(node.property)) {
-        const propertyName = node.property.name
-        this.visit(node.object, names)
-        const type = this.result
-        this.addStaticType(node.object, type)
-        if (type instanceof InstanceType) {
-          const typeAndIndex  = type.findProperty(propertyName)
-          if (typeAndIndex) {
-            this.result = typeAndIndex[0]
-            const unboxed = type.unboxedProperties()
-            return unboxed === undefined || unboxed <= typeAndIndex[1]
-          }
-          else if (propertyName === ArrayType.lengthProperty && (type.name() === ByteArrayClass || type.name() === VectorClass)) {
-            this.assert(readonly, 'cannot change .length', node.property)
-            this.result = Integer
-            return false  // an uboxed value.
-          }
-          else if (this.firstPass) {
-            // forward reference
-            this.result = Any
-            return true
-          }
-        }
-        else if (type === StringT) {
-          if (propertyName === StringType.lengthProperty) {
-            this.assert(readonly, 'cannot change .length', node.property)
-            this.result = Integer
-            return false  // an uboxed value.
-          }
-        }
-        else if (type instanceof ArrayType) {
-          if (propertyName === ArrayType.lengthProperty) {
-            this.assert(readonly, 'cannot change .length', node.property)
-            this.result = Integer
-            return false  // an uboxed value.
-          }
-        }
-        else if (type === Any) {
-          this.result = Any
-          return true
-        }
-
-        this.result = Any
-        this.assert(false, `unknown property name: ${propertyName}`, node.property)
-      }
-      else
-        this.assert(false, 'a wrong property name', node.property)
+      this.assert(this.firstPass || this.result === Any, 'an element access to a non-array', node.object)
+      this.addStaticType(node, Any)
+      this.result = Any
+      // false if this is an array access but the array object type is unknown since this path is the first one.
+      return !this.firstPass
     }
 
     return true
+  }
+
+  // a property access like a.b
+  private checkObjMemberExpr(node: AST.MemberExpression, readonly: boolean, names: NameTable<Info>) {
+    if (AST.isIdentifier(node.property)) {
+      const propertyName = node.property.name
+      if (this.checkEnumMemberExpr(node, readonly, node.property.name, names))
+        return true
+
+      const type = this.result
+      this.addStaticType(node.object, type)
+      if (type instanceof InstanceType) {
+        const typeAndIndex = type.findProperty(propertyName)
+        if (typeAndIndex) {
+          this.result = typeAndIndex[0]
+          const unboxed = type.unboxedProperties()
+          return unboxed === undefined || unboxed <= typeAndIndex[1]
+        }
+        else if (propertyName === ArrayType.lengthProperty && (type.name() === ByteArrayClass || type.name() === VectorClass)) {
+          this.assert(readonly, 'cannot change .length', node.property)
+          this.result = Integer
+          return false  // an uboxed value.
+        }
+        else if (this.firstPass) {
+          // forward reference
+          this.result = Any
+          return true
+        }
+      }
+      else if (type === StringT) {
+        if (propertyName === StringType.lengthProperty) {
+          this.assert(readonly, 'cannot change .length', node.property)
+          this.result = Integer
+          return false  // an uboxed value.
+        }
+      }
+      else if (type instanceof ArrayType) {
+        if (propertyName === ArrayType.lengthProperty) {
+          this.assert(readonly, 'cannot change .length', node.property)
+          this.result = Integer
+          return false  // an uboxed value.
+        }
+      }
+      else if (type === Any) {
+        this.result = Any
+        return true
+      }
+
+      this.result = Any
+      this.assert(false, `unknown property name: ${propertyName}`, node.property)
+    }
+    else
+      this.assert(false, 'a wrong property name', node.property)
+
+    return true
+  }
+
+  private checkEnumMemberExpr(node: AST.MemberExpression, readonly: boolean, propertyName: string, names: NameTable<Info>): boolean {
+    if (AST.isIdentifier(node.object)) {
+      // the following code is equivalent to this.visit(node.object, names) unless node is an enum member.
+      const typeName = node.object.name
+      const nameInfo = this.isUndefined(node.object) ? undefined : names.lookup(typeName)
+      if (nameInfo?.isTypeName && isEnum(nameInfo.type)) {
+        this.assert(readonly, 'cannot change an enum member', node.property)
+        this.assert(nameInfo.type.getMember(propertyName) !== undefined, `unknown enum member: ${propertyName}`, node.property)
+        this.addStaticType(node.object, nameInfo.type)
+        this.result = nameInfo.type
+        return true
+      }
+
+      this.identifierWithInfo(node.object, nameInfo)
+    }
+    else
+      this.visit(node.object, names)
+
+    return false
   }
 
   // returns true if "node" is a method
@@ -1592,6 +1682,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.addCoercion(expr, type)
   }
 
+  // See checkMemberExpr() for the return value.  When node is a variable, it always returns true.
   assertLvalue(node: AST.Node, table: NameTable<Info>) {
     if (AST.isIdentifier(node)) {
       const info = table.lookup(node.name)
@@ -1601,9 +1692,12 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
     }
     else if (AST.isMemberExpression(node)) {
+      return this.checkMemberExpr(node, false, table)
     }
     else
       this.assert(false, 'invalid left-hand side in assignment', node)
+
+    return true
   }
 
   assertVariable(node: AST.Node) {
