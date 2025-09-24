@@ -1728,7 +1728,7 @@ test('wrong enum type', () => {
   expect(() => { compileAndRun(src8, destFile) }).toThrow(/duplicate enum member.*Red/)
 })
 
-test('imort an enum type', () => {
+test('import an enum type', () => {
   const modules = [
     { name: 'color', source: `
       export enum Color { Red = 0, Green = 1, Blue = 2}
