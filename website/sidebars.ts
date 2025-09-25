@@ -2,14 +2,7 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
-    'tutorial/intro',
-    {
-      type: 'category',
-      label: 'Get Started',
-      items: [
-        'tutorial/get-started/installation'
-      ],
-    },
+    'tutorial/get-started',
     {
       type: 'category',
       label: 'Examples',
@@ -19,11 +12,11 @@ const sidebars: SidebarsConfig = {
     },
   ],
   referenceSidebar: [
-    'reference/intro',
     {
       type: 'category',
       label: 'Language',
       items: [
+        'reference/language/intro',
         'reference/language/primitive-types',
         'reference/language/literals',
         'reference/language/built-in-objects',
