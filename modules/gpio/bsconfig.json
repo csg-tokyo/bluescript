@@ -1,0 +1,10 @@
+
+{
+    "name": "gpio",
+    "device": {
+        "kind": "esp32",
+        "name": "BLUESCRIPT"
+    },
+    "espIdfComponents": ["esp_driver_gpio"]
+}
+

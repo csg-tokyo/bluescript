@@ -1,4 +1,4 @@
-import { logger, executeCommand } from "./utils";
+import { logger, executeCommand, readBsConfig } from "./utils";
 import * as fs from 'fs';
 import { GLOBAL_PATH, PACKAGE_PATH } from "./path";
 
@@ -6,7 +6,8 @@ export default function installPackage(packageName: string) {
     logger.info(`Installing ${packageName}...`);
     try {
         fs.mkdirSync(PACKAGE_PATH.LOCAL_PACKAGES_DIR('./'), {recursive: true});
-        const srcDir = PACKAGE_PATH.SUB_PACKAGE_DIR(GLOBAL_PATH.PACKAGES_DIR(), packageName);
+        const bsconfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE('./'));
+        const srcDir = PACKAGE_PATH.SUB_PACKAGE_DIR(bsconfig.dirs?.packages ?? GLOBAL_PATH.PACKAGES_DIR(), packageName);
         if (!fs.existsSync(srcDir)) {
             throw new Error(`Cannot find ${packageName}`);
         }

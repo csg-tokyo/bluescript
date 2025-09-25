@@ -1,0 +1,77 @@
+
+.featureContainer {
+  /* display: grid; */
+  grid-template-columns: 1fr; /* 各ブロックが全幅を占めるように1列にする */
+  gap: 20px;
+  /* padding: 20px; */
+  
+}
+
+.featureItem {
+  background-color: var(--ifm-background-color); 
+  /* border-radius: 8px; */
+  padding: 20px;
+  padding-left: 150px;
+  padding-right: 150px;
+  text-align: center; /* デフォルトは中央寄せ */
+  color: var(--ifm-font-color-base);
+  /* box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); */
+
+  display: flex; /* Flexboxを使って画像とテキストを並べる */
+  align-items: center; /* 垂直方向の中央揃え */
+  column-gap: 150px; /* 画像とテキストの間のスペース */
+  row-gap: 50px;
+  text-align: left; /* Flexboxを使うので、テキストは左寄せが自然 */
+  /* border-bottom: 1px solid var(--ifm-color-gray-300);  */
+  flex-direction: row;
+}
+
+.featureContainer > .featureItem:nth-child(even) {
+  background-color: var(--ifm-color-gray-100); /* Docusaurusの薄い灰色 */
+  flex-direction: row-reverse;
+}
+
+/* .featureContainer > .featureItem:last-child {
+  border-bottom: none;
+} */
+
+/* .featureItem.imageRight {
+  flex-direction: row-reverse; 
+}
+
+.featureItem.imageLeft {
+  flex-direction: row; 
+} */
+
+.featureItemTextContent {
+  flex: 1; /* テキストコンテンツが利用可能なスペースを埋めるようにする */
+}
+
+.featureItem h1 {
+  color: var(--ifm-color-primary); 
+  margin-bottom: 10px;
+  border-bottom: solid 3px var(--ifm-color-primary);
+}
+
+.featureItem p {
+  color: var(--ifm-font-color-base); 
+}
+
+.featureItemImage {
+  width: 500px; 
+  height: auto;
+  border-radius: 4px; 
+  filter: drop-shadow(30px 10px 4px var(--ifm-color-gray-300));
+}
+
+/* レスポンシブ対応：小さい画面では画像とテキストを縦に並べる */
+@media (max-width: 768px) {
+  .featureItem {
+    flex-direction: column !important; /* 強制的に縦並びにする */
+    text-align: center; /* 縦並びの時は中央寄せ */
+  }
+
+  .featureItemImage {
+    margin-bottom: 10px; /* 画像の下にスペース */
+  }
+}
