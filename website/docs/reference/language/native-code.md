@@ -17,7 +17,7 @@ print(sqrt(9.0))
 ```
 
 A BlueScript variable is referred to by `${}`.
-The content between `${` and `}` must be a variable name.
+The content between `${` and `}` must be a variable name or this object's property.
 For example above, `${x}` adn `${r}` refer to the BlueScript variable `x` and `r` respectively.
 The embedded C code calls the function `sqrt` in the standard C library and assigns the retrun value
 to the BlueScript variable `r`.

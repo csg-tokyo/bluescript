@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         'reference/language/statements-declarations',
         'reference/language/functions',
         'reference/language/classes',
+        'reference/language/enum-type',
         'reference/language/nullable-type',
         'reference/language/import-declarations',
         'reference/language/native-code'
