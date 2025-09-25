@@ -1,0 +1,22 @@
+
+
+code`#include "driver/gpio.h"`
+
+export class GPIO {
+    pin:integer
+
+    constructor(pin:integer) {
+        this.pin = pin;
+        code`gpio_set_direction(${pin}, GPIO_MODE_OUTPUT);`
+    }
+
+    on() {
+        const pin = this.pin;
+        code`gpio_set_level(${pin}, 1);`;
+    }
+
+    off() {
+        const pin = this.pin;
+        code`gpio_set_level(${pin}, 0);`;
+    }
+}
