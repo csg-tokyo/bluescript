@@ -4,7 +4,8 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
-         StringT,  UnionType, VectorClass, StringType } from '../types'
+         StringT,  UnionType, VectorClass, StringType,
+         EnumType} from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
 import TypeChecker, { typecheck, codeTagFunction } from '../type-checker'
@@ -101,6 +102,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           if (type instanceof InstanceType)
             this.signatures += cr.externNew(type)
         }
+        else if (type instanceof EnumType) {}
         else
           throw this.errorLog.push('fatal: bad external type', node)
       }
@@ -514,6 +516,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   classBody(node: AST.ClassBody, env: VariableEnv): void {}
   classProperty(node: AST.ClassProperty, env: VariableEnv): void {}
   classMethod(node: AST.ClassMethod, env: VariableEnv): void {}
+
+  tsEnumDeclaration(node: AST.TSEnumDeclaration, env: VariableEnv): void {}
 
   variableDeclaration(node: AST.VariableDeclaration, env: VariableEnv): void {
     if (this.isConstFunctionDeclaration(node, env))
@@ -1505,6 +1509,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         this.result.write(`${cr.getAnyObjectProperty(propertyName)}(`)
         this.visit(node.object, env)
         this.result.write(`, ${propertyCode})`)
+      }
+      else if (objType instanceof EnumType) {
+        const value = objType.getMember(propertyName)
+        this.result.write(`${value}`)
       }
       else
         throw this.errorLog.push('fatal: unknown array property', node)

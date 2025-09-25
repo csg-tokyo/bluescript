@@ -36,6 +36,7 @@ export abstract class NodeVisitor<Environment> {
         [ 'ClassBody', (visitor, node, env) => visitor.classBody(node as AST.ClassBody, env) ],
         [ 'ClassProperty', (visitor, node, env) => visitor.classProperty(node as AST.ClassProperty, env) ],
         [ 'ClassMethod', (visitor, node, env) => visitor.classMethod(node as AST.ClassMethod, env) ],
+        [ 'TSEnumDeclaration', (visitor, node, env) => visitor.tsEnumDeclaration(node as AST.TSEnumDeclaration, env) ],
         [ 'VariableDeclaration', (visitor, node, env) => visitor.variableDeclaration(node as AST.VariableDeclaration, env) ],
         [ 'VariableDeclarator', (visitor, node, env) => visitor.variableDeclarator(node as AST.VariableDeclarator, env) ],
         [ 'FunctionDeclaration', (visitor, node, env) => visitor.functionDeclaration(node as AST.FunctionDeclaration, env) ],
@@ -108,6 +109,7 @@ export abstract class NodeVisitor<Environment> {
     abstract classBody(node: AST.ClassBody, env: Environment): void
     abstract classProperty(node: AST.ClassProperty, env: Environment): void
     abstract classMethod(node: AST.ClassMethod, env: Environment): void
+    abstract tsEnumDeclaration(node: AST.TSEnumDeclaration, env: Environment): void
     abstract variableDeclaration(node: AST.VariableDeclaration, env: Environment): void
     abstract variableDeclarator(node: AST.VariableDeclarator, env: Environment): void
     abstract functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void
@@ -166,6 +168,7 @@ export class NullVisitor<Environment> extends NodeVisitor<Environment> {
     classBody(node: AST.ClassBody, env: Environment): void {}
     classProperty(node: AST.ClassProperty, env: Environment): void {}
     classMethod(node: AST.ClassMethod, env: Environment): void {}
+    tsEnumDeclaration(node: AST.TSEnumDeclaration, env: Environment): void {}
     variableDeclaration(node: AST.VariableDeclaration, env: Environment): void {}
     variableDeclarator(node: AST.VariableDeclarator, env: Environment): void {}
     functionDeclaration(node: AST.FunctionDeclaration, env: Environment): void {}

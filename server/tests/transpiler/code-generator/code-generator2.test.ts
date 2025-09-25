@@ -1655,3 +1655,99 @@ new Foo().foo()()
 
   expect(compileAndRun(src, destFile)).toBe('bar\nbar\n')
 })
+
+test('enum type', () => {
+  const src = `
+  enum Color { Red = 0, Green = 3, Blue = 5}
+  enum Direction { Up = 1, Down = 2, Left = 0x4, Right = -5}
+
+  function foo(c: Color) {
+    print(c)
+    print(typeof c)
+  }
+
+  function bar(d: Direction) {
+    print(d)
+    print(typeof d)
+  }
+
+  foo(Color.Red)
+  foo(Color.Green)
+  foo(Color.Blue)
+
+  bar(Direction.Up)
+  bar(Direction.Down)
+  bar(Direction.Left)
+  bar(Direction.Right)
+
+  const c: any = Color.Blue
+  const d: any = Direction.Right
+  print(c)
+  print(d)
+
+  print(Color.Green * 8 + Direction.Down)
+  print(c + d)
+  let i: integer = Direction.Down
+  print(~i == ~Direction.Down)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe([0, 'Color', 3, 'Color', 5, 'Color',
+                                             1, 'Direction', 2, 'Direction', 4, 'Direction', -5, 'Direction',
+                                             5, -5, 26, 0, true].join('\n') + '\n')
+})
+
+test('wrong enum type', () => {
+  const src = `enum Color { Red, Green = 3, Blue = 5}`
+
+  expect(() => { compileAndRun(src, destFile) }).toThrow(/Red.*must be initialized/)
+
+  const src2 = `enum Color { Red = 3.5, Green = 3, Blue = 5}`
+  expect(() => { compileAndRun(src2, destFile) }).toThrow(/Red.*integer literal/)
+
+  const src3 = `enum Color { red = 'red', green = 'green'}`
+  expect(() => { compileAndRun(src3, destFile) }).toThrow(/red.*integer literal/)
+
+  const src4 = `function foo() {
+    enum Color { Red = 0, Green = 3, Blue = 5}
+    let c = Color.Red
+    print(c)
+  }
+  foo()`
+  expect(() => { compileAndRun(src4, destFile) }).toThrow(/top level/)
+
+  const src5 = `enum Color { Red = 'red', Green = 'green', Blue = 'blue'}`
+  expect(() => { compileAndRun(src5, destFile) }).toThrow(/integer literal/)
+
+  const src6 = `enum Color { 'Red', 'Green', 'Blue'}`
+  expect(() => { compileAndRun(src6, destFile) }).toThrow(/identifier/)
+
+  const src7 = `enum Color { Red = 0, Green = Red + 3, Blue = 5}`
+  expect(() => { compileAndRun(src7, destFile) }).toThrow(/Green.*integer literal/)
+
+  const src8 = `enum Color { Red = 0, Green = 3, Red = 5}`
+  expect(() => { compileAndRun(src8, destFile) }).toThrow(/duplicate enum member.*Red/)
+})
+
+test('import an enum type', () => {
+  const modules = [
+    { name: 'color', source: `
+      export enum Color { Red = 0, Green = 1, Blue = 2}
+      ` }
+  ]
+
+  const src = `
+  import { Color } from 'color'
+
+  function foo(c: Color) {
+    print(c)
+    print(typeof c)
+  }
+
+  foo(Color.Red)
+  foo(Color.Green)
+  foo(Color.Blue)`
+
+  const imp = new Importer(modules)
+  expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe(
+    [0, 'Color', 1, 'Color', 2, 'Color'].join('\n') + '\n')
+})
