@@ -1,17 +1,5 @@
 {
-    "compilerOptions": {
-      "module": "commonjs",
-      "target": "es2020",
-      "outDir": "dist",
-      "esModuleInterop": true,
-      "allowSyntheticDefaultImports": true,
-      "sourceMap": true,
-          "strict": true
-    },
-    "include": [
-        "src"
-    ],
-  "exclude": [
-    "node_modules"
-  ]
+  "extends": "../tsconfig.base.json",
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }

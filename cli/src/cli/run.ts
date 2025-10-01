@@ -1,10 +1,8 @@
 import { logger, readBsConfig, BsConfig} from "./utils";
-import * as fs from 'fs';
 import BLE, {MAX_MTU} from "./ble";
 import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
 import { ESP_IDF_PATH, GLOBAL_PATH, PACKAGE_PATH } from "./path";
-import { CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "../compiler/compiler";
-import { Compiler } from "../compiler/compiler";
+import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bluescript/compiler";
 
 
 export default async function run() {

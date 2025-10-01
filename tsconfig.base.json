@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2020",
+    "declaration": true,
+    "composite": true,
+    "declarationMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "rootDir": "${configDir}/src",
+    "outDir": "${configDir}/dist"
+  }
+}
