@@ -321,7 +321,7 @@ class ESPIDFComponents {
     }
 
     public getIncludeDirs(rootComponentNames: string[]) {
-        const components = this._getComponents(rootComponentNames);
+        const components = this.getComponents(rootComponentNames);
         const includeDirs:string[] = [];
         for (const component of components) {
             for (const dir of component.include_dirs) {
@@ -333,10 +333,10 @@ class ESPIDFComponents {
     }
 
     public getArchiveFilePaths(rootComponentNames: string[]) {
-        return this._getComponents(rootComponentNames).map(c => c.file);
+        return this.getComponents(rootComponentNames).map(c => c.file);
     }
 
-    private _getComponents(rootComponentNames: string[]) {
+    private getComponents(rootComponentNames: string[]) {
         let tmp = [...rootComponentNames];
         let visited = new Set<string>();
         const components = [];
@@ -356,7 +356,7 @@ class ESPIDFComponents {
         return components;
     }
 
-    private _convertRuntimeDirPath(absolutePath: string) {
+    private convertRuntimeDirPath(absolutePath: string) {
         return absolutePath.replace(this.COMPONENTS_PATH_PREFIX, this.RUNTIME_DIR);
     }
 }
