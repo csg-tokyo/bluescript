@@ -143,7 +143,7 @@ export class Compiler {
             fs.writeFileSync(LINKER_SCRIPT(mainPackage), linkerscript);
             await executeCommand(`${LD_PATH(this.config)} -o ${LINKED_ELF_PATH(mainPackage)} -T ${LINKER_SCRIPT(mainPackage)} --gc-sections`, cwd);
         } catch (error) {
-            throw new Error(`Failed to link: ${getErrorMessage}`, {cause: error});
+            throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});
         }
     }
 

@@ -282,7 +282,7 @@ gpioInit(23);
         testEnv.clean();
     });
 
-    it('should throw error if a specified ESP-IDF component does not exit.', async () => {
+    it('should throw error if a specified ESP-IDF component does not exist.', async () => {
         const testEnv = new CompilerTestEnv();
         testEnv.addPackage('main', [], ['foo']);
         testEnv.addFile('main', './index.bs', `1 + 1`);
