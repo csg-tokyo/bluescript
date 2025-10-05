@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "references": [
+    {"path": "../server"}
+  ],
+  "compilerOptions": {
+    "paths": {
+      "@bluescript/compiler": ["../server/src"],
+      "@bluescript/compiler/*": ["../server/src/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

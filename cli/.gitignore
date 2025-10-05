@@ -2,7 +2,5 @@ dist/
 node_modules/
 .DS_Store
 .idea/
-temp-files/*
-!/temp-files/.gitkeep
 a.out.dSYM/
 tsconfig.tsbuildinfo

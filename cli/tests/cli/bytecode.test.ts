@@ -1,5 +1,5 @@
 import { BytecodeBufferGenerator, bytecodeParser, BYTECODE } from '../../src/cli/bytecode';
-import { MemoryLayout } from "../../src/compiler/compiler";
+import { MemoryLayout } from "@bluescript/compiler";
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
 const FIRST_HEADER = Buffer.from([0x03, 0x00]);

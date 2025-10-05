@@ -1,0 +1,11 @@
+{
+  "name": "bluescript",
+  "private": true,
+  "workspaces": ["cli", "server"],
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

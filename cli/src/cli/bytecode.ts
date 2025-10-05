@@ -1,4 +1,4 @@
-import { MemoryLayout } from "../compiler/compiler";
+import { MemoryLayout } from "@bluescript/compiler";
 
 export enum BYTECODE {
     NONE,
