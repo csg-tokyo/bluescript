@@ -69,7 +69,7 @@ async function initDevice(ble: BLE): Promise<MemoryLayout> {
 async function compile(bsConfig: BsConfig, memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
     logger.info('Compiling...');
     const compilerConfig = getCompilerConfig(bsConfig);
-    const compiler = new Compiler(memoryLayout, compilerConfig, packageReader, logger);
+    const compiler = new Compiler(memoryLayout, compilerConfig, packageReader);
     return await compiler.compile();
 }
 
