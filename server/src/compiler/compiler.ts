@@ -37,7 +37,7 @@ export type MemoryLayout = {
 }
 
 
-type MemoryRegion = {name: string, address: number, size: number}
+type MemoryRegion = {name: string, address: number, size: number, used: number}
 
 export class ShadowMemory {
     public iram: MemoryRegion;
@@ -46,10 +46,10 @@ export class ShadowMemory {
     public dflash: MemoryRegion;
 
     constructor(memoryLayout: MemoryLayout) {
-        this.iram = {name: '.iram', ...memoryLayout.iram};
-        this.dram = {name: '.dram', ...memoryLayout.dram};
-        this.iflash = {name: '.iflash', ...memoryLayout.iflash};
-        this.dflash = {name: '.dflash', ...memoryLayout.dflash};
+        this.iram = {name: '.iram', ...memoryLayout.iram, used: 0};
+        this.dram = {name: '.dram', ...memoryLayout.dram, used: 0};
+        this.iflash = {name: '.iflash', ...memoryLayout.iflash, used: 0};
+        this.dflash = {name: '.dflash', ...memoryLayout.dflash, used: 0};
     }
 }
 
@@ -58,7 +58,7 @@ export type ExecutableBinary = {
     dram?: {address: number, data: Buffer},
     iflash?: {address: number, data: Buffer},
     dflash?: {address: number, data: Buffer},
-    entryPoints: {id: number, address: number}[]
+    entryPoints: {isMain: boolean, address: number}[]
 }
 
 
@@ -91,12 +91,41 @@ export class Compiler {
         this.espidfComponents = new ESPIDFComponents(config.dirs.runtime);
         this.memory = new ShadowMemory(memoryLayout);
         this.packageReader = packageReader;
+        this.clean();
+    }
+
+    public clean() {
+        const mainPackage = this.packageReader('main');
+        this.cleanDistDir(mainPackage);
+        this.getDependencies(mainPackage).forEach(d => this.cleanDistDir(d));
+    }
+
+    private cleanDistDir(pkg: PackageConfig) {
+        if (fs.existsSync(pkg.dirs.dist)) {
+            fs.rmSync(pkg.dirs.dist, {recursive: true});
+        }
+    }
+
+    private getDependencies(mainPackage: PackageConfig) {
+        const tmp = mainPackage.dependencies.map(pname => this.packageReader(pname));
+        const visited = new Set<PackageConfig>();
+        while(tmp.length > 0) {
+            const curr = tmp.pop() as PackageConfig;
+            visited.add(curr);
+            curr.dependencies.forEach(d => {
+                const pkg = this.packageReader(d);
+                if (!visited.has(pkg)) {
+                    tmp.push(pkg);
+                }
+            });
+        }
+        return Array.from(visited);
     }
 
     public async compile(): Promise<ExecutableBinary> {
         const {mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints} = this.transpile();
         await this.compileC(mainPackage, subPackages);
-        await this.link(mainPackage, subPackages, mainEntryPoint);
+        await this.link(mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints);
         return this.generateExecutableBinary(mainPackage, mainEntryPoint, subModuleEntryPoints);
     }
 
@@ -110,35 +139,39 @@ export class Compiler {
     }
 
     private async compileC(mainPackage: PackageConfig, subPackages: PackageConfig[]) {
-        // Compile each package with make.
-        const commonIncludeDirs = this.espidfComponents.commonIncludeDirs;
-        for (const pkg of [mainPackage, ...subPackages]) {
-            try {
-                const makefile = generateMakefile(
-                    this.config.dirs.compilerToolchain,
-                    pkg,
-                    [...this.espidfComponents.getIncludeDirs(pkg.espIdfComponents), ...commonIncludeDirs],
-                    ARCHIVE_PATH(pkg)
-                );
-                fs.writeFileSync(MAKEFILE_PATH(pkg), makefile);
-                await executeCommand('make', pkg.dirs.dist, false);
-            } catch (error) {
-                throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
-            }
+        await this.compilePackage(mainPackage);
+        for (const pkg of subPackages) {
+            await this.compilePackage(pkg);
         }
     }
 
-    private async link(mainPackage: PackageConfig, subPackages: PackageConfig[], mainEntryPoint: string) {
+    private async compilePackage(pkg: PackageConfig) {
+        const commonIncludeDirs = this.espidfComponents.commonIncludeDirs;
+        try {
+            const makefile = generateMakefile(
+                this.config.dirs.compilerToolchain,
+                pkg,
+                [...this.espidfComponents.getIncludeDirs(pkg.espIdfComponents), ...commonIncludeDirs],
+                ARCHIVE_PATH(pkg)
+            );
+            fs.writeFileSync(MAKEFILE_PATH(pkg), makefile);
+            await executeCommand('make', pkg.dirs.dist, false);
+        } catch (error) {
+            throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
+        }
+    }
+
+    private async link(mainPackage: PackageConfig, subPackages: PackageConfig[], mainEntryPoint: string, subModuleEntryPoints: string[]) {
         try {
             const cwd = process.cwd();
             const elfReader = new ElfReader(RUNTIME_ELF_PATH(this.config));
             const symbolsInRuntime = elfReader.readAllSymbols().map(symbol => ({name: symbol.name, address: symbol.address}));
             const linkerscript = generateLinkerScript(
-                [path.relative(cwd, ARCHIVE_PATH(mainPackage)), ...subPackages.map(pkg=>path.relative(cwd, ARCHIVE_PATH(pkg)))],
                 this.getArchivesWithEspComponents(mainPackage, subPackages).map(ar => path.relative(cwd, ar)),
                 this.memory,
                 symbolsInRuntime,
-                mainEntryPoint
+                mainEntryPoint,
+                subModuleEntryPoints
             );
             fs.writeFileSync(LINKER_SCRIPT(mainPackage), linkerscript);
             await executeCommand(`${LD_PATH(this.config)} -o ${LINKED_ELF_PATH(mainPackage)} -T ${LINKER_SCRIPT(mainPackage)} --gc-sections`, cwd);
@@ -176,14 +209,14 @@ export class Compiler {
         const dramSection = linkedElf.readSectionByName(this.memory.dram.name);
         const iflashSection = linkedElf.readSectionByName(this.memory.iflash.name);
         const dflashSection = linkedElf.readSectionByName(this.memory.dflash.name);
-        const entryPoints: {id: number, address: number}[] = [];
-        const setEntryPoint = (id: number, name: string) => {
+        const entryPoints: {isMain: boolean, address: number}[] = [];
+        const setEntryPoint = (isMain: boolean, name: string) => {
             const symbol = definedSymbols.find(s => s.name === name);
-            if (symbol) { entryPoints.push({id, address: symbol.address}); }
+            if (symbol) { entryPoints.push({isMain, address: symbol.address}); }
             else { throw new Error(`Failed to generate binary. Cannot find ${name} in executable elf.`) }
         }
-        subEntryPointNames.forEach(epn => setEntryPoint(-1, epn));
-        setEntryPoint(0, mainEntryPointName);
+        subEntryPointNames.forEach(epn => setEntryPoint(false, epn));
+        setEntryPoint(true, mainEntryPointName);
         return {
             iram: iramSection ? {address: iramSection.address, data: iramSection.value} : undefined,
             dram: dramSection ? {address: dramSection.address, data: dramSection.value} : undefined,

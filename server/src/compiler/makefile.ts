@@ -37,7 +37,7 @@ OBJECTS := $(patsubst $(DIST_DIR)/%.c, $(BUILD_DIR)/%.o, $(DIST_SOURCES))
 
 # === Compilation settings ===
 INCLUDES := ${includeDirs.map(path => `-I ${path}`).join(' ')}
-CFLAGS := $(INCLUDES) -O2 -w -fno-common -ffunction-sections -mtext-section-literals -mlongcalls -fno-zero-initialized-in-bss
+CFLAGS := $(INCLUDES) -O2 -w -fno-common -ffunction-sections -fdata-sections -mtext-section-literals -mlongcalls -fno-zero-initialized-in-bss
 
 
 # ====================================================================

@@ -13,7 +13,6 @@ const memoryLayout = {
 describe('Compiler for ESP32', () => {
     const compilerConfig = getCompilerConfig();
     const compile = async (testEnv: CompilerTestEnv) => {
-        // execute
         const compiler = new Compiler(
             memoryLayout,
             compilerConfig,
