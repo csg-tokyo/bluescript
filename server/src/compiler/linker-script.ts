@@ -11,25 +11,25 @@ export default function generateLinkerScript(
     const iramMemory = new MemoryRegion(
       "IRAM", 
       [new MemoryAttribute('executable'), new MemoryAttribute('allocatable')], 
-      shadowMemory.iram.address, 
+      shadowMemory.iram.address + shadowMemory.iram.used, 
       1000000
     );
     const dramMemory = new MemoryRegion(
       "DRAM", 
       [new MemoryAttribute('read/write'), new MemoryAttribute('allocatable')], 
-      shadowMemory.dram.address, 
+      shadowMemory.dram.address + shadowMemory.dram.used, 
       1000000
     );
     const iflashMemory = new MemoryRegion(
       "IFlash", 
       [new MemoryAttribute('executable')], 
-      shadowMemory.iflash.address, 
+      shadowMemory.iflash.address + shadowMemory.iflash.used, 
       1000000
     );
     const dflashMemory = new MemoryRegion(
       "DFlash", 
       [new MemoryAttribute('readonly')], 
-      shadowMemory.dflash.address, 
+      shadowMemory.dflash.address + shadowMemory.dflash.used, 
       1000000
     );
     const externalMemory = new MemoryRegion('EXTERNAL', [new MemoryAttribute('executable')], 0, 0);
