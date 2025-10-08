@@ -6,7 +6,7 @@ import {Buffer} from "node:buffer";
 import { spawn } from "child_process";
 import generateLinkerScript from "./linker-script";
 import generateMakefile from "./makefile";
-import { ElfReader } from "./elf-reader";
+import { ElfReader, Section, Symbol } from "./elf-reader";
 
 
 export type PackageConfig = {
@@ -37,7 +37,7 @@ export type MemoryLayout = {
 }
 
 
-type MemoryRegion = {name: string, address: number, size: number}
+type MemoryRegion = {name: string, address: number, size: number, used: number}
 
 export class ShadowMemory {
     public iram: MemoryRegion;
@@ -46,10 +46,10 @@ export class ShadowMemory {
     public dflash: MemoryRegion;
 
     constructor(memoryLayout: MemoryLayout) {
-        this.iram = {name: '.iram', ...memoryLayout.iram};
-        this.dram = {name: '.dram', ...memoryLayout.dram};
-        this.iflash = {name: '.iflash', ...memoryLayout.iflash};
-        this.dflash = {name: '.dflash', ...memoryLayout.dflash};
+        this.iram = {name: '.iram', ...memoryLayout.iram, used: 0};
+        this.dram = {name: '.dram', ...memoryLayout.dram, used: 0};
+        this.iflash = {name: '.iflash', ...memoryLayout.iflash, used: 0};
+        this.dflash = {name: '.dflash', ...memoryLayout.dflash, used: 0};
     }
 }
 
@@ -58,7 +58,7 @@ export type ExecutableBinary = {
     dram?: {address: number, data: Buffer},
     iflash?: {address: number, data: Buffer},
     dflash?: {address: number, data: Buffer},
-    entryPoints: {id: number, address: number}[]
+    entryPoints: {isMain: boolean, address: number}[]
 }
 
 
@@ -78,67 +78,133 @@ const C_PROLOG = (compilerConfig: CompilerConfig) => `
 
 export class Compiler {
     private config: CompilerConfig;
+    private compileId: number;
     private espidfComponents: ESPIDFComponents;
     private memory: ShadowMemory;
+    private definedSymbols: Map<string, Symbol>; // {name, address}
+    private transpiler: TranspilerWithPkgSystem;
     private packageReader: (name: string) => PackageConfig;
-
+    
     constructor(
         memoryLayout: MemoryLayout, 
         config: CompilerConfig, 
         packageReader: (name: string) => PackageConfig,
     ) {
         this.config = config;
+        this.compileId = -1;
         this.espidfComponents = new ESPIDFComponents(config.dirs.runtime);
         this.memory = new ShadowMemory(memoryLayout);
         this.packageReader = packageReader;
+        const elfReader = new ElfReader(RUNTIME_ELF_PATH(this.config));
+        this.definedSymbols = new Map(elfReader.readAllSymbols().map(s => [s.name, s]));
+        this.transpiler = new TranspilerWithPkgSystem(this.packageReader, this.config.dirs.std, C_PROLOG(this.config));
+        this.clean();
+        this.checkFileNamesInMain();
+    }
+
+    private clean() {
+        const mainPackage = this.packageReader('main');
+        this.cleanDistDir(mainPackage);
+        this.getDependencies(mainPackage).forEach(d => this.cleanDistDir(d));
+    }
+
+    private cleanDistDir(pkg: PackageConfig) {
+        if (fs.existsSync(pkg.dirs.dist)) {
+            fs.rmSync(pkg.dirs.dist, {recursive: true});
+        }
+    }
+
+    private getDependencies(mainPackage: PackageConfig) {
+        const tmp = mainPackage.dependencies.map(pname => this.packageReader(pname));
+        const visited = new Set<PackageConfig>();
+        while(tmp.length > 0) {
+            const curr = tmp.pop() as PackageConfig;
+            visited.add(curr);
+            curr.dependencies.forEach(d => {
+                const pkg = this.packageReader(d);
+                if (!visited.has(pkg)) {
+                    tmp.push(pkg);
+                }
+            });
+        }
+        return Array.from(visited);
+    }
+
+    private checkFileNamesInMain() {
+        const mainPackage = this.packageReader('main');
+        const invalidFilePattern = /^\d+\.bs$/; // This pattern can be used to save interactively added program.
+        const files = fs.readdirSync(mainPackage.dirs.root);
+        for (const file of files) {
+            if (invalidFilePattern.test(file)) {
+                const fullPath = path.join(mainPackage.dirs.root, file);
+                throw new Error(`Invalid file name: ${fullPath}\nBlueScript source file names cannot consist solely of digits.`);
+            }
+        }
     }
 
     public async compile(): Promise<ExecutableBinary> {
+        this.compileId++;
         const {mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints} = this.transpile();
         await this.compileC(mainPackage, subPackages);
-        await this.link(mainPackage, subPackages, mainEntryPoint);
+        await this.link(mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints);
         return this.generateExecutableBinary(mainPackage, mainEntryPoint, subModuleEntryPoints);
     }
 
-    private transpile() {
+    public async additionalCompile(src: string): Promise<ExecutableBinary> {
+        if (this.compileId === -1) {
+            throw new Error('The first compilation have not yet performed.');
+        }
+        this.compileId++;
+        const {mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints} = this.transpile(src);
+        await this.compileC(mainPackage, subPackages);
+        await this.link(mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints);
+        return this.generateExecutableBinary(mainPackage, mainEntryPoint, subModuleEntryPoints);
+    }
+
+    private transpile(src?: string) {
         try {
-            const transpiler = new TranspilerWithPkgSystem(this.packageReader, this.config.dirs.std, C_PROLOG(this.config));
-            return transpiler.transpile();
+            if (src === undefined)
+                return this.transpiler.transpile();
+            else
+                return this.transpiler.transpile({src, id: this.compileId});
         } catch (error) {
             throw new Error(`Failed to transpile: ${getErrorMessage(error)}`, {cause: error});
         }
     }
 
     private async compileC(mainPackage: PackageConfig, subPackages: PackageConfig[]) {
-        // Compile each package with make.
-        const commonIncludeDirs = this.espidfComponents.commonIncludeDirs;
-        for (const pkg of [mainPackage, ...subPackages]) {
-            try {
-                const makefile = generateMakefile(
-                    this.config.dirs.compilerToolchain,
-                    pkg,
-                    [...this.espidfComponents.getIncludeDirs(pkg.espIdfComponents), ...commonIncludeDirs],
-                    ARCHIVE_PATH(pkg)
-                );
-                fs.writeFileSync(MAKEFILE_PATH(pkg), makefile);
-                await executeCommand('make', pkg.dirs.dist, false);
-            } catch (error) {
-                throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
-            }
+        await this.compilePackage(mainPackage);
+        for (const pkg of subPackages) {
+            await this.compilePackage(pkg);
         }
     }
 
-    private async link(mainPackage: PackageConfig, subPackages: PackageConfig[], mainEntryPoint: string) {
+    private async compilePackage(pkg: PackageConfig) {
+        const commonIncludeDirs = this.espidfComponents.commonIncludeDirs;
+        try {
+            fs.rmSync(ARCHIVE_PATH(pkg), {force: true});
+            const makefile = generateMakefile(
+                this.config.dirs.compilerToolchain,
+                pkg,
+                [...this.espidfComponents.getIncludeDirs(pkg.espIdfComponents), ...commonIncludeDirs],
+                ARCHIVE_PATH(pkg)
+            );
+            fs.writeFileSync(MAKEFILE_PATH(pkg), makefile);
+            await executeCommand('make', pkg.dirs.dist);
+        } catch (error) {
+            throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
+        }
+    }
+
+    private async link(mainPackage: PackageConfig, subPackages: PackageConfig[], mainEntryPoint: string, subModuleEntryPoints: string[]) {
         try {
             const cwd = process.cwd();
-            const elfReader = new ElfReader(RUNTIME_ELF_PATH(this.config));
-            const symbolsInRuntime = elfReader.readAllSymbols().map(symbol => ({name: symbol.name, address: symbol.address}));
             const linkerscript = generateLinkerScript(
-                [path.relative(cwd, ARCHIVE_PATH(mainPackage)), ...subPackages.map(pkg=>path.relative(cwd, ARCHIVE_PATH(pkg)))],
                 this.getArchivesWithEspComponents(mainPackage, subPackages).map(ar => path.relative(cwd, ar)),
                 this.memory,
-                symbolsInRuntime,
-                mainEntryPoint
+                [...this.definedSymbols.values()],
+                mainEntryPoint,
+                subModuleEntryPoints
             );
             fs.writeFileSync(LINKER_SCRIPT(mainPackage), linkerscript);
             await executeCommand(`${LD_PATH(this.config)} -o ${LINKED_ELF_PATH(mainPackage)} -T ${LINKER_SCRIPT(mainPackage)} --gc-sections`, cwd);
@@ -171,19 +237,21 @@ export class Compiler {
         mainPackage: PackageConfig, mainEntryPointName: string, subEntryPointNames: string[]
     ): ExecutableBinary {
         const linkedElf = new ElfReader(LINKED_ELF_PATH(mainPackage));
-        const definedSymbols = linkedElf.readDefinedSymbols();
         const iramSection = linkedElf.readSectionByName(this.memory.iram.name);
         const dramSection = linkedElf.readSectionByName(this.memory.dram.name);
         const iflashSection = linkedElf.readSectionByName(this.memory.iflash.name);
         const dflashSection = linkedElf.readSectionByName(this.memory.dflash.name);
-        const entryPoints: {id: number, address: number}[] = [];
-        const setEntryPoint = (id: number, name: string) => {
-            const symbol = definedSymbols.find(s => s.name === name);
-            if (symbol) { entryPoints.push({id, address: symbol.address}); }
+        this.updateDefinedSymbols(linkedElf);
+        this.updateMemory(iramSection, dramSection, iflashSection, dflashSection);
+
+        const entryPoints: {isMain: boolean, address: number}[] = [];
+        const setEntryPoint = (isMain: boolean, name: string) => {
+            const symbol = this.definedSymbols.get(name);
+            if (symbol) { entryPoints.push({isMain, address: symbol.address}); }
             else { throw new Error(`Failed to generate binary. Cannot find ${name} in executable elf.`) }
         }
-        subEntryPointNames.forEach(epn => setEntryPoint(-1, epn));
-        setEntryPoint(0, mainEntryPointName);
+        subEntryPointNames.forEach(epn => setEntryPoint(false, epn));
+        setEntryPoint(true, mainEntryPointName);
         return {
             iram: iramSection ? {address: iramSection.address, data: iramSection.value} : undefined,
             dram: dramSection ? {address: dramSection.address, data: dramSection.value} : undefined,
@@ -191,6 +259,18 @@ export class Compiler {
             dflash: dflashSection ? {address: dflashSection.address, data: dflashSection.value} : undefined,
             entryPoints
         }
+    }
+
+    private updateDefinedSymbols(linkedElf: ElfReader) {
+        const definedSymbols = linkedElf.readDefinedSymbols();
+        definedSymbols.forEach(s => this.definedSymbols.set(s.name, s));
+    }
+
+    private updateMemory(iram?: Section, dram?: Section, iflash?: Section, dflash?: Section) {
+        if (iram) this.memory.iram.used += iram.size;
+        if (dram) this.memory.dram.used += dram.size;
+        if (iflash) this.memory.iflash.used += iflash.size;
+        if (dflash) this.memory.dflash.used += dflash.size;
     }
 }
 
@@ -224,13 +304,21 @@ class TranspilerWithPkgSystem {
         this.visitedPkgs = [];
     }
 
-    public transpile() {
-        const pathInPkg = { ext: '.bs', name: 'index', dir: './', pkg: this.packageReader('main')};
-        const src = this.readFile(pathInPkg);
+    public transpile(code?: {src: string, id: number}) {
+        let pathInPkg: PathInPkg;
+        let src: string;
+        if (code === undefined) {
+            pathInPkg = { ext: '.bs', name: 'index', dir: './', pkg: this.packageReader('main')};
+            src = this.readFile(pathInPkg);
+        } else {
+            pathInPkg = { ext: '.bs', name: `${code.id}`, dir: './', pkg: this.packageReader('main')};
+            src = code.src;
+        }
         const subModuleEntryPoints: string[] = [];
         this.sessionId += 1;
         const result = transpile(this.sessionId, src, this.globalNames, this.makeImporter(pathInPkg, subModuleEntryPoints));
         this.writeCFile(pathInPkg, result.code);
+        this.globalNames = result.names;
         return {mainPackage: pathInPkg.pkg, subPackages: this.visitedPkgs, mainEntryPoint: result.main, subModuleEntryPoints};
     }
 

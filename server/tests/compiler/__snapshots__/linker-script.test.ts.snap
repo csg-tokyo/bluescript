@@ -4,6 +4,7 @@ exports[`generateLinkerScript should generate a correct linker script with all p
 "GROUP(liba.a libc.a main.o utils.o)
 ENTRY(bluescript_main0_)
 
+EXTERN(bluescript_main1_0 bluescript_main2_0)
 
 MEMORY {
 	IRAM   (XA)   : ORIGIN = 0x40080000,  LENGTH = 1000000
@@ -17,28 +18,20 @@ MEMORY {
 SECTIONS {
 	.iram : {
 		*(.iram*)
-		KEEP(main.o(.iram*))
-		KEEP(utils.o(.iram*))
 		. = ALIGN(4);
 	} > IRAM
 
 	.dram : {
 		*(.data .data.* .bss .bss.* .dram*)
-		KEEP(main.o(.data .data.* .bss .bss.* .dram*))
-		KEEP(utils.o(.data .data.* .bss .bss.* .dram*))
 	} > DRAM
 
 	.iflash : {
 		*(.literal .text .literal.* .text.*)
-		KEEP(main.o(.literal .text .literal.* .text.*))
-		KEEP(utils.o(.literal .text .literal.* .text.*))
 		. = ALIGN(4);
 	} > IFlash
 
 	.dflash : {
 		*(.rodata .rodata.*)
-		KEEP(main.o(.rodata .rodata.*))
-		KEEP(utils.o(.rodata .rodata.*))
 	} > DFlash
 
 	.external : {

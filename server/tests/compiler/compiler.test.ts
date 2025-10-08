@@ -9,18 +9,19 @@ const memoryLayout = {
     dflash:{address:0x3f43d000, size:10000},
 }
 
+const compilerConfig = getCompilerConfig();
+const compile = async (testEnv: CompilerTestEnv) => {
+    const compiler = new Compiler(
+        memoryLayout,
+        compilerConfig,
+        testEnv.getPackageReader()
+    )
+    await compiler.compile();
+    return compiler;
+}
+
 
 describe('Compiler for ESP32', () => {
-    const compilerConfig = getCompilerConfig();
-    const compile = async (testEnv: CompilerTestEnv) => {
-        // execute
-        const compiler = new Compiler(
-            memoryLayout,
-            compilerConfig,
-            testEnv.getPackageReader()
-        )
-        await compiler.compile();
-    }
 
     beforeEach(() => {
         if (fs.existsSync(CompilerTestEnv.ROOT_DIR)) {
@@ -251,6 +252,23 @@ function foo() {
         testEnv.clean();
     });
 
+    it('should compile index.bs which includes custom c file.', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+        testEnv.addFile('main', './add.c',  'int add(int a, int b) {return a + b;}')
+        testEnv.addFile('main', './index.bs', `
+code\`#include "./add.c"\`
+function foo() {
+    code\`add(1, 2);\`
+}
+            `);
+
+        await compile(testEnv);
+        expect(fs.existsSync(CompilerTestEnv.RESULT_FILE)).toBe(true);
+
+        testEnv.clean();
+    });
+
     it('should throw C compilation error.', async () => {
         const testEnv = new CompilerTestEnv();
         testEnv.addPackage('main');
@@ -304,6 +322,104 @@ gpioInit(23);
 
         await compile(testEnv);
         expect(fs.existsSync(CompilerTestEnv.RESULT_FILE)).toBe(true);
+
+        testEnv.clean();
+    });
+});
+
+
+describe('Compiler for ESP32', () => {
+    beforeEach(() => {
+        if (fs.existsSync(CompilerTestEnv.ROOT_DIR)) {
+            fs.rmSync(CompilerTestEnv.ROOT_DIR, {recursive: true});
+        }
+    });
+
+    it('should throw error if a file with a name consisting only numbers exists in main.', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+        testEnv.addFile('main', './index.bs', '1 + 1');
+        testEnv.addFile('main', './1.bs', '1 + 1');
+
+        await expect(compile(testEnv)).rejects.toThrow(`Invalid file name`);
+
+        testEnv.clean();
+    });
+
+    it('should compile an additional code fragment.', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+        testEnv.addFile('main', './index.bs', '1 + 1');
+
+        const compiler = await compile(testEnv);
+        const binary = await compiler.additionalCompile('1 + 23');
+        expect(binary.entryPoints.length).toBe(1);
+
+        testEnv.clean();
+    });
+
+    it('should throw error if first compile have not yet performed.', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+        testEnv.addFile('main', './index.bs', '1 + 1');
+
+        const compiler = new Compiler(
+          memoryLayout,
+          compilerConfig,
+          testEnv.getPackageReader()
+        )
+        await expect(compiler.additionalCompile('1 + 1')).rejects.toThrow(`The first compilation have not yet performed.`);
+
+        testEnv.clean();
+    });
+
+    it('should compile an additional code fragment with function call.', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+        testEnv.addFile('main', './index.bs', 'function add(a, b) {return a + b}');
+
+        const compiler = await compile(testEnv);
+        const binary = await compiler.additionalCompile('add(2, 3);');
+        expect(binary.entryPoints.length).toBe(1);
+
+        testEnv.clean();
+    });
+
+    it('should compile an additional code fragment with variable access', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+        testEnv.addFile('main', './index.bs', 'let a = 1 + 1;');
+
+        const compiler = await compile(testEnv);
+        const binary = await compiler.additionalCompile('a += 1;');
+        expect(binary.entryPoints.length).toBe(1);
+
+        testEnv.clean();
+    });
+
+    it('should compile an additional code fragment with a module import.', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+        testEnv.addFile('main', './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
+        testEnv.addFile('main', './index.bs', `1 + 1`);
+
+        const compiler = await compile(testEnv);
+        const binary = await compiler.additionalCompile(`import {add} from './module1';\n add(1, 1);`);
+        expect(binary.entryPoints.length).toBe(2);
+
+        testEnv.clean();
+    });
+
+    it('should compile several additional code fragments.', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+        testEnv.addFile('main', './index.bs', '1 + 1');
+
+        const compiler = await compile(testEnv);
+        let binary = await compiler.additionalCompile('function add(a, b) {return a + b}');
+        expect(binary.entryPoints.length).toBe(1);
+        binary = await compiler.additionalCompile('add(1, 2);');
+        expect(binary.entryPoints.length).toBe(1);
 
         testEnv.clean();
     });

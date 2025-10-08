@@ -112,7 +112,7 @@ async function sendAndExecute(ble: BLE, executableBinary: ExecutableBinary) {
     if (executableBinary.iflash) bytecodeGenerator.load(executableBinary.iflash.address, executableBinary.iflash.data);
     if (executableBinary.dflash) bytecodeGenerator.load(executableBinary.dflash.address, executableBinary.dflash.data);
     for (const entryPoint of executableBinary.entryPoints) {
-        bytecodeGenerator.jump(entryPoint.id, entryPoint.address);
+        bytecodeGenerator.jump(entryPoint.isMain ? 0 : -1, entryPoint.address);
     }
     try {
         const buffs = bytecodeGenerator.generate();

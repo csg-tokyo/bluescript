@@ -2,34 +2,34 @@ import { ShadowMemory } from "./compiler";
 
 
 export default function generateLinkerScript(
-    targetFiles: string[],
     inputFiles: string[],
     shadowMemory: ShadowMemory, 
-    externalSymbols: {name: string, address: number}[],
-    entryPointName: string
+    definedSymbols: {name: string, address: number}[],
+    entryPoint: string,
+    subModuleEntryPoints: string[]
 ): string {
     const iramMemory = new MemoryRegion(
       "IRAM", 
       [new MemoryAttribute('executable'), new MemoryAttribute('allocatable')], 
-      shadowMemory.iram.address, 
+      shadowMemory.iram.address + shadowMemory.iram.used, 
       1000000
     );
     const dramMemory = new MemoryRegion(
       "DRAM", 
       [new MemoryAttribute('read/write'), new MemoryAttribute('allocatable')], 
-      shadowMemory.dram.address, 
+      shadowMemory.dram.address + shadowMemory.dram.used, 
       1000000
     );
     const iflashMemory = new MemoryRegion(
       "IFlash", 
       [new MemoryAttribute('executable')], 
-      shadowMemory.iflash.address, 
+      shadowMemory.iflash.address + shadowMemory.iflash.used, 
       1000000
     );
     const dflashMemory = new MemoryRegion(
       "DFlash", 
       [new MemoryAttribute('readonly')], 
-      shadowMemory.dflash.address, 
+      shadowMemory.dflash.address + shadowMemory.dflash.used, 
       1000000
     );
     const externalMemory = new MemoryRegion('EXTERNAL', [new MemoryAttribute('executable')], 0, 0);
@@ -42,23 +42,18 @@ export default function generateLinkerScript(
       .section("*", ['.literal', '.text', '.literal.*', '.text.*'], false);
     const dflashSection = new Section(shadowMemory.dflash.name, dflashMemory)
       .section("*", ['.rodata', '.rodata.*'], false);
-    for (const targetFile of targetFiles) {
-      iramSection.section(targetFile, ['.iram*'], true);
-      dramSection.section(targetFile, ['.data', '.data.*', '.bss', '.bss.*', '.dram*'], true);
-      iflashSection.section(targetFile, ['.literal', '.text', '.literal.*', '.text.*'], true);
-      dflashSection.section(targetFile, ['.rodata', '.rodata.*'], true);
-    }
     iramSection.align(4);
     iflashSection.align(4);
     
     const externalSection = new Section('.external', externalMemory);
-    for (const sym of externalSymbols) {
+    for (const sym of definedSymbols) {
         externalSection.symbol(sym.name, sym.address);
     }
 
     return new LinkerScript()
         .group(inputFiles)
-        .entry(entryPointName)
+        .entry(entryPoint)
+        .extern(subModuleEntryPoints)
         .memory([iramMemory, dramMemory, iflashMemory, dflashMemory, externalMemory])
         .sections([iramSection, dramSection, iflashSection, dflashSection, externalSection])
         .toString();
@@ -68,6 +63,7 @@ class LinkerScript {
   private commands: Command[] = [];
 
   group(files: string[]) { this.commands.push(new Group(files)); return this; }
+  extern(symbols: string[]) { this.commands.push(new Extern(symbols)); return this; }
   entry(entry: string) { this.commands.push(new Entry(entry)); return this; }
   sections(sections: Section[]) { this.commands.push(new Sections(sections)); return this; }
   memory(regions: MemoryRegion[]) { this.commands.push(new Memory(regions)); return this; }
@@ -86,6 +82,14 @@ class Group implements Command {
 
   toString(): string {
     return `GROUP(${this.files.join(' ')})`;
+  }
+}
+
+class Extern implements Command {
+  constructor(private symbols: string[]) {}
+
+  toString(): string {
+    return this.symbols.length !== 0 ? `EXTERN(${this.symbols.join(' ')})` : '';
   }
 }
 
