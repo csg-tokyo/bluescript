@@ -1,8 +1,8 @@
-import { Flex, Button, Row, Typography, Result} from 'antd';
-import { CaretRightOutlined, LoadingOutlined, CopyOutlined, SmileOutlined } from '@ant-design/icons';
-import CodeEditor from '@uiw/react-textarea-code-editor';
-import { EditingCellT, LoadingCellT, ExecutedCellT, ReplContext } from '../../contexts/repl-context';
-import { useContext, useRef } from 'react';
+import { Result} from 'antd';
+import { useContext } from 'react';
+import {LoadingOutlined, SmileOutlined } from '@ant-design/icons';
+import { ReplContext } from '../../contexts/repl-context';
+import { EditingCell, LoadingCell, ExecutedCell } from './cells';
 import styles from './styles.module.css';
 
 
@@ -76,88 +76,9 @@ function ActivatedScreen() {
         <div className={styles.activatedScreen}>
             { replContext?.executedCells.map(cell => <ExecutedCell cell={cell} key={cell.id} />)}
             { replContext.latestCell.state === 'editing'
-                ? <EditableCell cell={replContext.latestCell} setCode={replContext.setCode} onExecuteClick={replContext.execute}/>
+                ? <EditingCell cell={replContext.latestCell} setCode={replContext.setCode} onExecuteClick={replContext.execute}/>
                 : <LoadingCell cell={replContext.latestCell} />
             }
         </div>
     );
 }
-
-function EditableCell(props: {cell: EditingCellT, setCode: (code: string) => void, onExecuteClick: () => Promise<void>}) {
-    const handleShiftEnter = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && e.shiftKey) {
-            props.onExecuteClick();
-        }
-    }
-
-    return (
-        <div className={styles.cell}>
-            <Row>
-            <Flex style={{width: '100%'}}>
-                <Button shape='circle' type='text' onClick={props.onExecuteClick} style={{marginRight:5}} icon={<CaretRightOutlined style={{fontSize:20}} />}/>
-                <CodeEditor
-                    value={props.cell.code}
-                    language="ts"
-                    placeholder=""
-                    className={styles.cellCodeEditor}
-                    onKeyDown={handleShiftEnter}
-                    onChange={(e) => props.setCode(e.target.value)}
-                />
-            </Flex>
-            </Row>
-            { props.cell.compileError.length > 0 &&
-                <div className={styles.cellCompileErrorArea}>
-                    { props.cell.compileError.map( (message, id) => 
-                        <div key={id}>{message}</div>
-                    )}
-                </div>
-            }
-        </div>
-    );
-}
-
-function LoadingCell(props: {cell: LoadingCellT}) {
-    let statusText = () => {
-        if (props.cell.state === 'compiling') { return 'Compiling ...' }
-        if (props.cell.state === 'sending') { return 'Sending ...' }
-        if (props.cell.state === 'executing') { return 'Executing ...' }
-    }
-
-    return (
-        <div className={styles.cell}>
-            <Row>
-            <Flex style={{width: '100%'}}>
-                <Button shape='circle' type='text' style={{marginRight:5}} disabled icon={<LoadingOutlined style={{fontSize:20}} />}/>
-                <CodeEditor value={props.cell.code} language="ts" placeholder="" className={styles.cellCodeEditor} disabled/>
-            </Flex>
-            </Row>
-            <Row justify='end'>
-                <Typography.Text style={{color: '#8c8c8c'}}>{statusText()}</Typography.Text>
-            </Row>
-        </div>
-    );
-}
-
-function ExecutedCell(props: {cell: ExecutedCellT}) {
-    const onCopyClick = async () => {
-        await global.navigator.clipboard.writeText(props.cell.code);
-    }
-
-    const time = props.cell.time;
-    const statusText = `| compile: ${time.compilation} ms | sending: ${time.sending} ms | execution: ${time.execution} ms |`
-
-    return (
-        <div className={styles.cell}>
-            <Row>
-            <Flex style={{width: '100%'}}>
-                <Button shape='circle' type='text' onClick={onCopyClick} style={{marginRight:5, color: '#8c8c8c'}} icon={<CopyOutlined style={{fontSize:20}} />}/>
-                <CodeEditor value={props.cell.code} language="ts" placeholder="" className={styles.cellCodeEditor} disabled/>
-            </Flex>
-            </Row>
-            <Row justify='end'>
-                <Typography.Text style={{color: '#8c8c8c'}}>{statusText}</Typography.Text>
-            </Row>
-        </div>
-    );
-}
-

@@ -22,11 +22,9 @@
 
 .cellCodeEditor {
   font-size: 14px;
-  background-color: #f0f0f0;
   width:100%;
   min-height: 50px;
   border: solid #1890ff 1px;
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Consolas, Liberation Mono, Menlo, monospace
 }
 
 .cellCompileErrorArea {
@@ -34,6 +32,31 @@
   justify-content:start;
   color: #ff4d4f;
   font-size: 16px;
+}
+
+/* CopyButton */
+
+.copyButtonIconContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copyButtonIconBase {
+  position: absolute;
+  font-size: 30px;
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.copyButtonIconVisible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.copyButtonIconHidden {
+  opacity: 0;
+  transform: scale(0.7);
 }
 
 

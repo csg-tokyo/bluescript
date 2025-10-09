@@ -33,7 +33,9 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     }
 
     const execute = async () => {
-        console.log("execute");
+        const code = latestCell.code;
+        setLatestCell({id:-1, code:'', state: 'editing', compileError:[]});
+        setExecutedCells((cells) => [...cells, {state: 'executed', code: code, id:Math.random(), time: {compilation: 0, sending: 0, execution: 0}}]);
     }
 
     return (
