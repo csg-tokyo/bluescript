@@ -18,11 +18,9 @@ export function EditingCell(props: {cell: EditingCellT, setCode: (code: string) 
                 <CodeEditor onChange={props.setCode} onShiftEnter={props.onExecuteClick} code={props.cell.code}/>
             </Flex>
             </Row>
-            { props.cell.compileError.length > 0 &&
+            { props.cell.compileError &&
                 <div className={styles.cellCompileErrorArea}>
-                    { props.cell.compileError.map( (message, id) => 
-                        <div key={id}>{message}</div>
-                    )}
+                    {props.cell.compileError}
                 </div>
             }
         </div>
@@ -32,7 +30,7 @@ export function EditingCell(props: {cell: EditingCellT, setCode: (code: string) 
 export function LoadingCell(props: {cell: LoadingCellT}) {
     let statusText = () => {
         if (props.cell.state === 'compiling') { return 'Compiling ...' }
-        if (props.cell.state === 'sending') { return 'Sending ...' }
+        if (props.cell.state === 'sending') { return 'Sending via Bluetooth ...' }
         if (props.cell.state === 'executing') { return 'Executing ...' }
     }
 

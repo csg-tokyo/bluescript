@@ -57,9 +57,9 @@ export abstract class Service<T extends object> extends EventEmitter<T> {
 }
 
 export interface ReplServiceEvents {
-    finishCompilation: (compilationTime: number) => void;
-    finishSending: (sendingTime: number) => void;
-    finishExecution: (executionTime: number) => void;
+    finishCompilation: (time: number, error?: string) => void;
+    finishSending: (time: number) => void;
+    finishExecution: (time: number) => void;
     log: (log: string) => void;
     error: (error: string) => void;
 }

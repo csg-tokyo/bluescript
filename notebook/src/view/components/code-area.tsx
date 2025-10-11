@@ -1,4 +1,4 @@
-import { Result} from 'antd';
+import { Result } from 'antd';
 import { useContext } from 'react';
 import {LoadingOutlined, SmileOutlined } from '@ant-design/icons';
 import { ReplContext } from '../../contexts/repl-context';
@@ -12,18 +12,15 @@ export default function CodeArea() {
         throw new Error('ReplContext can only be used in ReplProvider.');
     }
     const url = 'http://localhost:3000/'; // TODO: 要修正
-    const mainFilePath = './index.ts'; // TODO: 要修正
 
     return (
         <div style={{height: '100%', width: '100%'}}>
-            {replContext.state === 'initial' ? (
+            { replContext.state === 'initial' ? (
                 <WelcomScreen />
             ) : replContext.state === 'network-connecting' ? (
                 <LoadingScreen message={`Connecting to ${url} ...`} />
             ) : replContext.state === 'network-disconnected' ? (
                 <ErrorScreen message={`Failed to connect to ${url}`}/>
-            ) : replContext.state === 'executing-main' ? (
-                <LoadingScreen message={`Executing ${mainFilePath} ...`} /> 
             ) : (
                 <ActivatedScreen />
             )}
@@ -76,7 +73,7 @@ function ActivatedScreen() {
         <div className={styles.activatedScreen}>
             { replContext?.executedCells.map(cell => <ExecutedCell cell={cell} key={cell.id} />)}
             { replContext.latestCell.state === 'editing'
-                ? <EditingCell cell={replContext.latestCell} setCode={replContext.setCode} onExecuteClick={replContext.execute}/>
+                ? <EditingCell cell={replContext.latestCell} setCode={replContext.setCode} onExecuteClick={replContext.executeLatestCell}/>
                 : <LoadingCell cell={replContext.latestCell} />
             }
         </div>
