@@ -10,12 +10,10 @@
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
     "@types/react": "^18.0.21",
     "@types/react-dom": "^18.0.6",
     "@uiw/codemirror-theme-vscode": "^4.25.2",
     "@uiw/react-codemirror": "^4.25.2",
-    "@uiw/react-textarea-code-editor": "^2.0.3",
     "antd": "^5.22.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -27,7 +25,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
+    "test": "jest",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -49,7 +47,11 @@
     ]
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^18.8.5",
-    "@types/web-bluetooth": "^0.0.15"
+    "@types/web-bluetooth": "^0.0.15",
+    "jest": "^29.7.0",
+    "mock-socket": "^9.3.1",
+    "ts-jest": "^29.4.5"
   }
 }
