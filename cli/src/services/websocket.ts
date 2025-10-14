@@ -1,7 +1,7 @@
-import { Connection, ConnectionMessage, Service } from "./common";
+import { Connection, ConnectionMessage, EventMap, Service } from "./common";
 import { WebSocketServer, WebSocket } from 'ws';
 
-export interface ReplServiceEvents {
+export type ReplServiceEvents = {
     execute: (code: string) => void;
 }
 
@@ -36,7 +36,7 @@ export class WebSocketConnection extends Connection<any> {
     private port: number;
     private server: WebSocketServer | null = null;
     private client: WebSocket | null = null; // Only one clietn is allowed.
-    private services: Map<string, Service<object, any>> = new Map();
+    private services: Map<string, Service<EventMap, any>> = new Map();
 
     constructor(port: number) {
         super();
@@ -91,13 +91,13 @@ export class WebSocketConnection extends Connection<any> {
     }
     
     public getService(serviceName: 'repl'): ReplService;
-    public getService<T extends Service<object, any>>(serviceName: string): T;
-    public getService(serviceName: string): Service<object, any> {
+    public getService<T extends Service<EventMap, any>>(serviceName: string): T;
+    public getService(serviceName: string): Service<EventMap, any> {
         if (this.services.has(serviceName)) {
             return this.services.get(serviceName)!;
         }
 
-        let service: Service<object, any>;
+        let service: Service<EventMap, any>;
         switch (serviceName) {
             case 'repl':
                 service = new ReplService(this);

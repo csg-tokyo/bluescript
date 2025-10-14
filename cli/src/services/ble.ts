@@ -10,7 +10,7 @@ const SERVICE_UUID = '00ff';
 const CHARACTERISTIC_UUID = 'ff01';
 
 
-export interface DeviceServiceEvents {
+export type DeviceServiceEvents = {
     log: (message: string) => void;
     error: (message: string) => void;
     profile: (fid:number, paramtypes:string[]) => void;
@@ -23,7 +23,7 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         super('device', connection);
     }
 
-    public async execute(bin: ExecutableBinary): Promise<number>  {
+    public async execute(bin: ExecutableBinary): Promise<{sendingTime: number, executionTime: number}>  {
         const builder = new ProtocolPacketBuilder(MTU);
         if (bin.iram) builder.load(bin.iram.address, bin.iram.data);
         if (bin.dram) builder.load(bin.dram.address, bin.dram.data);
@@ -32,11 +32,15 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         for (const entryPoint of bin.entryPoints) {
             builder.jump(entryPoint.isMain ? 0 : -1, entryPoint.address);
         }
+        const startSending = performance.now();
         await this.send('execute', builder.build());
-        return new Promise<number>((resolve) => {
+        const sendingTime = performance.now() - startSending;
+        let executionTime = 0;
+        return new Promise<{sendingTime: number, executionTime: number}>((resolve) => {
             this.on('exectime', (id, time) => {
+                executionTime += time;
                 if (id === 0) {
-                    resolve(time);
+                    resolve({sendingTime, executionTime});
                 }
             })
         });
@@ -55,6 +59,7 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
 
 
 export class BleConnection extends Connection<Buffer> {
+    public status: 'connected' | 'connecting' | 'disconnected' | 'disconnecting' = 'disconnected';
     private deviceName: string;
     private characteristic: Characteristic|null = null;
     private peripheral: Peripheral|null = null;
@@ -85,6 +90,7 @@ export class BleConnection extends Connection<Buffer> {
     }
 
     private async doConnect(): Promise<void> {
+        this.status = 'connecting';
         await this.waitForPoweredOn();
 
         await noble.startScanningAsync([SERVICE_UUID], false);
@@ -100,11 +106,13 @@ export class BleConnection extends Connection<Buffer> {
         await noble.stopScanningAsync();
         this.peripheral = peripheral;
         this.peripheral.on('disconnect', (event) => {
+            this.status = 'disconnected';
             this.emit('disconnected', event);
             this.peripheral = null;
             this.characteristic = null;
         });
         this.peripheral.on('connect', () => {
+            this.status = 'connected';
             this.emit('connected');
         });
         await peripheral.connectAsync();
@@ -130,16 +138,13 @@ export class BleConnection extends Connection<Buffer> {
             return;
         }
         return new Promise((resolve, reject) => {
-            const stateChangeHandler = (state: string) => {
+            noble.once('stateChange', (state: string) => {
                 if (state === 'poweredOn') {
-                    noble.removeListener('stateChange', stateChangeHandler);
                     resolve();
                 } else if (state !== 'unknown' && state !== 'resetting') {
-                    noble.removeListener('stateChange', stateChangeHandler);
                     reject(new Error(`Bluetooth adapter state is ${state}`));
                 }
-            };
-            noble.on('stateChange', stateChangeHandler);
+            });
         });
     }
 
@@ -171,6 +176,7 @@ export class BleConnection extends Connection<Buffer> {
             this.characteristic = null;
         }
         if (this.peripheral) {
+            this.status = 'disconnecting';
             await this.peripheral.disconnectAsync();
             this.peripheral = null;
         }

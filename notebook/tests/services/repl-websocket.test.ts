@@ -4,7 +4,7 @@ import { Client, Server, WebSocket } from 'mock-socket';
 (global as any).WebSocket = WebSocket;
 
 
-interface TestEvents {
+type TestEvents = {
     hello: (name: string) => void;
     goodbye: () => void;
     data: (a: number, b: boolean) => void;
@@ -20,18 +20,27 @@ describe('EventEmitter', () => {
     it('should register and trigger a listener', () => {
         const listener = jest.fn();
         emitter.on('hello', listener);
-        (emitter as any).emit('hello', 'world'); 
+        emitter.emit('hello', 'world'); 
 
         expect(listener).toHaveBeenCalledTimes(1);
         expect(listener).toHaveBeenCalledWith('world');
     });
+
+    it('should trigger a listener registered with once only once', () => {
+        const listener = jest.fn();
+        emitter.once('hello', listener);
+        emitter.emit('hello', 'world');
+        emitter.emit('hello', 'world');
+
+        expect(listener).toHaveBeenCalledTimes(1);
+    })
 
     it('should trigger multiple listeners for the same event', () => {
         const listener1 = jest.fn();
         const listener2 = jest.fn();
         emitter.on('data', listener1);
         emitter.on('data', listener2);
-        (emitter as any).emit('data', 123, true);
+        emitter.emit('data', 123, true);
 
         expect(listener1).toHaveBeenCalledWith(123, true);
         expect(listener2).toHaveBeenCalledWith(123, true);
@@ -44,7 +53,7 @@ describe('EventEmitter', () => {
         emitter.on('goodbye', listener2);
         
         emitter.off('goodbye', listener1);
-        (emitter as any).emit('goodbye');
+        emitter.emit('goodbye');
 
         expect(listener1).not.toHaveBeenCalled();
         expect(listener2).toHaveBeenCalledTimes(1);
@@ -54,13 +63,13 @@ describe('EventEmitter', () => {
         const listener = jest.fn();
         emitter.on('hello', listener);
         emitter.off('hello');
-        (emitter as any).emit('hello', 'test');
+        emitter.emit('hello', 'test');
         
         expect(listener).not.toHaveBeenCalled();
     });
 
     it('should not throw an error when emitting an event with no listeners', () => {
-        expect(() => (emitter as any).emit('hello', 'nobody')).not.toThrow();
+        expect(() => emitter .emit('hello', 'nobody')).not.toThrow();
     });
 });
 
@@ -126,7 +135,7 @@ describe('WebSocketClient and ReplService integration', () => {
 });
 
 
-describe.only('REPL Service', () => {
+describe('REPL Service', () => {
     let serverSocket: Client;
     let mockServer: Server;
     let wsc: WebSocketClient;

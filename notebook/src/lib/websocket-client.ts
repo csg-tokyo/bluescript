@@ -1,32 +1,58 @@
 
-export class EventEmitter<T extends object> {
-    private listeners: { [K in keyof T]?: Array<T[K]> } = {};
+export type EventMap = Record<string, (...args: any[]) => void>;
 
-    on<K extends keyof T>(eventName: K, listener: T[K]): void {
-        if (!this.listeners[eventName]) {
-            this.listeners[eventName] = [];
-        }
-        this.listeners[eventName]!.push(listener);
+export class EventEmitter<TEvents extends EventMap> {
+  private events: Map<keyof TEvents, Array<(...args: any[]) => void>> = new Map();
+
+  public on<K extends keyof TEvents>(eventName: K, listener: TEvents[K]): void {
+    if (!this.events.has(eventName)) {
+      this.events.set(eventName, []);
+    }
+    this.events.get(eventName)!.push(listener);
+  }
+
+  public off<K extends keyof TEvents>(eventName: K, listener?: TEvents[K]): void {
+    if (!listener) {
+        this.events.delete(eventName);
+        return;
     }
 
-    off<K extends keyof T>(eventName: K, listener?: T[K]): void {
-        const eventListeners = this.listeners[eventName];
-        if (!eventListeners) {
-            return;
-        }
-        if (!listener) {
-            delete this.listeners[eventName];
-            return;
-        }
-        this.listeners[eventName] = eventListeners.filter(l => l !== listener);
+    const listeners = this.events.get(eventName);
+    if (listeners) {
+      const newListeners = listeners.filter(
+        (l) => l !== listener && (l as any).originalListener !== listener
+      );
+      
+      if (newListeners.length > 0) {
+        this.events.set(eventName, newListeners);
+      } else {
+        this.events.delete(eventName);
+      }
+    }
+  }
+
+  public emit<K extends keyof TEvents>(eventName: K, ...args: Parameters<TEvents[K]>): boolean {
+    const listeners = this.events.get(eventName);
+    if (!listeners || listeners.length === 0) {
+      return false;
     }
 
-    protected emit<K extends keyof T>(eventName: K, ...args: any[]): void {
-        const eventListeners = this.listeners[eventName];
-        if (eventListeners) {
-            eventListeners.forEach(listener => (listener as any)(...args));
-        }
-    }
+    listeners.slice().forEach((listener) => {
+      listener(...args);
+    });
+    return true;
+  }
+
+  public once<K extends keyof TEvents>(eventName: K, listener: TEvents[K]): void {
+    const onceWrapper = (...args: Parameters<TEvents[K]>) => {
+      listener(...args);
+      this.off(eventName, onceWrapper as TEvents[K]);
+    };
+    
+    (onceWrapper as any).originalListener = listener;
+
+    this.on(eventName, onceWrapper as TEvents[K]);
+  }
 }
 
 export interface WebSocketMessage {
@@ -35,7 +61,7 @@ export interface WebSocketMessage {
     payload: any[];
 }
 
-export abstract class Service<T extends object> extends EventEmitter<T> {
+export abstract class Service<TEvents extends EventMap> extends EventEmitter<TEvents> {
     constructor(
         public readonly serviceName: string,
         protected readonly client: WebSocketClient
@@ -43,8 +69,8 @@ export abstract class Service<T extends object> extends EventEmitter<T> {
         super();
     }
 
-    handleMessage(event: string, payload: any[]): void {
-        (this.emit as any)(event, ...payload);
+    handleMessage<U extends keyof TEvents>(event: U, payload: Parameters<TEvents[U]>): void {
+        this.emit(event, ...payload);
     }
 
     protected send(event: string, payload: any[]): void {
@@ -56,7 +82,7 @@ export abstract class Service<T extends object> extends EventEmitter<T> {
     }
 }
 
-export interface ReplServiceEvents {
+export type ReplServiceEvents = {
     finishCompilation: (time: number, error?: string) => void;
     finishSending: (time: number) => void;
     finishExecution: (time: number) => void;
@@ -74,7 +100,7 @@ export class ReplService extends Service<ReplServiceEvents> {
     }
 }
 
-export interface WebSocketClientEvents {
+export type WebSocketClientEvents = {
     connected: () => void;
     disconnected: (event: CloseEvent) => void;
     error: (error: Event) => void;
