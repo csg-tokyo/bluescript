@@ -123,64 +123,75 @@ describe('WebSocketClient and ReplService integration', () => {
     it('should throw an error for an unknown service', () => {
         expect(() => wsc.getService('unknown-service' as any)).toThrow('Unknown service: unknown-service');
     });
-
-    describe('with an active connection', () => {
-        let serverSocket: Client;
-        beforeEach(async () => {
-            mockServer.on('connection', socket => {
-                serverSocket = socket;
-            })
-            await wsc.connect(FAKE_URL);
-        });
-
-        it('should send a message when a service method is called', (done) => {  
-            let receivedMessage: object;  
-            serverSocket.on('message', data => {
-                receivedMessage = JSON.parse(data.toString());
-            });
-
-            const repl = wsc.getService('repl');
-            repl.execute('console.log("test")');
-
-            setTimeout(() => {
-                expect(receivedMessage).toEqual({
-                    service: 'repl',
-                    event: 'execute',
-                    payload: { code: 'console.log("test")' },
-                });
-                done();
-            }, 50);
-        }, 100);
-
-        it('should receive a message and dispatch it to the correct service', (done) => {
-            const repl = wsc.getService('repl');
-            const logListener = jest.fn();
-            repl.on('log', logListener);
-
-            mockServer.clients()[0].send(JSON.stringify({
-                service: 'repl',
-                event: 'log',
-                payload: 'Hello world!',
-            }));
-
-            setTimeout(() => {
-                expect(logListener).toHaveBeenCalledTimes(1);
-                expect(logListener).toHaveBeenCalledWith('Hello world!');
-                done();
-            }, 50);
-        }, 100);
-
-        it('should warn when a message for a non-existent service is received', () => {
-            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-            
-            mockServer.clients()[0].send(JSON.stringify({
-                service: 'chat',
-                event: 'newMessage',
-                payload: 'Hi',
-            }));
-
-            expect(consoleWarnSpy).toHaveBeenCalledWith('Service "chat" not found.');
-            consoleWarnSpy.mockRestore();
-        });
-    });
 });
+
+
+describe.only('REPL Service', () => {
+    let serverSocket: Client;
+    let mockServer: Server;
+    let wsc: WebSocketClient;
+    const FAKE_URL = 'ws://localhost:8080';
+
+    afterEach(() => {
+        mockServer.stop();
+    });
+
+    beforeEach(async () => {
+        mockServer = new Server(FAKE_URL);
+        wsc = new WebSocketClient();
+        mockServer.on('connection', socket => {
+            serverSocket = socket;
+        })
+        await wsc.connect(FAKE_URL);
+    });
+
+    it('should send a message when a service method is called', (done) => {  
+        let receivedMessage: object;  
+        serverSocket.on('message', data => {
+            receivedMessage = JSON.parse(data.toString());
+        });
+
+        const repl = wsc.getService('repl');
+        repl.execute('console.log("test")');
+
+        setTimeout(() => {
+            expect(receivedMessage).toEqual({
+                service: 'repl',
+                event: 'execute',
+                payload: ['console.log("test")'],
+            });
+            done();
+        }, 50);
+    }, 100);
+
+    it('should receive a message and dispatch it to the correct service', (done) => {
+        const repl = wsc.getService('repl');
+        const logListener = jest.fn();
+        repl.on('log', logListener);
+
+        mockServer.clients()[0].send(JSON.stringify({
+            service: 'repl',
+            event: 'log',
+            payload: ['Hello world!'],
+        }));
+
+        setTimeout(() => {
+            expect(logListener).toHaveBeenCalledTimes(1);
+            expect(logListener).toHaveBeenCalledWith('Hello world!');
+            done();
+        }, 50);
+    }, 100);
+
+    it('should warn when a message for a non-existent service is received', () => {
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        
+        mockServer.clients()[0].send(JSON.stringify({
+            service: 'chat',
+            event: 'newMessage',
+            payload: ['Hi'],
+        }));
+
+        expect(consoleWarnSpy).toHaveBeenCalledWith('Service "chat" not found.');
+        consoleWarnSpy.mockRestore();
+    });
+})

@@ -79,7 +79,7 @@ export class BytecodeBufferGenerator {
             const dataRemain = data.length - dataOffset;
             const availableSpaceForData = (this.lastUnitRemain - LOAD_HEADER_SIZE) & ~0b11; // 4 byte align
 
-            let chunkSize = Math.min(dataRemain, availableSpaceForData);
+            const chunkSize = Math.min(dataRemain, availableSpaceForData);
             if (chunkSize <= 0) {
                 this._flushUnit();
                 continue;
@@ -141,7 +141,7 @@ export function bytecodeParser(buffer: Buffer): ParseResult {
         return { bytecode: BYTECODE.NONE };
     }
 
-    const bytecode = buffer.readUInt8(0);
+    const bytecode = buffer.readUInt8(0) as BYTECODE;
     let offset = 1;
 
     switch (bytecode) {

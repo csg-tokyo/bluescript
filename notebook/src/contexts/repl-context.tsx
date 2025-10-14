@@ -59,6 +59,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
 
     const executeLatestCell = async () => {
         const code = latestCell.code;
+        setLatestCell((cell) => ({...cell, state: 'executing'}));
         replService.current?.execute(code);
         const [compilationTime, compileError] = await new Promise<[number, string|undefined]>((resolve)=> {
             replService.current?.on('finishCompilation', (time, error) => {
@@ -71,12 +72,14 @@ export default function ReplProvider({children}: {children: ReactNode}) {
             return;
         }
 
+        setLatestCell((cell) => ({...cell, state: 'sending'}));
         const sendingTime = await new Promise<number>((resolve)=> {
             replService.current?.on('finishSending', (time) => {
                 resolve(time);
                 replService.current?.off('finishSending');
             });
         });
+        setLatestCell((cell) => ({...cell, state: 'executing'}));
         const executionTime = await new Promise<number>((resolve)=> {
             replService.current?.on('finishExecution', (time) => {
                 resolve(time);

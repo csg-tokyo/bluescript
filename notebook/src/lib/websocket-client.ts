@@ -32,7 +32,7 @@ export class EventEmitter<T extends object> {
 export interface WebSocketMessage {
     service: string;
     event: string;
-    payload: any;
+    payload: any[];
 }
 
 export abstract class Service<T extends object> extends EventEmitter<T> {
@@ -43,11 +43,11 @@ export abstract class Service<T extends object> extends EventEmitter<T> {
         super();
     }
 
-    handleMessage(event: string, payload: any): void {
-        (this.emit as any)(event, payload);
+    handleMessage(event: string, payload: any[]): void {
+        (this.emit as any)(event, ...payload);
     }
 
-    protected send(event: string, payload: any): void {
+    protected send(event: string, payload: any[]): void {
         this.client.send({
             service: this.serviceName,
             event,
@@ -70,7 +70,7 @@ export class ReplService extends Service<ReplServiceEvents> {
     }
 
     public execute(code: string): void {
-        this.send('execute', { code });
+        this.send('execute', [ code ]);
     }
 }
 
