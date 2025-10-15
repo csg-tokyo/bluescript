@@ -2,7 +2,11 @@ import {useState, createContext, ReactNode, useRef, useEffect} from 'react';
 import { ReplService, WebSocketClient } from '../lib/websocket-client';
 
 
-export type ReplStateT = 'initial' | 'network-connecting' | 'network-disconnected' | 'activated';
+export type ReplStateT = 'initial' | 'network-connecting' | 'network-disconnected' | 'executing-main' | 'activated';
+
+export type MainStateT = {state: 'initial'}
+                     | {state: 'compiling'} | {state: 'failed-to-compile', error: string}
+                     | {state: 'loading'} | {state: 'executing'} | {state: 'executed'} 
 
 export type EditingCellT = {state: 'editing', code: string, compileError?: string};
 export type ExecutingCellT = {state: 'compiling' | 'loading' | 'executing', code: string};
@@ -13,9 +17,11 @@ export type LogT = {message: string, type: 'output' | 'error'};
 
 export type ReplContextT = {
     state: ReplStateT,
+    mainState: MainStateT,
     latestCell: EditingCellT | ExecutingCellT,
     executedCells: ExecutedCellT[],
-    logs: LogT[]
+    logs: LogT[],
+    executeMain: () => Promise<void>,
     setCode: (code: string) => void,
     executeLatestCell: () => Promise<void>,
 }
@@ -23,7 +29,8 @@ export type ReplContextT = {
 export const ReplContext = createContext<ReplContextT | undefined>(undefined);
 
 export default function ReplProvider({children}: {children: ReactNode}) {
-    const [replState, setReplState] = useState<ReplStateT>('network-connecting');
+    const [replState, setReplState] = useState<ReplStateT>('initial');
+    const [mainState, setMainState] = useState<MainStateT>({state: 'initial'});
     const [latestCell, setLatestCell] = useState<EditingCellT | ExecutingCellT>({state: 'editing', code:''});
     const [executedCells, setExecutedCells] = useState<ExecutedCellT[]>([]);
     const [logs, setLogs] = useState<LogT[]>([]);
@@ -35,7 +42,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         const url = 'ws://localhost:8080';
         wsc.current = new WebSocketClient();
         wsc.current.on('connected', () => {
-            setReplState('activated');
+            setReplState('executing-main');
             replService.current = wsc.current?.getService('repl') ?? null;
             replService.current?.on('log', (message) => setLogs((logs) => [...logs, {message, type: 'output'}]));
             replService.current?.on('error', (message) => setLogs((logs) => [...logs, {message, type: 'error'}]));
@@ -57,6 +64,16 @@ export default function ReplProvider({children}: {children: ReactNode}) {
         }
     }, []);
 
+    const executeMain = async () => {
+        setMainState({state: 'compiling'});
+        await replService.current?.executeMain({
+            onFailedToCompile: (error) => setMainState({state: 'failed-to-compile', error}),
+            onFinishCompilation: () => setMainState({state: 'loading'}),
+            onFinishLoading: () => setMainState({state: 'executing'}),
+            onFinishExecution: () => {setMainState({state: 'executed'}); setReplState('activated');}
+        });
+    }
+
     const setCode = (code: string) => {
         setLatestCell({...latestCell, code});
     }
@@ -64,41 +81,32 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     const executeLatestCell = async () => {
         const code = latestCell.code;
         setLatestCell((cell) => ({...cell, state: 'compiling'}));
-        replService.current?.execute(code);
-        const [compilationTime, compileError] = await new Promise<[number, string|undefined]>((resolve)=> {
-            replService.current?.once('finishCompilation', (time, error) => {
-                resolve([time, error]);
-            });
+        let cTime:number, lTime:number, eTime: number;
+        await replService.current?.executeCell(code, {
+            onFailedToCompile: (error) => setLatestCell(cell => ({...cell, state: 'editing', compileError: error})),
+            onFinishCompilation: (time) => {cTime = time; setLatestCell((cell) => ({...cell, state: 'loading'}));},
+            onFinishLoading: (time) => {lTime = time; setLatestCell((cell) => ({...cell, state: 'executing'}));},
+            onFinishExecution: (time) => {
+                eTime = time; 
+                setLatestCell({code:'', state: 'editing'});
+                setExecutedCells((cells) => [...cells, {
+                    state: 'executed', 
+                    code: code, 
+                    id:cells.length, 
+                    time: {compilation: cTime, loading: lTime, execution: eTime}}
+                ]);
+            }
         });
-        if (compileError) {
-            setLatestCell(cell => ({...cell, state: 'editing', compileError}));
-            return;
-        }
-
-        setLatestCell((cell) => ({...cell, state: 'loading'}));
-        const loadingTime = await new Promise<number>((resolve)=> {
-            replService.current?.once('finishLoading', (time) => {resolve(time)});
-        });
-        setLatestCell((cell) => ({...cell, state: 'executing'}));
-        const executionTime = await new Promise<number>((resolve)=> {
-            replService.current?.once('finishExecution', (time) => {resolve(time)});
-        });
-
-        setLatestCell({code:'', state: 'editing'});
-        setExecutedCells((cells) => [...cells, {
-            state: 'executed', 
-            code: code, 
-            id:cells.length, 
-            time: {compilation: compilationTime, loading: loadingTime, execution: executionTime}}
-        ]);
     }
 
     return (
         <ReplContext.Provider value={{
             state: replState,
+            mainState,
             latestCell,
             executedCells,
             logs,
+            executeMain,
             setCode,
             executeLatestCell,
         }}>

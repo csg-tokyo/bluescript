@@ -2,7 +2,8 @@ import { Connection, ConnectionMessage, EventMap, Service } from "./common";
 import { WebSocketServer, WebSocket } from 'ws';
 
 export type ReplServiceEvents = {
-    execute: (code: string) => void;
+    executeMain: () => void;
+    executeCell: (code: string) => void;
 }
 
 export class ReplService extends Service<ReplServiceEvents, any> {

@@ -1,153 +1,247 @@
-import { logger, readBsConfig, BsConfig} from "./utils";
-import BLE, {MAX_MTU} from "./ble";
-import { BYTECODE, BytecodeBufferGenerator, bytecodeParser } from "./bytecode";
+import { Compiler, ExecutableBinary, MemoryLayout, CompilerConfig, PackageConfig, ErrorLog } from "@bluescript/compiler";
+import { BsConfig, readBsConfig } from "./utils";
 import { ESP_IDF_PATH, GLOBAL_PATH, PACKAGE_PATH } from "./path";
-import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bluescript/compiler";
+import { BleConnection, DeviceService } from "../services/ble";
+import { ReplService, WebSocketConnection } from "../services/websocket";
+import { logger } from "./utils";
+
+export default async function run(withRepl?: boolean) {
+    const bsConfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE('./'));
+    const runner = !withRepl ? new Runner(bsConfig) : new RunnerWithRepl(bsConfig);
+    await runner.run();
+}
 
 
-export default async function run() {
-    try {
-        const bsConfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE('./'));
-        switch (bsConfig.device.kind) {
-            case 'esp32':
-                await runESP32(bsConfig);
-                break;
-            case 'host':
-                logger.warn('Not impelented yet.');
-                break;
-            default:
-                logger.warn('Unknown device.');
-                break;
+class Runner {
+    protected readonly bsConfig: BsConfig;
+    protected compiler: CompilerESP32;
+    protected ble: BleConnection|null = null;
+    protected deviceService: DeviceService|null = null;
+
+    constructor(bsConfig: BsConfig) {
+        this.bsConfig = bsConfig;
+        this.compiler = new CompilerESP32(bsConfig);
+    }
+
+    public async run() {
+        try {
+            logger.info(`Connecting to ${this.bsConfig.device.name} via Bluetooth`);
+            await this.setupBle();
+            logger.info('Init Device');
+            const memoryLayout = await this.initDevice();
+            logger.info('Start compiling');
+            const {bin} = await this.compile(memoryLayout);
+            logger.info('Start loading');
+            await this.load(bin);
+            logger.info('Start execution');
+            await this.execute(bin);
+            logger.info('Finish execution');
+            await this.ble?.disconnect();
+            process.exit(0);
+        } catch (error) {
+            logger.error(error instanceof Error ? error.message : String(error));
+            process.exit(1);
         }
-    } catch (error) {
-        logger.error(`Failed to run the project: ${error}`);
-        process.exit(1);
     }
-    process.exit(0);
-}
 
-async function runESP32(bsConfig: BsConfig) {
-    try {
-        // TODO: flashが終わっているかの確認を入れる。
-        const ble = new BLE(bsConfig.device.name);
-        await ble.connect();
-        await ble.startSubscribe();
-        const memoryLayout = await initDevice(ble);
-        const executableBinary = await compile(bsConfig, memoryLayout);
-        await sendAndExecute(ble, executableBinary);
-        await ble.disconnect();
-    } catch(error) {
-        throw error;
-    }
-}
-
-async function initDevice(ble: BLE): Promise<MemoryLayout> {
-    logger.info('Initializing device...')
-    const buffs = new BytecodeBufferGenerator(MAX_MTU).reset().generate();
-    try {
-        await ble.writeBuffers(buffs);
-        const memoryLayout = await new Promise<MemoryLayout>((resolve, reject) => {
-            try {
-                ble.addTempNotificationHandler((data) => {
-                    const parseResult = bytecodeParser(data);
-                    if (parseResult.bytecode === BYTECODE.RESULT_MEMINFO) {
-                        resolve(parseResult.meminfo);
-                    }
-                });
-            } catch (error) {
-                logger.error(`Failed to receive memory layout. ${error}`);
-                reject()
+    protected async setupBle() {
+        this.ble = new BleConnection(this.bsConfig.device.name);
+        await this.ble.connect();
+        this.ble.on('disconnected', () => {
+            if (this.ble?.status !== 'disconnecting') {
+                logger.error("BLE disconnected");
             }
+            this.ble = null;
+            this.deviceService = null;
         });
-        return memoryLayout;
-    } catch (error) {
-        logger.error('Failed to initialize.');
-        throw error;
+        this.deviceService = this.ble.getService('device');
+        this.deviceService.on('log', (message) => {
+            logger.bsLog(message);
+        });
+        this.deviceService.on('error', (message) => {
+            logger.bsError(message);
+        });
     }
-}
 
-async function compile(bsConfig: BsConfig, memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
-    logger.info('Compiling...');
-    const compilerConfig = getCompilerConfig(bsConfig);
-    const compiler = new Compiler(memoryLayout, compilerConfig, packageReader);
-    return await compiler.compile();
-}
-
-function getCompilerConfig(bsConfig: BsConfig): CompilerConfig {
-    return {
-        dirs: {
-            runtime: bsConfig.dirs?.runtime ?? GLOBAL_PATH.RUNTIME_DIR(),
-            compilerToolchain: ESP_IDF_PATH.XTENSA_GCC_DIR(),
-            std: PACKAGE_PATH.SUB_PACKAGE_DIR(bsConfig.dirs?.packages ?? GLOBAL_PATH.PACKAGES_DIR(), 'std'),
+    protected async initDevice(): Promise<MemoryLayout> {
+        if (this.ble && this.deviceService) {
+            return this.deviceService.init();
         }
+        throw new Error('Failed to initialize device. BLE is not connected.');
+    }
+
+    protected async compile(memoryLayout: MemoryLayout): Promise<{bin: ExecutableBinary, time: number}> {
+        const startCompilation = performance.now();
+        const bin = await this.compiler.compile(memoryLayout);
+        return {bin, time: performance.now() - startCompilation};
+    }
+
+    protected async load(bin: ExecutableBinary): Promise<number> {
+        if (this.ble && this.deviceService) {
+            return this.deviceService.load(bin);
+        }
+        throw new Error('Failed to load binary. BLE is not connected.');
+    }
+
+    protected async execute(bin: ExecutableBinary): Promise<number> {
+        if (this.ble && this.deviceService) {
+            return this.deviceService.execute(bin);
+        }
+        throw new Error('Failed to execute binary. BLE is not connected.');
     }
 }
 
-function packageReader(packageName: string): PackageConfig {
-    const cwd = process.cwd();
-    const packageRoot = packageName === 'main' ? cwd : PACKAGE_PATH.SUB_PACKAGE_DIR(PACKAGE_PATH.LOCAL_PACKAGES_DIR(cwd), packageName);
-    try {
-        const bsConfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE(packageRoot));
+
+type ResultHandlers = {
+    onFinishCompilation: (time: number) => void,
+    onFailedToCompile: (error: string) => void,
+    onFinishLoading: (time: number) => void,
+    onFinishExecution: (time: number) => void
+}
+
+class RunnerWithRepl extends Runner {
+    private readonly WEBSOCKET_PORT = 8080;
+    private webSocket: WebSocketConnection|null = null;
+    private replService: ReplService|null = null;
+
+    override async run(): Promise<void> {
+        await this.setupBle();
+        this.startWebSocketServer();
+        console.log(`connect to ws://localhost:${this.WEBSOCKET_PORT}`);
+    }
+
+    protected override async setupBle() {
+        await super.setupBle();
+        this.ble?.on('disconnected', () => {
+            this.webSocket = null;
+            this.replService = null;
+        });
+        this.deviceService?.on('log', (message) => {
+            this.replService?.log(message);
+        });
+        this.deviceService?.on('error', (message) => {
+            this.replService?.error(message);
+        });
+    }
+
+    protected startWebSocketServer() {
+        this.webSocket = new WebSocketConnection(this.WEBSOCKET_PORT);
+        this.webSocket.on('connected', () => {
+            logger.info("WebSocket connected");
+            this.replService = this.webSocket!.getService('repl');
+            const resultHandlers: ResultHandlers = {
+                onFinishCompilation: (time) => this.replService?.finishCompilation(time),
+                onFailedToCompile: (error) => this.replService?.finishCompilation(-1, error),
+                onFinishLoading: (time) => this.replService?.finishLoading(time),
+                onFinishExecution: (time) => this.replService?.finishExecution(time)
+            }
+            this.replService.on('executeMain', async () => {
+                const memoryLayout = await this.initDevice();
+                await this.executeMain(memoryLayout, resultHandlers);
+            });
+            this.replService.on('executeCell', async (code) => {
+                await this.executeCell(code, resultHandlers);
+            });
+        });
+        this.webSocket.on('disconnected', () => {
+            logger.info("WebSocket disconnected");
+            this.replService?.off('executeCell');
+            this.replService?.off('executeMain');
+        });
+        this.webSocket.open();
+    }
+
+    protected async executeMain(memoryLayout: MemoryLayout, resultHandlers: ResultHandlers): Promise<void> {
+        return this.executeTarget(
+            () => this.compile(memoryLayout),
+            resultHandlers
+        )
+    }
+
+    protected executeCell(code: string, resultHandlers: ResultHandlers): Promise<void> {
+        return this.executeTarget(
+            () => this.additionalCompile(code),
+            resultHandlers
+        )
+    }
+
+    protected async executeTarget(
+        compile: () => Promise<{bin: ExecutableBinary, time: number}>, 
+        resultHandlers: ResultHandlers
+    ): Promise<void> {
+        let bin: ExecutableBinary, compilationTime: number;
+        try {
+            ({bin, time: compilationTime} = await compile());
+            resultHandlers.onFinishCompilation(compilationTime);
+        } catch (error) {
+            const errorMessage = error instanceof ErrorLog ? error.messages.join('\n')
+                                : error instanceof Error ? error.message
+                                : String(error);
+            resultHandlers.onFailedToCompile(errorMessage);
+            console.log(errorMessage)
+            return;
+        }
+        const loadingTime = await this.load(bin);
+        resultHandlers.onFinishLoading(loadingTime);
+        const executionTime = await this.execute(bin);
+        resultHandlers.onFinishExecution(executionTime);
+    }
+
+    protected async additionalCompile(code: string): Promise<{bin: ExecutableBinary, time: number}> {
+        const startCompilation = performance.now();
+        const bin = await this.compiler.additionalCompile(code);
+        return {bin, time: performance.now() - startCompilation};
+    }
+}
+
+class CompilerESP32 {
+    private compiler: Compiler|null = null;
+    private compilerConfig: CompilerConfig;
+
+    constructor(bsConfig: BsConfig) {
+        this.compilerConfig = this.getCompilerConfig(bsConfig);
+    }
+
+    public compile(memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
+        this.compiler = new Compiler(memoryLayout, this.compilerConfig, CompilerESP32.packageReader);
+        return this.compiler.compile();
+    }
+
+    public additionalCompile(code: string): Promise<ExecutableBinary> {
+        if (this.compiler) {
+            return this.compiler.additionalCompile(code);
+        }
+        throw new Error('The first compilation have not yet performed.');
+    }
+    
+    private getCompilerConfig(bsConfig: BsConfig): CompilerConfig {
         return {
-            name: packageName,
-            espIdfComponents: bsConfig.espIdfComponents ?? [],
-            dependencies: bsConfig.dependencies ?? [],
             dirs: {
-                root: packageRoot,
-                dist: PACKAGE_PATH.DIST_DIR(packageRoot),
-                build: PACKAGE_PATH.BUILD_DIR(packageRoot),
-                packages: PACKAGE_PATH.LOCAL_PACKAGES_DIR(packageRoot)
+                runtime: bsConfig.dirs?.runtime ?? GLOBAL_PATH.RUNTIME_DIR(),
+                compilerToolchain: ESP_IDF_PATH.XTENSA_GCC_DIR(),
+                std: PACKAGE_PATH.SUB_PACKAGE_DIR(bsConfig.dirs?.packages ?? GLOBAL_PATH.PACKAGES_DIR(), 'std'),
             }
         }
-    } catch (error) {
-        throw new Error(`Faild to read ${packageName}: ${error?.toString()}`);
-    }
-}
-
-async function sendAndExecute(ble: BLE, executableBinary: ExecutableBinary) {
-    logger.info("Sending...");
-    const bytecodeGenerator = new BytecodeBufferGenerator(MAX_MTU)
-    if (executableBinary.iram) bytecodeGenerator.load(executableBinary.iram.address, executableBinary.iram.data);
-    if (executableBinary.dram) bytecodeGenerator.load(executableBinary.dram.address, executableBinary.dram.data);
-    if (executableBinary.iflash) bytecodeGenerator.load(executableBinary.iflash.address, executableBinary.iflash.data);
-    if (executableBinary.dflash) bytecodeGenerator.load(executableBinary.dflash.address, executableBinary.dflash.data);
-    for (const entryPoint of executableBinary.entryPoints) {
-        bytecodeGenerator.jump(entryPoint.isMain ? 0 : -1, entryPoint.address);
-    }
-    try {
-        const buffs = bytecodeGenerator.generate();
-        const buffLength = buffs.reduce((sum, buf) => sum + buf.length, 0);
-        const startSending = performance.now();
-        await ble.writeBuffers(buffs);
-        logger.info(`Sent ${buffLength} bytes in ${Math.round((performance.now() - startSending) * 100) / 100} ms.`);
-    } catch (error) {
-        logger.error(`Faild to send code: ${error}`);
-        throw error;
     }
 
-    logger.info('Executing...');
-    try {
-        const executionTime = await new Promise<number>((resolve, reject) => {
-            try {
-                ble.setNotificationHandler((data) => {
-                    const parseResult = bytecodeParser(data);
-                    if (parseResult.bytecode === BYTECODE.RESULT_EXECTIME && parseResult.id >= 0) {
-                        resolve(parseResult.exectime);
-                    } else if (parseResult.bytecode === BYTECODE.RESULT_LOG) {
-                        logger.bsLog(parseResult.log);
-                    } else if (parseResult.bytecode === BYTECODE.RESULT_ERROR) {
-                        logger.bsError(parseResult.error);
-                    }
-                });
-            } catch (error) {
-                logger.error(`Failed to receive execution time: ${error}`);
-                reject();
+    private static packageReader(packageName: string): PackageConfig {
+        const cwd = process.cwd();
+        const packageRoot = packageName === 'main' ? cwd : PACKAGE_PATH.SUB_PACKAGE_DIR(PACKAGE_PATH.LOCAL_PACKAGES_DIR(cwd), packageName);
+        try {
+            const bsConfig = readBsConfig(PACKAGE_PATH.BSCONFIG_FILE(packageRoot));
+            return {
+                name: packageName,
+                espIdfComponents: bsConfig.espIdfComponents ?? [],
+                dependencies: bsConfig.dependencies ?? [],
+                dirs: {
+                    root: packageRoot,
+                    dist: PACKAGE_PATH.DIST_DIR(packageRoot),
+                    build: PACKAGE_PATH.BUILD_DIR(packageRoot),
+                    packages: PACKAGE_PATH.LOCAL_PACKAGES_DIR(packageRoot)
+                }
             }
-        });
-        logger.info(`Execution Time: ${Math.round(executionTime * 100) / 100} ms`);
-        ble.removeNotificationHanlder();
-    } catch (error) {
-        logger.error(`Failed to execute code: ${error}`);
-        throw error;
+        } catch (error) {
+            throw new Error(`Faild to read ${packageName}: ${error?.toString()}`);
+        }
     }
 }

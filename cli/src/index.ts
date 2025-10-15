@@ -4,7 +4,7 @@ import { program } from 'commander';
 import setup from './cli/setup';
 import remove from './cli/remove';
 import flash from './cli/flash';
-import run from './cli/run3';
+import run from './cli/run';
 import createProject from './cli/create-project';
 import installPackage from './cli/install';
 
@@ -50,8 +50,9 @@ root.command('install')
 
 root.command('run')
   .description('run BlueScript code')
-  .action(async () => {
-    await run();
+  .option('-r, --with-repl', 'open REPL')
+  .action(async (options: {withRepl: boolean}) => {
+    await run(options.withRepl);
   })
 
 program.parse(process.argv);

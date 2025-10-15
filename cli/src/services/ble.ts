@@ -49,7 +49,7 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
                     resolve(executionTime);
                     this.off('exectime');
                 }
-            })
+            });
         });
     }
 
@@ -59,8 +59,8 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         return new Promise<MemoryLayout>((resolve) => {
             this.once('memory', (layout) => {
                 resolve(layout);
-            })
-        })
+            });
+        });
     }
 }
 
@@ -79,7 +79,6 @@ export class BleConnection extends Connection<Buffer> {
 
     public async connect(timeoutMs: number = 5000): Promise<void> {
         let timeoutHandle: NodeJS.Timeout | undefined = undefined;
-
         try {
             const connectPromise = this.doConnect();
             const timeoutPromise = new Promise<never>((_, reject) => {
@@ -113,8 +112,8 @@ export class BleConnection extends Connection<Buffer> {
         await noble.stopScanningAsync();
         this.peripheral = peripheral;
         this.peripheral.on('disconnect', (event) => {
-            this.status = 'disconnected';
             this.emit('disconnected', event);
+            this.status = 'disconnected';
             this.peripheral = null;
             this.characteristic = null;
         });
