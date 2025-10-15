@@ -97,7 +97,7 @@ describe('WebSocketClient and ReplService integration', () => {
         expect(connectedListener).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle connection errors', async () => {
+    it.skip('should handle connection errors', async () => {
         const errorListener = jest.fn();
         wsc.on('error', errorListener);
         

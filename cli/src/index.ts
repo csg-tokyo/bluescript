@@ -4,7 +4,7 @@ import { program } from 'commander';
 import setup from './cli/setup';
 import remove from './cli/remove';
 import flash from './cli/flash';
-import run from './cli/run2';
+import run from './cli/run3';
 import createProject from './cli/create-project';
 import installPackage from './cli/install';
 

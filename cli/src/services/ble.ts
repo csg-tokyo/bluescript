@@ -23,24 +23,31 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         super('device', connection);
     }
 
-    public async execute(bin: ExecutableBinary): Promise<{sendingTime: number, executionTime: number}>  {
+    public async load(bin: ExecutableBinary): Promise<number>  {
         const builder = new ProtocolPacketBuilder(MTU);
         if (bin.iram) builder.load(bin.iram.address, bin.iram.data);
         if (bin.dram) builder.load(bin.dram.address, bin.dram.data);
         if (bin.iflash) builder.load(bin.iflash.address, bin.iflash.data);
         if (bin.dflash) builder.load(bin.dflash.address, bin.dflash.data);
+        const startLoading = performance.now();
+        await this.send('load', builder.build());
+        return performance.now() - startLoading;
+    }
+
+    public async execute(bin: ExecutableBinary): Promise<number> {
+        const builder = new ProtocolPacketBuilder(MTU);
+        const isMain = 1;
         for (const entryPoint of bin.entryPoints) {
-            builder.jump(entryPoint.isMain ? 0 : -1, entryPoint.address);
+            builder.jump(entryPoint.isMain ? isMain : 0, entryPoint.address);
         }
-        const startSending = performance.now();
         await this.send('execute', builder.build());
-        const sendingTime = performance.now() - startSending;
         let executionTime = 0;
-        return new Promise<{sendingTime: number, executionTime: number}>((resolve) => {
+        return new Promise<number>((resolve) => {
             this.on('exectime', (id, time) => {
                 executionTime += time;
-                if (id === 0) {
-                    resolve({sendingTime, executionTime});
+                if (id === isMain) {
+                    resolve(executionTime);
+                    this.off('exectime');
                 }
             })
         });
@@ -48,9 +55,9 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
 
     public async init(): Promise<MemoryLayout> {
         const builder = new ProtocolPacketBuilder(MTU).reset();
-        await this.send('init', builder.build()); // TODO: generate binary
+        await this.send('init', builder.build());
         return new Promise<MemoryLayout>((resolve) => {
-            this.on('memory', (layout) => {
+            this.once('memory', (layout) => {
                 resolve(layout);
             })
         })
@@ -70,7 +77,7 @@ export class BleConnection extends Connection<Buffer> {
         this.deviceName = deviceName;
     }
 
-    public async connect(timeoutMs: number = 2000): Promise<void> {
+    public async connect(timeoutMs: number = 5000): Promise<void> {
         let timeoutHandle: NodeJS.Timeout | undefined = undefined;
 
         try {

@@ -106,16 +106,16 @@ describe('REPL Service', () => {
         expect(message.payload[1]).toBe('Compile Error');
     });
 
-    it('should send finishSending event.', async () => {
+    it('should send finishLoading event.', async () => {
         const replService = connection.getService('repl');
-        await replService.finishSending(124);
+        await replService.finishLoading(124);
         const message = await new Promise<ConnectionMessage<any>>((resolve) => {
           client.onmessage = (event) => {
             resolve(JSON.parse(event.data as string) as ConnectionMessage<any>);
           }
         });
         expect(message.service).toBe('repl');
-        expect(message.event).toBe('finishSending');
+        expect(message.event).toBe('finishLoading');
         expect(message.payload[0]).toBe(124);
     });
 

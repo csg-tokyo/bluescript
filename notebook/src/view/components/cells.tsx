@@ -6,7 +6,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import { vscodeLight } from '@uiw/codemirror-theme-vscode';
 import { keymap, EditorView } from '@codemirror/view';
 import { indentWithTab } from '@codemirror/commands';
-import { EditingCellT, LoadingCellT, ExecutedCellT } from '../../contexts/repl-context';
+import { EditingCellT, ExecutingCellT, ExecutedCellT } from '../../contexts/repl-context';
 import styles from './styles.module.css';
 
 export function EditingCell(props: {cell: EditingCellT, setCode: (code: string) => void, onExecuteClick: () => Promise<void>}) {
@@ -27,10 +27,10 @@ export function EditingCell(props: {cell: EditingCellT, setCode: (code: string) 
     );
 }
 
-export function LoadingCell(props: {cell: LoadingCellT}) {
+export function ExecutingCell(props: {cell: ExecutingCellT}) {
     let statusText = () => {
         if (props.cell.state === 'compiling') { return 'Compiling ...' }
-        if (props.cell.state === 'sending') { return 'Sending via Bluetooth ...' }
+        if (props.cell.state === 'loading') { return 'Loading ...' }
         if (props.cell.state === 'executing') { return 'Executing ...' }
     }
 
@@ -56,9 +56,9 @@ export function ExecutedCell(props: {cell: ExecutedCellT}) {
 
     const t = props.cell.time;
     const compilation = Math.round(t.compilation * 100) / 100;
-    const sending = Math.round(t.sending * 100) / 100;
+    const loading = Math.round(t.loading * 100) / 100;
     const execution = Math.round(t.execution * 100) / 100;
-    const statusText = `| compile: ${compilation} ms | sending: ${sending} ms | execution: ${execution} ms |`;
+    const statusText = `| compile: ${compilation} ms | loading: ${loading} ms | execution: ${execution} ms |`;
 
     return (
         <div className={styles.cell}>

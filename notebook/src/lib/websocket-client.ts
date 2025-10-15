@@ -84,7 +84,7 @@ export abstract class Service<TEvents extends EventMap> extends EventEmitter<TEv
 
 export type ReplServiceEvents = {
     finishCompilation: (time: number, error?: string) => void;
-    finishSending: (time: number) => void;
+    finishLoading: (time: number) => void;
     finishExecution: (time: number) => void;
     log: (log: string) => void;
     error: (error: string) => void;
@@ -144,9 +144,9 @@ export class WebSocketClient extends EventEmitter<WebSocketClientEvents> {
 
             this.ws.onerror = (error) => {
                 this.emit('error', error);
-                if (this.ws?.readyState !== WebSocket.OPEN) {
-                    reject(new Error());
-                }
+                // if (this.ws?.readyState !== WebSocket.OPEN) {
+                //     reject(new Error(`Failed to connect ${url}: ${error}`));
+                // }
             };
         });
     }

@@ -2,7 +2,7 @@ import { Result } from 'antd';
 import { useContext } from 'react';
 import {LoadingOutlined, SmileOutlined } from '@ant-design/icons';
 import { ReplContext } from '../../contexts/repl-context';
-import { EditingCell, LoadingCell, ExecutedCell } from './cells';
+import { EditingCell, ExecutingCell, ExecutedCell } from './cells';
 import styles from './styles.module.css';
 
 
@@ -11,7 +11,7 @@ export default function CodeArea() {
     if (replContext === undefined) {
         throw new Error('ReplContext can only be used in ReplProvider.');
     }
-    const url = 'http://localhost:3000/'; // TODO: 要修正
+    const url = 'ws://localhost:8080'; // TODO: 要修正
 
     return (
         <div style={{height: '100%', width: '100%'}}>
@@ -74,7 +74,7 @@ function ActivatedScreen() {
             { replContext?.executedCells.map(cell => <ExecutedCell cell={cell} key={cell.id} />)}
             { replContext.latestCell.state === 'editing'
                 ? <EditingCell cell={replContext.latestCell} setCode={replContext.setCode} onExecuteClick={replContext.executeLatestCell}/>
-                : <LoadingCell cell={replContext.latestCell} />
+                : <ExecutingCell cell={replContext.latestCell} />
             }
         </div>
     );

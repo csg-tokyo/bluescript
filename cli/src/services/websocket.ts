@@ -14,8 +14,8 @@ export class ReplService extends Service<ReplServiceEvents, any> {
         await this.send('finishCompilation', [ time, error ]);
     };
 
-    public async finishSending(time: number) {
-        await this.send('finishSending', [ time ]);
+    public async finishLoading(time: number) {
+        await this.send('finishLoading', [ time ]);
     };
 
     public async finishExecution(time: number) {
