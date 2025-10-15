@@ -158,14 +158,31 @@ describe('REPL Service', () => {
         expect(message.payload[0]).toBe('I am error.');
     });
 
-    it('should receive execution event.', async () => {
+    it('should receive main execution event.', async () => {
         const replService = connection.getService('repl');
         const executeListener = jest.fn();
-        replService.on('execute', executeListener);
+        replService.on('executeMain', executeListener);
 
         client.send(JSON.stringify({
               service: 'repl',
-              event: 'execute',
+              event: 'executeMain',
+              payload: []
+        }));
+        await new Promise<void>((resolve) => {
+          setTimeout(() => {resolve()}, 50);
+        });
+
+        expect(executeListener).toHaveBeenCalledWith();
+    });
+
+    it('should receive cell execution event.', async () => {
+        const replService = connection.getService('repl');
+        const executeListener = jest.fn();
+        replService.on('executeCell', executeListener);
+
+        client.send(JSON.stringify({
+              service: 'repl',
+              event: 'executeCell',
               payload: ['1 + 1;']
         }));
         await new Promise<void>((resolve) => {

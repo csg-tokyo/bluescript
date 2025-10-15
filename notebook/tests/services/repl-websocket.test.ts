@@ -161,12 +161,12 @@ describe('REPL Service', () => {
         });
 
         const repl = wsc.getService('repl');
-        repl.execute('console.log("test")');
+        repl.executeCell('console.log("test")');
 
         setTimeout(() => {
             expect(receivedMessage).toEqual({
                 service: 'repl',
-                event: 'execute',
+                event: 'executeCell',
                 payload: ['console.log("test")'],
             });
             done();
