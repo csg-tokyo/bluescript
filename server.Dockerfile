@@ -8,6 +8,10 @@ RUN apt-get update && apt-get install -y \
     libudev-dev \
     && rm -rf /var/lib/apt/lists/*
 
+RUN ls
+
+COPY ./tsconfig.base.json /bluescript/
+
 COPY ./server /bluescript/server
 
 WORKDIR /bluescript/server
