@@ -82,7 +82,6 @@ export class WebSocketConnection extends Connection<any> {
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/require-await
     public async send(message: ConnectionMessage<any>): Promise<void> {
         if (this.client && this.client.readyState === WebSocket.OPEN) {
             this.client.send(JSON.stringify(message));

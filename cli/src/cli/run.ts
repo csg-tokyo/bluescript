@@ -107,7 +107,7 @@ class RunnerWithRepl extends Runner {
     override async run(): Promise<void> {
         await this.setupBle();
         this.startWebSocketServer();
-        console.log(`connect to ws://localhost:${this.WEBSOCKET_PORT}`);
+        logger.info(`Start WebSocket server on ws://localhost:${this.WEBSOCKET_PORT}`);
     }
 
     protected override async setupBle() {

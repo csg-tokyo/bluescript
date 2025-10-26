@@ -82,13 +82,19 @@ function MainExecutionScreen() {
                 <Result 
                     icon={<SmileOutlined />} 
                     title={message} 
-                    extra={<Button type="primary"
-                    onClick={replContext.executeMain}
-                >
-                    Start execution
-                </Button>}/>
+                    extra={<Button type="primary" onClick={replContext.executeMain}>
+                                Start execution
+                            </Button>}
+                />
             ) : state === 'failed-to-compile' ? (
-                <Result status="error" title={message} subTitle={replContext.mainState.error}/>
+                <Result 
+                    status="error" 
+                    title={message} 
+                    subTitle={replContext.mainState.error}
+                    extra={<Button type="primary" danger onClick={replContext.executeMain}>
+                                Retry
+                            </Button>}
+                />
             ) : <Result icon={<SmileOutlined />} title={message}/>
             }
         </div>
