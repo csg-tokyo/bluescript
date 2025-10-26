@@ -50,8 +50,9 @@ root.command('install')
 
 root.command('run')
   .description('run BlueScript code')
-  .action(async () => {
-    await run();
+  .option('-r, --with-repl', 'open REPL')
+  .action(async (options: {withRepl: boolean}) => {
+    await run(options.withRepl);
   })
 
 program.parse(process.argv);

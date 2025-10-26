@@ -190,6 +190,7 @@ export class Compiler {
                 ARCHIVE_PATH(pkg)
             );
             fs.writeFileSync(MAKEFILE_PATH(pkg), makefile);
+            await executeCommand('ls', pkg.dirs.dist);
             await executeCommand('make', pkg.dirs.dist);
         } catch (error) {
             throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});

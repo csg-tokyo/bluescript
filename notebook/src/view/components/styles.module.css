@@ -1,0 +1,64 @@
+.statusScreen {
+  height: 100%;
+  width: 100%;
+  justify-items: center;
+  align-content: center;
+}
+
+.activatedScreen {
+  padding-top: 30px;
+  padding-bottom: 30px;
+  overflow: scroll;
+  scrollbar-width: thin;
+  height: 100%
+}
+
+.cell {
+  width: 100%;
+  padding-right: 30px;
+  padding-left: 15px;
+  padding-bottom: 20px;
+}
+
+.cellCodeEditor {
+  font-size: 14px;
+  width:100%;
+  min-height: 50px;
+  border: solid #1890ff 1px;
+}
+
+.cellCompileErrorArea {
+  margin-left: 50px;
+  justify-content:start;
+  color: #ff4d4f;
+  font-size: 16px;
+}
+
+/* CopyButton */
+
+.copyButtonIconContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copyButtonIconBase {
+  position: absolute;
+  font-size: 30px;
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.copyButtonIconVisible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.copyButtonIconHidden {
+  opacity: 0;
+  transform: scale(0.7);
+}
+
+
+
+
