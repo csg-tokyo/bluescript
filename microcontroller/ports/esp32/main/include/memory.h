@@ -16,8 +16,6 @@ typedef struct {
 
 void bs_memory_init();
 
-void bs_memory_ram_reset();
-
 void bs_memory_reset();
 
 void bs_memory_get_layout(bs_memory_layout_t* layout);
