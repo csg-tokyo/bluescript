@@ -75,6 +75,8 @@ which first runs `foo.bs` and then `bar.bs`.
 If a function called in `foo.bs` is defined in `bar.bs`, a compilation error will
 be reported.
 
+The compiled programs can access the same built-in functions as the ones available in the REPL.
+
 To give an optional argument to the backend C compiler,
 
 ```bash
