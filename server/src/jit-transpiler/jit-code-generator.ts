@@ -250,7 +250,7 @@ export class JitCodeGenerator extends CodeGenerator{
     this.result.right().nl()
 
     // For test
-    this.result.write(`#ifdef TEST64`).nl().write('puts("Execute specialized function");').nl().write('#endif').nl()
+    this.result.write(`#ifdef LINUX64`).nl().write('puts("Execute specialized function");').nl().write('#endif').nl()
 
     this.result.write('return ');
     this.functionCall(node, fenv, specializedFuncName, specializedType, funcType.paramTypes, 'self')
@@ -260,7 +260,7 @@ export class JitCodeGenerator extends CodeGenerator{
     this.result.right().nl()
 
     // For test
-    this.result.write(`#ifdef TEST64`).nl().write('puts("Execute original function");').nl().write('#endif').nl()
+    this.result.write(`#ifdef LINUX64`).nl().write('puts("Execute original function");').nl().write('#endif').nl()
 
     this.result.write('return ');
     this.functionCall(node, fenv, originalFuncName, funcType, funcType.paramTypes, 'self')

@@ -17,7 +17,7 @@
     A 32bit address points to a structure of object_type type.
 */
 
-#ifdef TEST64
+#ifdef LINUX64
 #define ALGIN __attribute__ ((aligned(8)))
 #define CR_SECTION 
 #else
@@ -85,7 +85,7 @@ extern float CR_SECTION value_to_float(value_t v);
 extern value_t CR_SECTION float_to_value(float v);
 inline bool is_float_value(value_t v) { return (v & 3) == 1; }
 
-#ifdef TEST64
+#ifdef LINUX64
 extern pointer_t gc_heap_pointer(pointer_t ptr);
 inline pointer_t value_to_ptr(value_t v) { return gc_heap_pointer((pointer_t)((uint64_t)v & 0xfffffffc)); }
 #else

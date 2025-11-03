@@ -2,7 +2,7 @@
 
 /*
   To run on a 64bit machine (for testing/debugging purpose only),
-  compile with -DTEST64.
+  compile with -DLINUX64.
 
   Typical usecase:
 
@@ -32,7 +32,7 @@
 #include <math.h>       // for isnan(), pow()
 #include "../include/c-runtime.h"
 
-#ifdef TEST64
+#ifdef LINUX64
 
 #include <stdlib.h>
 
@@ -80,19 +80,19 @@ static inline value_t raw_ptr_to_value(const void* v) { return (value_t)((uintpt
 static inline void* raw_value_to_ptr(value_t v) { return (void*)v; }
 static inline value_t raw_ptr_to_value(const void* v) { return (value_t)v; }
 
-#endif /* TEST64 */
+#endif /* LINUX64 */
 
 #define HEAP_SIZE       (1024 * 8 + 2) // words (even number)
 
 static value_t heap_memory[HEAP_SIZE];
 
-#ifdef TEST64
+#ifdef LINUX64
 pointer_t gc_heap_pointer(pointer_t ptr) {
     return (pointer_t)((uint64_t)heap_memory & MASK64H | (uint64_t)ptr & MASK32);
 }
 #endif
 
-#ifdef TEST64
+#ifdef LINUX64
 
 #define GC_ENTER_CRITICAL(m)
 #define GC_EXIT_CRITICAL(m)
@@ -117,7 +117,7 @@ int32_t try_and_catch(void (*main_function)()) {
     error_message[0] = '\0';
     if (setjmp(long_jump_buffer) != 0) {
         fputs(error_message, stderr);
-#ifndef TEST64
+#ifndef LINUX64
         bs_protocol_write_error(error_message);
 #endif
         return 1;
@@ -439,7 +439,7 @@ void gc_initialize() {
     heap_memory[1] = 2;  // the size of the reserved space (first two words).
     heap_memory[2] = HEAP_SIZE;
     heap_memory[3] = HEAP_SIZE - 2;
-#ifdef TEST64
+#ifdef LINUX64
     initialize_pointer_table();
 #endif
 }
@@ -466,7 +466,7 @@ static int32_t class_has_pointers(class_object* obj) {
 static uint32_t current_no_mark = 0;
 
 static void set_object_header(pointer_t obj, const class_object* clazz) {
-#ifdef TEST64
+#ifdef LINUX64
     uint64_t clazz2 = (uint64_t)record_64bit_pointer((void*)(uintptr_t)clazz);
     obj->header = (((uint32_t)clazz2) & ~3) | current_no_mark;
 #else
@@ -665,7 +665,7 @@ static CLASS_OBJECT(function_object, 0) = {
 
 // this_object may be VALUE_UNDEF.
 value_t gc_new_function(void* fptr, const char* signature, value_t captured_values) {
-#ifdef TEST64
+#ifdef LINUX64
     fptr = record_64bit_pointer(fptr);
     signature = record_64bit_pointer(signature);
 #endif
@@ -787,7 +787,7 @@ static CLASS_OBJECT(class_String, 3) = {
 
 // str: a char array in the C language.
 value_t gc_new_string(char* str) {
-#ifdef TEST64
+#ifdef LINUX64
     str = (char*)record_64bit_pointer(str);
 #endif
     pointer_t obj = gc_allocate_object(&string_literal.clazz);
@@ -1813,7 +1813,7 @@ static uint16_t real_objsize(uint16_t length) {
 
 static pointer_t no_more_memory() {
     fputs("** memory exhausted **", stderr);
-#ifdef TEST64
+#ifdef LINUX64
     exit(1);
 #else
     return 0;
@@ -1914,7 +1914,7 @@ static void push_object_to_stack(pointer_t obj, uint32_t mark) {
         gc_stack_overflowed = true;
 }
 
-#ifndef TEST64
+#ifndef LINUX64
 static portMUX_TYPE gc_mux = portMUX_INITIALIZER_UNLOCKED;
 #endif
 
@@ -2116,7 +2116,7 @@ void gc_run() {
     gc_is_running = false;
 }
 
-#ifdef TEST64
+#ifdef LINUX64
 uint32_t gc_test_run() {
     gc_is_running = true;
     return current_no_mark ? 0 : 1;

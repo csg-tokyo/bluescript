@@ -1,6 +1,6 @@
 // Test code
 // To cmpile,
-// cc -DTEST64 c-runtime-test.c -lm
+// cc -DLINUX64 c-runtime-test.c -lm
 
 #include <string.h>
 #include <math.h>
@@ -58,7 +58,7 @@ static void assert_str_equals(const char* a, const char* b, int line) {
         printf("*** ERROR line %d: %p, %p\n", line, a, b);
 }
 
-#ifdef TEST64
+#ifdef LINUX64
 
 void test_pointer_table() {
     initialize_pointer_table();
@@ -78,7 +78,7 @@ void test_pointer_table() {
     }
 }
 
-#endif /* TEST64 */
+#endif /* LINUX64 */
 
 bool is_live_object(value_t obj) {
     value_t address = (value_t)((value_t*)value_to_ptr(obj) - heap_memory);
@@ -584,7 +584,7 @@ void test_main() {
 }
 
 int main() {
-#ifdef TEST64
+#ifdef LINUX64
     test_pointer_table();
 #endif
   gc_initialize();

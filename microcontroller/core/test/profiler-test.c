@@ -1,6 +1,6 @@
 // Test code
 // To cmpile,
-// cc -DTEST64 profiler-test.c -lm
+// cc -DLINUX64 profiler-test.c -lm
 
 #include <string.h>
 #include "../src/c-runtime.c"

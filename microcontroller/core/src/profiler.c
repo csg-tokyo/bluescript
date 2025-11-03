@@ -5,7 +5,7 @@
 #include "../include/profiler.h"
 #include "../include/c-runtime.h"
 
-#ifndef TEST64
+#ifndef LINUX64
 #include "../include/main-thread.h"
 #endif
 
@@ -81,7 +81,7 @@ static char* row_to_str(typeint_t* type_profile_row) {
 
 static void send_row(uint8_t fid, typeint_t* type_profile_row) {
     char* s = row_to_str(type_profile_row);
-#ifdef TEST64
+#ifdef LINUX64
     printf("%s\n", s);
 #else 
     bs_main_thread_set_profile(fid, s);
