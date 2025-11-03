@@ -76,7 +76,7 @@ class ShellTranspiler extends Transpiler {
   }
 
   static buildShell(code: string) {
-    const cFile = `${dir}/${shellBuiltins.split('/').pop()}.c`
+    const cFile = `${dir}/${path.basename(shellBuiltins)}.c`
     fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(cFile, prologCcode + code)
     execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${this.cRuntimeSo} ${cRuntimeC} ${cFile}`)

@@ -27,8 +27,8 @@ class Compiler extends Transpiler {
     const code = Compiler.fileRead(filename)
     const result = Transpiler.transpile(this.sessionId, code)
     this.baseGlobalNames = result.names
-    
-    const cFile = `${dir}/${shellBuiltins.split('/').pop()}.c`
+
+    const cFile = `${dir}/${path.basename(shellBuiltins)}.c`
     fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(cFile, prologCcode + result.code)
     this.sources = cFile
@@ -76,7 +76,7 @@ class Compiler extends Transpiler {
 
   private compile(src: string, main: string, fileName: string) {
     fs.writeFileSync(`${fileName}.c`, prologCcode + src)
-    this.libs =`${this.libs} ${fileName}.o`
+    this.libs = `${this.libs} ${fileName}.o`
     this.sources = `${this.sources} ${fileName}.c`
     this.mains.push(main)
   }
