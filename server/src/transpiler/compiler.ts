@@ -116,7 +116,7 @@ function main() {
     ${compiler.mains.map(name => `${name}();`).join('\n')}
     return 0; }`)
 
-  execSync(`cc -DTEST64 -O2 ${options} ${mainFile} ${compiler.sources} ${cRuntimeC} -lm`);
+  execSync(`cc -DLINUX64 -O2 ${options} ${mainFile} ${compiler.sources} ${cRuntimeC} -lm`);
   `${compiler.sources} ${mainFile}`.split(' ').forEach(name => name === '' || fs.rmSync(name))
 }
 

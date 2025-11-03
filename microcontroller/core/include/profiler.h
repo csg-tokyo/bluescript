@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "c-runtime.h"
 
-#ifdef TEST64
+#ifdef LINUX64
 typedef uint64_t typeint_t;
 #define CORE_TEXT_SECTION 
 #define CORE_DATA_SECTION 

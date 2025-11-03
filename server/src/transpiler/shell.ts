@@ -79,8 +79,8 @@ class ShellTranspiler extends Transpiler {
     const cFile = `${dir}/${path.basename(shellBuiltins)}.c`
     fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(cFile, prologCcode + code)
-    execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${this.cRuntimeSo} ${cRuntimeC} ${cFile}`)
-    execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${shellC} ${this.cRuntimeSo} -lm -ldl`)
+    execSync(`cc -DLINUX64 -O2 -shared -fPIC -o ${this.cRuntimeSo} ${cRuntimeC} ${cFile}`)
+    execSync(`cc -DLINUX64 -O2 -o ${dir}/shell ${shellC} ${this.cRuntimeSo} -lm -ldl`)
     return cFile
   }
 
@@ -135,7 +135,7 @@ class ShellTranspiler extends Transpiler {
     fs.writeFileSync(`${fileName}.c`, prologCcode + src)
 
     // throw an Error when compilation fails.
-    execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${fileName}.so ${fileName}.c ${ShellTranspiler.cRuntimeSo} ${this.libs}`)
+    execSync(`cc -DLINUX64 -O2 -shared -fPIC -o ${fileName}.so ${fileName}.c ${ShellTranspiler.cRuntimeSo} ${this.libs}`)
     this.libs =`${this.libs} ${fileName}.so`
     this.sources = `${this.sources} ${fileName}.c`
     this.shellCommands += `${fileName}.so\n${main}\n`
