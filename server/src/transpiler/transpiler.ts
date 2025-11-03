@@ -19,14 +19,17 @@ export abstract class Transpiler {
   }
 
   static fileRead(fname: string) {
+    let msg = fname
     try {
-      if (!fs.existsSync(fname))
+      if (!fs.existsSync(fname)) {
         fname += '.ts'
+        msg += ` or ${fname}`
+      }
 
       return fs.readFileSync(fname).toString('utf-8')
     }
     catch (e) {
-      throw new Error(`cannot find a module ${fname}`)
+      throw new Error(`cannot find a module ${msg}`)
     }
   }
 
