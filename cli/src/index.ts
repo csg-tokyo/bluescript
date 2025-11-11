@@ -1,58 +1,38 @@
 #!/usr/bin/env node
 
-import { program } from 'commander';
-import setup from './cli/setup';
-import remove from './cli/remove';
-import flash from './cli/flash';
-import run from './cli/run';
-import createProject from './cli/create-project';
-import installPackage from './cli/install';
+import { Command } from 'commander';
+import { join } from 'path';
+import * as fs from './core/fs';
+import { logger } from './cli/utils';
 
-const root = program
-              .version('')
-              .description('')
+import { registerSetupCommand } from './commands/board/setup';
+import { registerRemoveCommand } from './commands/board/remove';
 
-root.command('setup')
-  .description('setup environment for the specified device')
-  .argument('<device>', 'device to setup')
-  .action(async (device) => {
-    await setup(device);
-  });
+function main() {
+    const program = new Command();
 
-root.command('remove')
-  .description('remove environment for the specified device')
-  .argument('<device>', 'device to remove')
-  .action((device) => {
-    remove(device);
-  });
+    const packageJsonPath = join(__dirname, '..', 'package.json');
+    const packageJson = JSON.parse(fs.readFile(packageJsonPath));
 
-root.command('flash')
-  .description('flash runtime to the specified device')
-  .argument('<device>', 'device to flash runtime')
-  .option('-p, --port <port>', 'serial port')
-  .action(async (device, options: { port: string })=>{
-    await flash(device, options.port);
-  });
+    program
+        .name('bluescript')
+        .description('A new CLI for the BlueScript microcontroller language')
+        .version(packageJson.version, '-v, --version', 'Output the current version');
 
-root.command('create-project')
-  .description('create a project')
-  .argument('<name>', 'project name')
-  .action((name: string)=>{
-    createProject(name);
-  });
+    const programBoard = program
+        .command('board')
+        .description('Command for handling board');
 
-root.command('install')
-  .description('install a package')
-  .argument('<name>', 'package name')
-  .action((name: string)=>{
-    installPackage(name);
-  });
+    registerSetupCommand(programBoard);
+    registerRemoveCommand(programBoard)
 
-root.command('run')
-  .description('run BlueScript code')
-  .option('-r, --with-repl', 'open REPL')
-  .action(async (options: {withRepl: boolean}) => {
-    await run(options.withRepl);
-  })
+    program.parse(process.argv);
+}
 
-program.parse(process.argv);
+try {
+    main();
+} catch (error) {
+    logger.error('An unexpected error occurred:');
+    logger.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+}
