@@ -865,6 +865,26 @@ test('int % float is not valid', () => {
   expect(() => { compileAndRun(src) }).toThrow(/invalid operands.*line 3/)
 })
 
+test('int & any is not valid', () => {
+  const src = `
+  function foo(m: integer): integer { return m }
+  function bar(m: any, n: integer) {
+    print(foo(m) & n)
+    print(baz(m) & n)
+  }
+  function baz(m: integer): integer { return m }
+  bar(7, 3)
+`
+  const src2 = `
+  function bar(m: any, n: integer) {
+    print(m & n)
+  }
+  bar(7, 3)
+`
+  expect(compileAndRun(src)).toBe('3\n3\n')
+  expect(() => { compileAndRun(src2) }).toThrow(/invalid operands.*line 3/)
+})
+
 test('string comparison', () => {
   const src = `
   function foo(m: string, n: string) {
