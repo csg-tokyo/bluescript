@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
-import { BoardName, GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler, isValidBoard } from "../../core/config";
+import { BoardName, GlobalConfigHandler } from "../../core/config";
 import { logger, LogStep, showErrorMessages } from "../../core/logger";
 import * as fs from '../../core/fs';
 
@@ -12,25 +12,25 @@ abstract class RemoveHandler {
         this.globalConfigHandler = new GlobalConfigHandler();
     }
 
-    remove() {
-        this.remove();
+    async remove() {
+        await this.removeBoard();
         this.globalConfigHandler.saveGlobalConfig();
     }
 
     abstract isSetup(): boolean;
 
-    abstract removeBoard(): void;
+    abstract removeBoard(): Promise<void>;
 }
 
 class ESP32RemoveHandler extends RemoveHandler {
     readonly boardName: BoardName = 'esp32';
 
     isSetup(): boolean {
-        return !this.globalConfigHandler.isBoardSetup(this.boardName);
+        return this.globalConfigHandler.isBoardSetup(this.boardName);
     }
     
-    @LogStep('Removing...')
-    removeBoard() {
+    @LogStep(`Removing...`)
+    async removeBoard() {
         const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
         if (boardConfig === undefined) {
             throw new Error(`Cannot find config for ${this.boardName}.`);
@@ -57,7 +57,7 @@ export async function handleRemoveCommand(board: string, options: { force: boole
 
         // Check if setup has already been completed.
         if (!removeHandler.isSetup()) {
-            logger.warn(`The environment for "${board}" is not set up. Nothing to remove.`);
+            logger.warn(`The environment for ${board} is not set up. Nothing to remove.`);
             return;
         }
 
@@ -68,7 +68,7 @@ export async function handleRemoveCommand(board: string, options: { force: boole
             {
                 type: 'confirm',
                 name: 'proceed',
-                message: `Are you sure you want to remove the entire environment for "${board}"?`,
+                message: `Are you sure you want to remove the entire environment for ${board}?`,
                 default: false,
             },
             ]);
@@ -80,7 +80,7 @@ export async function handleRemoveCommand(board: string, options: { force: boole
             return;
         }
 
-        removeHandler.remove();
+        await removeHandler.remove();
         logger.success(`Success to remove ${board}`);
 
     } catch (error) {
