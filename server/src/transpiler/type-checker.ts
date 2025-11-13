@@ -941,7 +941,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.result = Integer
     }
     else if (op === '|' || op === '^' || op === '&' || op === '<<' || op === '>>' || op === '>>>') {
-      this.assert((left_type === Integer || isEnum(left_type)) && (right_type === Integer || isEnum(right_type)),
+      this.assert(this.firstPass || (left_type === Integer || isEnum(left_type)) && (right_type === Integer || isEnum(right_type)),
                   this.invalidOperandsMessage(op, left_type, right_type), node)
       this.result = Integer
     }
