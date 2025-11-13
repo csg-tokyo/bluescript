@@ -1,4 +1,5 @@
 import { handleSetupCommand } from '../../../src/commands/board/setup';
+import os from 'os';
 import { GlobalConfig } from '../../../src/core/config';
 import {
   mockedExec,
@@ -6,10 +7,18 @@ import {
   mockedInquirer,
   mockedLogger,
   mockedShowErrorMessages,
-  mockedOs,
   setupMocks,
   mockProcessExit,
 } from '../../mocks/mock-helpers';
+
+jest.mock('os', () => ({
+  ...jest.requireActual('os'),
+  platform: jest.fn(),
+}));
+
+export const mockedOs = os as jest.Mocked<typeof os>;
+mockedOs.platform.mockReturnValue('darwin');
+
 
 describe('board setup command', () => {
     let exitSpy: jest.SpyInstance;
@@ -211,10 +220,9 @@ describe('board setup command', () => {
         it('should handle errors during shell command execution', async () => {
             // --- Arrange ---
             mockIsBoardSetup.mockReturnValue(false);
-            const executionError = new Error('git command failed');
             mockedExec.mockImplementation(async (command) => {
                 if (command.startsWith('git clone')) {
-                    throw executionError;
+                    throw new Error('git command failed');;
                 }
                 return '';
             });

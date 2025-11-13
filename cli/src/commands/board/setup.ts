@@ -262,6 +262,7 @@ export async function handleSetupCommand(board: string) {
         await setupHandler.setup();
 
         logger.success(`Success to setup ${board}`);
+        logger.info(`Next step: run 'bluescript board flash-runtime ${board}'`);
 
     } catch (error) {
         logger.error(`Failed to setup ${board}`);

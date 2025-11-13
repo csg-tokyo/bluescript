@@ -36,6 +36,15 @@ export class LogUpdater {
     }
   }
 
+  public done(): void {
+    if (!this.isUpdating) {
+      return;
+    }
+    this.stream.write('\n');
+    this.isUpdating = false;
+    this.lastOutput = '';
+  }
+
   public clear(): void {
     if (!this.isUpdating) {
       return;
@@ -67,27 +76,27 @@ export const logUpdater = new LogUpdater(process.stdout);
 
 export const logger = {
   error(...messages: string[]): void {
-    logUpdater.clear();
+    logUpdater.done();
     console.log(ERROR_PREFIX, ...messages);
   },
   
   warn(...messages: string[]): void {
-    logUpdater.clear();
+    logUpdater.done();
     console.log(WARN_PREFIX, ...messages);
   },
 
   info(...messages: string[]): void {
-    logUpdater.clear();
+    logUpdater.done();
     console.log(INFO_PREFIX, ...messages);
   },
   
   success(...messages: string[]): void {
-    logUpdater.clear();
+    logUpdater.done();
     console.log(SUCCESS_PREFIX, ...messages);
   },
 
   log(...messages: string[]): void {
-    logUpdater.clear();
+    logUpdater.done();
     console.log(...messages);
   }
 };

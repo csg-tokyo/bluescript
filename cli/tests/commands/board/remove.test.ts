@@ -119,12 +119,12 @@ describe('board remove command', () => {
             expect(process.exit).toHaveBeenCalledWith(1);
         });
 
-        it('should handle errors during shell command execution', async () => {
+        it('should handle errors during director removal', async () => {
             // --- Arrange ---
             mockIsBoardSetup.mockReturnValue(true);
             mockedFs.removeDir.mockImplementation((path) => {
                 throw new Error('Failed to remove dir.');
-            })
+            });
 
             // --- Act ---
             await handleRemoveCommand('esp32', {force: false});

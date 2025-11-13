@@ -1,8 +1,3 @@
-jest.mock('os', () => ({
-  ...jest.requireActual('os'),
-  platform: jest.fn(),
-}));
-
 jest.mock('../../src/core/logger', () => {
     const { SkipStep } = jest.requireActual('../../src/core/logger');
     const mockDecorator = jest.fn().mockImplementation(

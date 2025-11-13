@@ -7,6 +7,7 @@ import { logger } from './cli/utils';
 
 import { registerSetupCommand } from './commands/board/setup';
 import { registerRemoveCommand } from './commands/board/remove';
+import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
 
 function main() {
     const program = new Command();
@@ -24,7 +25,8 @@ function main() {
         .description('Command for handling board');
 
     registerSetupCommand(programBoard);
-    registerRemoveCommand(programBoard)
+    registerRemoveCommand(programBoard);
+    registerFlashRuntimeCommand(programBoard);
 
     program.parse(process.argv);
 }
