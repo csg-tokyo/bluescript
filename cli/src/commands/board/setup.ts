@@ -6,6 +6,7 @@ import { logger, LogStep, showErrorMessages, SkipStep } from "../../core/logger"
 import { BoardName, GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../../core/config";
 import { exec } from '../../core/shell';
 import * as fs from '../../core/fs';
+import chalk from "chalk";
 
 
 const RUNTIME_VERSION = 'v1.1.4';
@@ -261,11 +262,12 @@ export async function handleSetupCommand(board: string) {
         // Setup
         await setupHandler.setup();
 
-        logger.success(`Success to setup ${board}`);
-        logger.info(`Next step: run 'bluescript board flash-runtime ${board}'`);
+        logger.br();
+        logger.success(`Success to se tup ${board}`);
+        logger.info(`Next step: run ${chalk.yellow(`bluescript board flash-runtime ${board}`)}`);
 
     } catch (error) {
-        logger.error(`Failed to setup ${board}`);
+        logger.error(`Failed to set up ${board}`);
         showErrorMessages(error);
         process.exit(1);
     }

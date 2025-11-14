@@ -98,6 +98,10 @@ export const logger = {
   log(...messages: string[]): void {
     logUpdater.done();
     console.log(...messages);
+  },
+
+  br(): void {
+    console.log();
   }
 };
 

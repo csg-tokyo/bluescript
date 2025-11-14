@@ -8,27 +8,34 @@ import { logger } from './cli/utils';
 import { registerSetupCommand } from './commands/board/setup';
 import { registerRemoveCommand } from './commands/board/remove';
 import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
+import { registerListCommand } from './commands/board/list';
+
+
+function registerBoardCommands(program: Command) {
+    const boardCommand = program
+        .command('board')
+        .description('manage board environments and configurations');
+
+    registerSetupCommand(boardCommand);
+    registerRemoveCommand(boardCommand);
+    registerFlashRuntimeCommand(boardCommand);
+    registerListCommand(boardCommand);
+}
 
 function main() {
-    const program = new Command();
+    const command = new Command();
 
     const packageJsonPath = join(__dirname, '..', 'package.json');
     const packageJson = JSON.parse(fs.readFile(packageJsonPath));
 
-    program
+    command
         .name('bluescript')
         .description('A new CLI for the BlueScript microcontroller language')
         .version(packageJson.version, '-v, --version', 'Output the current version');
 
-    const programBoard = program
-        .command('board')
-        .description('Command for handling board');
+    registerBoardCommands(command);
 
-    registerSetupCommand(programBoard);
-    registerRemoveCommand(programBoard);
-    registerFlashRuntimeCommand(programBoard);
-
-    program.parse(process.argv);
+    command.parse(process.argv);
 }
 
 try {

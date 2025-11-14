@@ -1,11 +1,17 @@
 import { spawn } from "child_process";
 import { logger } from "./logger";
+import { exists } from "./fs";
 
 export function exec(command: string, options?: {cwd?: string, silent?: boolean}): Promise<string> {
     const {cwd, silent = false} = options ?? {};
+
+    if (cwd && !exists(cwd)) {
+        throw new Error(`${cwd} does not exist.`);
+    }
     if (!silent) {
         logger.log(`Executing ${command}`);
     }
+
     return new Promise((resolve, reject) => {
         const executeProcess = spawn(command, {shell: true, cwd});
         let stdout = '';

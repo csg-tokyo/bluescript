@@ -5,6 +5,7 @@ import { SerialPort } from 'serialport'
 import { BoardName, GlobalConfigHandler } from "../../core/config";
 import { logger, LogStep, showErrorMessages } from "../../core/logger";
 import { exec } from '../../core/shell';
+import chalk from "chalk";
 
 
 const RUNTIME_ESP_PORT_DIR = (runtimeDir: string) => path.join(runtimeDir, 'ports/esp32');
@@ -95,8 +96,9 @@ export async function handleFlashRuntimeCommand(board: string, options: { port?:
         // Flash runtime.
         await flashRuntimeHandler.flashRuntime(selectedPort, !!options.monitor);
 
+        logger.br();
         logger.success(`Success to flash BlueScript runtime to ${board}`);
-        logger.info(`Next step: go to the project directory and run 'bluescript run'`);
+        logger.info(`Next step: go to the project directory and run ${chalk.yellow('bluescript run')}`);
 
     } catch (error) {
         logger.error(`Failed to flash runtime to ${board}`);

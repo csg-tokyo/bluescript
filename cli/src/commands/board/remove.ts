@@ -83,6 +83,7 @@ export async function handleRemoveCommand(board: string, options: { force: boole
         // Remove
         await removeHandler.remove();
 
+        logger.br();
         logger.success(`Success to remove ${board}`);
 
     } catch (error) {

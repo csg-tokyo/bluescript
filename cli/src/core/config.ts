@@ -13,7 +13,7 @@ const PROJECT_CONFIG_FILE_NAME = 'bsconfig.json';
 export const GLOBAL_BLUESCRIPT_PATH = path.join(os.homedir(), BLUESCRIPT_DIR_NAME);
 const GLOBAL_CONFIG_PATH = path.join(GLOBAL_BLUESCRIPT_PATH, GLOBAL_CONFIG_FILE_NAME);
 
-const BOARD_NAMES = ['esp32'] as const;
+export const BOARD_NAMES = ['esp32'] as const;
 export type BoardName = (typeof BOARD_NAMES)[number];
 export const isValidBoard = (board: string): board is BoardName => board in BOARD_NAMES;
 

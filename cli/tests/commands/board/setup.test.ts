@@ -202,7 +202,7 @@ describe('board setup command', () => {
             await handleSetupCommand('esp32');
 
             // --- Assert ---
-            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to setup esp32');
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
             expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported OS.'));
             expect(process.exit).toHaveBeenCalledWith(1);
         });
@@ -212,7 +212,7 @@ describe('board setup command', () => {
             await handleSetupCommand('unknown-board');
             
             // --- Assert ---
-            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to setup unknown-board');
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up unknown-board');
             expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unknown board.'));
             expect(process.exit).toHaveBeenCalledWith(1);
         });
@@ -231,7 +231,7 @@ describe('board setup command', () => {
             await handleSetupCommand('esp32');
 
             // --- Assert ---
-            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to setup esp32');
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
             expect(mockedShowErrorMessages).toHaveBeenCalledWith(expect.any(Error));
             expect(process.exit).toHaveBeenCalledWith(1);
         });
