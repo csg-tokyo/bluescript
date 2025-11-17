@@ -1165,9 +1165,16 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     else {
       const info = this.isAssignmentToVar(left, env)
       if (info !== undefined && info.isBoxed()) {
-        this.accumulateExpr(node, leftType, rightType, env, () => {
-          this.result.write(info.transpileBoxed(false))
-        })
+        if (op === '+=' && (leftType === StringT || leftType === Any)) {
+          // insert a write barrier
+          this.result.write(`${cr.anyAddMember}(${info.transpileAccess()}, 0, `)
+          this.assignmentRight(Any, node.right, rightType, env)
+          this.result.write(')')
+        }
+        else
+          this.accumulateExpr(node, leftType, rightType, env, () => {
+            this.result.write(info.transpileBoxed(false))
+          })
         return
       }
     }
@@ -1176,7 +1183,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   // if node is a member expression, the type of l-value is a primitive type.
-  // otherwise, the type of l-value may be StringT, but the l-value is a variable.
+  // otherwise, the type of l-value may be StringT, but the l-value is an unboxed variable.
   // So this method does not insert a write barrier.
   private accumulateExpr(node: AST.AssignmentExpression, leftType: StaticType | undefined,
                          rightType: StaticType | undefined, env: VariableEnv,

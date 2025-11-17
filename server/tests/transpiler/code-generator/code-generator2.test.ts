@@ -1395,6 +1395,31 @@ test('string +=', () => {
                                              'bazxyz', 'baz123'].join('\n') + '\n')
 })
 
+test('string += for boxed variables', () => {
+  const src = `
+  function foo(a: string) {
+    let b: any = a
+    return (s: string, t: any) => {
+      a += s
+      a += t
+      b += t
+      b += s
+      return [a, b]
+    }
+  }
+
+  let f = foo('$')
+  let v = f('3', 'a')
+  print(v[0])
+  print(v[1])
+  let w = f('7', 'b')
+  print(w[0])
+  print(w[1])
+  `
+
+  expect(compileAndRun(src, destFile)).toBe(['$3a', '$a3', '$3a7b', '$a3b7'].join('\n') + '\n')
+})
+
 test('string[]#push, pop, etc', () => {
   const src = `
   const str = ['one', 'two']
