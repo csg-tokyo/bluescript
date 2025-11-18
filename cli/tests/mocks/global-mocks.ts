@@ -29,12 +29,14 @@ jest.mock('../../src/core/logger', () => {
             info: jest.fn(),
             success: jest.fn(),
             log: jest.fn(),
+            br: jest.fn(),
         },
         showErrorMessages: jest.fn(),
     }
 });
 
-jest.mock('../../src/core/config');
+jest.mock('../../src/core/global-config');
+jest.mock('../../src/core/project-config');
 jest.mock('../../src/core/shell');
 jest.mock('../../src/core/fs');
 jest.mock('inquirer');

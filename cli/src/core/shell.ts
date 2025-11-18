@@ -2,6 +2,10 @@ import { spawn } from "child_process";
 import { logger } from "./logger";
 import { exists } from "./fs";
 
+export function cwd() {
+    return process.cwd();
+}
+
 export function exec(command: string, options?: {cwd?: string, silent?: boolean}): Promise<string> {
     const {cwd, silent = false} = options ?? {};
 

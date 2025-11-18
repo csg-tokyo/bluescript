@@ -3,7 +3,8 @@ import * as path from 'path';
 import * as os from 'os';
 import inquirer from 'inquirer';
 import { logger, LogStep, showErrorMessages, SkipStep } from "../../core/logger";
-import { BoardName, GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../../core/config";
+import { GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../../core/global-config";
+import { BoardName } from "../../core/board-utils";
 import { exec } from '../../core/shell';
 import * as fs from '../../core/fs';
 import chalk from "chalk";
@@ -138,6 +139,12 @@ export class ESP32SetupHandler extends SetupHandler {
         await this.cloneEspIdf();
         await this.runEspIdfInstallScript();
 
+        this.globalConfigHandler.updateBoardConfig(this.boardName, {
+            idfVersion: ESP_IDF_VERSION,
+            rootDir: ESP_ROOT_DIR,
+            exportFile: ESP_IDF_EXPORT_FILE,
+            xtensaGccDir: await this.getXtensaGccDir(),
+        });
         this.globalConfigHandler.saveGlobalConfig();
     }
 
@@ -215,11 +222,16 @@ export class ESP32SetupHandler extends SetupHandler {
     @LogStep('Running ESP-IDF install script...')
     private async runEspIdfInstallScript() {
         await exec(ESP_IDF_INSTALL_FILE);
-        this.globalConfigHandler.updateBoardConfig(this.boardName, {
-            idfVersion: ESP_IDF_VERSION,
-            rootDir: ESP_ROOT_DIR,
-            exportFile: ESP_IDF_EXPORT_FILE
-        });
+    }
+
+    private async getXtensaGccDir() {
+        try {
+            const gccPath = await exec(`source ${ESP_IDF_EXPORT_FILE} && which xtensa-esp32-elf-gcc`, { silent:true });
+            return path.dirname(gccPath);
+        } catch (error) {
+            throw new Error('Failed to get xtensa gcc path.', {cause: error});
+        }
+        
     }
 }
 
@@ -228,7 +240,7 @@ function getSetupHandler(board: string): SetupHandler {
         if (board === 'esp32') {
             return new ESP32SetupHandler();
         } else {
-            throw new Error('Unknown board.');
+            throw new Error(`Unsupported board name: ${board}`);
         }
 }
 

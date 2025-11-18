@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
-import { BoardName, GlobalConfigHandler } from "../../core/config";
+import { GlobalConfigHandler } from "../../core/global-config";
+import { BoardName } from "../../core/board-utils";
 import { logger, LogStep, showErrorMessages } from "../../core/logger";
 import * as fs from '../../core/fs';
 
@@ -47,7 +48,7 @@ function getRemoveHandler(board: string) {
     if (board === 'esp32') {
         return new ESP32RemoveHandler();
     } else {
-        throw new Error('Unknown board.');
+        throw new Error(`Unsupported board name: ${board}`);
     }
 }
 

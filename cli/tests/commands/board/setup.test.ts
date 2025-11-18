@@ -1,19 +1,18 @@
 import { handleSetupCommand } from '../../../src/commands/board/setup';
 import os from 'os';
-import { GlobalConfig } from '../../../src/core/config';
 import {
-  mockedExec,
-  mockedFs,
-  mockedInquirer,
-  mockedLogger,
-  mockedShowErrorMessages,
-  setupMocks,
-  mockProcessExit,
+    mockedExec,
+    mockedFs,
+    mockedInquirer,
+    mockedLogger,
+    mockedShowErrorMessages,
+    setupMocks,
+    mockProcessExit,
 } from '../../mocks/mock-helpers';
 
 jest.mock('os', () => ({
-  ...jest.requireActual('os'),
-  platform: jest.fn(),
+    ...jest.requireActual('os'),
+    platform: jest.fn(),
 }));
 
 export const mockedOs = os as jest.Mocked<typeof os>;
@@ -22,21 +21,10 @@ mockedOs.platform.mockReturnValue('darwin');
 
 describe('board setup command', () => {
     let exitSpy: jest.SpyInstance;
-
-    let mockIsBoardSetup: jest.Mock;
-    let mockUpdateGlobalConfig: jest.Mock;
-    let mockUpdateBoardConfig: jest.Mock;
-    let mockSaveGlobalConfig: jest.Mock;
-    let mockGlobalConfig: GlobalConfig;
+    let mocks: ReturnType<typeof setupMocks>;
 
     beforeEach(() => {
-        const mocks = setupMocks();
-        mockIsBoardSetup = mocks.mockIsBoardSetup;
-        mockUpdateGlobalConfig = mocks.mockUpdateGlobalConfig;
-        mockUpdateBoardConfig = mocks.mockUpdateBoardConfig;
-        mockSaveGlobalConfig = mocks.mockSaveGlobalConfig;
-        mockGlobalConfig = mocks.mockGlobalConfig;
-
+        mocks = setupMocks();
         exitSpy = mockProcessExit();
     });
 
@@ -47,14 +35,17 @@ describe('board setup command', () => {
     describe('for esp32 board on macOS', () => {
         it('should perform a full setup if not already set up', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(false);
-            mockGlobalConfig.runtime = undefined;
-            mockGlobalConfig.globalPackagesDir = undefined;
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
+            mocks.globalConfigHandler.globalConfig.runtime = undefined;
+            mocks.globalConfigHandler.globalConfig.globalPackagesDir = undefined;
             
             mockedExec.mockImplementation(async (command: string) => {
                 if (command.startsWith('which')) {
                     if (command.includes('brew') || command.includes('git')) {
                         return '';
+                    }
+                    if (command.includes('xtensa-esp32-elf-gcc')) {
+                        return '/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc';
                     }
                     throw new Error('not found');
                 }
@@ -73,7 +64,7 @@ describe('board setup command', () => {
 
             // 2. Dwonload runtime and packages
             expect(mockedFs.downloadAndUnzip).toHaveBeenCalledTimes(2);
-            expect(mockUpdateGlobalConfig).toHaveBeenCalledTimes(2);
+            expect(mocks.globalConfigHandler.updateGlobalConfig).toHaveBeenCalledTimes(2);
             
             // 3. Install required packages via Homebrew
             expect(mockedExec).toHaveBeenCalledWith('brew install cmake ninja dfu-util ccache');
@@ -86,8 +77,8 @@ describe('board setup command', () => {
             expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('install.sh'));
 
             // 6. Update board config and save
-            expect(mockUpdateBoardConfig).toHaveBeenCalledWith('esp32', expect.any(Object));
-            expect(mockSaveGlobalConfig).toHaveBeenCalledTimes(1);
+            expect(mocks.globalConfigHandler.updateBoardConfig).toHaveBeenCalledWith('esp32', expect.any(Object));
+            expect(mocks.globalConfigHandler.saveGlobalConfig).toHaveBeenCalledTimes(1);
 
             // 7. No errors logged
             expect(mockedLogger.error).not.toHaveBeenCalled();
@@ -95,9 +86,9 @@ describe('board setup command', () => {
 
         it('should skip downloading runtime and packages if they exist', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(false);
-            mockGlobalConfig.runtime = { version: '1.0.0', dir: '/path/runtime' };
-            mockGlobalConfig.globalPackagesDir = '/path/packages';
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
+            mocks.globalConfigHandler.globalConfig.runtime = { version: '1.0.0', dir: '/path/runtime' };
+            mocks.globalConfigHandler.globalConfig.globalPackagesDir = '/path/packages';
 
             // --- Act ---
             await handleSetupCommand('esp32');
@@ -111,9 +102,9 @@ describe('board setup command', () => {
 
         it('shold skip install required packages if all packages are installed', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(false);
-            mockGlobalConfig.runtime = undefined;
-            mockGlobalConfig.globalPackagesDir = undefined;
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
+            mocks.globalConfigHandler.globalConfig.runtime = undefined;
+            mocks.globalConfigHandler.globalConfig.globalPackagesDir = undefined;
             
             mockedExec.mockImplementation(async (command: string) => {
                 if (command.startsWith('which')) {
@@ -140,9 +131,9 @@ describe('board setup command', () => {
 
         it('shold skip install python3 if python3 is already installed', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(false);
-            mockGlobalConfig.runtime = undefined;
-            mockGlobalConfig.globalPackagesDir = undefined;
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
+            mocks.globalConfigHandler.globalConfig.runtime = undefined;
+            mocks.globalConfigHandler.globalConfig.globalPackagesDir = undefined;
             
             mockedExec.mockImplementation(async (command: string) => {
                 if (command.startsWith('which')) {
@@ -166,7 +157,7 @@ describe('board setup command', () => {
 
         it('should warn and exit if setup is already completed', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
 
             // --- Act ---
             await handleSetupCommand('esp32');
@@ -180,7 +171,7 @@ describe('board setup command', () => {
 
         it('should cancel setup if user denies the prompt', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(false);
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
             mockedInquirer.prompt.mockResolvedValue({ proceed: false });
 
             // --- Act ---
@@ -213,13 +204,13 @@ describe('board setup command', () => {
             
             // --- Assert ---
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up unknown-board');
-            expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unknown board.'));
+            expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
             expect(process.exit).toHaveBeenCalledWith(1);
         });
 
         it('should handle errors during shell command execution', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(false);
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
             mockedExec.mockImplementation(async (command) => {
                 if (command.startsWith('git clone')) {
                     throw new Error('git command failed');;

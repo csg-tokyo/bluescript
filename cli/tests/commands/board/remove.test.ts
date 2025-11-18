@@ -1,30 +1,19 @@
 import { handleRemoveCommand } from '../../../src/commands/board/remove';
-import { GlobalConfig } from '../../../src/core/config';
 import {
-  mockedFs,
-  mockedInquirer,
-  mockedLogger,
-  mockedShowErrorMessages,
-  setupMocks,
-  mockProcessExit,
+    mockedFs,
+    mockedInquirer,
+    mockedLogger,
+    mockedShowErrorMessages,
+    setupMocks,
+    mockProcessExit,
 } from '../../mocks/mock-helpers';
 
 describe('board remove command', () => {
     let exitSpy: jest.SpyInstance;
-    let mockIsBoardSetup: jest.Mock;
-    let mockUpdateGlobalConfig: jest.Mock;
-    let mockRemoveBoardConfig: jest.Mock;
-    let mockSaveGlobalConfig: jest.Mock;
-    let mockGlobalConfig: GlobalConfig;
+    let mocks: ReturnType<typeof setupMocks>;
 
     beforeEach(() => {
-        const mocks = setupMocks();
-        mockIsBoardSetup = mocks.mockIsBoardSetup;
-        mockUpdateGlobalConfig = mocks.mockUpdateGlobalConfig;
-        mockRemoveBoardConfig = mocks.mockRemoveBoardConfig;
-        mockSaveGlobalConfig = mocks.mockSaveGlobalConfig;
-        mockGlobalConfig = mocks.mockGlobalConfig;
-
+        mocks = setupMocks();
         exitSpy = mockProcessExit();
     });
 
@@ -35,11 +24,12 @@ describe('board remove command', () => {
     describe('for esp32 board', () => {
         it('should perform removal if setup for esp32 exists', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
-            mockGlobalConfig.boards.esp32 = {
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
                 idfVersion: 'v5.4',
                 rootDir: 'root/dir',
-                exportFile: 'export/file.sh'
+                exportFile: 'export/file.sh',
+                xtensaGccDir: '/xtensa-esp-elf/bin/',
             }
             mockedFs.exists.mockImplementation(() => true);
 
@@ -49,16 +39,16 @@ describe('board remove command', () => {
             // --- Assert ---
             expect(mockedFs.removeDir).toHaveBeenCalled();
             // Remove board config and save
-            expect(mockRemoveBoardConfig).toHaveBeenCalledWith('esp32');
-            expect(mockSaveGlobalConfig).toHaveBeenCalledTimes(1);
+            expect(mocks.globalConfigHandler.removeBoardConfig).toHaveBeenCalledWith('esp32');
+            expect(mocks.globalConfigHandler.saveGlobalConfig).toHaveBeenCalledTimes(1);
             // No errors logged
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
 
         it('should warn and exit if setup is not completed', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(false);
-            mockGlobalConfig.boards.esp32 = undefined;
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
+            mocks.globalConfigHandler.globalConfig.boards.esp32 = undefined;
 
             // --- Act ---
             await handleRemoveCommand('esp32', {force: false});
@@ -72,11 +62,12 @@ describe('board remove command', () => {
 
         it('should cancel removal process if user denies the prompt', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
-            mockGlobalConfig.boards.esp32 = {
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
                 idfVersion: 'v5.4',
                 rootDir: 'root/dir',
-                exportFile: 'export/file.sh'
+                exportFile: 'export/file.sh',
+                xtensaGccDir: '/xtensa-esp-elf/bin/',
             }
             mockedInquirer.prompt.mockResolvedValue({ proceed: false });
 
@@ -91,11 +82,12 @@ describe('board remove command', () => {
 
         it('should not show prompt with force option', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
-            mockGlobalConfig.boards.esp32 = {
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
                 idfVersion: 'v5.4',
                 rootDir: 'root/dir',
-                exportFile: 'export/file.sh'
+                exportFile: 'export/file.sh',
+                xtensaGccDir: '/xtensa-esp-elf/bin/',
             }
             mockedInquirer.prompt.mockResolvedValue({ proceed: false });
 
@@ -115,13 +107,13 @@ describe('board remove command', () => {
             
             // --- Assert ---
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to remove unknown-board');
-            expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unknown board.'));
+            expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
             expect(process.exit).toHaveBeenCalledWith(1);
         });
 
         it('should handle errors during director removal', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
             mockedFs.removeDir.mockImplementation((path) => {
                 throw new Error('Failed to remove dir.');
             });

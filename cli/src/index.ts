@@ -9,6 +9,7 @@ import { registerSetupCommand } from './commands/board/setup';
 import { registerRemoveCommand } from './commands/board/remove';
 import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
 import { registerListCommand } from './commands/board/list';
+import { registerCreateProjectCommand } from './commands/create-project';
 
 
 function registerBoardCommands(program: Command) {
@@ -34,6 +35,7 @@ function main() {
         .version(packageJson.version, '-v, --version', 'Output the current version');
 
     registerBoardCommands(command);
+    registerCreateProjectCommand(command);
 
     command.parse(process.argv);
 }

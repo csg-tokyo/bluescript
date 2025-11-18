@@ -2,7 +2,8 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import * as path from 'path';
 import { SerialPort } from 'serialport'
-import { BoardName, GlobalConfigHandler } from "../../core/config";
+import { GlobalConfigHandler } from "../../core/global-config";
+import { BoardName } from "../../core/board-utils";
 import { logger, LogStep, showErrorMessages } from "../../core/logger";
 import { exec } from '../../core/shell';
 import chalk from "chalk";
@@ -30,7 +31,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
     }
     
     @LogStep('Flashing...')
-    async flashRuntime(port: string, monitor: boolean) {
+    async flashRuntime(port: string) {
         const runtimeDir = this.globalConfigHandler.globalConfig.runtime?.dir;
         if (!runtimeDir) {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
@@ -42,7 +43,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
         }
 
         await exec(
-            `source ${boardConfig.exportFile} && idf.py build flash${monitor ? ' monitor' : ''} -p ${port}`,
+            `source ${boardConfig.exportFile} && idf.py build flash -p ${port}`,
             { cwd: RUNTIME_ESP_PORT_DIR(runtimeDir) }
         )
     }
@@ -52,11 +53,11 @@ function getFlashRuntimeHandler(board: string) {
     if (board === 'esp32') {
         return new ESP32FlashRuntimeHandler();
     } else {
-        throw new Error('Unknown board.');
+        throw new Error(`Unsupported board name: ${board}`);
     }
 }
 
-export async function handleFlashRuntimeCommand(board: string, options: { port?: string, monitor?: boolean }) {
+export async function handleFlashRuntimeCommand(board: string, options: { port?: string }) {
     try {
         const flashRuntimeHandler = getFlashRuntimeHandler(board);
 
@@ -94,7 +95,7 @@ export async function handleFlashRuntimeCommand(board: string, options: { port?:
         logger.info(`Using port: ${selectedPort}`);
 
         // Flash runtime.
-        await flashRuntimeHandler.flashRuntime(selectedPort, !!options.monitor);
+        await flashRuntimeHandler.flashRuntime(selectedPort);
 
         logger.br();
         logger.success(`Success to flash BlueScript runtime to ${board}`);
@@ -112,7 +113,6 @@ export function registerFlashRuntimeCommand(program: Command) {
         .command('flash-runtime')
         .description('flash the BlueScript runtime to the board.')
         .argument('<board-name>', 'the name of the board to flash (e.g., esp32)') 
-        .option('-p, --port', 'serial port to flash to')
-        .option('-m, --monitor', 'start serial monitor after flashing')
+        .option('-p, --port <port>', 'serial port to flash to')
         .action(handleFlashRuntimeCommand);
 }

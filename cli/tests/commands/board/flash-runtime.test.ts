@@ -1,13 +1,12 @@
 import { handleFlashRuntimeCommand } from '../../../src/commands/board/flash-runtime';
 import { SerialPort } from 'serialport';
-import { GlobalConfig } from '../../../src/core/config';
 import {
-  mockedInquirer,
-  mockedLogger,
-  mockedShowErrorMessages,
-  setupMocks,
-  mockProcessExit,
-  mockedExec,
+    mockedInquirer,
+    mockedLogger,
+    mockedShowErrorMessages,
+    setupMocks,
+    mockProcessExit,
+    mockedExec,
 } from '../../mocks/mock-helpers';
 
 jest.mock('serialport');
@@ -24,14 +23,11 @@ mockedSerialPort.list.mockResolvedValue([{
 
 describe('board flash-runtime command', () => {
     let exitSpy: jest.SpyInstance;
-    let mockIsBoardSetup: jest.Mock;
-    let mockGlobalConfig: GlobalConfig;
+    let mocks: ReturnType<typeof setupMocks>;
 
     beforeEach(() => {
-        const mocks = setupMocks();
-        mockIsBoardSetup = mocks.mockIsBoardSetup;
-        mockGlobalConfig = mocks.mockGlobalConfig;
-        mockGlobalConfig.runtime = {
+        mocks = setupMocks();
+        mocks.globalConfigHandler.globalConfig.runtime = {
             dir: '/.bluescript/microcontroller',
             version: '1.0.0'
         }
@@ -45,11 +41,12 @@ describe('board flash-runtime command', () => {
     describe('for esp32 board', () => {
         it('should flash runtime to board if setup for esp32 exists', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
-            mockGlobalConfig.boards.esp32 = {
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
                 idfVersion: 'v5.4',
                 rootDir: 'root/dir',
-                exportFile: 'export/file.sh'
+                exportFile: 'export/file.sh',
+                xtensaGccDir: '/xtensa-esp-elf/bin/',
             }
             mockedInquirer.prompt.mockResolvedValue({ port: '/tty/port1' });
 
@@ -64,8 +61,8 @@ describe('board flash-runtime command', () => {
 
         it('should warn and exit if setup is not completed', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(false);
-            mockGlobalConfig.boards.esp32 = undefined;
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
+            mocks.globalConfigHandler.globalConfig.boards.esp32 = undefined;
 
             // --- Act ---
             await handleFlashRuntimeCommand('esp32', {});
@@ -79,11 +76,12 @@ describe('board flash-runtime command', () => {
 
         it('should not show prompt if port is specified', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
-            mockGlobalConfig.boards.esp32 = {
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
                 idfVersion: 'v5.4',
                 rootDir: 'root/dir',
-                exportFile: 'export/file.sh'
+                exportFile: 'export/file.sh',
+                xtensaGccDir: '/xtensa-esp-elf/bin/',
             }
 
             // --- Act ---
@@ -96,11 +94,12 @@ describe('board flash-runtime command', () => {
 
         it('should show an error and exit if no serial ports are found', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
-            mockGlobalConfig.boards.esp32 = {
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
                 idfVersion: 'v5.4',
                 rootDir: 'root/dir',
-                exportFile: 'export/file.sh'
+                exportFile: 'export/file.sh',
+                xtensaGccDir: '/xtensa-esp-elf/bin/'
             }
             mockedSerialPort.list.mockResolvedValue([]);
 
@@ -111,22 +110,6 @@ describe('board flash-runtime command', () => {
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();
             expect(mockedExec).not.toHaveBeenCalled();
         });
-
-        it('shold show serial monitor if monitor option is passed', async () => {
-            // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
-            mockGlobalConfig.boards.esp32 = {
-                idfVersion: 'v5.4',
-                rootDir: 'root/dir',
-                exportFile: 'export/file.sh'
-            }
-
-            // --- Act ---
-            await handleFlashRuntimeCommand('esp32', {monitor: true, port: '/tty/port1'});
-
-            // --- Assert ---
-            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('idf.py build flash monitor'), {cwd: '/.bluescript/microcontroller/ports/esp32'});
-        });
     });
 
     describe('Error Handling', () => {
@@ -136,13 +119,13 @@ describe('board flash-runtime command', () => {
             
             // --- Assert ---
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to flash runtime to unknown-board');
-            expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unknown board.'));
+            expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
             expect(process.exit).toHaveBeenCalledWith(1);
         });
 
         it('should handle errors during shell command execution', async () => {
             // --- Arrange ---
-            mockIsBoardSetup.mockReturnValue(true);
+            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
             mockedExec.mockImplementation(async (command) => {
                 if (command.includes('idf.py build flash')) {
                     throw new Error('flash failed');;

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import chalk from 'chalk';
-import { BOARD_NAMES, GlobalConfigHandler } from "../../core/config";
+import { GlobalConfigHandler } from "../../core/global-config";
+import { BOARD_NAMES } from "../../core/board-utils";
 import { logger, showErrorMessages } from "../../core/logger";
 
 export async function handleListCommand() {
