@@ -6,6 +6,7 @@ import { execSync } from 'child_process'
 import { ErrorLog } from './utils'
 import { GlobalVariableNameTable } from './code-generator/variables'
 import { Transpiler } from './transpiler'
+import { sourceMapsEnabled } from 'process'
 
 const baseDir = path.normalize(path.dirname(process.argv[1]) + '/../../..')
 
@@ -85,7 +86,9 @@ class Compiler extends Transpiler {
 function help() {
     console.log(`Usage: node compiler.js [options] source-file1 source-file2 ...
   options:
-    -args=ARG1,ARG2,...    ARG1 and ARG2 are passed to the compiler
+    -args=ARG1,ARG2,...
+    +args=ARG1,ARG2,...    ARG1 and ARG2 are passed to the compiler
+    -g or +g               do not remove work files.
 
 Example:
   node compiler.js -args=-g,-o,foo src/foo.bs src/lib.bs
@@ -101,9 +104,12 @@ function main() {
   const compiler = new Compiler()
   let globalNames = compiler.getBaseGlobalNames()
   let options = ''
+  let debug = false
   for (const src of process.argv.slice(2))
-    if (src.startsWith('-args='))
+    if (src.startsWith('-args=') || src.startsWith('+args='))
       options += src.substring(6).replace(/,/g, ' ') + ' '
+    else if (src === '-g' || src === '+g')
+      debug = true
     else
       globalNames = compiler.compileSource(src, globalNames)
 
@@ -116,8 +122,12 @@ function main() {
     ${compiler.mains.map(name => `${name}();`).join('\n')}
     return 0; }`)
 
-  execSync(`cc -DLINUX64 -O2 ${options} ${mainFile} ${compiler.sources} ${cRuntimeC} -lm`);
-  `${compiler.sources} ${mainFile}`.split(' ').forEach(name => name === '' || fs.rmSync(name))
+  const cmd = `cc -DLINUX64 -O2 ${options} ${mainFile} ${compiler.sources} ${cRuntimeC} -lm`
+  execSync(cmd)
+  if (debug)
+    console.log(cmd)
+  else
+    `${compiler.sources} ${mainFile}`.split(' ').forEach(name => name === '' || fs.rmSync(name))
 }
 
 main()
