@@ -80,11 +80,24 @@ The compiled programs can access the same built-in functions as the ones availab
 To give an optional argument to the backend C compiler,
 
 ```bash
-npm run compile foo.bs bar.bs --args=-g,-o,foo
+npm run compile foo.bs bar.bs -- -args=-g,-o,foo
 ```
 
-Arguments specified with `--args=` are passed directly to the C compiler.
+Arguments specified with `-args=` are passed directly to the C compiler.
 Commas within the argument string are automatically replaced with whitespace
 to separate individual compiler options.
-For example, the input `--args=-g,-o,foo` results in the compiler receiving
+For example, the input `-args=-g,-o,foo` results in the compiler receiving
 the arguments `-g -o foo`.
+
+Alternatively, use `+args=` without the `--` separator.
+
+```bash
+npm run compile +args=-g,-o,foo foo.bs bar.bs
+```
+
+For debugging, pass the `-g` or `+g` option to the compiler.
+This prevents the compiler from removing working files such as generated source files in C.
+
+```bash
+npm run compile foo.bs bar.bs -- -g -args=-g,-o,foo
+```
