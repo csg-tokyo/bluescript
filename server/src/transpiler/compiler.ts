@@ -6,7 +6,6 @@ import { execSync } from 'child_process'
 import { ErrorLog } from './utils'
 import { GlobalVariableNameTable } from './code-generator/variables'
 import { Transpiler } from './transpiler'
-import { sourceMapsEnabled } from 'process'
 
 const baseDir = path.normalize(path.dirname(process.argv[1]) + '/../../..')
 
