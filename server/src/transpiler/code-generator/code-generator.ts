@@ -1319,7 +1319,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         }
         else {
           // a method call on a typed object
-          this.result.write(`, ${cr.methodLookup(method[0], func)}(${func}`)
+          let funcExpr = func
+          const minfo = method[0]
+          if (minfo[2] instanceof ArrayType && minfo[2].elementType === Any)
+            funcExpr = cr.isArrayObject(func)
+
+          this.result.write(`, ${cr.methodLookup(method[0], funcExpr)}(${func}`)
         }
       }
       else {
@@ -1528,7 +1533,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   // This returns method_info, method_name, or undefined.
   visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv):
-        [ method: [method_type: StaticType, method_table_index: number, declaring_class?: InstanceType],
+        [ method: [method_type: StaticType, method_table_index: number, declaring_class?: InstanceType | ArrayType],
           is_call_on_super_or_not: boolean] | string | undefined {
     if (node.computed)
       return undefined

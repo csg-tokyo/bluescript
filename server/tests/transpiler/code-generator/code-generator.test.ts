@@ -1139,12 +1139,12 @@ test('any-type array', () => {
   const src2 = `
   function foo(n: integer): integer {
     const arr = [ n ]
-    const s: any[] = (arr as any)             // int[] as any (error)
+    const s: any[] = (arr as any)             // int[] as any (not an error)
     return n
   }
   print(foo(4))
   `
-  expect(() => compileAndRun(src2)).toThrow(/runtime type error/)
+  expect(compileAndRun(src2)).toBe('4\n')
 })
 
 test('any-type array 2', () => {
@@ -1166,12 +1166,12 @@ test('any-type array 2', () => {
   const src2 = `
   function foo(n: string): string {
     const arr = [ n ]
-    const s: any[] = (arr as any)    // string[] as any (error)
+    const s: any[] = (arr as any)    // string[] as any (not an error)
     return arr[0]
   }
   print(foo('test'))`
 
-  expect(() => compileAndRun(src2)).toThrow(/runtime type error: any\[\]/)
+  expect(compileAndRun(src2)).toBe('test\n')
 })
 
 test('any-type array element', () => {
