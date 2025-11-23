@@ -1544,6 +1544,28 @@ test('Foo[]#push, pop, etc', () => {
   expect(() => compileAndRun(src3, destFile)).toThrow(/runtime type error/)
 })
 
+test('integer[]#push, pop, etc', () => {
+  const src = `const ary: integer[] = [1, 2, 3]
+  print(ary.push(4))`
+  expect(() => compileAndRun(src, destFile)).toThrow(/unknown property name: push/)
+
+  const src2 = `const ary: float[] = [1.0, 2.0, 3.0]
+  print(ary.pop())`
+  expect(() => compileAndRun(src2, destFile)).toThrow(/unknown property name: pop/)
+
+  const src3 = `const ary: boolean[] = [true, false, true]
+  print(ary.shift())`
+  expect(() => compileAndRun(src3, destFile)).toThrow(/unknown property name: shift/)
+
+  const src4 = `const ary = new Vector(3, 0)
+  print(ary.shift())`
+  expect(() => compileAndRun(src4, destFile)).toThrow(/unknown property name: shift/)
+
+  const src5 = `const ary = new Uint8Array(3, 0)
+  print(ary.push(4))`
+  expect(() => compileAndRun(src5, destFile)).toThrow(/unknown property name: push/)
+})
+
 test('multually recursive classes', () => {
   const src = `
   class Foo {
