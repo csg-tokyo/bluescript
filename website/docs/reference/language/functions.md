@@ -38,3 +38,20 @@ print(f(3, 20));    // call on any
 let f2: (a: integer, b: integer) => integer = f
 print(f2(30, 7))
 ```
+
+However, a function cannot be implicitly converted into
+a value of function type where some parameter types or a return type is changed into `any`-type.
+For example,
+
+```tsx
+let add = (a: integer, b: integer): integer => a + b;
+let f: any = add;                                   // OK
+let add2: (a: any, b: integer) => integer = add;    // error since the first parameter's type is any
+```
+
+Similarly,
+
+```tsx
+let add = (a: integer, b: any): integer => a + b;
+let add2: (a: integer, b: integer) => integer = add;  // error since the second parameter's type is integer
+```
