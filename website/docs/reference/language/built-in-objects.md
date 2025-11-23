@@ -29,7 +29,7 @@ into `string` objects `'1'` and `'31'` before concatenation.
 
 ### Properties and methods
 
-The read-only property `length` of `string` objects represent the length of
+The read-only property `length` of `string` objects represents the length of
 the character strings.
 
 A `string` object accepts the following methods.
@@ -65,6 +65,11 @@ An `any`-type value is also implicitly converted into a reference to an array
 if the `any`-type value points to an array object of that array type.
 Otherwise, a runtime error is thrown.
 
+```tsx
+let iarr: integer[] = [1, 2, 3]
+let a: any = iarr
+let i: integer = a[0]       // a[0] is an `any`-type value although iarr[0] is an integer
+```
 
 ### Array Literals
 
@@ -78,6 +83,15 @@ The type of an array literal is array of the most specifict super
 type of the static types of all the elements.
 If there exists such a super type, the type of the array literal is
 array of `any`.
+
+For example,
+
+```tsx
+let iarr = [1, 2, 3]                  // integer[]
+let farr = [1.0, 2.0, 3.0]            // float[]
+let sarr = ['one', 'two', 'three']    // string[]
+let arr = [1, 2.0, 'three']           // any[]
+```
 
 ### Array Construction
 
@@ -162,7 +176,7 @@ print(arr.length)  // 3
 
 The second argumemnt to the constructor of `Uint8Array` cannot be omitted.
 
-## `Vector` class
+### `Vector` class
 
 A `Vector` object is a fixed-length array.  Its element type is `any`.
 
@@ -175,3 +189,30 @@ print(arr.length)  // 3
 ```
 
 A `Vector` object is accessible by the `[]` operator as an array of type `integer[]` is.
+
+### Properties and methods
+
+The read-only property `length` of array objects represents the length of the arrays.
+The following methods are available:
+
+- `push(e: T): integer`
+
+  adds an element `e` to the end of an array and returns the new length of the array.
+
+- `pop(): T`
+
+  removes the last element of an array and returns that element.
+
+- `unshift(e: T): integer`
+
+  adds an element `e` to the beginning of an array and returns the new length of the array.
+
+- `shift(): T`
+
+  removes the first element `e` and returns that element.
+
+Here, `T` is an element type.
+
+However, arrays of `integer`, `float`, or `boolean` do not accept these methods.
+`Uint8Array`, or `Vector` do not accept them, either.
+They are fixed-length arrays.
