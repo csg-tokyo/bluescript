@@ -760,7 +760,11 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       throw new Error(`fatal: a function type is not recorded in pass 1: ${AST.isFunctionDeclaration(node) ? node.id : '(arrow function)'}`)
 
     funcEnv.setReturnType(ftype.returnType)
-    this.visit(node.body, funcEnv)
+    if (AST.isBlockStatement(node.body))
+      this.visit(node.body, funcEnv)
+    else
+      this.returnStatementArg(node, node.body, funcEnv)
+
     addNameTable(node, funcEnv)
   }
 

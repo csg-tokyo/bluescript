@@ -1798,3 +1798,23 @@ test('import an enum type', () => {
   expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe(
     [0, 'Color', 1, 'Color', 2, 'Color'].join('\n') + '\n')
 })
+
+test('any paramter and integer return type', () => {
+  const src = `
+  function foo(a: integer, b: any): integer {
+    return a + b
+  }
+  print(foo(3, 4))
+
+  let add = (a: integer, b: any): integer => a + b;
+  print(add(3, 4))
+
+  let add1 = (a: integer, b: integer): integer => { return a + b };
+  print(add1(3, 4))
+
+  let add2 = (a: integer, b: integer): integer => a + b;
+  print(add2(3, 4))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('7\n7\n7\n7\n')
+})
