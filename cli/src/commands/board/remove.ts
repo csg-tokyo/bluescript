@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
-import { GlobalConfigHandler } from "../../core/global-config";
-import { BoardName } from "../../core/board-utils";
+import { GlobalConfigHandler } from "../../config/global-config";
+import { BoardName } from "../../config/board-utils";
 import { logger, LogStep, showErrorMessages } from "../../core/logger";
 import * as fs from '../../core/fs';
 
@@ -10,12 +10,12 @@ abstract class RemoveHandler {
     globalConfigHandler: GlobalConfigHandler;
     
     constructor() {
-        this.globalConfigHandler = new GlobalConfigHandler();
+        this.globalConfigHandler = GlobalConfigHandler.load();
     }
 
     async remove() {
         await this.removeBoard();
-        this.globalConfigHandler.saveGlobalConfig();
+        this.globalConfigHandler.save();
     }
 
     abstract isSetup(): boolean;

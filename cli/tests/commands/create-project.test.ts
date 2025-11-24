@@ -10,10 +10,11 @@ import {
 
 describe('create project command', () => {
     let exitSpy: jest.SpyInstance;
-    let mocks: ReturnType<typeof setupMocks>;
+    let mockProjectConfigHandler: ReturnType<typeof setupMocks>['projectConfigHandler'];
 
     beforeEach(() => {
-        mocks = setupMocks();
+        const mocks = setupMocks();
+        mockProjectConfigHandler = mocks.projectConfigHandler;
         exitSpy = mockProcessExit();
     });
 
@@ -31,8 +32,7 @@ describe('create project command', () => {
 
         // --- Assert ---
         expect(mockedFs.makeDir).toHaveBeenCalledWith(expect.stringContaining('test-project'));
-        expect(mocks.projectConfigHandler.set).toHaveBeenCalled();
-        expect(mocks.projectConfigHandler.save).toHaveBeenCalled();
+        expect(mockProjectConfigHandler.save).toHaveBeenCalled();
     });
 
     it('shold skip asking board if board option exists.', async () => {
@@ -45,8 +45,7 @@ describe('create project command', () => {
         // --- Assert ---
         expect(mockedInquirer.prompt).not.toHaveBeenCalled();
         expect(mockedFs.makeDir).toHaveBeenCalledWith(expect.stringContaining('test-project'));
-        expect(mocks.projectConfigHandler.set).toHaveBeenCalled();
-        expect(mocks.projectConfigHandler.save).toHaveBeenCalled();
+        expect(mockProjectConfigHandler.save).toHaveBeenCalled();
     })
 
     it('should exit with an error for an unknown board name', async () => {

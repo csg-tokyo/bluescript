@@ -2,8 +2,8 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import * as path from 'path';
 import { SerialPort } from 'serialport'
-import { GlobalConfigHandler } from "../../core/global-config";
-import { BoardName } from "../../core/board-utils";
+import { GlobalConfigHandler } from "../../config/global-config";
+import { BoardName } from "../../config/board-utils";
 import { logger, LogStep, showErrorMessages } from "../../core/logger";
 import { exec } from '../../core/shell';
 import chalk from "chalk";
@@ -15,7 +15,7 @@ abstract class FlashRuntimeHandler {
     globalConfigHandler: GlobalConfigHandler;
     
     constructor() {
-        this.globalConfigHandler = new GlobalConfigHandler();
+        this.globalConfigHandler = GlobalConfigHandler.load();
     }
 
     abstract isSetup(): boolean;
@@ -32,7 +32,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
     
     @LogStep('Flashing...')
     async flashRuntime(port: string) {
-        const runtimeDir = this.globalConfigHandler.globalConfig.runtime?.dir;
+        const runtimeDir = this.globalConfigHandler.getConfig().runtime?.dir;
         if (!runtimeDir) {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
         }

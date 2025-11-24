@@ -10,10 +10,11 @@ import {
 
 describe('board remove command', () => {
     let exitSpy: jest.SpyInstance;
-    let mocks: ReturnType<typeof setupMocks>;
+    let mockGlobalConfigHandler: ReturnType<typeof setupMocks>['globalConfigHandler'];
 
     beforeEach(() => {
-        mocks = setupMocks();
+        const mocks = setupMocks();
+        mockGlobalConfigHandler = mocks.globalConfigHandler;
         exitSpy = mockProcessExit();
     });
 
@@ -24,13 +25,8 @@ describe('board remove command', () => {
     describe('for esp32 board', () => {
         it('should perform removal if setup for esp32 exists', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
-                idfVersion: 'v5.4',
-                rootDir: 'root/dir',
-                exportFile: 'export/file.sh',
-                xtensaGccDir: '/xtensa-esp-elf/bin/',
-            }
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
             mockedFs.exists.mockImplementation(() => true);
 
             // --- Act ---
@@ -39,16 +35,15 @@ describe('board remove command', () => {
             // --- Assert ---
             expect(mockedFs.removeDir).toHaveBeenCalled();
             // Remove board config and save
-            expect(mocks.globalConfigHandler.removeBoardConfig).toHaveBeenCalledWith('esp32');
-            expect(mocks.globalConfigHandler.saveGlobalConfig).toHaveBeenCalledTimes(1);
+            expect(mockGlobalConfigHandler.removeBoardConfig).toHaveBeenCalledWith('esp32');
+            expect(mockGlobalConfigHandler.save).toHaveBeenCalledTimes(1);
             // No errors logged
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
 
         it('should warn and exit if setup is not completed', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
-            mocks.globalConfigHandler.globalConfig.boards.esp32 = undefined;
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(false);
 
             // --- Act ---
             await handleRemoveCommand('esp32', {force: false});
@@ -62,13 +57,8 @@ describe('board remove command', () => {
 
         it('should cancel removal process if user denies the prompt', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
-                idfVersion: 'v5.4',
-                rootDir: 'root/dir',
-                exportFile: 'export/file.sh',
-                xtensaGccDir: '/xtensa-esp-elf/bin/',
-            }
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
             mockedInquirer.prompt.mockResolvedValue({ proceed: false });
 
             // --- Act ---
@@ -82,13 +72,8 @@ describe('board remove command', () => {
 
         it('should not show prompt with force option', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
-                idfVersion: 'v5.4',
-                rootDir: 'root/dir',
-                exportFile: 'export/file.sh',
-                xtensaGccDir: '/xtensa-esp-elf/bin/',
-            }
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
             mockedInquirer.prompt.mockResolvedValue({ proceed: false });
 
             // --- Act ---
@@ -113,7 +98,7 @@ describe('board remove command', () => {
 
         it('should handle errors during director removal', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
             mockedFs.removeDir.mockImplementation((path) => {
                 throw new Error('Failed to remove dir.');
             });

@@ -35,8 +35,7 @@ jest.mock('../../src/core/logger', () => {
     }
 });
 
-jest.mock('../../src/core/global-config');
-jest.mock('../../src/core/project-config');
+
 jest.mock('../../src/core/shell');
 jest.mock('../../src/core/fs');
 jest.mock('inquirer');

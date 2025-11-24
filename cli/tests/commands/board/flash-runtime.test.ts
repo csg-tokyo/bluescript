@@ -23,14 +23,11 @@ mockedSerialPort.list.mockResolvedValue([{
 
 describe('board flash-runtime command', () => {
     let exitSpy: jest.SpyInstance;
-    let mocks: ReturnType<typeof setupMocks>;
+    let mockGlobalConfigHandler: ReturnType<typeof setupMocks>['globalConfigHandler'];
 
     beforeEach(() => {
-        mocks = setupMocks();
-        mocks.globalConfigHandler.globalConfig.runtime = {
-            dir: '/.bluescript/microcontroller',
-            version: '1.0.0'
-        }
+        const mocks = setupMocks();
+        mockGlobalConfigHandler = mocks.globalConfigHandler;
         exitSpy = mockProcessExit();
     });
 
@@ -41,13 +38,11 @@ describe('board flash-runtime command', () => {
     describe('for esp32 board', () => {
         it('should flash runtime to board if setup for esp32 exists', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
-                idfVersion: 'v5.4',
-                rootDir: 'root/dir',
-                exportFile: 'export/file.sh',
-                xtensaGccDir: '/xtensa-esp-elf/bin/',
-            }
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mockGlobalConfigHandler.getConfig.mockReturnValue({
+                runtime: {dir: '/.bluescript/microcontroller'}
+            });
+            mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
             mockedInquirer.prompt.mockResolvedValue({ port: '/tty/port1' });
 
             // --- Act ---
@@ -61,8 +56,7 @@ describe('board flash-runtime command', () => {
 
         it('should warn and exit if setup is not completed', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(false);
-            mocks.globalConfigHandler.globalConfig.boards.esp32 = undefined;
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(false);
 
             // --- Act ---
             await handleFlashRuntimeCommand('esp32', {});
@@ -76,13 +70,11 @@ describe('board flash-runtime command', () => {
 
         it('should not show prompt if port is specified', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
-                idfVersion: 'v5.4',
-                rootDir: 'root/dir',
-                exportFile: 'export/file.sh',
-                xtensaGccDir: '/xtensa-esp-elf/bin/',
-            }
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mockGlobalConfigHandler.getConfig.mockReturnValue({
+                runtime: {dir: '/.bluescript/microcontroller'}
+            });
+            mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
 
             // --- Act ---
             await handleFlashRuntimeCommand('esp32', { port: '/tty/port1' });
@@ -94,13 +86,7 @@ describe('board flash-runtime command', () => {
 
         it('should show an error and exit if no serial ports are found', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mocks.globalConfigHandler.globalConfig.boards.esp32 = {
-                idfVersion: 'v5.4',
-                rootDir: 'root/dir',
-                exportFile: 'export/file.sh',
-                xtensaGccDir: '/xtensa-esp-elf/bin/'
-            }
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
             mockedSerialPort.list.mockResolvedValue([]);
 
             // --- Act ---
@@ -125,7 +111,7 @@ describe('board flash-runtime command', () => {
 
         it('should handle errors during shell command execution', async () => {
             // --- Arrange ---
-            mocks.globalConfigHandler.isBoardSetup.mockReturnValue(true);
+            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
             mockedExec.mockImplementation(async (command) => {
                 if (command.includes('idf.py build flash')) {
                     throw new Error('flash failed');;

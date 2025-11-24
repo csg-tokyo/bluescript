@@ -3,8 +3,8 @@ import * as path from 'path';
 import * as os from 'os';
 import inquirer from 'inquirer';
 import { logger, LogStep, showErrorMessages, SkipStep } from "../../core/logger";
-import { GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../../core/global-config";
-import { BoardName } from "../../core/board-utils";
+import { GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../../config/global-config";
+import { BoardName } from "../../config/board-utils";
 import { exec } from '../../core/shell';
 import * as fs from '../../core/fs';
 import chalk from "chalk";
@@ -27,7 +27,7 @@ abstract class SetupHandler {
     protected globalConfigHandler: GlobalConfigHandler;
 
     constructor() {
-        this.globalConfigHandler = new GlobalConfigHandler();
+        this.globalConfigHandler = GlobalConfigHandler.load();
     }
 
     getSetupPlan(): string[] {
@@ -45,11 +45,11 @@ abstract class SetupHandler {
     }
 
     private needToDownloadBlueScriptRuntime() {
-        return this.globalConfigHandler.globalConfig.runtime === undefined;
+        return !this.globalConfigHandler.isRuntimeSetup();
     }
 
     private needToDownloadGlobalPackages() {
-        return this.globalConfigHandler.globalConfig.globalPackagesDir === undefined;
+        return !this.globalConfigHandler.isGlobalPackagesSetup();
     }
 
     @LogStep(`Downloading BlueScript runtime...`)
@@ -65,10 +65,7 @@ abstract class SetupHandler {
             fs.makeDir(GLOBAL_BLUESCRIPT_PATH);
         }
         await fs.downloadAndUnzip(RUNTIME_ZIP_URL, GLOBAL_BLUESCRIPT_PATH);
-        this.globalConfigHandler.updateGlobalConfig({runtime: {
-            version: RUNTIME_VERSION,
-            dir: RUNTIME_DIR
-        }});
+        this.globalConfigHandler.setRuntime(RUNTIME_VERSION, RUNTIME_DIR);
     }
 
     @LogStep(`Downloading global packages...`)
@@ -84,9 +81,7 @@ abstract class SetupHandler {
             fs.makeDir(GLOBAL_BLUESCRIPT_PATH);
         }
         await fs.downloadAndUnzip(GLOBAL_PACKAGES_ZIP_URL, GLOBAL_BLUESCRIPT_PATH);
-        this.globalConfigHandler.updateGlobalConfig({
-            globalPackagesDir: GLOBAL_PACKAGES_DIR
-        });
+        this.globalConfigHandler.setGlobalPackagesDir(GLOBAL_PACKAGES_DIR);
     }
 
     abstract needSetup(): boolean;
@@ -145,7 +140,7 @@ export class ESP32SetupHandler extends SetupHandler {
             exportFile: ESP_IDF_EXPORT_FILE,
             xtensaGccDir: await this.getXtensaGccDir(),
         });
-        this.globalConfigHandler.saveGlobalConfig();
+        this.globalConfigHandler.save();
     }
 
     @LogStep('Installing required packages...')

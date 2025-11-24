@@ -3,9 +3,9 @@ import inquirer from 'inquirer';
 import chalk from "chalk";
 import * as path from 'path';
 import { logger, showErrorMessages } from "../core/logger";
-import { ProjectConfigHandler } from "../core/project-config";
+import { ProjectConfigHandler } from "../config/project-config";
 import { cwd } from "../core/shell";
-import { BOARD_NAMES, isValidBoard } from "../core/board-utils";
+import { BOARD_NAMES, isValidBoard } from "../config/board-utils";
 import * as fs from '../core/fs';
 
 const MAIN_TEMPLATE = `print('Hello world!')`;
@@ -45,11 +45,9 @@ export async function handleCreateProjectCommand(name: string, options: { board?
             throw new Error(`Unsupported board name: ${selectedBoard}`);
         }
 
-        const projectConfigHandler = new ProjectConfigHandler();
         const projectDir = createProjectDir(name);
-
-        const projectTemplate = projectConfigHandler.getTemplate(name, selectedBoard);
-        projectConfigHandler.set(projectTemplate);
+        
+        const projectConfigHandler = ProjectConfigHandler.createTemplate(name, selectedBoard);
         projectConfigHandler.save(projectDir);
         
         createMainFile(projectDir);

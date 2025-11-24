@@ -1,13 +1,13 @@
 import { Command } from "commander";
 import chalk from 'chalk';
-import { GlobalConfigHandler } from "../../core/global-config";
-import { BOARD_NAMES } from "../../core/board-utils";
+import { GlobalConfigHandler } from "../../config/global-config";
+import { BOARD_NAMES } from "../../config/board-utils";
 import { logger, showErrorMessages } from "../../core/logger";
 
 export async function handleListCommand() {
     try {
         const supportedBoards = BOARD_NAMES;
-        const globalConfigHandler = new GlobalConfigHandler();
+        const globalConfigHandler = GlobalConfigHandler.load();
 
         logger.log('Available boards:');
         supportedBoards.forEach(board => {
