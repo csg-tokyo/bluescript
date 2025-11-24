@@ -391,7 +391,7 @@ export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticT
   else if (t === BooleanT)
     return '(*gc_bytearray_get('
   else
-    return `(*gc_array_get(`
+    return `(gc_safe_array_get(`
 }
 
 export function arrayElementSetter(arrayType: StaticType | undefined) {
@@ -402,7 +402,7 @@ export function arrayElementSetter(arrayType: StaticType | undefined) {
   else if (arrayType instanceof InstanceType && arrayType.name() === VectorClass)
     return 'gc_vector_set('
   else
-    return `gc_array_set(`
+    return `gc_safe_array_set(`
 }
 
 export const accumulateInUnknownArray = 'gc_safe_array_acc'
@@ -578,8 +578,12 @@ export function makeInstance(clazz: InstanceType, func: () => string) {
     return `${constructorNameInC(name)}(${func()}gc_new_object(&${classObjectNameInC(name)})`
 }
 
-export function methodLookup(method: [StaticType, number, InstanceType?], func: string) {
+export function methodLookup(method: [StaticType, number, (InstanceType | ArrayType)?], func: string) {
   return `((${funcTypeToCType(method[0])})gc_method_lookup(${func}, ${method[1]}))`
+}
+
+export function isArrayObject(f: string) {
+  return `safe_anyarray_to_anyarrayobj(${f})`
 }
 
 export const dynamicMethodCall = 'gc_dynamic_method_call'

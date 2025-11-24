@@ -261,6 +261,8 @@ value_t safe_value_to_value(bool nullable, const class_object* const clazz, valu
     return v;
 }
 
+// also see safe_value_to_anyarray()
+
 #define ANY_OP_FUNC(name, op, rest) \
 value_t any_##name(value_t a, value_t b) {\
     if (is_int_value(a)) {\
@@ -1366,7 +1368,22 @@ static CLASS_OBJECT(anyarray_object, 4) = {
               .vtbl = { gc_array_push, gc_array_pop, gc_array_unshift, gc_array_shift } }};
 
 value_t safe_value_to_anyarray(bool nullable, value_t v) {
-    return safe_value_to_value(nullable, &anyarray_object.clazz, v);
+    if (nullable && v == VALUE_NULL)
+        return v;
+
+    if (!IS_ARRAY_TYPE(gc_get_class_of(v)))
+        runtime_type_error("safe_value_to_anyarray");
+
+    return v;
+}
+
+// Makes sure that v is an instance of anyarray_object.
+// It raises a runtime type error if not, for example, if v is an integer array.
+value_t safe_anyarray_to_anyarrayobj(value_t v) {
+    if (!gc_is_anyarray(v))
+        runtime_type_error("safe_anyarray_to_anyarrayobj");
+
+    return v;
 }
 
 static inline int32_t real_array_length(int32_t n) { return ((n + 1) & ~7) + 7; }
