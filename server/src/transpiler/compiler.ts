@@ -85,7 +85,9 @@ class Compiler extends Transpiler {
 function help() {
     console.log(`Usage: node compiler.js [options] source-file1 source-file2 ...
   options:
-    -args=ARG1,ARG2,...    ARG1 and ARG2 are passed to the compiler
+    -args=ARG1,ARG2,...
+    +args=ARG1,ARG2,...    ARG1 and ARG2 are passed to the compiler
+    -g or +g               do not remove work files.
 
 Example:
   node compiler.js -args=-g,-o,foo src/foo.bs src/lib.bs
@@ -101,23 +103,33 @@ function main() {
   const compiler = new Compiler()
   let globalNames = compiler.getBaseGlobalNames()
   let options = ''
+  let debug = false
   for (const src of process.argv.slice(2))
-    if (src.startsWith('-args='))
+    if (src.startsWith('-args=') || src.startsWith('+args='))
       options += src.substring(6).replace(/,/g, ' ') + ' '
+    else if (src === '-g' || src === '+g')
+      debug = true
     else
       globalNames = compiler.compileSource(src, globalNames)
 
   const mainFile = `${dir}/a.c`
 
-  fs.writeFileSync(mainFile, `extern void gc_initialize();
-    ${compiler.mains.map(name => `extern int ${name}();`).join('\n')}
+  fs.writeFileSync(mainFile, `
+    ${prologCcode}
+    ${compiler.mains.map(name => `extern void ${name}();`).join('\n')}
     int main() {
-    gc_initialize();
-    ${compiler.mains.map(name => `${name}();`).join('\n')}
-    return 0; }`)
+      gc_initialize();
+      int r = 0;
+      ${compiler.mains.map(name => `r = try_and_catch(${name}); if (!r) return r;`).join('\n')}
+      return 0;
+    }`)
 
-  execSync(`cc -DLINUX64 -O2 ${options} ${mainFile} ${compiler.sources} ${cRuntimeC} -lm`);
-  `${compiler.sources} ${mainFile}`.split(' ').forEach(name => name === '' || fs.rmSync(name))
+  const cmd = `cc -DLINUX64 -O2 ${options} ${mainFile} ${compiler.sources} ${cRuntimeC} -lm`
+  execSync(cmd)
+  if (debug)
+    console.log(cmd)
+  else
+    `${compiler.sources} ${mainFile}`.split(' ').forEach(name => name === '' || fs.rmSync(name))
 }
 
 main()

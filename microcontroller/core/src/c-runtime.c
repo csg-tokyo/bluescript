@@ -690,6 +690,7 @@ const void* gc_function_object_ptr(value_t obj, int index) {
     return (void*)raw_value_to_ptr(func->body[index]);
 }
 
+// returns an instance of boxed_value or boxed_raw_value, returned by gc_new_box() etc.
 value_t gc_function_captured_value(value_t obj, int index) {
     value_t vec = value_to_ptr(obj)->body[2];
     return gc_vector_get(vec, index);
@@ -1918,6 +1919,12 @@ static void push_object_to_stack(pointer_t obj, uint32_t mark) {
 static portMUX_TYPE gc_mux = portMUX_INITIALIZER_UNLOCKED;
 #endif
 
+/* This barrier is invoked when a (possibly) reference value is stored
+ * in a heap object.  It is not invoked when the value is stored in
+ * a stack frame.
+ * This is fine because an interrupt handler ends and clears its stack
+ * frames before an interrupted garbage collector resumes.
+*/
 void gc_write_barrier(pointer_t obj, value_t value) {
     if (nested_interrupt_handler > 0 && gc_is_running) {
         if (is_ptr_value(value)) {
