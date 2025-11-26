@@ -114,12 +114,15 @@ function main() {
 
   const mainFile = `${dir}/a.c`
 
-  fs.writeFileSync(mainFile, `extern void gc_initialize();
-    ${compiler.mains.map(name => `extern int ${name}();`).join('\n')}
+  fs.writeFileSync(mainFile, `
+    ${prologCcode}
+    ${compiler.mains.map(name => `extern void ${name}();`).join('\n')}
     int main() {
-    gc_initialize();
-    ${compiler.mains.map(name => `${name}();`).join('\n')}
-    return 0; }`)
+      gc_initialize();
+      int r = 0;
+      ${compiler.mains.map(name => `r = try_and_catch(${name}); if (!r) return r;`).join('\n')}
+      return 0;
+    }`)
 
   const cmd = `cc -DLINUX64 -O2 ${options} ${mainFile} ${compiler.sources} ${cRuntimeC} -lm`
   execSync(cmd)
