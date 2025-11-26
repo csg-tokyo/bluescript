@@ -1799,7 +1799,7 @@ test('import an enum type', () => {
     [0, 'Color', 1, 'Color', 2, 'Color'].join('\n') + '\n')
 })
 
-test('any paramter and integer return type', () => {
+test('any parameter and integer return type', () => {
   const src = `
   function foo(a: integer, b: any): integer {
     return a + b
