@@ -42,6 +42,7 @@ abstract class SetupHandler {
         await this.downloadBlueScriptRuntime();
         await this.downloadGlobalPackages();
         await this.setupBoard();
+        this.globalConfigHandler.save();
     }
 
     private needToDownloadBlueScriptRuntime() {
@@ -140,7 +141,6 @@ export class ESP32SetupHandler extends SetupHandler {
             exportFile: ESP_IDF_EXPORT_FILE,
             xtensaGccDir: await this.getXtensaGccDir(),
         });
-        this.globalConfigHandler.save();
     }
 
     @LogStep('Installing required packages...')
@@ -221,7 +221,7 @@ export class ESP32SetupHandler extends SetupHandler {
 
     private async getXtensaGccDir() {
         try {
-            const gccPath = await exec(`source ${ESP_IDF_EXPORT_FILE} && which xtensa-esp32-elf-gcc`, { silent:true });
+            const gccPath = await exec(`source ${ESP_IDF_EXPORT_FILE} > /dev/null 2>&1 && which xtensa-esp32-elf-gcc`, { silent:true });
             return path.dirname(gccPath);
         } catch (error) {
             throw new Error('Failed to get xtensa gcc path.', {cause: error});

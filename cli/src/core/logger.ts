@@ -24,16 +24,8 @@ export class LogUpdater {
   }
 
   public persistent(...text: string[]): void {
-    const originalLastOutput = this.lastOutput;
-
-    this.clear();
-    this.stream.write(text.join(' ') + '\n');
-    
-    if (originalLastOutput) {
-      this.stream.write(originalLastOutput);
-      this.lastOutput = originalLastOutput;
-      this.isUpdating = true;
-    }
+    this.update(...text);
+    this.done();
   }
 
   public done(): void {
@@ -104,6 +96,39 @@ export const logger = {
     console.log();
   }
 };
+
+
+export class ProgramLogger {
+  private isLogging = false;
+  private boxWidth: number;
+
+  constructor() {
+    const columns = process.stdout.columns || 60;
+    this.boxWidth = columns & ~1;
+  }
+
+  start() { 
+    this.isLogging = true;
+    const lineLength = (this.boxWidth - 8) / 2 
+    process.stdout.write(`\n${'='.repeat(lineLength)} OUTPUT ${'='.repeat(lineLength)}\n`);
+  }
+  end() {
+    if (!this.isLogging) return; 
+    process.stdout.write(`${'='.repeat(this.boxWidth)}\n\n`);
+    this.isLogging = false;
+  }
+
+  log(message: string) {
+    if (!this.isLogging) return; 
+    process.stdout.write(message);
+  }
+
+  error(message: string) {
+    if (!this.isLogging) return; 
+    process.stdout.write(chalk.red.bold(message));
+  }
+}
+
 
 export class SkipStep {
   result: any;

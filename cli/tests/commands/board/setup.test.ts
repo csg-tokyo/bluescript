@@ -8,7 +8,7 @@ import {
     mockedShowErrorMessages,
     setupMocks,
     mockProcessExit,
-} from '../../mocks/mock-helpers';
+} from '../mock-helpers';
 
 jest.mock('os', () => ({
     ...jest.requireActual('os'),

@@ -38,7 +38,7 @@ export type BoardConfig = z.infer<typeof boardConfigSchema>;
 export type GlobalConfig = z.infer<typeof globalConfigSchema>;
 
 export class GlobalConfigHandler {
-    private readonly config: GlobalConfig;
+    private config: GlobalConfig;
 
     private constructor(config: GlobalConfig) {
         this.config = config;
@@ -74,10 +74,17 @@ export class GlobalConfigHandler {
     }
 
     update(config: Partial<GlobalConfig>) {
-        return GlobalConfigHandler.fromObject({
-            ...config,
-            ...this.config
-        });
+        try {
+            this.config = globalConfigSchema.parse({
+                ...this.config,
+                ...config,
+            });
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                throw new Error(`Global config validation failed.`, { cause: error });
+            }
+            throw error;
+        }
     }
 
     save() {
@@ -121,7 +128,7 @@ export class GlobalConfigHandler {
     }
 
     updateBoardConfig<K extends keyof BoardConfig>(boardName: K, boardConfig: Partial<BoardConfig[K]>) {
-        const existingBoardConfig = this.config.boards?.[boardName] ?? {};
+        const existingBoardConfig = this.config.boards[boardName] ?? {};
         const mergedBoardConfig = {
             ...existingBoardConfig,
             ...boardConfig

@@ -3,13 +3,12 @@ import inquirer from 'inquirer';
 import chalk from "chalk";
 import * as path from 'path';
 import { logger, showErrorMessages } from "../core/logger";
-import { ProjectConfigHandler } from "../config/project-config";
+import { DEFAULT_MAIN_FILE_NAME, ProjectConfigHandler } from "../config/project-config";
 import { cwd } from "../core/shell";
 import { BOARD_NAMES, isValidBoard } from "../config/board-utils";
 import * as fs from '../core/fs';
 
 const MAIN_TEMPLATE = `print('Hello world!')`;
-const MAIN_FILE_NAME = 'index.bs';
 
 function createProjectDir(projectName: string) {
     const projectDir = path.join(cwd(), projectName);
@@ -21,7 +20,7 @@ function createProjectDir(projectName: string) {
 }
 
 function createMainFile(dir: string) {
-    const filePath = path.join(dir, MAIN_FILE_NAME);
+    const filePath = path.join(dir, DEFAULT_MAIN_FILE_NAME);
     fs.writeFile(filePath, MAIN_TEMPLATE);
 }
 

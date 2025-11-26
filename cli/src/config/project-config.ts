@@ -5,14 +5,21 @@ import { BoardName } from './board-utils';
 
 
 const PROJECT_CONFIG_FILE_NAME = 'bsconfig.json';
-const DEFAULT_DEVICE_NAME = 'BLUESCRIPT';
+export const DEFAULT_DEVICE_NAME = 'BLUESCRIPT';
+
+export const DEFAULT_MAIN_FILE_NAME = 'index.bs';
+export const DIST_DIR = (root: string) => path.join(root, 'dist');
+export const BUILD_DIR = (root: string) => path.join(root, 'dist/build');
+export const LOCAL_PACKAGES_DIR = (root: string) => path.join(root, 'packages');
 
 
 const baseConfigSchema = z.object({
     projectName: z.string(),
     version: z.string().default('1.0.0'),
-    deviceName: z.string().default(DEFAULT_DEVICE_NAME),
+    deviceName: z.string().default(DEFAULT_DEVICE_NAME).optional(),
     dependencies: z.array(z.string()).default([]),
+    runtimeDir: z.string().optional(), // for dev
+    globalPackagesDir: z.string().optional(), // for dev
 });
 
 const esp32ProjectSchema = baseConfigSchema.extend({
@@ -26,10 +33,10 @@ const projectConfigSchema = z.discriminatedUnion('boardName', [
 
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 
-type SpecificBoardConfig<B extends BoardName> = Extract<ProjectConfig, { boardName: B }>;
+export type SpecificBoardConfig<B extends BoardName> = Extract<ProjectConfig, { boardName: B }>;
 
 export class ProjectConfigHandler {
-    private readonly config: ProjectConfig;
+    private config: ProjectConfig;
 
     private constructor(config: ProjectConfig) {
         this.config = config;
@@ -89,17 +96,23 @@ export class ProjectConfigHandler {
     }
 
     public update(config: Partial<ProjectConfig>) {
-        return ProjectConfigHandler.fromObject({
-            ...config,
-            ...this.config
-        });
+        try {
+            this.config = projectConfigSchema.parse({
+                ...config,
+                ...this.config
+            });
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                throw new Error(`Project config validation failed.`, { cause: error });
+            }
+            throw error;
+        }
     }
 
-    public updateWithDependency(dependency: string): ProjectConfigHandler {
+    public addDependency(dependency: string) {
         const newDependencies = [...new Set([...this.config.dependencies, dependency])];
-        return ProjectConfigHandler.fromObject({
-            ...this.config,
-            dependencies: newDependencies,
+        this.update({
+            dependencies: newDependencies
         });
     }
 

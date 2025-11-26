@@ -10,6 +10,7 @@ import { registerRemoveCommand } from './commands/board/remove';
 import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
 import { registerListCommand } from './commands/board/list';
 import { registerCreateProjectCommand } from './commands/create-project';
+import { registerRunCommand } from './commands/run';
 
 
 function registerBoardCommands(program: Command) {
@@ -36,6 +37,7 @@ function main() {
 
     registerBoardCommands(command);
     registerCreateProjectCommand(command);
+    registerRunCommand(command);
 
     command.parse(process.argv);
 }

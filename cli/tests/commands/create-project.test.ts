@@ -6,7 +6,7 @@ import {
     mockedShowErrorMessages,
     setupMocks,
     mockProcessExit,
-} from '../mocks/mock-helpers';
+} from './mock-helpers';
 
 describe('create project command', () => {
     let exitSpy: jest.SpyInstance;

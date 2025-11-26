@@ -1,5 +1,5 @@
-jest.mock('../../src/core/logger', () => {
-    const { SkipStep } = jest.requireActual('../../src/core/logger');
+jest.mock('../src/core/logger', () => {
+    const { SkipStep } = jest.requireActual('../src/core/logger');
     const mockDecorator = jest.fn().mockImplementation(
         (message: string) => {
         return function (
@@ -21,7 +21,7 @@ jest.mock('../../src/core/logger', () => {
         }
     )
     return {
-        ...jest.requireActual('../../src/core/logger'),
+        ...jest.requireActual('../src/core/logger'),
         LogStep: mockDecorator,
         logger: {
             error: jest.fn(),
@@ -36,6 +36,6 @@ jest.mock('../../src/core/logger', () => {
 });
 
 
-jest.mock('../../src/core/shell');
-jest.mock('../../src/core/fs');
+jest.mock('../src/core/shell');
+jest.mock('../src/core/fs');
 jest.mock('inquirer');

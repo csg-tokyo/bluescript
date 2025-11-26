@@ -7,7 +7,7 @@ import {
     setupMocks,
     mockProcessExit,
     mockedExec,
-} from '../../mocks/mock-helpers';
+} from '../mock-helpers';
 
 jest.mock('serialport');
 const mockedSerialPort = SerialPort as jest.Mocked<typeof SerialPort>;
