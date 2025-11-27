@@ -120,7 +120,7 @@ function main() {
     int main() {
       gc_initialize();
       int r = 0;
-      ${compiler.mains.map(name => `r = try_and_catch(${name}); if (!r) return r;`).join('\n')}
+      ${compiler.mains.map(name => `r = try_and_catch(${name}); if (r) return r;`).join('\n')}
       return 0;
     }`)
 
