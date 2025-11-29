@@ -3,16 +3,15 @@ import * as path from 'path';
 import * as os from 'os';
 import inquirer from 'inquirer';
 import { logger, LogStep, showErrorMessages, SkipStep } from "../../core/logger";
-import { GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../../config/global-config";
+import { VM_VERSION, GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../../config/global-config";
 import { BoardName } from "../../config/board-utils";
 import { exec } from '../../core/shell';
 import * as fs from '../../core/fs';
 import chalk from "chalk";
 
 
-const RUNTIME_VERSION = 'v1.1.4';
-const RUNTIME_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/${RUNTIME_VERSION}/release-microcontroller-${RUNTIME_VERSION}.zip`;
-const GLOBAL_PACKAGES_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/${RUNTIME_VERSION}/release-modules-${RUNTIME_VERSION}.zip`;
+const RUNTIME_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/v${VM_VERSION}/release-microcontroller-v${VM_VERSION}.zip`;
+const GLOBAL_PACKAGES_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/v${VM_VERSION}/release-modules-v${VM_VERSION}.zip`;
 const RUNTIME_DIR = path.join(GLOBAL_BLUESCRIPT_PATH, 'microcontroller');
 const GLOBAL_PACKAGES_DIR = path.join(GLOBAL_BLUESCRIPT_PATH, 'modules');
 
@@ -66,7 +65,7 @@ abstract class SetupHandler {
             fs.makeDir(GLOBAL_BLUESCRIPT_PATH);
         }
         await fs.downloadAndUnzip(RUNTIME_ZIP_URL, GLOBAL_BLUESCRIPT_PATH);
-        this.globalConfigHandler.setRuntime(RUNTIME_VERSION, RUNTIME_DIR);
+        this.globalConfigHandler.setRuntimeDir(RUNTIME_DIR);
     }
 
     @LogStep(`Downloading global packages...`)

@@ -3,7 +3,7 @@
 import { Command } from 'commander';
 import { join } from 'path';
 import * as fs from './core/fs';
-import { logger } from './cli/utils';
+import { logger } from './core/logger';
 
 import { registerSetupCommand } from './commands/board/setup';
 import { registerRemoveCommand } from './commands/board/remove';
@@ -11,6 +11,7 @@ import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
 import { registerListCommand } from './commands/board/list';
 import { registerCreateProjectCommand } from './commands/create-project';
 import { registerRunCommand } from './commands/run';
+import { registerFullcleanCommand } from './commands/board/full-clean';
 
 
 function registerBoardCommands(program: Command) {
@@ -22,6 +23,7 @@ function registerBoardCommands(program: Command) {
     registerRemoveCommand(boardCommand);
     registerFlashRuntimeCommand(boardCommand);
     registerListCommand(boardCommand);
+    registerFullcleanCommand(boardCommand);
 }
 
 function main() {

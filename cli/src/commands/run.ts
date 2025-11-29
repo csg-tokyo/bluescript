@@ -105,7 +105,7 @@ abstract class RunHandler {
         });
     }
 
-    protected setupStdin() {
+    private setupStdin() {
         readline.emitKeypressEvents(process.stdin);
         if (process.stdin.isTTY) {
             process.stdin.setRawMode(true);
@@ -145,7 +145,7 @@ class ESP32RunHandler extends RunHandler {
 
     private getCompilerConfig() {
         const runtimeDir = this.projectConfigHandler.getConfig().runtimeDir 
-                            ?? this.globalConfigHandler.getConfig().runtime?.dir;
+                            ?? this.globalConfigHandler.getConfig().runtimeDir;
         if (!runtimeDir) {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
         }

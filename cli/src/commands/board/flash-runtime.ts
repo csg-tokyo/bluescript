@@ -32,7 +32,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
     
     @LogStep('Flashing...')
     async flashRuntime(port: string) {
-        const runtimeDir = this.globalConfigHandler.getConfig().runtime?.dir;
+        const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
         if (!runtimeDir) {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
         }

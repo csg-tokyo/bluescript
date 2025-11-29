@@ -2,9 +2,11 @@ import { z } from 'zod';
 import * as path from 'path';
 import * as fs from '../core/fs';
 import { BoardName } from './board-utils';
+import { VM_VERSION } from './global-config';
 
 
 const PROJECT_CONFIG_FILE_NAME = 'bsconfig.json';
+const DEfAULT_PROJECT_VERSION = '1.0.0';
 export const DEFAULT_DEVICE_NAME = 'BLUESCRIPT';
 
 export const DEFAULT_MAIN_FILE_NAME = 'index.bs';
@@ -15,7 +17,8 @@ export const LOCAL_PACKAGES_DIR = (root: string) => path.join(root, 'packages');
 
 const baseConfigSchema = z.object({
     projectName: z.string(),
-    version: z.string().default('1.0.0'),
+    version: z.string().default(DEfAULT_PROJECT_VERSION),
+    vmVersion: z.string().default(VM_VERSION),
     deviceName: z.string().default(DEFAULT_DEVICE_NAME).optional(),
     dependencies: z.array(z.string()).default([]),
     runtimeDir: z.string().optional(), // for dev

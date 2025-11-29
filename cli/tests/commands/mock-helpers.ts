@@ -27,7 +27,7 @@ export function setupMocks() {
       isBoardSetup: jest.fn(),
       isRuntimeSetup: jest.fn(),
       isGlobalPackagesSetup: jest.fn(),
-      setRuntime: jest.fn(),
+      setRuntimeDir: jest.fn(),
       setGlobalPackagesDir: jest.fn(),
       update: jest.fn(),
       updateBoardConfig: jest.fn(),

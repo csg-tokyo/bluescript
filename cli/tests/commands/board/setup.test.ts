@@ -65,7 +65,7 @@ describe('board setup command', () => {
 
             // 2. Dwonload runtime and packages
             expect(mockedFs.downloadAndUnzip).toHaveBeenCalledTimes(2);
-            expect(mockGlobalConfigHandler.setRuntime).toHaveBeenCalled();
+            expect(mockGlobalConfigHandler.setRuntimeDir).toHaveBeenCalled();
             expect(mockGlobalConfigHandler.setGlobalPackagesDir).toHaveBeenCalled();
             
             // 3. Install required packages via Homebrew

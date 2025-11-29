@@ -3,12 +3,13 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from '../core/fs';
 import { BoardName } from './board-utils';
+import packageJson from '../../package.json';
 
 
-const DEFAULT_BLUESCRIPT_VERSION = '1.0.0';
 const BLUESCRIPT_DIR_NAME = '.bluescript';
 const GLOBAL_CONFIG_FILE_NAME = 'config.json';
 
+export const VM_VERSION = packageJson.version;
 export const GLOBAL_BLUESCRIPT_PATH = path.join(os.homedir(), BLUESCRIPT_DIR_NAME);
 const GLOBAL_CONFIG_PATH = path.join(GLOBAL_BLUESCRIPT_PATH, GLOBAL_CONFIG_FILE_NAME);
 
@@ -24,11 +25,8 @@ const boardConfigSchema = z.object({
 });
 
 const globalConfigSchema = z.object({
-    version: z.string().default(DEFAULT_BLUESCRIPT_VERSION),
-    runtime: z.object({
-        version: z.string(),
-        dir: z.string(),
-    }).optional(),
+    version: z.string().default(VM_VERSION),
+    runtimeDir: z.string().optional(),
     globalPackagesDir: z.string().optional(),
     boards: boardConfigSchema.default({}),
 });
@@ -98,11 +96,11 @@ export class GlobalConfigHandler {
     }
 
     isRuntimeSetup() {
-        return this.config.runtime !== undefined;
+        return this.config.runtimeDir !== undefined;
     }
 
-    setRuntime(version: string, dir: string) {
-        this.update({runtime: {version, dir}});
+    setRuntimeDir(dir: string) {
+        this.update({runtimeDir: dir});
     }
 
     isGlobalPackagesSetup() {

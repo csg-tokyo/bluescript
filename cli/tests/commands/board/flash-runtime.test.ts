@@ -40,7 +40,7 @@ describe('board flash-runtime command', () => {
             // --- Arrange ---
             mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
             mockGlobalConfigHandler.getConfig.mockReturnValue({
-                runtime: {dir: '/.bluescript/microcontroller'}
+                runtimeDir: '/.bluescript/microcontroller'
             });
             mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
             mockedInquirer.prompt.mockResolvedValue({ port: '/tty/port1' });
@@ -72,7 +72,7 @@ describe('board flash-runtime command', () => {
             // --- Arrange ---
             mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
             mockGlobalConfigHandler.getConfig.mockReturnValue({
-                runtime: {dir: '/.bluescript/microcontroller'}
+                runtimeDir: '/.bluescript/microcontroller'
             });
             mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
 

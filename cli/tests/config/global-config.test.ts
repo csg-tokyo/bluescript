@@ -1,4 +1,4 @@
-import { GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from '../../src/config/global-config';
+import { GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler, VM_VERSION } from '../../src/config/global-config';
 import * as fs from '../../src/core/fs';
 import * as path from 'path';
 
@@ -14,7 +14,7 @@ describe('GlobalConfigHandler', () => {
 
         // --- Assert ---
         expect(handler.getConfig()).toEqual({
-            version: '1.0.0',
+            version: VM_VERSION,
             boards: {}
         });
     });
@@ -47,7 +47,7 @@ describe('GlobalConfigHandler', () => {
 
         // --- Assert ---
         expect(handler.getConfig()).toEqual({
-            version: '1.0.0',
+            version: VM_VERSION,
             boards: {
                 esp32: boardConfig
             }

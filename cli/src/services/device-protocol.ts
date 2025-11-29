@@ -174,11 +174,11 @@ export class ProtocolParser {
 
     constructor() {
         this.parsers = {
-            [Protocol.Log]: this.parseLog.bind(this),
-            [Protocol.Error]: this.parseError.bind(this),
-            [Protocol.Memory]: this.parseMemory.bind(this),
-            [Protocol.Exectime]: this.parseExectime.bind(this),
-            [Protocol.Profile]: this.parseProfile.bind(this),
+            [Protocol.Log]: ProtocolParser.parseLog,
+            [Protocol.Error]: ProtocolParser.parseError,
+            [Protocol.Memory]: ProtocolParser.parseMemory,
+            [Protocol.Exectime]: ProtocolParser.parseExectime,
+            [Protocol.Profile]: ProtocolParser.parseProfile,
         }
     }
 
@@ -199,19 +199,19 @@ export class ProtocolParser {
         return value in this.parsers;
     }
 
-    private parseLog(buffer: Buffer, offset: number): {log: string} {
+    static parseLog(buffer: Buffer, offset: number): {log: string} {
         const end = buffer[buffer.length - 1] === 0 ? buffer.length - 1 : buffer.length;
         const log = buffer.toString('utf-8', offset, end);
         return { log };
     }
 
-    private parseError(buffer: Buffer, offset: number): {error: string} {
+    static parseError(buffer: Buffer, offset: number): {error: string} {
         const end = buffer[buffer.length - 1] === 0 ? buffer.length - 1 : buffer.length;
         const error = buffer.toString('utf-8', offset, end);
         return { error };
     }
 
-    private parseMemory(buffer: Buffer, offset: number): {layout: MemoryLayout} {
+    static parseMemory(buffer: Buffer, offset: number): {layout: MemoryLayout} {
         const readMemory = () => {
             const address = buffer.readUInt32LE(offset); offset += 4;
             const size = buffer.readUInt32LE(offset); offset += 4;
@@ -226,13 +226,13 @@ export class ProtocolParser {
         return { layout };
     }
 
-    private parseExectime(buffer: Buffer, offset: number): {id: number, time: number} {
+    static parseExectime(buffer: Buffer, offset: number): {id: number, time: number} {
         const id = buffer.readInt32LE(offset); offset += 4;
         const time = buffer.readFloatLE(offset); offset += 4;
         return { id, time };
     }
 
-    private parseProfile(buffer: Buffer, offset: number): {fid:number, paramtypes:string[]} {
+    static parseProfile(buffer: Buffer, offset: number): {fid:number, paramtypes:string[]} {
         const fid = buffer.readUInt8(offset); offset += 1;
         const textDecoder = new TextDecoder();
         const paramStr = textDecoder.decode(buffer.subarray(offset, buffer.length - 1));
