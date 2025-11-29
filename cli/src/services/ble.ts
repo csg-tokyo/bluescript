@@ -184,7 +184,7 @@ export class BleConnection extends Connection<Buffer> {
         if (this.peripheral) {
             this.status = 'disconnecting';
             await this.peripheral.disconnectAsync();
-            // this.peripheral = null;
+            this.peripheral = null;
         }
     }
 
