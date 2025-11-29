@@ -17,7 +17,7 @@ function performance_now(): integer { return 0 }
 `
 
 
-const prologCcode = `/* To compile, cc -DTEST64 this_file.c c-runtime.c */
+const prologCcode = `/* To compile, cc -DLINUX64 this_file.c c-runtime.c */
 #include "../../microcontroller/core/include/c-runtime.h"
 #include "../../microcontroller/core/include/profiler.h"
 #include <stdio.h>
@@ -112,7 +112,7 @@ int main() {
 }  
   `
   fs.writeFileSync(lastCFile, lastCode)
-  execSync(`cc -g -DTEST64 -O2 ${inputFiles.map(f => `${f}`).join(' ')} ${lastCFile} ../microcontroller/core/src/c-runtime.c ../microcontroller/core/src/profiler.c -o ${outputFile}`)
+  execSync(`cc -g -DLINUX64 -O2 ${inputFiles.map(f => `${f}`).join(' ')} ${lastCFile} ../microcontroller/core/src/c-runtime.c ../microcontroller/core/src/profiler.c -o ${outputFile}`)
   return execSync(outputFile).toString()
 }
 

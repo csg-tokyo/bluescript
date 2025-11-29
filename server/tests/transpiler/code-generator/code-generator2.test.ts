@@ -1395,6 +1395,31 @@ test('string +=', () => {
                                              'bazxyz', 'baz123'].join('\n') + '\n')
 })
 
+test('string += for boxed variables', () => {
+  const src = `
+  function foo(a: string) {
+    let b: any = a
+    return (s: string, t: any) => {
+      a += s
+      a += t
+      b += t
+      b += s
+      return [a, b]
+    }
+  }
+
+  let f = foo('$')
+  let v = f('3', 'a')
+  print(v[0])
+  print(v[1])
+  let w = f('7', 'b')
+  print(w[0])
+  print(w[1])
+  `
+
+  expect(compileAndRun(src, destFile)).toBe(['$3a', '$a3', '$3a7b', '$a3b7'].join('\n') + '\n')
+})
+
 test('string[]#push, pop, etc', () => {
   const src = `
   const str = ['one', 'two']
@@ -1517,6 +1542,28 @@ test('Foo[]#push, pop, etc', () => {
   `
 
   expect(() => compileAndRun(src3, destFile)).toThrow(/runtime type error/)
+})
+
+test('integer[]#push, pop, etc', () => {
+  const src = `const ary: integer[] = [1, 2, 3]
+  print(ary.push(4))`
+  expect(() => compileAndRun(src, destFile)).toThrow(/unknown property name: push/)
+
+  const src2 = `const ary: float[] = [1.0, 2.0, 3.0]
+  print(ary.pop())`
+  expect(() => compileAndRun(src2, destFile)).toThrow(/unknown property name: pop/)
+
+  const src3 = `const ary: boolean[] = [true, false, true]
+  print(ary.shift())`
+  expect(() => compileAndRun(src3, destFile)).toThrow(/unknown property name: shift/)
+
+  const src4 = `const ary = new Vector(3, 0)
+  print(ary.shift())`
+  expect(() => compileAndRun(src4, destFile)).toThrow(/unknown property name: shift/)
+
+  const src5 = `const ary = new Uint8Array(3, 0)
+  print(ary.push(4))`
+  expect(() => compileAndRun(src5, destFile)).toThrow(/unknown property name: push/)
 })
 
 test('multually recursive classes', () => {
@@ -1750,4 +1797,24 @@ test('import an enum type', () => {
   const imp = new Importer(modules)
   expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe(
     [0, 'Color', 1, 'Color', 2, 'Color'].join('\n') + '\n')
+})
+
+test('any parameter and integer return type', () => {
+  const src = `
+  function foo(a: integer, b: any): integer {
+    return a + b
+  }
+  print(foo(3, 4))
+
+  let add = (a: integer, b: any): integer => a + b;
+  print(add(3, 4))
+
+  let add1 = (a: integer, b: integer): integer => { return a + b };
+  print(add1(3, 4))
+
+  let add2 = (a: integer, b: integer): integer => a + b;
+  print(add2(3, 4))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('7\n7\n7\n7\n')
 })

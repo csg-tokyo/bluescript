@@ -1,6 +1,6 @@
 // Test code for c-runtime.c
 // To compile,
-// cc -DTEST64 c-runtime-test2.c -lm
+// cc -DLINUX64 c-runtime-test2.c -lm
 
 #include <stdio.h>
 #include "../src/c-runtime.c"
@@ -401,7 +401,7 @@ void test_runtime_error() {
 }
 
 int main() {
-#ifdef TEST64
+#ifdef LINUX64
     initialize_pointer_table();
 #endif
     gc_initialize();

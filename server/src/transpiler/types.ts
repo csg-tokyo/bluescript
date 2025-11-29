@@ -126,6 +126,8 @@ export class FunctionType extends CompositeType {
   }
 }
 
+// This class represents both an array of instances and an array of primitive types.
+// It does not represent built-in array-like types such as Uint8Array and Vector.
 export class ArrayType extends ObjectType {
   // see builtinPropertiesAndMethods in classes.ts
   static readonly lengthProperty = 'length'
@@ -161,7 +163,9 @@ export class ArrayType extends ObjectType {
   }
 
   findMethod(name: string): [StaticType, number] | undefined {
-    if (name === ArrayType.pushMethod)
+    if (isPrimitiveType(this.elementType))
+      return undefined  // primitive-type arrays do not have methods
+    else if (name === ArrayType.pushMethod)
       return [new FunctionType(Integer, [this.elementType]), 0]
     else if (name === ArrayType.popMethod)
       return [new FunctionType(new UnionType([this.elementType, Null]), []), 1]

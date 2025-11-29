@@ -9,13 +9,15 @@ import { GlobalVariableNameTable } from './code-generator/variables'
 import { Transpiler } from './transpiler'
 import { ChildProcessWithoutNullStreams } from 'node:child_process'
 
-const dir = './temp-files'
-const cRuntimeH = "../microcontroller/core/include/c-runtime.h"
-const cRuntimeC = "../microcontroller/core/src/c-runtime.c"
-const prologCcode = `#include "../${cRuntimeH}"
-`
-const shellBuiltins = 'src/transpiler/shell-builtins'
-const shellC = 'src/transpiler/shell.c'
+const baseDir = path.normalize(path.dirname(process.argv[1]) + '/../../..')
+
+const dir = `${baseDir}/server/temp-files`
+const cRuntimeH = `${baseDir}/microcontroller/core/include/c-runtime.h`
+const cRuntimeC = `${baseDir}/microcontroller/core/src/c-runtime.c`
+const prologCcode = `#include "${cRuntimeH}"\n`
+const shellBuiltins = `${baseDir}/server/src/transpiler/shell-builtins`
+
+const shellC = `${baseDir}/server/src/transpiler/shell.c`
 
 class CodeBuffer {
   private buffer: string = ''
@@ -74,11 +76,11 @@ class ShellTranspiler extends Transpiler {
   }
 
   static buildShell(code: string) {
-    const cFile = `${dir}/${shellBuiltins.split('/').pop()}.c`
+    const cFile = `${dir}/${path.basename(shellBuiltins)}.c`
     fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(cFile, prologCcode + code)
-    execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${this.cRuntimeSo} ${cRuntimeC} ${cFile}`)
-    execSync(`cc -DTEST64 -O2 -o ${dir}/shell ${shellC} ${this.cRuntimeSo} -lm -ldl`)
+    execSync(`cc -DLINUX64 -O2 -shared -fPIC -o ${this.cRuntimeSo} ${cRuntimeC} ${cFile}`)
+    execSync(`cc -DLINUX64 -O2 -o ${dir}/shell ${shellC} ${this.cRuntimeSo} -lm -ldl`)
     return cFile
   }
 
@@ -105,6 +107,8 @@ class ShellTranspiler extends Transpiler {
     catch (e) {
       if (e instanceof ErrorLog)
         process.stdout.write(e.toString())
+      else if (e instanceof Error)
+        process.stdout.write(`Error: ${e.message}\n`)
       else
         process.stdout.write('Error: compilation failure\n')
 
@@ -131,7 +135,7 @@ class ShellTranspiler extends Transpiler {
     fs.writeFileSync(`${fileName}.c`, prologCcode + src)
 
     // throw an Error when compilation fails.
-    execSync(`cc -DTEST64 -O2 -shared -fPIC -o ${fileName}.so ${fileName}.c ${ShellTranspiler.cRuntimeSo} ${this.libs}`)
+    execSync(`cc -DLINUX64 -O2 -shared -fPIC -o ${fileName}.so ${fileName}.c ${ShellTranspiler.cRuntimeSo} ${this.libs}`)
     this.libs =`${this.libs} ${fileName}.so`
     this.sources = `${this.sources} ${fileName}.c`
     this.shellCommands += `${fileName}.so\n${main}\n`
