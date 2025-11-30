@@ -1,58 +1,53 @@
 #!/usr/bin/env node
 
-import { program } from 'commander';
-import setup from './cli/setup';
-import remove from './cli/remove';
-import flash from './cli/flash';
-import run from './cli/run';
-import createProject from './cli/create-project';
-import installPackage from './cli/install';
+import { Command } from 'commander';
+import { join } from 'path';
+import * as fs from './core/fs';
+import { logger } from './core/logger';
 
-const root = program
-              .version('')
-              .description('')
+import { registerSetupCommand } from './commands/board/setup';
+import { registerRemoveCommand } from './commands/board/remove';
+import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
+import { registerListCommand } from './commands/board/list';
+import { registerCreateProjectCommand } from './commands/create-project';
+import { registerRunCommand } from './commands/run';
+import { registerFullcleanCommand } from './commands/board/full-clean';
 
-root.command('setup')
-  .description('setup environment for the specified device')
-  .argument('<device>', 'device to setup')
-  .action(async (device) => {
-    await setup(device);
-  });
 
-root.command('remove')
-  .description('remove environment for the specified device')
-  .argument('<device>', 'device to remove')
-  .action((device) => {
-    remove(device);
-  });
+function registerBoardCommands(program: Command) {
+    const boardCommand = program
+        .command('board')
+        .description('manage board environments and configurations');
 
-root.command('flash')
-  .description('flash runtime to the specified device')
-  .argument('<device>', 'device to flash runtime')
-  .option('-p, --port <port>', 'serial port')
-  .action(async (device, options: { port: string })=>{
-    await flash(device, options.port);
-  });
+    registerSetupCommand(boardCommand);
+    registerRemoveCommand(boardCommand);
+    registerFlashRuntimeCommand(boardCommand);
+    registerListCommand(boardCommand);
+    registerFullcleanCommand(boardCommand);
+}
 
-root.command('create-project')
-  .description('create a project')
-  .argument('<name>', 'project name')
-  .action((name: string)=>{
-    createProject(name);
-  });
+function main() {
+    const command = new Command();
 
-root.command('install')
-  .description('install a package')
-  .argument('<name>', 'package name')
-  .action((name: string)=>{
-    installPackage(name);
-  });
+    const packageJsonPath = join(__dirname, '..', 'package.json');
+    const packageJson = JSON.parse(fs.readFile(packageJsonPath));
 
-root.command('run')
-  .description('run BlueScript code')
-  .option('-r, --with-repl', 'open REPL')
-  .action(async (options: {withRepl: boolean}) => {
-    await run(options.withRepl);
-  })
+    command
+        .name('bluescript')
+        .description('A new CLI for the BlueScript microcontroller language')
+        .version(packageJson.version, '-v, --version', 'Output the current version');
 
-program.parse(process.argv);
+    registerBoardCommands(command);
+    registerCreateProjectCommand(command);
+    registerRunCommand(command);
+
+    command.parse(process.argv);
+}
+
+try {
+    main();
+} catch (error) {
+    logger.error('An unexpected error occurred:');
+    logger.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+}

@@ -4,6 +4,9 @@
     {"path": "../server"}
   ],
   "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "resolveJsonModule": true,
     "paths": {
       "@bluescript/compiler": ["../server/src"],
       "@bluescript/compiler/*": ["../server/src/*"]

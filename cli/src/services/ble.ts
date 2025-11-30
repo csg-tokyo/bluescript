@@ -83,7 +83,7 @@ export class BleConnection extends Connection<Buffer> {
             const connectPromise = this.doConnect();
             const timeoutPromise = new Promise<never>((_, reject) => {
                 timeoutHandle = setTimeout(
-                    () => reject(new Error('BLE connection timed out')),
+                    () => reject(new Error('BLE connection timed out.')),
                     timeoutMs
                 );
             });
