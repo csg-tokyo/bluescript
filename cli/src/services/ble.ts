@@ -1,6 +1,6 @@
 import noble, { Characteristic, Peripheral } from '@abandonware/noble';
 import { Buffer } from "node:buffer";
-import { ExecutableBinary, MemoryLayout } from "@bluescript/compiler";
+import { ExecutableBinary, MemoryLayout } from "@bluescript/language";
 import { Connection, ConnectionMessage, Service } from "./common";
 import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protocol';
 

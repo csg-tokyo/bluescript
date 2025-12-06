@@ -1,5 +1,5 @@
 {
-  "name": "@bluescript/compiler",
+  "name": "@bluescript/language",
   "version": "1.1.4",
   "exports": "./dist/index.js",
   "main": "dist/index.js",
