@@ -1,15 +1,15 @@
 {
   "extends": "../tsconfig.base.json",
   "references": [
-    {"path": "../server"}
+    {"path": "../language"}
   ],
   "compilerOptions": {
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
     "paths": {
-      "@bluescript/compiler": ["../server/src"],
-      "@bluescript/compiler/*": ["../server/src/*"]
+      "@bluescript/language": ["../language/src"],
+      "@bluescript/language/*": ["../language/src/*"]
     },
   },
   "include": ["src"],
