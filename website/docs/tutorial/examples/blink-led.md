@@ -1,3 +1,3 @@
 # Blink LED
 
-In preparation
+Coming soon...
