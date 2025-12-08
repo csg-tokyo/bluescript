@@ -1,7 +1,7 @@
 {
   "name": "bluescript",
   "private": true,
-  "workspaces": ["cli", "language"],
+  "workspaces": ["cli", "lang"],
   "devDependencies": {
     "typescript": "^5.9.2"
   },

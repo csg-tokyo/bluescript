@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { MemoryLayout } from "@bluescript/language";
+import { MemoryLayout } from "@bluescript/lang";
 
 
 export enum Protocol {
