@@ -9,7 +9,7 @@ You can find the official website at https://csg-tokyo.github.io/bluescript/.
 WARNING: this project is in beta stage and is subject to changes of the code-base, including project-wide name changes and API changes.
 
 # Documentation
-- [Get started](https://csg-tokyo.github.io/bluescript/docs/tutorial/get-started)
+- [Quick Start](http://localhost:3000/bluescript/docs/tutorial/get-started/quick-start)
 - [Reference Manual](https://csg-tokyo.github.io/bluescript/docs/reference/language/intro)
 
 - Fumika Mochizuki, Tetsuro Yamazaki, Shigeru Chiba, ["Interactive Programming for Microcontrollers by Offloading Dynamic Incremental Compilation"](https://dl.acm.org/doi/10.1145/3679007.3685062), MPLR 2024, pp. 28-40, ACM, 2024.

@@ -2,7 +2,14 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
-    'tutorial/get-started',
+    {
+      type: 'category',
+      label: 'Get Started',
+      items: [
+        'tutorial/get-started/introduction',
+        'tutorial/get-started/quick-start',
+      ],
+    },
     {
       type: 'category',
       label: 'Examples',
@@ -37,13 +44,7 @@ const sidebars: SidebarsConfig = {
         'reference/packages/gpio'
       ]
     }, 
-    {
-      type: 'category',
-      label: 'CLI',
-      items: [
-        'reference/cli/install'
-      ]
-    }
+    'reference/cli',
   ]
 };
 
