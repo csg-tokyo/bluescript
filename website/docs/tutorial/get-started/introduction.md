@@ -80,5 +80,5 @@ Currently, BlueScript supports the following platform:
 - Espressif ESP32 (Supported)
 
 :::note Future Roadmap
-We are actively working on support for other popular platforms, including the Raspberry Pi Pico (RP2040).
+We plan to support other boards in the future.
 :::

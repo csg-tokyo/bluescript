@@ -51,10 +51,9 @@ blue run
 ```
 
 When you run this command:
-1.  The project is compiled into native code on your host machine.
-2.  The CLI scans for available BlueScript devices over Bluetooth.
-3.  You select a device (if multiple are found).
-4.  The code is transferred and executed immediately.
+1.  The CLI scans for available BlueScript devices over Bluetooth.
+2.  The project is compiled into native code on your host machine.
+3.  The code is transferred and executed immediately.
 
 ---
 
