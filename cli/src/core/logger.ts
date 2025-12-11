@@ -98,6 +98,17 @@ export const logger = {
 };
 
 
+export const replLogger = {
+  log(message: string): void {
+    console.log(message.trimEnd());
+  },
+  
+  error(message: string): void {
+    console.log(chalk.red.bold(message.trimEnd()));
+  }
+}
+
+
 export class ProgramLogger {
   private isLogging = false;
   private boxWidth: number;
