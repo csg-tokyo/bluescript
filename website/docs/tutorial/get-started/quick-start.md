@@ -93,6 +93,11 @@ blue run
 3. Upon selection, it transfers the binary via **Bluetooth**.
 4. The ESP32 executes the code immediately.
 
+:::tip Try the REPL
+Want to test a command quickly without editing a file? Try the interactive mode!
+Run blue repl in your terminal. You can type commands like print("Hello") or control GPIO pins directly, and see the results instantly.
+:::
+
 ---
 
 ## Next Steps

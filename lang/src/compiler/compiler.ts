@@ -142,19 +142,7 @@ export class Compiler {
         }
     }
 
-    public async compile(): Promise<ExecutableBinary> {
-        this.compileId++;
-        const {mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints} = this.transpile();
-        await this.compileC(mainPackage, subPackages);
-        await this.link(mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints);
-        return this.generateExecutableBinary(mainPackage, mainEntryPoint, subModuleEntryPoints);
-    }
-
-    public async additionalCompile(src: string): Promise<ExecutableBinary> {
-        if (this.compileId === -1) {
-            throw new Error('The first compilation have not yet performed.');
-        }
-        this.compileId++;
+    public async compile(src?: string): Promise<ExecutableBinary> {
         const {mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints} = this.transpile(src);
         await this.compileC(mainPackage, subPackages);
         await this.link(mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints);
@@ -163,10 +151,7 @@ export class Compiler {
 
     private transpile(src?: string) {
         try {
-            if (src === undefined)
-                return this.transpiler.transpile();
-            else
-                return this.transpiler.transpile({src, id: this.compileId});
+            return this.transpiler.transpile(src);
         } catch (error) {
             throw new Error(`Failed to transpile: ${getErrorMessage(error)}`, {cause: error});
         }
@@ -285,8 +270,9 @@ type PathInPkg = {
 
 class TranspilerWithPkgSystem {
     public globalNames?: GlobalVariableNameTable;
-    private sessionId: number;
-    private moduleId: number;
+    private codeId: number = 0;
+    private sessionId: number = 0;
+    private moduleId: number = 0;
     private modules: Map<PathInPkg, GlobalVariableNameTable>;
     private cProlog: string;
 
@@ -295,8 +281,6 @@ class TranspilerWithPkgSystem {
 
 
     constructor(packageReader: (name: string) => PackageConfig, stdDir: string, cProlog: string) {
-        this.sessionId = 0;
-        this.moduleId = 0;
         const stdSrc = fs.readFileSync(STD_MODULE_PATH(stdDir), 'utf-8');
         this.globalNames = transpile(++this.sessionId, stdSrc, undefined).names;
         this.modules = new Map<PathInPkg, GlobalVariableNameTable>();
@@ -305,15 +289,14 @@ class TranspilerWithPkgSystem {
         this.visitedPkgs = [];
     }
 
-    public transpile(code?: {src: string, id: number}) {
+    public transpile(src?: string) {
         let pathInPkg: PathInPkg;
-        let src: string;
-        if (code === undefined) {
+        if (src === undefined) {
             pathInPkg = { ext: '.bs', name: 'index', dir: './', pkg: this.packageReader('main')};
             src = this.readFile(pathInPkg);
         } else {
-            pathInPkg = { ext: '.bs', name: `${code.id}`, dir: './', pkg: this.packageReader('main')};
-            src = code.src;
+            this.codeId += 1;
+            pathInPkg = { ext: '.bs', name: `${this.codeId}`, dir: './', pkg: this.packageReader('main')};
         }
         const subModuleEntryPoints: string[] = [];
         this.sessionId += 1;

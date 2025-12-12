@@ -21,7 +21,7 @@ const compile = async (testEnv: CompilerTestEnv) => {
 }
 
 
-describe('Compiler for ESP32', () => {
+describe('Test single compile: Compiler for ESP32', () => {
 
     beforeEach(() => {
         if (fs.existsSync(CompilerTestEnv.ROOT_DIR)) {
@@ -328,7 +328,7 @@ gpioInit(23);
 });
 
 
-describe('Compiler for ESP32', () => {
+describe('Test additional compile: Compiler for ESP32', () => {
     beforeEach(() => {
         if (fs.existsSync(CompilerTestEnv.ROOT_DIR)) {
             fs.rmSync(CompilerTestEnv.ROOT_DIR, {recursive: true});
@@ -352,23 +352,8 @@ describe('Compiler for ESP32', () => {
         testEnv.addFile('main', './index.bs', '1 + 1');
 
         const compiler = await compile(testEnv);
-        const binary = await compiler.additionalCompile('1 + 23');
+        const binary = await compiler.compile('1 + 23');
         expect(binary.entryPoints.length).toBe(1);
-
-        testEnv.clean();
-    });
-
-    it('should throw error if first compile have not yet performed.', async () => {
-        const testEnv = new CompilerTestEnv();
-        testEnv.addPackage('main');
-        testEnv.addFile('main', './index.bs', '1 + 1');
-
-        const compiler = new Compiler(
-          memoryLayout,
-          compilerConfig,
-          testEnv.getPackageReader()
-        )
-        await expect(compiler.additionalCompile('1 + 1')).rejects.toThrow(`The first compilation have not yet performed.`);
 
         testEnv.clean();
     });
@@ -379,7 +364,7 @@ describe('Compiler for ESP32', () => {
         testEnv.addFile('main', './index.bs', 'function add(a, b) {return a + b}');
 
         const compiler = await compile(testEnv);
-        const binary = await compiler.additionalCompile('add(2, 3);');
+        const binary = await compiler.compile('add(2, 3);');
         expect(binary.entryPoints.length).toBe(1);
 
         testEnv.clean();
@@ -391,7 +376,7 @@ describe('Compiler for ESP32', () => {
         testEnv.addFile('main', './index.bs', 'let a = 1 + 1;');
 
         const compiler = await compile(testEnv);
-        const binary = await compiler.additionalCompile('a += 1;');
+        const binary = await compiler.compile('a += 1;');
         expect(binary.entryPoints.length).toBe(1);
 
         testEnv.clean();
@@ -404,7 +389,7 @@ describe('Compiler for ESP32', () => {
         testEnv.addFile('main', './index.bs', `1 + 1`);
 
         const compiler = await compile(testEnv);
-        const binary = await compiler.additionalCompile(`import {add} from './module1';\n add(1, 1);`);
+        const binary = await compiler.compile(`import {add} from './module1';\n add(1, 1);`);
         expect(binary.entryPoints.length).toBe(2);
 
         testEnv.clean();
@@ -416,11 +401,37 @@ describe('Compiler for ESP32', () => {
         testEnv.addFile('main', './index.bs', '1 + 1');
 
         const compiler = await compile(testEnv);
-        let binary = await compiler.additionalCompile('function add(a, b) {return a + b}');
+        let binary = await compiler.compile('function add(a, b) {return a + b}');
         expect(binary.entryPoints.length).toBe(1);
-        binary = await compiler.additionalCompile('add(1, 2);');
+        binary = await compiler.compile('add(1, 2);');
         expect(binary.entryPoints.length).toBe(1);
 
         testEnv.clean();
     });
-})
+});
+
+
+describe('Test interactive compile: Compiler for ESP32', () => {
+    beforeEach(() => {
+        if (fs.existsSync(CompilerTestEnv.ROOT_DIR)) {
+            fs.rmSync(CompilerTestEnv.ROOT_DIR, {recursive: true});
+        }
+    });
+
+    it('should compile several code fragments.', async () => {
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('main');
+
+        const compiler = new Compiler(
+            memoryLayout,
+            compilerConfig,
+            testEnv.getPackageReader()
+        )
+        let binary = await compiler.compile('function add(a, b) {return a + b}');
+        expect(binary.entryPoints.length).toBe(1);
+        binary = await compiler.compile('add(1, 2);');
+        expect(binary.entryPoints.length).toBe(1);
+
+        testEnv.clean();
+    });
+});

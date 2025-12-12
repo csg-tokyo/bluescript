@@ -57,6 +57,25 @@ When you run this command:
 
 ---
 
+### `blue repl`
+
+Starts an interactive Read-Eval-Print Loop (REPL) session with the target device.
+
+```bash
+blue repl --board <board-name>
+```
+
+Unlike `blue run` which compiles and sends the entire project, `blue repl` utilizes the incremental compiler and shadow machine. It allows you to write code line-by-line, compiling only the differences and sending them to the device instantly via Bluetooth.
+
+
+**Options:**
+
+| Option | Alias | Description |
+| :--- | :--- | :--- |
+| `--board` | `-b` | Specify the target board (e.g., `esp32`). |
+
+---
+
 ## Board Management
 
 These commands manage the toolchains and runtime environments for specific hardware platforms.

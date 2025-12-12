@@ -12,6 +12,7 @@ import { registerListCommand } from './commands/board/list';
 import { registerCreateProjectCommand } from './commands/create-project';
 import { registerRunCommand } from './commands/run';
 import { registerFullcleanCommand } from './commands/board/full-clean';
+import { registerReplCommand } from './commands/repl';
 
 
 function registerBoardCommands(program: Command) {
@@ -40,6 +41,7 @@ function main() {
     registerBoardCommands(command);
     registerCreateProjectCommand(command);
     registerRunCommand(command);
+    registerReplCommand(command);
 
     command.parse(process.argv);
 }
