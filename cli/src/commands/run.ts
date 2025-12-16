@@ -173,7 +173,7 @@ class ESP32RunHandler extends RunHandler {
             return {
                 name: packageName,
                 espIdfComponents: projectConfigHandler.espIdfComponents,
-                dependencies: projectConfigHandler.dependencies,
+                dependencies: Object.keys(projectConfigHandler.dependencies),
                 dirs: {
                     root,
                     dist: DIST_DIR(root),

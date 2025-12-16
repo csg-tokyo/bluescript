@@ -20,7 +20,7 @@ const baseConfigSchema = z.object({
     version: z.string().default(DEfAULT_PROJECT_VERSION),
     vmVersion: z.string().default(VM_VERSION),
     deviceName: z.string().default(DEFAULT_DEVICE_NAME).optional(),
-    dependencies: z.array(z.string()).default([]),
+    dependencies: z.record(z.string(), z.string()).default({}),
     runtimeDir: z.string().optional(), // for dev
     globalPackagesDir: z.string().optional(), // for dev
 });
@@ -37,6 +37,12 @@ const projectConfigSchema = z.discriminatedUnion('boardName', [
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 
 export type SpecificBoardConfig<B extends BoardName> = Extract<ProjectConfig, { boardName: B }>;
+
+export type PackageSource = {
+    name: string,
+    url: string,
+    version?: string
+};
 
 export class ProjectConfigHandler {
     private config: ProjectConfig;
@@ -85,6 +91,12 @@ export class ProjectConfigHandler {
         return this.config;
     }
 
+    public checkVmVersion(expected: string) {
+        if (expected !== this.config.vmVersion) {
+            throw new Error(`VM version of ${this.config.projectName} is not match the expected VM version(${expected}).`);
+        }
+    }
+
     public getBoardName(): BoardName {
         return this.config.boardName;
     }
@@ -101,8 +113,8 @@ export class ProjectConfigHandler {
     public update(config: Partial<ProjectConfig>) {
         try {
             this.config = projectConfigSchema.parse({
-                ...config,
-                ...this.config
+                ...this.config,
+                ...config
             });
         } catch (error) {
             if (error instanceof z.ZodError) {
@@ -112,10 +124,36 @@ export class ProjectConfigHandler {
         }
     }
 
-    public addDependency(dependency: string) {
-        const newDependencies = [...new Set([...this.config.dependencies, dependency])];
-        this.update({
-            dependencies: newDependencies
+    public addDependency(source: PackageSource) {
+        const newDependencies = {...this.config.dependencies}
+        newDependencies[source.name] = 
+                source.version ? `${source.url}#${source.version}` : source.url;
+        this.update({dependencies: newDependencies});
+    }
+
+    public removeDepedency(name: string) {
+        const newDependencies = {...this.config.dependencies};
+        delete newDependencies[name];
+        this.update({dependencies: newDependencies});
+    }
+
+    public dependencyExists(name: string) {
+        return Object.keys(this.config.dependencies).includes(name);
+    }
+
+    public getDepenencies(): PackageSource[] {
+        return Object.keys(this.config.dependencies).map(name => {
+            const depString = this.config.dependencies[name];
+            let url = depString;
+            let version: string | undefined = undefined;
+
+            // #extract tag (git-url#commit-ish)
+            if (depString.includes('#')) {
+                const parts = depString.split('#');
+                url = parts[0];
+                version = parts[1];
+            }
+            return {name, url, version};
         });
     }
 

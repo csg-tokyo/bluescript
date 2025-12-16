@@ -11,6 +11,10 @@ export function removeDir(path: string) {
     fs.rmSync(path, { recursive: true });
 }
 
+export function moveDir(from: string, to: string) {
+    fs.renameSync(from, to);
+}
+
 export function exists(path: string): boolean {
     return fs.existsSync(path);
 }

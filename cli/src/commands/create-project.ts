@@ -8,7 +8,8 @@ import { cwd } from "../core/shell";
 import { BOARD_NAMES, isValidBoard } from "../config/board-utils";
 import * as fs from '../core/fs';
 
-const MAIN_TEMPLATE = `print('Hello world!')`;
+const MAIN_FILE_CONTENTS = `print('Hello world!')\n`;
+const GIT_IGNORE_CONTENTS = `**/dist/\n`;
 
 function createProjectDir(projectName: string) {
     const projectDir = path.join(cwd(), projectName);
@@ -21,7 +22,12 @@ function createProjectDir(projectName: string) {
 
 function createMainFile(dir: string) {
     const filePath = path.join(dir, DEFAULT_MAIN_FILE_NAME);
-    fs.writeFile(filePath, MAIN_TEMPLATE);
+    fs.writeFile(filePath, MAIN_FILE_CONTENTS);
+}
+
+function createGitIgnore(dir: string) {
+    const filePath = path.join(dir, '.gitignore');
+    fs.writeFile(filePath, GIT_IGNORE_CONTENTS);
 }
 
 export async function handleCreateProjectCommand(name: string, options: { board?: string }) {
@@ -50,6 +56,7 @@ export async function handleCreateProjectCommand(name: string, options: { board?
         projectConfigHandler.save(projectDir);
         
         createMainFile(projectDir);
+        createGitIgnore(projectDir);
 
         logger.br();
         logger.success(`Success to create a new project.`);
