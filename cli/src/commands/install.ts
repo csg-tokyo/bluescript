@@ -23,9 +23,8 @@ class InstallationHandler {
         await this.processInstallQueue(this.projectConfigHandler.getDepenencies());
     }
 
-    public async installPackage(identifier: string) {
+    public async installPackage(url: string, version?: string) {
         this.ensurePackageDir();
-        const {url, version} = this.resolveIdentifier(identifier);
         const packageConfigHandler = await this.downloadPackage(url, version);
         const packageName = packageConfigHandler.getConfig().projectName;
         await this.processInstallQueue(packageConfigHandler.getDepenencies());
@@ -54,46 +53,6 @@ class InstallationHandler {
         if (!fs.exists(this.packagesDir)) {
             fs.makeDir(this.packagesDir);
         }
-    }
-
-    private resolveIdentifier(identifier: string): {url: string, version?: string} {
-        // Separate version specification.
-        // npm style: package@version, git style: url#version
-        let rawPath = identifier;
-        let version: string | undefined = undefined;
-
-        if (identifier.includes('#')) {
-            const parts = identifier.split('#');
-            rawPath = parts[0];
-            version = parts[1];
-        } else if (identifier.includes('@') && !identifier.startsWith('git@')) {
-            // Exclude SSH URL like git@github.com...
-            const lastIndex = identifier.lastIndexOf('@');
-            if (lastIndex > 0) {
-                rawPath = identifier.substring(0, lastIndex);
-                version = identifier.substring(lastIndex + 1);
-            }
-        }
-
-        const isUrl = 
-            rawPath.startsWith('http://') || 
-            rawPath.startsWith('https://') || 
-            rawPath.startsWith('git@') ||
-            rawPath.startsWith('ssh://');
-
-        let url: string;
-        if (isUrl) {
-            url = rawPath;
-        } else {
-            // GitHub short hand (user/repo)
-            const parts = rawPath.split('/');
-            if (parts.length !== 2) {
-                throw new Error(`Invalid package format: '${identifier}'. Use 'user/repo' or a valid Git URL.`);
-            }
-            url = `https://github.com/${rawPath}.git`;
-        }
-
-        return {url, version};
     }
 
     private async downloadPackage(url: string, version?: string): Promise<ProjectConfigHandler> {
@@ -125,17 +84,17 @@ class InstallationHandler {
 }
 
 
-export async function handleInstallCommand(packageName?: string) {
+export async function handleInstallCommand(url: string|undefined, options: {tag?: string}) {
     try {
         const installationHandler = new InstallationHandler();
-        if (packageName) {
-            installationHandler.installPackage(packageName);
+        if (url) {
+            installationHandler.installPackage(url, options.tag);
         } else {
             installationHandler.installAll();
         }
     } catch (error) {
         const errorMessage = 
-            packageName ? `Failed to install ${packageName}.` : `Failed to install packages.`;
+            url ? `Failed to install ${url}.` : `Failed to install packages.`;
         logger.error(errorMessage);
         showErrorMessages(error);
         process.exit(1);
@@ -145,7 +104,8 @@ export async function handleInstallCommand(packageName?: string) {
 export function registerInstallCommand(program: Command) {
     program
         .command('install')
-        .description('install dependencies from bsconfig.json or add a new package')
-        .argument('[package-name]', 'Package name (e.g., user/repo) or Git URL')
+        .description('install all dependencies, or add a new package via Git URL')
+        .argument('[git-url]', 'git repository URL to add as a dependency')
+        .option('-t, --tag <tag>', 'git tag or branch to checkout (e.g., v1.0.0)')
         .action(handleInstallCommand);
 }
