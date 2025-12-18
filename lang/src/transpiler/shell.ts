@@ -11,13 +11,13 @@ import { ChildProcessWithoutNullStreams } from 'node:child_process'
 
 const baseDir = path.normalize(path.dirname(process.argv[1]) + '/../../..')
 
-const dir = `${baseDir}/server/temp-files`
+const dir = `${baseDir}/lang/temp-files`
 const cRuntimeH = `${baseDir}/microcontroller/core/include/c-runtime.h`
 const cRuntimeC = `${baseDir}/microcontroller/core/src/c-runtime.c`
 const prologCcode = `#include "${cRuntimeH}"\n`
-const shellBuiltins = `${baseDir}/server/src/transpiler/shell-builtins`
+const shellBuiltins = `${baseDir}/lang/src/transpiler/shell-builtins`
 
-const shellC = `${baseDir}/server/src/transpiler/shell.c`
+const shellC = `${baseDir}/lang/src/transpiler/shell.c`
 
 class CodeBuffer {
   private buffer: string = ''
