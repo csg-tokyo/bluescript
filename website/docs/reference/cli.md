@@ -8,7 +8,7 @@ The BlueScript CLI (`blue`) is the primary tool for managing projects, setting u
 npm install -g @bluescript/cli
 ```
 
-## Project Commands
+## Core Commands
 
 ### `blue create-project`
 
