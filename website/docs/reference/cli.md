@@ -42,6 +42,40 @@ blue create-project my-app --board esp32
 
 ---
 
+### `blue install`
+
+Installs project dependencies. This command has two modes:
+
+1. **Install All:** If run without arguments, it installs all dependencies listed in bsconfig.json.
+2. **Add Package:** If a Git URL is provided, it downloads the package, adds it to bsconfig.json, and installs it.
+
+```bash
+blue install [git-url] [options]
+```
+
+**Arguments:**
+*   `<git-url>`: (Optional) The URL of the Git repository to add as a dependency.
+
+**Options:**
+
+| Option | Alias | Description |
+| :--- | :--- | :--- |
+| `--tag` | `-t` | Specify a git tag or branch to checkout (e.g., `v1.0.0`, `main`). |
+
+**Example:**
+```bash
+# Restore all dependencies from bsconfig.json
+blue install
+
+# Install a specific library (e.g., GPIO library)
+blue install https://github.com/bluescript/gpio.git
+
+# Install a specific version of a library
+blue install https://github.com/bluescript/drivers.git --tag v2.0.0
+```
+
+---
+
 ### `blue run`
 
 Compiles the current project and executes it on a target device via Bluetooth.
