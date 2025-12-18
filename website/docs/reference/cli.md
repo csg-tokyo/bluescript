@@ -76,6 +76,16 @@ blue install https://github.com/bluescript/drivers.git --tag v2.0.0
 
 ---
 
+### `blue uninstall`
+
+Uninstall the specified package from the current project.
+
+```bash
+blue install [package-name]
+```
+
+---
+
 ### `blue run`
 
 Compiles the current project and executes it on a target device via Bluetooth.
