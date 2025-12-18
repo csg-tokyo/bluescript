@@ -45,6 +45,10 @@ export function setupMocks() {
       update: jest.fn(),
       updateWithDependency: jest.fn(),
       save: jest.fn(),
+      addDependency: jest.fn(),
+      removeDepedency: jest.fn(),
+      dependencyExists: jest.fn(),
+      getDepenencies: jest.fn()
   };
   jest.spyOn(ProjectConfigHandler, 'createTemplate').mockReturnValue(mockProjectConfigHandler as unknown as ProjectConfigHandler);
   jest.spyOn(ProjectConfigHandler, 'load').mockReturnValue(mockProjectConfigHandler as unknown as ProjectConfigHandler);
