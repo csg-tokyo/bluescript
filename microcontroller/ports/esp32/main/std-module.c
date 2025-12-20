@@ -39,7 +39,6 @@ void write_message_to_buff(value_t message) {
     printf(buff);
 }
 
-
 void PORT_TEXT_SECTION mth_0_Console(value_t self, value_t _message);
 void PORT_TEXT_SECTION mth_1_Console(value_t self, value_t _message);
 float PORT_TEXT_SECTION mth_0_Time(value_t self);
@@ -58,6 +57,23 @@ static const uint16_t plist_Time[] = {  };
 PORT_DATA_SECTION CLASS_OBJECT(class_Time, 2) = {
     .body = { .s = 0, .i = 0, .cn = "Time", .sc = &object_class.clazz , .an = (void*)0, .pt = { .size = 0, .offset = 0,
     .unboxed = 0, .prop_names = plist_Time, .unboxed_types = "" }, .mt = { .size = 2, .names = mnames_Time, .signatures = msigs_Time }, .vtbl = { mth_0_Time, mth_1_Time,  }}};
+
+
+static void fbody_print(value_t self, value_t _message) {
+  ROOT_SET_N(func_rootset,2,VALUE_UNDEF_2)
+  func_rootset.values[1] = self;
+  func_rootset.values[0] = _message;
+  {
+    
+    clear_buff();
+    write_message_to_buff(func_rootset.values[0]);
+    bs_protocol_write_log(buff);
+    ;
+  }
+  DELETE_ROOT_SET(func_rootset)
+}
+PORT_DATA_SECTION const struct func_body _print = { fbody_print, "(a)v" };
+
 
 void mth_0_Console(value_t self, value_t _message) {
   ROOT_SET_N(func_rootset,2,VALUE_UNDEF_2)

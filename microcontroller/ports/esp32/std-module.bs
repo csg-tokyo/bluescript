@@ -40,7 +40,13 @@ void write_message_to_buff(value_t message) {
 
 `
 
-
+function print(message: any) {
+    code`
+    clear_buff();
+    write_message_to_buff(${message});
+    bs_protocol_write_log(buff);
+    `
+}
 
 class Console {
     log(message: any) {

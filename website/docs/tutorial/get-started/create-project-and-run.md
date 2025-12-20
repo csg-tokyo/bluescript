@@ -22,7 +22,7 @@ This creates a simple project structure:
 Open `index.bs` in your code editor and write a simple program.
 
 ```typescript title="index.bs"
-print("Hello world!");
+console.log("Hello world!");
 ```
 
 ---
