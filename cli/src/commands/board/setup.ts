@@ -190,7 +190,7 @@ export class ESP32SetupHandler extends SetupHandler {
         }
 
         fs.makeDir(ESP_ROOT_DIR);
-        await exec(`git clone -b ${ESP_IDF_VERSION} --recursive ${ESP_IDF_GIT_REPO}`, { cwd: ESP_ROOT_DIR });
+        await exec(`git clone --depth 1 -b ${ESP_IDF_VERSION} --recursive ${ESP_IDF_GIT_REPO}`, { cwd: ESP_ROOT_DIR });
     }
 
     @LogStep('Running ESP-IDF install script...')

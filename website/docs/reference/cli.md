@@ -1,6 +1,6 @@
 # CLI
 
-The BlueScript CLI (`blue`) is the primary tool for managing projects, setting up board environments, and running code on your devices.
+The BlueScript CLI (`bscript`) is the primary tool for managing projects, setting up board environments, and running code on your devices.
 
 ## Installation
 
@@ -10,12 +10,12 @@ npm install -g @bluescript/cli
 
 ## Core Commands
 
-### `blue create-project`
+### `bscript create-project`
 
 Creates a new BlueScript project with the necessary configuration files.
 
 ```bash
-blue create-project <project-name> [options]
+bscript create-project <project-name> [options]
 ```
 
 This command generates a new directory containing:
@@ -34,15 +34,15 @@ This command generates a new directory containing:
 **Example:**
 ```bash
 # Create a project interactively
-blue create-project my-app
+bscript create-project my-app
 
 # Create a project specifically for ESP32
-blue create-project my-app --board esp32
+bscript create-project my-app --board esp32
 ```
 
 ---
 
-### `blue install`
+### `bscript install`
 
 Installs project dependencies. This command has two modes:
 
@@ -50,7 +50,7 @@ Installs project dependencies. This command has two modes:
 2. **Add Package:** If a Git URL is provided, it downloads the package, adds it to bsconfig.json, and installs it.
 
 ```bash
-blue install [git-url] [options]
+bscript install [git-url] [options]
 ```
 
 **Arguments:**
@@ -65,33 +65,33 @@ blue install [git-url] [options]
 **Example:**
 ```bash
 # Restore all dependencies from bsconfig.json
-blue install
+bscript install
 
 # Install a specific library (e.g., GPIO library)
-blue install https://github.com/bluescript/gpio.git
+bscript install https://github.com/bluescript/gpio.git
 
 # Install a specific version of a library
-blue install https://github.com/bluescript/drivers.git --tag v2.0.0
+bscript install https://github.com/bluescript/drivers.git --tag v2.0.0
 ```
 
 ---
 
-### `blue uninstall`
+### `bscript uninstall`
 
 Uninstall the specified package from the current project.
 
 ```bash
-blue install [package-name]
+bscript install [package-name]
 ```
 
 ---
 
-### `blue run`
+### `bscript run`
 
 Compiles the current project and executes it on a target device via Bluetooth.
 
 ```bash
-blue run
+bscript run
 ```
 
 When you run this command:
@@ -101,15 +101,15 @@ When you run this command:
 
 ---
 
-### `blue repl`
+### `bscript repl`
 
 Starts an interactive Read-Eval-Print Loop (REPL) session with the target device.
 
 ```bash
-blue repl --board <board-name>
+bscript repl --board <board-name>
 ```
 
-Unlike `blue run` which compiles and sends the entire project, `blue repl` utilizes the incremental compiler and shadow machine. It allows you to write code line-by-line, compiling only the differences and sending them to the device instantly via Bluetooth.
+Unlike `bscript run` which compiles and sends the entire project, `bscript repl` utilizes the incremental compiler and shadow machine. It allows you to write code line-by-line, compiling only the differences and sending them to the device instantly via Bluetooth.
 
 
 **Options:**
@@ -124,12 +124,12 @@ Unlike `blue run` which compiles and sends the entire project, `blue repl` utili
 
 These commands manage the toolchains and runtime environments for specific hardware platforms.
 
-### `blue board setup`
+### `bscript board setup`
 
 Downloads and installs the necessary environment files and dependencies for a specific board architecture.
 
 ```bash
-blue board setup <board-name>
+bscript board setup <board-name>
 ```
 
 **Arguments:**
@@ -137,13 +137,13 @@ blue board setup <board-name>
 
 ---
 
-### `blue board flash-runtime`
+### `bscript board flash-runtime`
 
 Flashes the BlueScript Runtime firmware onto the microcontroller.
 **Note:** This command requires a physical USB connection to the device.
 
 ```bash
-blue board flash-runtime <board-name> [options]
+bscript board flash-runtime <board-name> [options]
 ```
 
 **Arguments:**
@@ -157,27 +157,27 @@ blue board flash-runtime <board-name> [options]
 
 **Example:**
 ```bash
-blue board flash-runtime esp32 --port /dev/ttyUSB0
+bscript board flash-runtime esp32 --port /dev/ttyUSB0
 ```
 
 ---
 
-### `blue board list`
+### `bscript board list`
 
 Lists all board architectures currently supported by the installed CLI version.
 
 ```bash
-blue board list
+bscript board list
 ```
 
 ---
 
-### `blue board remove`
+### `bscript board remove`
 
 Removes the environment files and setup data for a specific board.
 
 ```bash
-blue board remove <board-name> [options]
+bscript board remove <board-name> [options]
 ```
 
 By default, this command asks for confirmation before deleting files.
@@ -190,12 +190,12 @@ By default, this command asks for confirmation before deleting files.
 
 ---
 
-### `blue board fullclean`
+### `bscript board fullclean`
 
 Completely removes all configuration and environment files for **all** boards. This returns the CLI board configurations to a fresh state.
 
 ```bash
-blue board fullclean
+bscript board fullclean
 ```
 By default, this command asks for confirmation before deleting files.
 

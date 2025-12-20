@@ -68,7 +68,7 @@ Thanks to this unique architecture, BlueScript offers a developer experience unl
 
 *   **TypeScript-like Syntax:** Write in a modern, familiar syntax.
 *   **Inline C:** Embed C code directly for critical performance sections or hardware access.
-*   **Interactive Mode (`blue repl`):** Execute code line-by-line and inspect variables instantly, just like a REPL, but with compiled performance.
+*   **Interactive Mode (`bscript repl`):** Execute code line-by-line and inspect variables instantly, just like a REPL, but with compiled performance.
 
 :::info Academic Background
 The architecture of BlueScript is based on the research paper *["BlueScript: A Disaggregated Virtual Machine for Microcontrollers"](https://arxiv.org/pdf/2511.15821v1)*.

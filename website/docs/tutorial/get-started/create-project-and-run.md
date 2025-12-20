@@ -7,7 +7,7 @@ Now that your environment is set up and the runtime is flashed to your device, l
 Create a new directory for your project. The CLI will generate the necessary configuration files.
 
 ```bash
-blue create-project hello-bluescript
+bscript create-project hello-bluescript
 cd hello-bluescript
 ```
 
@@ -35,7 +35,7 @@ Since the runtime is already flashed, **you can disconnect the USB cable** and p
 Run the following command in your terminal:
 
 ```bash
-blue run
+bscript run
 ```
 
 ### What happens next?
@@ -48,7 +48,7 @@ blue run
 :::tip Try the REPL
 Want to test a command quickly without editing a file? Try the interactive mode!
 
-Run **`blue repl`** in your terminal. You can type commands like `print("Hello")` and see the results instantly on the device.
+Run **`bscript repl`** in your terminal. You can type commands like `console.log("Hello")` and see the results instantly on the device.
 :::
 
 ---

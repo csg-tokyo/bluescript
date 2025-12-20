@@ -38,7 +38,6 @@ describe('board setup command', () => {
             // --- Arrange ---
             mockGlobalConfigHandler.isBoardSetup.mockReturnValue(false);
             mockGlobalConfigHandler.isRuntimeSetup.mockReturnValue(false);
-            mockGlobalConfigHandler.isGlobalPackagesSetup.mockReturnValue(false);
             mockedFs.exists.mockReturnValue(false);
             mockedExec.mockImplementation(async (command: string) => {
                 if (command.startsWith('which')) {
@@ -63,10 +62,9 @@ describe('board setup command', () => {
             // 1. Ask user for confirmation
             expect(mockedInquirer.prompt).toHaveBeenCalledTimes(1);
 
-            // 2. Dwonload runtime and packages
-            expect(mockedFs.downloadAndUnzip).toHaveBeenCalledTimes(2);
+            // 2. Dwonload runtime
+            expect(mockedFs.downloadAndUnzip).toHaveBeenCalledTimes(1);
             expect(mockGlobalConfigHandler.setRuntimeDir).toHaveBeenCalled();
-            expect(mockGlobalConfigHandler.setGlobalPackagesDir).toHaveBeenCalled();
             
             // 3. Install required packages via Homebrew
             expect(mockedExec).toHaveBeenCalledWith('brew install cmake ninja dfu-util ccache');
@@ -86,11 +84,10 @@ describe('board setup command', () => {
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
 
-        it('should skip downloading runtime and packages if they exist', async () => {
+        it('should skip downloading runtime if it exist', async () => {
             // --- Arrange ---
             mockGlobalConfigHandler.isBoardSetup.mockReturnValue(false);
             mockGlobalConfigHandler.isRuntimeSetup.mockReturnValue(true);
-            mockGlobalConfigHandler.isGlobalPackagesSetup.mockReturnValue(true);
 
             // --- Act ---
             await handleSetupCommand('esp32');
@@ -106,7 +103,6 @@ describe('board setup command', () => {
             // --- Arrange ---
             mockGlobalConfigHandler.isBoardSetup.mockReturnValue(false);
             mockGlobalConfigHandler.isRuntimeSetup.mockReturnValue(false);
-            mockGlobalConfigHandler.isGlobalPackagesSetup.mockReturnValue(false);            
             mockedExec.mockImplementation(async (command: string) => {
                 if (command.startsWith('which')) {
                     if (command.includes('brew') || command.includes('git')) {
@@ -134,7 +130,6 @@ describe('board setup command', () => {
             // --- Arrange ---
             mockGlobalConfigHandler.isBoardSetup.mockReturnValue(false);
             mockGlobalConfigHandler.isRuntimeSetup.mockReturnValue(false);
-            mockGlobalConfigHandler.isGlobalPackagesSetup.mockReturnValue(false);            
             mockedExec.mockImplementation(async (command: string) => {
                 if (command.startsWith('which')) {
                     if (command.includes('brew') || command.includes('git')) {
