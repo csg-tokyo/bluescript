@@ -27,7 +27,6 @@ const boardConfigSchema = z.object({
 const globalConfigSchema = z.object({
     version: z.string().default(VM_VERSION),
     runtimeDir: z.string().optional(),
-    globalPackagesDir: z.string().optional(),
     boards: boardConfigSchema.default({}),
 });
 
@@ -101,14 +100,6 @@ export class GlobalConfigHandler {
 
     setRuntimeDir(dir: string) {
         this.update({runtimeDir: dir});
-    }
-
-    isGlobalPackagesSetup() {
-        return this.config.globalPackagesDir !== undefined;
-    }
-
-    setGlobalPackagesDir(dir: string) {
-        this.update({globalPackagesDir: dir});
     }
 
     getConfig(): Readonly<GlobalConfig> {

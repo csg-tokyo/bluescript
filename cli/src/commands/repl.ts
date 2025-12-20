@@ -10,7 +10,7 @@ import {
     ProjectConfigHandler, 
 } from "../config/project-config";
 import { BleConnection, DeviceService } from "../services/ble";
-import { Compiler, ExecutableBinary, MemoryLayout, PackageConfig } from "@bluescript/lang";
+import { Compiler, CompilerConfig, ErrorLog, ExecutableBinary, MemoryLayout, PackageConfig } from "@bluescript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
@@ -94,7 +94,12 @@ abstract class ReplHandler {
                     await this.execute(bin);
                     this.rl.prompt();
                 } catch (error) {
-                    reject(error);
+                    if (error instanceof ErrorLog) {
+                        replLogger.error("** compile error: " + error.toString());
+                        this.rl.prompt();
+                    } else {
+                        reject(error);
+                    }
                 }
             });
             this.rl.on('close', () => {
@@ -165,22 +170,14 @@ class ESP32ReplHandler extends ReplHandler {
             return {bin, time};
         }
     
-    private getCompilerConfig() {
+    private getCompilerConfig(): CompilerConfig {
         const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
         if (!runtimeDir) {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
         }
-        const globalPackagesDir = this.globalConfigHandler.getConfig().globalPackagesDir;
-        if (!globalPackagesDir) {
-            throw new Error('An unexpected error occurred: cannot find directory path for global packages.');
-        }
-        const stdPackageDir = path.join(globalPackagesDir, 'std');
         return {
-            dirs: {
-                runtime: runtimeDir,
-                compilerToolchain: this.boardConfig.xtensaGccDir,
-                std: stdPackageDir
-            }
+            runtimeDir,
+            compilerToolchainDir: this.boardConfig.xtensaGccDir,
         }
     }
     

@@ -1,0 +1,77 @@
+code`
+#include <string.h>
+#include <stdio.h>
+#include "freertos/task.h"
+#include "esp_timer.h"
+#include "protocol.h"
+#include "c-runtime.h"
+#include "./include/std-module.h"
+
+#define BUFF_SIZE 256
+
+char buff[BUFF_SIZE];
+
+void clear_buff() {
+    memset(buff, 0, BUFF_SIZE);
+}
+
+void write_message_to_buff(value_t message) {
+    if (is_int_value(message)) 
+        sprintf(buff, "%d\n", (int) value_to_int(message));
+    else if (is_float_value(message))
+        sprintf(buff, "%f\n", value_to_float(message));
+    else if (message == VALUE_NULL || message == VALUE_UNDEF)
+        sprintf(buff, "undefined\n");
+    else if (message == VALUE_TRUE)
+        sprintf(buff, "true\n");
+    else if (message == VALUE_FALSE)
+        sprintf(buff, "false\n");
+    else if (gc_is_string_object(message))
+        snprintf(buff, sizeof(buff), "%s\n", gc_string_to_cstr(message));
+    else {
+        class_object* cls = gc_get_class_of(message);
+        if (cls == NULL)
+        sprintf(buff, "??\n");
+        else
+        snprintf(buff, sizeof(buff), "<class %s>\n", cls->name);
+    }
+    printf(buff);
+}
+
+`
+
+
+
+class Console {
+    log(message: any) {
+        code`
+    clear_buff();
+    write_message_to_buff(${message});
+    bs_protocol_write_log(buff);
+        `
+    }
+
+    error(message: any) {
+        code`
+    clear_buff();
+    write_message_to_buff(${message});
+    bs_protocol_write_error(buff);
+        `
+    }
+}
+
+
+class Time {
+    now(): float {
+        let currentTime: float = 0.0;
+        code`${currentTime} = esp_timer_get_time() / 1000.0;`;
+        return currentTime;
+    }
+
+    delay(ms: integer) {
+        code`vTaskDelay(pdMS_TO_TICKS(${ms}));`
+    }
+}
+
+const console = new Console();
+const time = new Time();

@@ -11,9 +11,7 @@ import chalk from "chalk";
 
 
 const RUNTIME_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/v${VM_VERSION}/release-microcontroller-v${VM_VERSION}.zip`;
-const GLOBAL_PACKAGES_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/v${VM_VERSION}/release-modules-v${VM_VERSION}.zip`;
 const RUNTIME_DIR = path.join(GLOBAL_BLUESCRIPT_PATH, 'microcontroller');
-const GLOBAL_PACKAGES_DIR = path.join(GLOBAL_BLUESCRIPT_PATH, 'modules');
 
 const ESP_IDF_VERSION = 'v5.4';
 const ESP_IDF_GIT_REPO = 'https://github.com/espressif/esp-idf.git';
@@ -32,24 +30,25 @@ abstract class SetupHandler {
     getSetupPlan(): string[] {
         const plan: string[] = [];
         plan.push(`Download BlueScript runtime from ${RUNTIME_ZIP_URL}`);
-        plan.push(`Download global packages from ${GLOBAL_PACKAGES_ZIP_URL}`);
         plan.push(...this.getBoardSetupPlan());
         return plan;
     }
 
     async setup(): Promise<void> {
+        this.ensureBlueScriptDir();
         await this.downloadBlueScriptRuntime();
-        await this.downloadGlobalPackages();
         await this.setupBoard();
         this.globalConfigHandler.save();
     }
 
-    private needToDownloadBlueScriptRuntime() {
-        return !this.globalConfigHandler.isRuntimeSetup();
+    private ensureBlueScriptDir() {
+        if (!fs.exists(GLOBAL_BLUESCRIPT_PATH)) {
+            fs.makeDir(GLOBAL_BLUESCRIPT_PATH);
+        }
     }
 
-    private needToDownloadGlobalPackages() {
-        return !this.globalConfigHandler.isGlobalPackagesSetup();
+    private needToDownloadBlueScriptRuntime() {
+        return !this.globalConfigHandler.isRuntimeSetup();
     }
 
     @LogStep(`Downloading BlueScript runtime...`)
@@ -57,31 +56,12 @@ abstract class SetupHandler {
         if (!this.needToDownloadBlueScriptRuntime()) {
            throw new SkipStep('already downloaded.', undefined);
         }
-
         if (fs.exists(RUNTIME_DIR)) {
             fs.removeDir(RUNTIME_DIR);
         }
-        if (!fs.exists(GLOBAL_BLUESCRIPT_PATH)) {
-            fs.makeDir(GLOBAL_BLUESCRIPT_PATH);
-        }
+        
         await fs.downloadAndUnzip(RUNTIME_ZIP_URL, GLOBAL_BLUESCRIPT_PATH);
         this.globalConfigHandler.setRuntimeDir(RUNTIME_DIR);
-    }
-
-    @LogStep(`Downloading global packages...`)
-    private async downloadGlobalPackages() {
-        if (!this.needToDownloadGlobalPackages()) {
-            throw new SkipStep('already downloaded.', undefined);
-        }
-
-        if (fs.exists(GLOBAL_PACKAGES_DIR)) {
-            fs.removeDir(GLOBAL_PACKAGES_DIR);
-        }
-        if (!fs.exists(GLOBAL_BLUESCRIPT_PATH)) {
-            fs.makeDir(GLOBAL_BLUESCRIPT_PATH);
-        }
-        await fs.downloadAndUnzip(GLOBAL_PACKAGES_ZIP_URL, GLOBAL_BLUESCRIPT_PATH);
-        this.globalConfigHandler.setGlobalPackagesDir(GLOBAL_PACKAGES_DIR);
     }
 
     abstract needSetup(): boolean;

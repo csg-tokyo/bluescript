@@ -20,10 +20,10 @@ and install it.
 npm install
 ```
 
-Move to the `./server` directory.
+Move to the `./lang` directory.
 
 ```bash
-cd server
+cd lang
 ```
 
 ## Run the REPL
@@ -60,7 +60,7 @@ This reads and runs `foo.bs` and `bar.bs` in this order when the REPL starts run
 
 Note that the REPL separately compiles every code fragment by users.
 It performs the reading, compiling, running, and printing loop.
-All the temporary files are stored in `./server/temp-files`.
+All the temporary files are stored in `./lang/temp-files`.
 
 ## Compile a BlueScript program
 

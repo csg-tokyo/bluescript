@@ -11,7 +11,7 @@ import {
 } from "../config/project-config";
 import { cwd } from "../core/shell";
 import { BleConnection, DeviceService } from "../services/ble";
-import { Compiler, ExecutableBinary, MemoryLayout, PackageConfig } from "@bluescript/lang";
+import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bluescript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 
@@ -143,24 +143,15 @@ class ESP32RunHandler extends RunHandler {
         return {bin, time};
     }
 
-    private getCompilerConfig() {
+    private getCompilerConfig(): CompilerConfig {
         const runtimeDir = this.projectConfigHandler.getConfig().runtimeDir 
                             ?? this.globalConfigHandler.getConfig().runtimeDir;
         if (!runtimeDir) {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
         }
-        const globalPackagesDir = this.projectConfigHandler.getConfig().globalPackagesDir 
-                            ?? this.globalConfigHandler.getConfig().globalPackagesDir;
-        if (!globalPackagesDir) {
-            throw new Error('An unexpected error occurred: cannot find directory path for global packages.');
-        }
-        const stdPackageDir = path.join(globalPackagesDir, 'std');
         return {
-            dirs: {
-                runtime: runtimeDir,
-                compilerToolchain: this.boardConfig.xtensaGccDir,
-                std: stdPackageDir
-            }
+            runtimeDir,
+            compilerToolchainDir: this.boardConfig.xtensaGccDir,
         }
     }
 
