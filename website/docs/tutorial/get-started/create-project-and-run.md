@@ -45,6 +45,12 @@ bscript run
 3.  **Upload:** Upon selecting your device, it transfers the binary via **Bluetooth**.
 4.  **Execute:** The ESP32 executes the code immediately.
 
+:::warning Program Lost on Restart
+Please note that programs uploaded via `bscript run` are **not persisted** after a reboot.
+
+If you restart or power off the device, the program will be lost. You will need to execute `bscript run` again to re-upload your code.
+:::
+
 :::tip Try the REPL
 Want to test a command quickly without editing a file? Try the interactive mode!
 
