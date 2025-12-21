@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define PORT_TEXT_SECTION __attribute__((section(".port_text")))
+#define PORT_DATA_SECTION __attribute__((section(".port_data")))
+
 #define BS_SHOW_LOG
 
 int64_t bs_timer_get_time_us();

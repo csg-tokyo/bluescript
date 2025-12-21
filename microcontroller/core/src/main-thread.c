@@ -7,6 +7,7 @@
 
 #include "memory.h"
 #include "utils.h"
+#include "std-module.h"
 
 #include "../include/main-thread.h"
 #include "../include/protocol.h"
@@ -48,6 +49,7 @@ static void main_thread_init(bs_memory_layout_t* memory_layout) {
     gc_initialize();
     bs_memory_init();
     bs_memory_get_layout(memory_layout);
+    bs_stdmodule_main();
     task_item_queue = xQueueCreate(TASK_ITEM_QUEUE_LENGTH, sizeof(task_item_u));
 }
 
@@ -55,6 +57,7 @@ static void main_thread_reset() {
     BS_LOG_INFO("Reset main thread")
     bs_memory_reset();
     gc_initialize();
+    bs_stdmodule_main();
     xQueueReset(task_item_queue);
 }
 

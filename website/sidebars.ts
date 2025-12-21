@@ -1,4 +1,4 @@
-import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
@@ -40,11 +40,12 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Packages',
+      label: 'Libraries',
       items: [
-        'reference/packages/gpio'
+        'reference/libraries/builtin',
+        'reference/libraries/gpio'
       ]
-    }, 
+    },
     'reference/cli',
   ]
 };

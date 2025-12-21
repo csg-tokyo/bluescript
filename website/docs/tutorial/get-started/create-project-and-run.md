@@ -7,7 +7,7 @@ Now that your environment is set up and the runtime is flashed to your device, l
 Create a new directory for your project. The CLI will generate the necessary configuration files.
 
 ```bash
-blue create-project hello-bluescript
+bscript create-project hello-bluescript
 cd hello-bluescript
 ```
 
@@ -22,7 +22,7 @@ This creates a simple project structure:
 Open `index.bs` in your code editor and write a simple program.
 
 ```typescript title="index.bs"
-print("Hello world!");
+console.log("Hello world!");
 ```
 
 ---
@@ -35,7 +35,7 @@ Since the runtime is already flashed, **you can disconnect the USB cable** and p
 Run the following command in your terminal:
 
 ```bash
-blue run
+bscript run
 ```
 
 ### What happens next?
@@ -45,10 +45,16 @@ blue run
 3.  **Upload:** Upon selecting your device, it transfers the binary via **Bluetooth**.
 4.  **Execute:** The ESP32 executes the code immediately.
 
+:::warning Program Lost on Restart
+Please note that programs uploaded via `bscript run` are **not persisted** after a reboot.
+
+If you restart or power off the device, the program will be lost. You will need to execute `bscript run` again to re-upload your code.
+:::
+
 :::tip Try the REPL
 Want to test a command quickly without editing a file? Try the interactive mode!
 
-Run **`blue repl`** in your terminal. You can type commands like `print("Hello")` and see the results instantly on the device.
+Run **`bscript repl`** in your terminal. You can type commands like `console.log("Hello")` and see the results instantly on the device.
 :::
 
 ---

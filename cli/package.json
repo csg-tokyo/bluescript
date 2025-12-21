@@ -9,7 +9,7 @@
     "prepublishOnly": "npm run build"
   },
   "bin": {
-    "blue": "./dist/index.js"
+    "bscript": "./dist/index.js"
   },
   "files": [
     "dist"

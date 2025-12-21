@@ -22,11 +22,8 @@ export type PackageConfig = {
 }
 
 export type CompilerConfig = {
-    dirs: {
-        runtime: string,
-        compilerToolchain: string,
-        std: string
-    }
+    runtimeDir: string,
+    compilerToolchainDir: string,
 };
 
 export type MemoryLayout = {
@@ -67,18 +64,17 @@ const ARCHIVE_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.build, `lib${pkg
 const MAKEFILE_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.dist, 'Makefile');
 const LINKER_SCRIPT = (pkg: PackageConfig) => path.join(pkg.dirs.build, "linkerscript.ld");
 const LINKED_ELF_PATH = (pkg: PackageConfig) => path.join(pkg.dirs.build, `${pkg.name}.elf`);
-const STD_MODULE_PATH = (dir: string) => path.join(dir, 'index.bs');
-const LD_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.compilerToolchain, 'xtensa-esp32-elf-ld');
-const RUNTIME_ELF_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.dirs.runtime, 'ports/esp32/build/bluescript.elf');
+const LD_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.compilerToolchainDir, 'xtensa-esp32-elf-ld');
+const RUNTIME_ELF_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.runtimeDir, 'ports/esp32/build/bluescript.elf');
+const STD_MODULE_PATH = (compilerConfig: CompilerConfig) => path.join(compilerConfig.runtimeDir, 'ports/esp32/std-module.bs');
 const C_PROLOG = (compilerConfig: CompilerConfig) => `
 #include <stdint.h>
-#include "${path.join(compilerConfig.dirs.runtime, '/core/include/c-runtime.h')}"
+#include "${path.join(compilerConfig.runtimeDir, '/core/include/c-runtime.h')}"
 
 `
 
 export class Compiler {
     private config: CompilerConfig;
-    private compileId: number;
     private espidfComponents: ESPIDFComponents;
     private memory: ShadowMemory;
     private definedSymbols: Map<string, Symbol>; // {name, address}
@@ -91,13 +87,12 @@ export class Compiler {
         packageReader: (name: string) => PackageConfig,
     ) {
         this.config = config;
-        this.compileId = -1;
-        this.espidfComponents = new ESPIDFComponents(config.dirs.runtime);
+        this.espidfComponents = new ESPIDFComponents(config.runtimeDir);
         this.memory = new ShadowMemory(memoryLayout);
         this.packageReader = packageReader;
         const elfReader = new ElfReader(RUNTIME_ELF_PATH(this.config));
         this.definedSymbols = new Map(elfReader.readAllSymbols().map(s => [s.name, s]));
-        this.transpiler = new TranspilerWithPkgSystem(this.packageReader, this.config.dirs.std, C_PROLOG(this.config));
+        this.transpiler = new TranspilerWithPkgSystem(this.packageReader, STD_MODULE_PATH(config), C_PROLOG(config));
         this.clean();
         this.checkFileNamesInMain();
     }
@@ -143,18 +138,10 @@ export class Compiler {
     }
 
     public async compile(src?: string): Promise<ExecutableBinary> {
-        const {mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints} = this.transpile(src);
+        const {mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints} = this.transpiler.transpile(src);
         await this.compileC(mainPackage, subPackages);
         await this.link(mainPackage, subPackages, mainEntryPoint, subModuleEntryPoints);
         return this.generateExecutableBinary(mainPackage, mainEntryPoint, subModuleEntryPoints);
-    }
-
-    private transpile(src?: string) {
-        try {
-            return this.transpiler.transpile(src);
-        } catch (error) {
-            throw new Error(`Failed to transpile: ${getErrorMessage(error)}`, {cause: error});
-        }
     }
 
     private async compileC(mainPackage: PackageConfig, subPackages: PackageConfig[]) {
@@ -169,7 +156,7 @@ export class Compiler {
         try {
             fs.rmSync(ARCHIVE_PATH(pkg), {force: true});
             const makefile = generateMakefile(
-                this.config.dirs.compilerToolchain,
+                this.config.compilerToolchainDir,
                 pkg,
                 [...this.espidfComponents.getIncludeDirs(pkg.espIdfComponents), ...commonIncludeDirs],
                 ARCHIVE_PATH(pkg)
@@ -280,9 +267,9 @@ class TranspilerWithPkgSystem {
     private visitedPkgs: PackageConfig[];
 
 
-    constructor(packageReader: (name: string) => PackageConfig, stdDir: string, cProlog: string) {
-        const stdSrc = fs.readFileSync(STD_MODULE_PATH(stdDir), 'utf-8');
-        this.globalNames = transpile(++this.sessionId, stdSrc, undefined).names;
+    constructor(packageReader: (name: string) => PackageConfig, stdModuleFile: string, cProlog: string) {
+        const stdSrc = fs.readFileSync(stdModuleFile, 'utf-8');
+        this.globalNames = transpile(this.sessionId++, stdSrc).names;
         this.modules = new Map<PathInPkg, GlobalVariableNameTable>();
         this.cProlog = cProlog;
         this.packageReader = packageReader;
@@ -295,12 +282,10 @@ class TranspilerWithPkgSystem {
             pathInPkg = { ext: '.bs', name: 'index', dir: './', pkg: this.packageReader('main')};
             src = this.readFile(pathInPkg);
         } else {
-            this.codeId += 1;
-            pathInPkg = { ext: '.bs', name: `${this.codeId}`, dir: './', pkg: this.packageReader('main')};
+            pathInPkg = { ext: '.bs', name: `${this.codeId++}`, dir: './', pkg: this.packageReader('main')};
         }
         const subModuleEntryPoints: string[] = [];
-        this.sessionId += 1;
-        const result = transpile(this.sessionId, src, this.globalNames, this.makeImporter(pathInPkg, subModuleEntryPoints));
+        const result = transpile(this.sessionId++, src, this.globalNames, this.makeImporter(pathInPkg, subModuleEntryPoints));
         this.writeCFile(pathInPkg, result.code);
         this.globalNames = result.names;
         return {mainPackage: pathInPkg.pkg, subPackages: this.visitedPkgs, mainEntryPoint: result.main, subModuleEntryPoints};
@@ -317,9 +302,7 @@ class TranspilerWithPkgSystem {
                 return mod;
             else {
                 const src = this.readFile(pathInPkg);
-                this.moduleId += 1;
-                this.sessionId += 1;
-                const result = transpile(this.sessionId, src, this.globalNames, this.makeImporter(pathInPkg, entryPoints), this.moduleId);
+                const result = transpile(this.sessionId++, src, this.globalNames, this.makeImporter(pathInPkg, entryPoints), this.moduleId++);
                 this.modules.set(pathInPkg, result.names);
                 entryPoints.push(result.main);
                 this.writeCFile(pathInPkg, result.code);

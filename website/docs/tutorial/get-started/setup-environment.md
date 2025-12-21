@@ -24,7 +24,7 @@ npm install -g @bluescript/cli
 Verify the installation:
 
 ```bash
-blue --version
+bscript --version
 ```
 
 ---
@@ -42,7 +42,7 @@ The USB cable is only required for this step (`flash-runtime`). Once this is don
 Download the necessary environment files for the ESP32 platform:
 
 ```bash
-blue board setup esp32
+bscript board setup esp32
 ```
 *Note: Currently, only `esp32` is supported.*
 
@@ -51,7 +51,7 @@ blue board setup esp32
 Connect your ESP32 to your computer via USB and flash the runtime:
 
 ```bash
-blue board flash-runtime esp32
+bscript board flash-runtime esp32
 ```
 
 If the flash is successful, your device is now ready to receive BlueScript code wirelessly!

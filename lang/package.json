@@ -28,7 +28,7 @@
     "dev": "ts-node src/index.ts",
     "exec": "./node_modules/.bin/tsc && node ./dist/index.js",
     "shell": "npx tsc && node ./dist/transpiler/shell.js",
-    "compile": "npx tsc && node ./dist/transpiler/compiler.js",
+    "transpile-module": "npx tsc && node ./dist/tools/transpile-module.js",
     "test": "jest"
   }
 }
