@@ -5,7 +5,7 @@ The BlueScript CLI (`bscript`) is the primary tool for managing projects, settin
 ## Installation
 
 ```bash
-npm install -g @bluescript/cli
+npm install -g @bscript/cli
 ```
 
 ## Core Commands

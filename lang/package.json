@@ -1,6 +1,6 @@
 {
-  "name": "@bluescript/lang",
-  "version": "1.1.4",
+  "name": "@bscript/lang",
+  "version": "1.1.5",
   "exports": "./dist/index.js",
   "main": "dist/index.js",
   "dependencies": {
@@ -12,6 +12,9 @@
     "ws": "^8.18.3",
     "zod": "^4.1.12"
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^24.3.1",
@@ -26,7 +29,6 @@
     "build": "npx tsc",
     "build:watch": "npx tsc -w",
     "dev": "ts-node src/index.ts",
-    "exec": "./node_modules/.bin/tsc && node ./dist/index.js",
     "shell": "npx tsc && node ./dist/transpiler/shell.js",
     "transpile-module": "npx tsc && node ./dist/tools/transpile-module.js",
     "test": "jest"

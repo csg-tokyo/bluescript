@@ -250,7 +250,7 @@ export async function handleSetupCommand(board: string) {
 
         logger.br();
         logger.success(`Success to se tup ${board}`);
-        logger.info(`Next step: run ${chalk.yellow(`bluescript board flash-runtime ${board}`)}`);
+        logger.info(`Next step: run ${chalk.yellow(`bscript board flash-runtime ${board}`)}`);
 
     } catch (error) {
         logger.error(`Failed to set up ${board}`);

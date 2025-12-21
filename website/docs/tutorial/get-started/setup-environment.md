@@ -18,7 +18,7 @@ Before we begin, ensure you have the following:
 BlueScript provides a command-line interface (CLI) to manage projects and communicate with your device. Install it globally using npm:
 
 ```bash
-npm install -g @bluescript/cli
+npm install -g @bscript/cli
 ```
 
 Verify the installation:

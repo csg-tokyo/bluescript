@@ -62,7 +62,7 @@ describe('board flash-runtime command', () => {
             await handleFlashRuntimeCommand('esp32', {});
 
             // --- Assert ---
-            expect(mockedLogger.warn).toHaveBeenCalledWith(`The environment for esp32 is not set up. Run 'bluescript board setup esp32' and try again.`);
+            expect(mockedLogger.warn).toHaveBeenCalledWith(`The environment for esp32 is not set up. Run 'bscript board setup esp32' and try again.`);
             // No further actions taken
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();
             expect(mockedExec).not.toHaveBeenCalled();

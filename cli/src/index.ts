@@ -36,7 +36,7 @@ function main() {
     const packageJson = JSON.parse(fs.readFile(packageJsonPath));
 
     command
-        .name('bluescript')
+        .name('bscript')
         .description('A new CLI for the BlueScript microcontroller language')
         .version(packageJson.version, '-v, --version', 'Output the current version');
 

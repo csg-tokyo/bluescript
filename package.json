@@ -1,5 +1,5 @@
 {
-  "name": "bluescript",
+  "name": "bscript",
   "private": true,
   "workspaces": ["cli", "lang"],
   "devDependencies": {

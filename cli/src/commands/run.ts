@@ -11,7 +11,7 @@ import {
 } from "../config/project-config";
 import { cwd } from "../core/shell";
 import { BleConnection, DeviceService } from "../services/ble";
-import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bluescript/lang";
+import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 

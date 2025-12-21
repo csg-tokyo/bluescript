@@ -60,7 +60,7 @@ export async function handleCreateProjectCommand(name: string, options: { board?
 
         logger.br();
         logger.success(`Success to create a new project.`);
-        logger.info(`Next step: go to the project directory and run ${chalk.yellow('bluescript run')}`);
+        logger.info(`Next step: go to the project directory and run ${chalk.yellow('bscript run')}`);
     } catch (error) {
         logger.error(`Failed to create a new project.`);
         showErrorMessages(error);
