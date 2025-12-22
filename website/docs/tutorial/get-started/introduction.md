@@ -71,7 +71,7 @@ Thanks to this unique architecture, BlueScript offers a developer experience unl
 *   **Interactive Mode (`bscript repl`):** Execute code line-by-line and inspect variables instantly, just like a REPL, but with compiled performance.
 
 :::info Academic Background
-The architecture of BlueScript is based on the research paper *["BlueScript: A Disaggregated Virtual Machine for Microcontrollers"](https://arxiv.org/pdf/2511.15821v1)*.
+The architecture of BlueScript is based on the research paper *["BlueScript: A Disaggregated Virtual Machine for Microcontrollers"](https://programming-journal.org/2025/10/21/)*.
 :::
 
 ## Supported Hardware
