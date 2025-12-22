@@ -9,11 +9,11 @@ import { Transpiler } from './transpiler'
 
 const baseDir = path.normalize(path.dirname(process.argv[1]) + '/../../..')
 
-const dir = `${baseDir}/server/temp-files`
+const dir = `${baseDir}/lang/temp-files`
 const cRuntimeH = `${baseDir}/microcontroller/core/include/c-runtime.h`
 const cRuntimeC = `${baseDir}/microcontroller/core/src/c-runtime.c`
 const prologCcode = `#include "${cRuntimeH}"\n`
-const shellBuiltins = `${baseDir}/server/src/transpiler/shell-builtins`
+const shellBuiltins = `${baseDir}/lang/src/transpiler/shell-builtins`
 
 class Compiler extends Transpiler {
   libs: string
