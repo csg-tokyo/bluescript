@@ -263,7 +263,7 @@ export async function handleSetupCommand(board: string) {
 export function registerSetupCommand(program: Command) {
     program
         .command('setup')
-        .description('set up the environment for a specific board')
+        .description('set up the environment for the specified board')
         .argument('<board-name>', 'name of the board to setup (e.g., esp32)') 
         .action(handleSetupCommand);
 }

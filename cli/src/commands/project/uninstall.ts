@@ -1,8 +1,8 @@
 import { Command } from "commander";
-import { logger, showErrorMessages } from "../core/logger";
-import { LOCAL_PACKAGES_DIR, ProjectConfigHandler } from "../config/project-config";
-import { cwd } from "../core/shell";
-import * as fs from '../core/fs';
+import { logger, showErrorMessages } from "../../core/logger";
+import { LOCAL_PACKAGES_DIR, ProjectConfigHandler } from "../../config/project-config";
+import { cwd } from "../../core/shell";
+import * as fs from '../../core/fs';
 import * as path from 'path';
 
 
@@ -29,7 +29,7 @@ export async function handleUninstallCommand(packageName: string) {
 export function registerUninstallCommand(program: Command) {
     program
         .command('uninstall')
-        .description('uninstall a package')
+        .description('remove the specified package from your project')
         .argument('<package-name>', 'Package name')
         .action(handleUninstallCommand);
 }

@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { join } from 'path';
-import * as fs from './core/fs';
 import { logger } from './core/logger';
+import packageJson from '../package.json';
 
 import { registerSetupCommand } from './commands/board/setup';
 import { registerRemoveCommand } from './commands/board/remove';
 import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
 import { registerListCommand } from './commands/board/list';
-import { registerCreateProjectCommand } from './commands/create-project';
-import { registerRunCommand } from './commands/run';
+import { registerCreateProjectCommand } from './commands/project/create';
+import { registerRunCommand } from './commands/project/run';
 import { registerFullcleanCommand } from './commands/board/full-clean';
 import { registerReplCommand } from './commands/repl';
-import { registerInstallCommand } from './commands/install';
-import { registerUninstallCommand } from './commands/uninstall';
+import { registerInstallCommand } from './commands/project/install';
+import { registerUninstallCommand } from './commands/project/uninstall';
 
 
 function registerBoardCommands(program: Command) {
@@ -29,11 +28,19 @@ function registerBoardCommands(program: Command) {
     registerFullcleanCommand(boardCommand);
 }
 
+function registerProjectCommands(program: Command) {
+    const projectCommand = program
+        .command('project')
+        .description('manage projects')
+    
+    registerCreateProjectCommand(projectCommand);
+    registerRunCommand(projectCommand);
+    registerInstallCommand(projectCommand);
+    registerUninstallCommand(projectCommand);
+}
+
 function main() {
     const command = new Command();
-
-    const packageJsonPath = join(__dirname, '..', 'package.json');
-    const packageJson = JSON.parse(fs.readFile(packageJsonPath));
 
     command
         .name('bscript')
@@ -41,11 +48,8 @@ function main() {
         .version(packageJson.version, '-v, --version', 'Output the current version');
 
     registerBoardCommands(command);
-    registerCreateProjectCommand(command);
-    registerRunCommand(command);
+    registerProjectCommands(command);
     registerReplCommand(command);
-    registerInstallCommand(command);
-    registerUninstallCommand(command);
 
     command.parse(process.argv);
 }

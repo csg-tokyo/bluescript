@@ -1,16 +1,16 @@
 import { Command } from "commander";
-import { Esp32BoardConfig, GlobalConfigHandler } from "../config/global-config";
-import { BoardName } from "../config/board-utils";
-import { logger, LogStep, ProgramLogger, showErrorMessages } from "../core/logger";
+import { Esp32BoardConfig, GlobalConfigHandler } from "../../config/global-config";
+import { BoardName } from "../../config/board-utils";
+import { logger, LogStep, ProgramLogger, showErrorMessages } from "../../core/logger";
 import { 
     BUILD_DIR,
     DEFAULT_DEVICE_NAME, 
     DIST_DIR, 
     LOCAL_PACKAGES_DIR, 
     ProjectConfigHandler, 
-} from "../config/project-config";
-import { cwd } from "../core/shell";
-import { BleConnection, DeviceService } from "../services/ble";
+} from "../../config/project-config";
+import { cwd } from "../../core/shell";
+import { BleConnection, DeviceService } from "../../services/ble";
 import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
@@ -187,7 +187,7 @@ function getRunHandler(projectConfigHandler: ProjectConfigHandler) {
     }
 }
 
-export async function handleRunCommand(board: string) {
+export async function handleRunCommand() {
     try {
         const projectConfigHandler = ProjectConfigHandler.load(cwd());
         const runHandler = getRunHandler(projectConfigHandler);
@@ -202,6 +202,6 @@ export async function handleRunCommand(board: string) {
 export function registerRunCommand(program: Command) {
     program
         .command('run')
-        .description('run BlueScript program')
+        .description('run your project')
         .action(handleRunCommand);
 }

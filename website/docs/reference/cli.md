@@ -8,14 +8,14 @@ The BlueScript CLI (`bscript`) is the primary tool for managing projects, settin
 npm install -g @bscript/cli
 ```
 
-## Core Commands
+## Project Management
 
-### `bscript create-project`
+### `bscript project create`
 
 Creates a new BlueScript project with the necessary configuration files.
 
 ```bash
-bscript create-project <project-name> [options]
+bscript project create <project-name> [options]
 ```
 
 This command generates a new directory containing:
@@ -34,15 +34,15 @@ This command generates a new directory containing:
 **Example:**
 ```bash
 # Create a project interactively
-bscript create-project my-app
+bscript project create my-app
 
 # Create a project specifically for ESP32
-bscript create-project my-app --board esp32
+bscript project create my-app --board esp32
 ```
 
 ---
 
-### `bscript install`
+### `bscript project install`
 
 Installs project dependencies. This command has two modes:
 
@@ -50,7 +50,7 @@ Installs project dependencies. This command has two modes:
 2. **Add Package:** If a Git URL is provided, it downloads the package, adds it to bsconfig.json, and installs it.
 
 ```bash
-bscript install [git-url] [options]
+bscript project install [git-url] [options]
 ```
 
 **Arguments:**
@@ -65,33 +65,33 @@ bscript install [git-url] [options]
 **Example:**
 ```bash
 # Restore all dependencies from bsconfig.json
-bscript install
+bscript project install
 
 # Install a specific library (e.g., GPIO library)
-bscript install https://github.com/bluescript/gpio.git
+bscript project install https://github.com/bluescript/gpio.git
 
 # Install a specific version of a library
-bscript install https://github.com/bluescript/drivers.git --tag v2.0.0
+bscript project install https://github.com/bluescript/drivers.git --tag v2.0.0
 ```
 
 ---
 
-### `bscript uninstall`
+### `bscript project uninstall`
 
 Uninstall the specified package from the current project.
 
 ```bash
-bscript install [package-name]
+bscript project uninstall [package-name]
 ```
 
 ---
 
-### `bscript run`
+### `bscript project run`
 
 Compiles the current project and executes it on a target device via Bluetooth.
 
 ```bash
-bscript run
+bscript project run
 ```
 
 When you run this command:
@@ -101,24 +101,6 @@ When you run this command:
 
 ---
 
-### `bscript repl`
-
-Starts an interactive Read-Eval-Print Loop (REPL) session with the target device.
-
-```bash
-bscript repl --board <board-name>
-```
-
-Unlike `bscript run` which compiles and sends the entire project, `bscript repl` utilizes the incremental compiler and shadow machine. It allows you to write code line-by-line, compiling only the differences and sending them to the device instantly via Bluetooth.
-
-
-**Options:**
-
-| Option | Alias | Description |
-| :--- | :--- | :--- |
-| `--board` | `-b` | Specify the target board (e.g., `esp32`). |
-
----
 
 ## Board Management
 
@@ -204,3 +186,24 @@ By default, this command asks for confirmation before deleting files.
 | Option | Alias | Description |
 | :--- | :--- | :--- |
 | `--force` | `-f` | Skips the confirmation prompt and forces removal. |
+
+---
+
+## Other Commands
+
+### `bscript repl`
+
+Starts an interactive Read-Eval-Print Loop (REPL) session with the target device.
+
+```bash
+bscript repl --board <board-name>
+```
+
+Unlike `bscript run` which compiles and sends the entire project, `bscript repl` utilizes the incremental compiler and shadow machine. It allows you to write code line-by-line, compiling only the differences and sending them to the device instantly via Bluetooth.
+
+
+**Options:**
+
+| Option | Alias | Description |
+| :--- | :--- | :--- |
+| `--board` | `-b` | Specify the target board (e.g., `esp32`). |
