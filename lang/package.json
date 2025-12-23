@@ -1,6 +1,6 @@
 {
   "name": "@bscript/lang",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "exports": "./dist/index.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -48,6 +48,14 @@
     "dev": "ts-node src/index.ts",
     "shell": "npx tsc && node ./dist/transpiler/shell.js",
     "transpile-module": "npx tsc && node ./dist/tools/transpile-module.js",
-    "test": "jest"
+    "test": "jest",
+
+    "prepack:backup": "shx mv README.md README.md.bak || shx echo 'No existing README to backup'",
+    "prepack:copy": "shx cp ../README.md README.md",
+    "prepack": "npm run prepack:backup && npm run prepack:copy",
+    "postpack:cleanup": "shx rm README.md",
+    "postpack:restore": "shx mv README.md.bak README.md || shx echo 'No backup to restore'",
+    "postpack": "npm run postpack:cleanup && npm run postpack:restore",
+    "prepublishOnly": "npm run build"
   }
 }

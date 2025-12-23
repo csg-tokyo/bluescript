@@ -1,6 +1,6 @@
 {
   "name": "@bscript/cli",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "engines": {
@@ -24,6 +24,9 @@
     "build": "tsc --build",
     "start": "ts-node src/index.ts",
     "test": "jest",
+
+    "prepack": "shx cp ../README.md README.md",
+    "postpack": "shx rm README.md",
     "prepublishOnly": "npm run build"
   },
   "bin": {

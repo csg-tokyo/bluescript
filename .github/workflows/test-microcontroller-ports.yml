@@ -1,4 +1,4 @@
-name: microcontroller ports ESP32
+name: Test Microcontroller Ports
 
 on:
   push:
