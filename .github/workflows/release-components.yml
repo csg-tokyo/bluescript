@@ -40,7 +40,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           registry-url: 'https://registry.npmjs.org'
 
       - name: Verify Version of @bscript/lang Matches Tag
@@ -54,13 +54,18 @@ jobs:
           fi
           echo "Version check of @bscript/lang passed: $TAG_VERSION"
 
-      - name: Verify Version of @bscript/cli Matches Tag
+      - name: Verify Version of @bscript/cli Matches Tag and @bscript/cli Installs Correct @bscript/lang Version
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           PKG_VERSION=$(node -p "require('./cli/package.json').version")
+          DEP_LANG_VERSION=$(node -p "require('./cli/package.json').dependencies['@bscript/lang']")
           
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "::error::Version Mismatch! Tag ($TAG_VERSION) != ./cli/package.json ($PKG_VERSION)"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$DEP_LANG_VERSION" ]; then
+            echo "::error::Version Mismatch! @bscript/lang@($DEP_LANG_VERSION) in dependencies is incorrect."
             exit 1
           fi
           echo "Version check of @bscript/cli passed: $TAG_VERSION"

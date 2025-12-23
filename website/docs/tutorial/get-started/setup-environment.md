@@ -13,7 +13,7 @@ Before we begin, ensure you have the following:
   - **Micocontroller:** An ESP32 development board (e.g., ESP32-DevKitC)
   - **USB cable** to connect your host PC and the microcontroller 
 - **Software**
-  - [Node.js](https://nodejs.org/) (v18 or later) installed on your host PC.
+  - [Node.js](https://nodejs.org/) (v20 or later) installed on your host PC.
 
 ---
 
