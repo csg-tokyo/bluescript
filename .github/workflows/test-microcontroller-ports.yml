@@ -9,7 +9,6 @@ on:
       - ".github/workflows/*.yml"
       - "microcontroller/core/**"
       - "microcontroller/ports/esp32/**"
-      - "modules/esp32/**"
 
 jobs:
   build:
