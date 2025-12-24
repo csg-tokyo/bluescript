@@ -1,0 +1,102 @@
+name: Release Website
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g. 1.0.0)'
+        required: true
+
+jobs:
+  versioning:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: ./website/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./website
+        run: npm ci
+
+      - name: Determine Version
+        id: determine_version
+        run: |
+          # 1. Get raw version number (e.g., 1.0.0 or 1.0.5)
+          if [ "${{ github.event_name }}" == "release" ]; then
+            TAG_NAME=${{ github.ref_name }}
+            RAW_VERSION=${TAG_NAME#v}
+          else
+            RAW_VERSION=${{ inputs.version }}
+          fi
+          echo "Detected raw version: $RAW_VERSION"
+
+          # 2. Convert to .x format (e.g., 1.0.5 -> 1.0.x)
+          BASE_VER=${RAW_VERSION%.*}
+          DOC_VERSION="${BASE_VER}.x"
+          echo "Target Docusaurus Version: $DOC_VERSION"
+          echo "doc_version=$DOC_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Clean up existing version (if any)
+        working-directory: ./website
+        env:
+          DOC_VERSION: ${{ steps.determine_version.outputs.doc_version }}
+        run: |
+          VERSION_DIR="versioned_docs/version-$DOC_VERSION"
+          SIDEBAR_FILE="versioned_sidebars/version-$DOC_VERSION-sidebars.json"
+          VERSIONS_JSON="versions.json"
+
+          if [ -d "$VERSION_DIR" ]; then
+            echo "Version $DOC_VERSION already exists. Cleaning up to overwrite..."
+            
+            # 1. Remove documentation directory
+            rm -rf "$VERSION_DIR"
+            echo "Removed $VERSION_DIR"
+            
+            # 2. Remove sidebar file
+            rm -f "$SIDEBAR_FILE"
+            echo "Removed $SIDEBAR_FILE"
+
+            # 3. Remove entry from versions.json using jq
+            # We filter out the current DOC_VERSION to reset the list state
+            if [ -f "$VERSIONS_JSON" ]; then
+              tmp=$(mktemp)
+              jq --arg v "$DOC_VERSION" 'map(select(. != $v))' "$VERSIONS_JSON" > "$tmp" && mv "$tmp" "$VERSIONS_JSON"
+              echo "Removed $DOC_VERSION from $VERSIONS_JSON"
+            fi
+          else
+            echo "Version $DOC_VERSION does not exist yet. Ready to create."
+          fi
+
+      - name: Run Docusaurus Versioning
+        working-directory: ./website
+        env:
+          DOC_VERSION: ${{ steps.determine_version.outputs.doc_version }}
+        run: |
+          echo "Creating version $DOC_VERSION..."
+          npm run docusaurus docs:version $DOC_VERSION
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "docs: update version ${{ steps.determine_version.outputs.doc_version }}"
+          title: "docs: update version ${{ steps.determine_version.outputs.doc_version }}"
+          body: "Automated docs update for version ${{ steps.determine_version.outputs.doc_version }}"
+          branch: "docs-version-${{ steps.determine_version.outputs.doc_version }}"
+          base: main

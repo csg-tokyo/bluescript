@@ -97,7 +97,7 @@ export async function handleRemoveCommand(board: string, options: { force: boole
 export function registerRemoveCommand(program: Command) {
     program
         .command('remove')
-        .description('remove the environment for a specific board')
+        .description('remove the environment for the specified board')
         .argument('<board-name>', 'name of the board to remove (e.g., esp32)') 
         .option('-f, --force', 'skip confirmation prompt')
         .action(handleRemoveCommand);

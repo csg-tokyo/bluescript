@@ -62,7 +62,7 @@ describe('board flash-runtime command', () => {
             await handleFlashRuntimeCommand('esp32', {});
 
             // --- Assert ---
-            expect(mockedLogger.warn).toHaveBeenCalledWith(`The environment for esp32 is not set up. Run 'bluescript board setup esp32' and try again.`);
+            expect(mockedLogger.warn).toHaveBeenCalledWith(`The environment for esp32 is not set up. Run 'bscript board setup esp32' and try again.`);
             // No further actions taken
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();
             expect(mockedExec).not.toHaveBeenCalled();
@@ -104,7 +104,7 @@ describe('board flash-runtime command', () => {
             await handleFlashRuntimeCommand('unknown-board', {});
             
             // --- Assert ---
-            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to flash runtime to unknown-board');
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to flash the runtime to unknown-board');
             expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
             expect(process.exit).toHaveBeenCalledWith(1);
         });
@@ -123,7 +123,7 @@ describe('board flash-runtime command', () => {
             await handleFlashRuntimeCommand('esp32', { port: '/tty/port1' });
 
             // --- Assert ---
-            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to flash runtime to esp32');
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to flash the runtime to esp32');
             expect(mockedShowErrorMessages).toHaveBeenCalledWith(expect.any(Error));
             expect(process.exit).toHaveBeenCalledWith(1);
         });

@@ -8,8 +8,8 @@
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
     "paths": {
-      "@bluescript/lang": ["../lang/src"],
-      "@bluescript/lang/*": ["../lang/src/*"]
+      "@bscript/lang": ["../lang/src"],
+      "@bscript/lang/*": ["../lang/src/*"]
     },
   },
   "include": ["src"],

@@ -7,7 +7,7 @@ Now that your environment is set up and the runtime is flashed to your device, l
 Create a new directory for your project. The CLI will generate the necessary configuration files.
 
 ```bash
-bscript create-project hello-bluescript
+bscript project create hello-bluescript
 cd hello-bluescript
 ```
 
@@ -35,7 +35,7 @@ Since the runtime is already flashed, **you can disconnect the USB cable** and p
 Run the following command in your terminal:
 
 ```bash
-bscript run
+bscript project run
 ```
 
 ### What happens next?
@@ -46,9 +46,9 @@ bscript run
 4.  **Execute:** The ESP32 executes the code immediately.
 
 :::warning Program Lost on Restart
-Please note that programs uploaded via `bscript run` are **not persisted** after a reboot.
+Please note that programs uploaded via `bscript project run` are **not persisted** after a reboot.
 
-If you restart or power off the device, the program will be lost. You will need to execute `bscript run` again to re-upload your code.
+If you restart or power off the device, the program will be lost. You will need to execute `bscript project run` again to re-upload your code.
 :::
 
 :::tip Try the REPL

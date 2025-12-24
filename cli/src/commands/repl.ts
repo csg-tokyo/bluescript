@@ -10,7 +10,7 @@ import {
     ProjectConfigHandler, 
 } from "../config/project-config";
 import { BleConnection, DeviceService } from "../services/ble";
-import { Compiler, CompilerConfig, ErrorLog, ExecutableBinary, MemoryLayout, PackageConfig } from "@bluescript/lang";
+import { Compiler, CompilerConfig, ErrorLog, ExecutableBinary, MemoryLayout, PackageConfig } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";

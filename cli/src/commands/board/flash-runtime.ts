@@ -63,7 +63,7 @@ export async function handleFlashRuntimeCommand(board: string, options: { port?:
 
         // Check if setup has already been completed.
         if (!flashRuntimeHandler.isSetup()) {
-            logger.warn(`The environment for ${board} is not set up. Run 'bluescript board setup ${board}' and try again.`);
+            logger.warn(`The environment for ${board} is not set up. Run 'bscript board setup ${board}' and try again.`);
             return;
         }
 
@@ -98,11 +98,11 @@ export async function handleFlashRuntimeCommand(board: string, options: { port?:
         await flashRuntimeHandler.flashRuntime(selectedPort);
 
         logger.br();
-        logger.success(`Success to flash BlueScript runtime to ${board}`);
-        logger.info(`Next step: go to the project directory and run ${chalk.yellow('bluescript run')}`);
+        logger.success(`Success to flash the BlueScript runtime to ${board}`);
+        logger.info(`Next step: go to the project directory and run ${chalk.yellow('bscript project run')}`);
 
     } catch (error) {
-        logger.error(`Failed to flash runtime to ${board}`);
+        logger.error(`Failed to flash the runtime to ${board}`);
         showErrorMessages(error);
         process.exit(1);
     }

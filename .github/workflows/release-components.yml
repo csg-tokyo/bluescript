@@ -1,0 +1,89 @@
+name: Release Components
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release-microcontroller:
+    name: Build and Upload microcontroller
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create ZIP of 'microcontroller' directory
+        run: zip -r release-microcontroller-${{ github.ref_name }}.zip microcontroller
+
+      - name: Upload microcontroller ZIP to Release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./release-microcontroller-${{ github.ref_name }}.zip
+          asset_name: release-microcontroller-${{ github.ref_name }}.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+  release-lang-and-cli:
+    name: Publish @bscript/lang and @bscript/cli
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify Version of @bscript/lang Matches Tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(node -p "require('./lang/package.json').version")
+          
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Version Mismatch! Tag ($TAG_VERSION) != ./lang/package.json ($PKG_VERSION)"
+            exit 1
+          fi
+          echo "Version check of @bscript/lang passed: $TAG_VERSION"
+
+      - name: Verify Version of @bscript/cli Matches Tag and @bscript/cli Installs Correct @bscript/lang Version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(node -p "require('./cli/package.json').version")
+          DEP_LANG_VERSION=$(node -p "require('./cli/package.json').dependencies['@bscript/lang']")
+          
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Version Mismatch! Tag ($TAG_VERSION) != ./cli/package.json ($PKG_VERSION)"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$DEP_LANG_VERSION" ]; then
+            echo "::error::Version Mismatch! @bscript/lang@($DEP_LANG_VERSION) in dependencies is incorrect."
+            exit 1
+          fi
+          echo "Version check of @bscript/cli passed: $TAG_VERSION"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Packages
+        run: npm run build --workspaces --if-present
+
+      - name: Publish @bscript/lang to npm
+        working-directory: ./lang
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish || echo 'Failed or skipped publishing @bscript/lang'
+
+      - name: Publish @bscript/cli to npm
+        working-directory: ./cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish || echo 'Failed or skipped publishing @bscript/cli'

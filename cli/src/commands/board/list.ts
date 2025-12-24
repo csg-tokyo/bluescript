@@ -16,7 +16,7 @@ export async function handleListCommand() {
         });
 
         logger.br();
-        logger.info(`To set up a new board, run ${chalk.yellow('bluescript board setup <board-name>')}`);
+        logger.info(`To set up a new board, run ${chalk.yellow('bscript board setup <board-name>')}`);
 
     } catch (error) {
         logger.error(`Failed to list up available board names`);

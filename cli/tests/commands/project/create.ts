@@ -1,4 +1,4 @@
-import { handleCreateProjectCommand } from '../../src/commands/create-project';
+import { handleCreateProjectCommand } from '../../../src/commands/project/create';
 import {
     mockedFs,
     mockedInquirer,
@@ -6,7 +6,7 @@ import {
     mockedShowErrorMessages,
     setupMocks,
     mockProcessExit,
-} from './mock-helpers';
+} from '../mock-helpers';
 
 describe('create project command', () => {
     let exitSpy: jest.SpyInstance;

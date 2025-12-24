@@ -2,11 +2,11 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import chalk from "chalk";
 import * as path from 'path';
-import { logger, showErrorMessages } from "../core/logger";
-import { DEFAULT_MAIN_FILE_NAME, ProjectConfigHandler } from "../config/project-config";
-import { cwd } from "../core/shell";
-import { BOARD_NAMES, isValidBoard } from "../config/board-utils";
-import * as fs from '../core/fs';
+import { logger, showErrorMessages } from "../../core/logger";
+import { DEFAULT_MAIN_FILE_NAME, ProjectConfigHandler } from "../../config/project-config";
+import { cwd } from "../../core/shell";
+import { BOARD_NAMES, isValidBoard } from "../../config/board-utils";
+import * as fs from '../../core/fs';
 
 const MAIN_FILE_CONTENTS = `print('Hello world!')\n`;
 const GIT_IGNORE_CONTENTS = `**/dist/\n`;
@@ -60,7 +60,7 @@ export async function handleCreateProjectCommand(name: string, options: { board?
 
         logger.br();
         logger.success(`Success to create a new project.`);
-        logger.info(`Next step: go to the project directory and run ${chalk.yellow('bluescript run')}`);
+        logger.info(`Next step: go to the project directory and run ${chalk.yellow('bscript project run')}`);
     } catch (error) {
         logger.error(`Failed to create a new project.`);
         showErrorMessages(error);
@@ -70,8 +70,8 @@ export async function handleCreateProjectCommand(name: string, options: { board?
 
 export function registerCreateProjectCommand(program: Command) {
     program
-        .command('create-project')
-        .description('create a new project.')
+        .command('create')
+        .description('create a new project')
         .argument('<project-name>', 'name of the new project')
         .option('-b, --board <board>', 'board name')
         .action(handleCreateProjectCommand);

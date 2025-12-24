@@ -8,8 +8,12 @@ Currently, only **ESP32 development boards** are supported.
 
 Before we begin, ensure you have the following:
 
-*   **Hardware:** An ESP32 development board (e.g., ESP32-DevKitC) and a USB cable.
-*   **Software:** [Node.js](https://nodejs.org/) (v18 or later) installed on your computer.
+- **Hardware:**
+  - **Host PC:** A laptop running **macOS** (Windows and Linux are currently **not** supported).
+  - **Micocontroller:** An ESP32 development board (e.g., ESP32-DevKitC)
+  - **USB cable** to connect your host PC and the microcontroller 
+- **Software**
+  - [Node.js](https://nodejs.org/) (v20 or later) installed on your host PC.
 
 ---
 
@@ -18,7 +22,7 @@ Before we begin, ensure you have the following:
 BlueScript provides a command-line interface (CLI) to manage projects and communicate with your device. Install it globally using npm:
 
 ```bash
-npm install -g @bluescript/cli
+npm install -g @bscript/cli
 ```
 
 Verify the installation:

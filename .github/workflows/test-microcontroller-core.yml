@@ -1,4 +1,4 @@
-name: microcontroller core
+name: Test Microcontroller Core
 
 on:
   push:

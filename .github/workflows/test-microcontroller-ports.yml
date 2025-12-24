@@ -1,4 +1,4 @@
-name: microcontroller ports ESP32
+name: Test Microcontroller Ports
 
 on:
   push:
@@ -9,7 +9,6 @@ on:
       - ".github/workflows/*.yml"
       - "microcontroller/core/**"
       - "microcontroller/ports/esp32/**"
-      - "modules/esp32/**"
 
 jobs:
   build:

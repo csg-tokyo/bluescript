@@ -1,8 +1,12 @@
 {
-  "name": "bluescript",
+  "name": "bscript",
   "private": true,
-  "workspaces": ["cli", "lang"],
+  "workspaces": [
+    "cli",
+    "lang"
+  ],
   "devDependencies": {
+    "shx": "^0.4.0",
     "typescript": "^5.9.2"
   },
   "scripts": {

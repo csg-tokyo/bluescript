@@ -1,9 +1,9 @@
 import { Command } from "commander";
-import { logger, showErrorMessages } from "../core/logger";
-import { LOCAL_PACKAGES_DIR, ProjectConfigHandler, PackageSource } from "../config/project-config";
-import { GLOBAL_BLUESCRIPT_PATH } from "../config/global-config";
-import { cwd, exec } from "../core/shell";
-import * as fs from '../core/fs';
+import { logger, showErrorMessages } from "../../core/logger";
+import { LOCAL_PACKAGES_DIR, ProjectConfigHandler, PackageSource } from "../../config/project-config";
+import { GLOBAL_BLUESCRIPT_PATH } from "../../config/global-config";
+import { cwd, exec } from "../../core/shell";
+import * as fs from '../../core/fs';
 import * as path from 'path';
 
 

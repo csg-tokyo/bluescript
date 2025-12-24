@@ -82,6 +82,10 @@ const config: Config = {
           label: 'Reference',
         },
         {
+          type: 'docsVersionDropdown',
+          position: 'right',
+        },
+        {
           href: 'https://github.com/csg-tokyo/bluescript',
           label: 'GitHub',
           position: 'right',
