@@ -12,8 +12,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["BlueScript", "TypeScript", "Microcontroller", "MCU","ESP32"],
-  "description": "A CLI for BlueScript",
+  "keywords": ["BlueScript", "TypeScript", "Microcontroller", "MCU", "IoT", "Robotics", "ESP32"],
+  "description": "A BlueScript Compiler",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/csg-tokyo/bluescript.git"

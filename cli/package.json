@@ -11,7 +11,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["BlueScript", "TypeScript", "Microcontroller", "MCU","ESP32"],
+  "keywords": ["BlueScript", "TypeScript", "Microcontroller", "MCU", "IoT", "Robotics", "ESP32"],
   "author": "Fumika Mochizuki <fumika.maejima@csg.ci.i.u-tokyo.ac.jp>",
   "description": "A CLI for BlueScript",
   "repository": {
