@@ -34,6 +34,7 @@ export class ProtocolPacketBuilder {
     private lastUnitRemain: number;
 
     constructor(unitSize: number, useFirstHeader = true) {
+        this.checkUnitSize(unitSize);
         if (useFirstHeader) {
             this.unitSize = unitSize - FIRST_HEADER_SIZE;
             this.lastUnit = Buffer.from(FIRST_HEADER);
@@ -42,6 +43,12 @@ export class ProtocolPacketBuilder {
             this.lastUnit = Buffer.from([]);
         }
         this.lastUnitRemain = this.unitSize;
+    }
+
+    private checkUnitSize(size: number) {
+        if (size < 15) {
+            throw new Error('Unit size is smaller than minimum unit size.');
+        }
     }
 
     public build(): Buffer[] {
@@ -64,11 +71,12 @@ export class ProtocolPacketBuilder {
 
         while (dataOffset < data.length) {
             const dataRemain = data.length - dataOffset;
-            const writtenBytes = this.loadChunk(currentAddress, data.subarray(dataOffset), dataRemain);
+            let writtenBytes = this.loadChunk(currentAddress, data.subarray(dataOffset), dataRemain);
             
             if (writtenBytes <= 0) {
                 this.flushUnit();
-                if (this.loadChunk(currentAddress, data.subarray(dataOffset), dataRemain) <= 0) {
+                writtenBytes = this.loadChunk(currentAddress, data.subarray(dataOffset), dataRemain);
+                if (writtenBytes === 0) {
                     throw new Error("Failed to make progress in load method. Check data and unit sizes.");
                 }
             }
@@ -93,7 +101,7 @@ export class ProtocolPacketBuilder {
             return 0;
         }
         
-        const header = this.createLoadHeader(Protocol.Load, address, chunkSize);
+        const header = this.createLoadHeader(address, chunkSize);
         const chunk = data.subarray(0, chunkSize);
 
         this.appendToCurrentUnit(header);
@@ -106,9 +114,9 @@ export class ProtocolPacketBuilder {
         return value & ~(alignment - 1);
     }
 
-    private createLoadHeader(loadCmd: number, address: number, size: number) {
+    private createLoadHeader(address: number, size: number) {
         const header = Buffer.allocUnsafe(LOAD_HEADER_SIZE);
-        header.writeUInt8(loadCmd, 0);       // cmd(1)
+        header.writeUInt8(Protocol.Load, 0); // cmd(1)
         header.writeUInt32LE(address, 1);    // address(4)
         header.writeUInt32LE(size, 5);       // size(4)
         return header;
