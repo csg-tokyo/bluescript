@@ -1022,7 +1022,7 @@ static CLASS_OBJECT(intarray_object, 1) = {
                .superclass = &object_class.clazz, .array_type_name = "[i", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
 value_t safe_value_to_intarray(bool nullable, value_t v) {
-    return safe_value_to_value(true, &intarray_object.clazz, v);
+    return safe_value_to_value(nullable, &intarray_object.clazz, v);
 }
 
 static pointer_t gc_new_intarray_base(int32_t n) {
