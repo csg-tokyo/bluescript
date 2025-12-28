@@ -1946,7 +1946,7 @@ test('array initialization with another object array', () => {
   ].join('\n') + '\n')
 })
 
-test.only('wrong array construction', () => {
+test('wrong array construction', () => {
   let src = `
   let a = ['one', 2]
   let b = new Array<string>(a)

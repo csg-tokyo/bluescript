@@ -1208,14 +1208,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       arg)
   }
 
-    private callExpressionArgOrArray(arg: AST.Node, paramType: StaticType, names: NameTable<Info>) {
+  private callExpressionArgOrArray(arg: AST.Node, paramType: StaticType, names: NameTable<Info>) {
     this.visit(arg, names)
     const argType = this.result
     if (isConsistent(argType, paramType) || this.isConsistentOnFirstPass(argType, paramType)
         || isSubtype(argType, paramType) || argType instanceof ArrayType) {
-        this.addStaticType(arg, argType)
-        return
-      }
+      this.addStaticType(arg, argType)
+      return
+    }
 
     this.assert(false,
       `passing an incompatible argument (${typeToString(argType)} to ${typeToString(paramType)} or an array type)`,

@@ -1051,12 +1051,13 @@ value_t gc_new_intarray(int32_t n, int32_t init_value) {
 }
 
 value_t gc_copy_intarray(value_t src) {
+    if (is_int_value(src))
+        return gc_new_intarray(value_to_int(src), 0);
+
     ROOT_SET(rootset, 1)
     rootset.values[0] = src;
     pointer_t destp;
-    if (is_int_value(src))
-        return gc_new_intarray(value_to_int(src), 0);
-    else if (gc_is_instance_of(&intarray_object.clazz, src)) {
+    if (gc_is_instance_of(&intarray_object.clazz, src)) {
         pointer_t srcp = value_to_ptr(src);
         int32_t n = srcp->body[0];
         destp = gc_new_intarray_base(n);
@@ -1139,12 +1140,13 @@ value_t gc_new_floatarray(int32_t n, float init_value) {
 }
 
 value_t gc_copy_floatarray(value_t src) {
+    if (is_int_value(src))
+        return gc_new_floatarray(value_to_int(src), 0);
+
     ROOT_SET(rootset, 1)
     rootset.values[0] = src;
     pointer_t destp;
-    if (is_int_value(src))
-        return gc_new_floatarray(value_to_int(src), 0);
-    else if (gc_is_instance_of(&floatarray_object.clazz, src)) {
+    if (gc_is_instance_of(&floatarray_object.clazz, src)) {
         pointer_t srcp = value_to_ptr(src);
         int32_t n = srcp->body[0];
         destp = gc_new_floatarray_base(n);
@@ -1245,12 +1247,13 @@ value_t gc_new_bytearray(bool is_boolean, int32_t n, int32_t init_value) {
 }
 
 value_t gc_copy_bytearray(bool is_boolean, value_t src) {
+    if (is_int_value(src))
+        return gc_new_bytearray(is_boolean, value_to_int(src), 0);
+
     ROOT_SET(rootset, 1)
     rootset.values[0] = src;
     pointer_t destp;
-    if (is_int_value(src))
-        return gc_new_bytearray(is_boolean, value_to_int(src), 0);
-    else if (gc_is_instance_of(&boolarray_object.clazz, src)
+    if (gc_is_instance_of(&boolarray_object.clazz, src)
              || gc_is_instance_of(&class_Uint8Array.clazz, src)) {
         pointer_t srcp = value_to_ptr(src);
         int32_t m = srcp->body[0];

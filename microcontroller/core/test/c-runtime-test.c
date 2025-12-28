@@ -358,25 +358,25 @@ void test_copy_floatarray() {
 }
 
 void test_copy_bytearray() {
-    ROOT_SET(rootset, 2);
+    ROOT_SET(root_set, 2);
     // Test 1: Copy from integer value (creates new array with specified size) - boolean array
     value_t arr1 = gc_copy_bytearray(true, int_to_value(5));
-    rootset.values[0] = arr1;
+    root_set.values[0] = arr1;
     Assert_equals(gc_bytearray_length(arr1), 5);
     Assert_true(gc_is_boolarray(arr1));
 
     // Test 2: Copy from integer value - byte array (Uint8Array)
     value_t arr2 = gc_copy_bytearray(false, int_to_value(5));
-    rootset.values[0] = arr2;
+    root_set.values[0] = arr2;
     Assert_equals(gc_bytearray_length(arr2), 5);
     Assert_true(!gc_is_boolarray(arr2));
 
     // Test 3: Copy from existing bytearray
     value_t src_bool = gc_make_bytearray(true, 4, 1, 0, 1, 1);
-    rootset.values[0] = src_bool;
+    root_set.values[0] = src_bool;
     Assert_equals(gc_bytearray_length(src_bool), 4);
     value_t arr3 = gc_copy_bytearray(true, src_bool);
-    rootset.values[1] = arr3;
+    root_set.values[1] = arr3;
     Assert_equals(gc_bytearray_length(arr3), 4);
     Assert_true(gc_is_boolarray(arr3));
 
@@ -393,9 +393,9 @@ void test_copy_bytearray() {
 
     // Test 4: Copy from Uint8Array
     value_t src_byte = gc_make_bytearray(false, 3, 255, 128, 64);
-    rootset.values[0] = src_byte;
+    root_set.values[0] = src_byte;
     value_t arr4 = gc_copy_bytearray(false, src_byte);
-    rootset.values[1] = arr4;
+    root_set.values[1] = arr4;
     Assert_equals(gc_bytearray_length(arr4), 3);
     Assert_equals(*gc_bytearray_get(arr4, 0), 255);
     Assert_equals(*gc_bytearray_get(arr4, 1), 128);
@@ -406,9 +406,9 @@ void test_copy_bytearray() {
                                     int_to_value(1),
                                     int_to_value(0),
                                     VALUE_TRUE);
-    rootset.values[0] = gen_arr;
+    root_set.values[0] = gen_arr;
     value_t arr5 = gc_copy_bytearray(true, gen_arr);
-    rootset.values[1] = arr5;
+    root_set.values[1] = arr5;
     Assert_equals(gc_bytearray_length(arr5), 3);
     Assert_equals(*gc_bytearray_get(arr5, 0), 1);
     Assert_equals(*gc_bytearray_get(arr5, 1), 0);
@@ -419,9 +419,9 @@ void test_copy_bytearray() {
                                      int_to_value(256),
                                      int_to_value(300),
                                      int_to_value(65));
-    rootset.values[0] = gen_arr2;
+    root_set.values[0] = gen_arr2;
     value_t arr6 = gc_copy_bytearray(false, gen_arr2);
-    rootset.values[1] = arr6;
+    root_set.values[1] = arr6;
     Assert_equals(gc_bytearray_length(arr6), 3);
     Assert_equals(*gc_bytearray_get(arr6, 0), 0);    // 256 & 0xff = 0
     Assert_equals(*gc_bytearray_get(arr6, 1), 44);   // 300 & 0xff = 44
@@ -429,10 +429,10 @@ void test_copy_bytearray() {
 
     // Test 7: Copy from negative size integer value (creates empty array)
     value_t v = gc_copy_bytearray(true, int_to_value(-1));
-    rootset.values[0] = v;
+    root_set.values[0] = v;
     Assert_equals(gc_bytearray_length(v), 0);
 
-    DELETE_ROOT_SET(rootset);
+    DELETE_ROOT_SET(root_set);
 }
 
 void test_copy_array() {
