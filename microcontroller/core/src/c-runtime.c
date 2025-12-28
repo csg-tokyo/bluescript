@@ -1050,6 +1050,30 @@ value_t gc_new_intarray(int32_t n, int32_t init_value) {
     return ptr_to_value(obj);
 }
 
+value_t gc_copy_intarray(value_t src) {
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = src;
+    pointer_t destp;
+    if (is_int_value(src))
+        return gc_new_intarray(value_to_int(src), 0);
+    else if (gc_is_instance_of(&intarray_object.clazz, src)) {
+        pointer_t srcp = value_to_ptr(src);
+        int32_t n = srcp->body[0];
+        destp = gc_new_intarray_base(n);
+        for (int32_t i = 1; i <= n; i++)
+            destp->body[i] = srcp->body[i];
+    }
+    else {
+        int32_t n = gc_array_length(safe_value_to_anyarray(false, src));
+        destp = gc_new_intarray_base(n);
+        for (int32_t i = 0; i < n; i++)
+            destp->body[i + 1] = safe_value_to_int(*gc_array_get(src, i));
+    }
+
+    DELETE_ROOT_SET(rootset)
+    return ptr_to_value(destp);
+}
+
 value_t gc_make_intarray(int32_t n, ...) {
     va_list args;
     pointer_t arrayp = gc_new_intarray_base(n);
@@ -1112,6 +1136,30 @@ value_t gc_new_floatarray(int32_t n, float init_value) {
         *(float*)&obj->body[i] = init_value;
 
     return ptr_to_value(obj);
+}
+
+value_t gc_copy_floatarray(value_t src) {
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = src;
+    pointer_t destp;
+    if (is_int_value(src))
+        return gc_new_floatarray(value_to_int(src), 0);
+    else if (gc_is_instance_of(&floatarray_object.clazz, src)) {
+        pointer_t srcp = value_to_ptr(src);
+        int32_t n = srcp->body[0];
+        destp = gc_new_floatarray_base(n);
+        for (int32_t i = 1; i <= n; i++)
+            destp->body[i] = srcp->body[i];
+    }
+    else {
+        int32_t n = gc_array_length(safe_value_to_anyarray(false, src));
+        destp = gc_new_floatarray_base(n);
+        for (int32_t i = 0; i < n; i++)
+            *(float*)&destp->body[i + 1] = safe_value_to_float(*gc_array_get(src, i));
+    }
+
+    DELETE_ROOT_SET(rootset)
+    return ptr_to_value(destp);
 }
 
 value_t gc_make_floatarray(int32_t n, ...) {
@@ -1194,6 +1242,38 @@ value_t gc_new_bytearray(bool is_boolean, int32_t n, int32_t init_value) {
         elements[i] = v;
 
     return ptr_to_value(obj);
+}
+
+value_t gc_copy_bytearray(bool is_boolean, value_t src) {
+    ROOT_SET(rootset, 1)
+    rootset.values[0] = src;
+    pointer_t destp;
+    if (is_int_value(src))
+        return gc_new_bytearray(is_boolean, value_to_int(src), 0);
+    else if (gc_is_instance_of(&boolarray_object.clazz, src)
+             || gc_is_instance_of(&class_Uint8Array.clazz, src)) {
+        pointer_t srcp = value_to_ptr(src);
+        int32_t m = srcp->body[0];
+        int32_t n = srcp->body[1];
+        destp = gc_new_bytearray_base(n, is_boolean ? &boolarray_object.clazz : &class_Uint8Array.clazz);
+        for (int32_t i = 1; i <= m; i++)
+            destp->body[i] = srcp->body[i];
+    }
+    else {
+        int32_t n = gc_array_length(safe_value_to_anyarray(false, src));
+        destp = gc_new_bytearray_base(n, is_boolean ? &boolarray_object.clazz : &class_Uint8Array.clazz);
+        uint8_t* elements = (uint8_t*)&destp->body[2];
+        for (int32_t i = 0; i < n; i++) {
+            value_t v = *gc_array_get(src, i);
+            if (is_boolean)
+                elements[i] = safe_value_to_bool(v);
+            else
+                elements[i] = safe_value_to_int(v) & 0xff;
+        }
+    }
+
+    DELETE_ROOT_SET(rootset)
+    return ptr_to_value(destp);
 }
 
 value_t gc_make_bytearray(bool is_boolean, int32_t n, ...) {
@@ -1374,6 +1454,9 @@ static inline int32_t real_array_length(int32_t n) { return ((n + 1) & ~7) + 7; 
 value_t gc_new_array(const class_object* clazz, int32_t n, value_t init_value) {
     ROOT_SET(rootset, 2)
     rootset.values[0] = init_value;
+    if (n < 0)
+        n = 0;
+
     pointer_t obj = gc_allocate_object(clazz == NULL ? &anyarray_object.clazz : clazz);
     rootset.values[1] = ptr_to_value(obj);
     const int32_t size = real_array_length(n);
@@ -1388,6 +1471,42 @@ value_t gc_new_array(const class_object* clazz, int32_t n, value_t init_value) {
     obj->body[0] = n;
     DELETE_ROOT_SET(rootset)
     return ptr_to_value(obj);
+}
+
+static bool is_subtype_of(value_t obj, const char** sig);
+
+value_t gc_copy_array(const class_object* clazz, value_t src) {
+    if (is_int_value(src)) {
+        if (clazz == NULL)
+            return gc_new_array(NULL, value_to_int(src), VALUE_UNDEF);
+        else
+            return runtime_error("wrong number of arguments for new Array<T>");
+    }
+    else {
+        class_object* src_class = gc_get_class_of(src);
+        if (!IS_ARRAY_TYPE(src_class))
+            runtime_type_error("new Array<T>(src:Array<T>)");
+
+        ROOT_SET(rootset, 1)
+        rootset.values[0] = src;
+        int32_t n = get_all_array_length(src);
+        value_t dest = gc_new_array(clazz, n, VALUE_UNDEF);
+        if (clazz == NULL)
+            for (int32_t i = 0; i < n; i++)
+                gc_array_set(dest, i, gc_safe_array_get(src, i));
+        else
+            for (int32_t i = 0; i < n; i++) {
+                value_t v = gc_safe_array_get(src, i);
+                const char* sig = &clazz->array_type_name[1];
+                if (is_subtype_of(v, &sig))
+                    gc_array_set(dest, i, v);
+                else
+                    runtime_type_error("Array element type mismatch");
+            }
+
+        DELETE_ROOT_SET(rootset)
+        return dest;
+    }
 }
 
 static value_t gc_grow_array(value_t obj, int32_t addedElements, int32_t offset) {

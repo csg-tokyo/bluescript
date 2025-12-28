@@ -6,18 +6,24 @@
 #include <math.h>
 #include "../src/c-runtime.c"
 
+static int nerrors = 0;
+
 #define Assert_true(v)     assert_true(v, __LINE__)
 
 static void assert_true(bool value, int line) {
-    if (!value)
+    if (!value) {
         printf("*** ERROR line %d\n", line);
+        nerrors++;
+    }
 }
 
 #define Assert_equals(a, b)     assert_equals(a, b, __LINE__)
 
 static void assert_equals(int a, int b, int line) {
-    if (a != b)
+    if (a != b) {
         printf("*** ERROR line %d: %d, %d\n", line, a, b);
+        nerrors++;
+    }
 }
 
 #define Assert_fequals(a, b)     assert_fequals(a, b, __LINE__)
@@ -25,7 +31,8 @@ static void assert_equals(int a, int b, int line) {
 static void assert_fequals(float a, float b, int line) {
     if (a != b) {
         printf("*** ERROR line %d: %f (%x), %f (%x)\n",
-        line, a, *(uint32_t*)&a, b, *(uint32_t*)&b);
+               line, a, *(uint32_t*)&a, b, *(uint32_t*)&b);
+        nerrors++;
     }
 }
 
@@ -40,22 +47,27 @@ static void assert_fequals2(float a, float b, int line) {
 
     if (a - b > (a > 0 ? a : -a) / 10000.0) {
         printf("*** ERROR line %d: %f (%x), %f (%x)\n",
-        line, a, *(uint32_t*)&a, b, *(uint32_t*)&b);
+               line, a, *(uint32_t*)&a, b, *(uint32_t*)&b);
+        nerrors++;
     }
 }
 
 #define Assert_pequals(a, b)     assert_pequals(a, b, __LINE__)
 
 static void assert_pequals(const void* a, const void* b, int line) {
-    if (a != b)
+    if (a != b) {
         printf("*** ERROR line %d: %p, %p\n", line, a, b);
+        nerrors++;
+    }
 }
 
 #define Assert_str_equals(a, b)     assert_str_equals(a, b, __LINE__)
 
 static void assert_str_equals(const char* a, const char* b, int line) {
-    if (strcmp(a, b) != 0)
+    if (strcmp(a, b) != 0) {
         printf("*** ERROR line %d: %p, %p\n", line, a, b);
+        nerrors++;
+    }
 }
 
 #ifdef LINUX64
@@ -248,6 +260,314 @@ void test_bytearray() {
 
 static value_t gc_vector_setter(value_t obj, value_t index, value_t new_value) {
     return gc_vector_set(obj, value_to_int(index), new_value);
+}
+
+void test_copy_intarray() {
+    ROOT_SET(root_set, 2);
+    // Test 1: Copy from integer value (creates new array with specified size)
+    value_t arr1 = gc_copy_intarray(int_to_value(5));
+    root_set.values[0] = arr1;
+    Assert_equals(gc_intarray_length(arr1), 5);
+    Assert_true(gc_is_intarray(arr1));
+
+    // Test 2: Copy from existing intarray
+    value_t src = gc_make_intarray(4, 10, 20, 30, 40);
+    root_set.values[0] = src;
+    Assert_equals(gc_intarray_length(src), 4);
+    value_t arr2 = gc_copy_intarray(src);
+    root_set.values[1] = arr2;
+    Assert_equals(gc_intarray_length(arr2), 4);
+    Assert_true(gc_is_intarray(arr2));
+
+    // Verify elements are copied correctly
+    Assert_equals(*gc_intarray_get(arr2, 0), 10);
+    Assert_equals(*gc_intarray_get(arr2, 1), 20);
+    Assert_equals(*gc_intarray_get(arr2, 2), 30);
+    Assert_equals(*gc_intarray_get(arr2, 3), 40);
+
+    // Verify copy is independent (modify original)
+    *gc_intarray_get(src, 0) = 100;
+    Assert_equals(*gc_intarray_get(src, 0), 100);
+    Assert_equals(*gc_intarray_get(arr2, 0), 10);  // Copy unchanged
+
+    // Test 3: Copy from generic array (type conversion)
+    value_t gen_arr = gc_make_array(NULL, 3, int_to_value(5), int_to_value(15), int_to_value(25));
+    root_set.values[0] = gen_arr;
+    value_t arr3 = gc_copy_intarray(gen_arr);
+    root_set.values[1] = arr3;
+    Assert_equals(gc_intarray_length(arr3), 3);
+    Assert_equals(*gc_intarray_get(arr3, 0), 5);
+    Assert_equals(*gc_intarray_get(arr3, 1), 15);
+    Assert_equals(*gc_intarray_get(arr3, 2), 25);
+
+    // Test 4: Copy from negative size integer value (creates empty array)
+    value_t v = gc_copy_intarray(int_to_value(-1));
+    root_set.values[0] = v;
+    Assert_equals(gc_intarray_length(v), 0);
+
+    DELETE_ROOT_SET(root_set);
+}
+
+void test_copy_floatarray() {
+    ROOT_SET(root_set, 2);
+    // Test 1: Copy from integer value (creates new array with specified size)
+    value_t arr1 = gc_copy_floatarray(int_to_value(3));
+    root_set.values[0] = arr1;
+    Assert_equals(gc_floatarray_length(arr1), 3);
+    Assert_true(gc_is_floatarray(arr1));
+
+    // Test 2: Copy from existing floatarray
+    value_t src = gc_make_floatarray(4, 1.5, 2.5, 3.5, 4.5);
+    root_set.values[0] = src;
+    Assert_equals(gc_floatarray_length(src), 4);
+    value_t arr2 = gc_copy_floatarray(src);
+    root_set.values[1] = arr2;
+    Assert_equals(gc_floatarray_length(arr2), 4);
+    Assert_true(gc_is_floatarray(arr2));
+
+    // Verify elements are copied correctly
+    Assert_fequals(*gc_floatarray_get(arr2, 0), 1.5);
+    Assert_fequals(*gc_floatarray_get(arr2, 1), 2.5);
+    Assert_fequals(*gc_floatarray_get(arr2, 2), 3.5);
+    Assert_fequals(*gc_floatarray_get(arr2, 3), 4.5);
+
+    // Verify copy is independent (modify original)
+    *gc_floatarray_get(src, 0) = 10.5;
+    Assert_fequals(*gc_floatarray_get(src, 0), 10.5);
+    Assert_fequals(*gc_floatarray_get(arr2, 0), 1.5);  // Copy unchanged
+
+    // Test 3: Copy from generic array (type conversion)
+    value_t gen_arr = gc_make_array(NULL, 3,
+                                    float_to_value(0.5),
+                                    float_to_value(1.5),
+                                    float_to_value(2.5));
+    root_set.values[0] = gen_arr;
+    value_t arr3 = gc_copy_floatarray(gen_arr);
+    root_set.values[1] = arr3;
+    Assert_equals(gc_floatarray_length(arr3), 3);
+    Assert_fequals2(*gc_floatarray_get(arr3, 0), 0.5);
+    Assert_fequals2(*gc_floatarray_get(arr3, 1), 1.5);
+    Assert_fequals2(*gc_floatarray_get(arr3, 2), 2.5);
+
+    // Test 4: Copy from negative size integer value (creates empty array)
+    value_t v = gc_copy_floatarray(int_to_value(-1));
+    root_set.values[0] = v;
+    Assert_equals(gc_floatarray_length(v), 0);
+
+    DELETE_ROOT_SET(root_set);
+}
+
+void test_copy_bytearray() {
+    ROOT_SET(rootset, 2);
+    // Test 1: Copy from integer value (creates new array with specified size) - boolean array
+    value_t arr1 = gc_copy_bytearray(true, int_to_value(5));
+    rootset.values[0] = arr1;
+    Assert_equals(gc_bytearray_length(arr1), 5);
+    Assert_true(gc_is_boolarray(arr1));
+
+    // Test 2: Copy from integer value - byte array (Uint8Array)
+    value_t arr2 = gc_copy_bytearray(false, int_to_value(5));
+    rootset.values[0] = arr2;
+    Assert_equals(gc_bytearray_length(arr2), 5);
+    Assert_true(!gc_is_boolarray(arr2));
+
+    // Test 3: Copy from existing bytearray
+    value_t src_bool = gc_make_bytearray(true, 4, 1, 0, 1, 1);
+    rootset.values[0] = src_bool;
+    Assert_equals(gc_bytearray_length(src_bool), 4);
+    value_t arr3 = gc_copy_bytearray(true, src_bool);
+    rootset.values[1] = arr3;
+    Assert_equals(gc_bytearray_length(arr3), 4);
+    Assert_true(gc_is_boolarray(arr3));
+
+    // Verify elements are copied correctly
+    Assert_equals(*gc_bytearray_get(arr3, 0), 1);
+    Assert_equals(*gc_bytearray_get(arr3, 1), 0);
+    Assert_equals(*gc_bytearray_get(arr3, 2), 1);
+    Assert_equals(*gc_bytearray_get(arr3, 3), 1);
+
+    // Verify copy is independent (modify original)
+    *gc_bytearray_get(src_bool, 0) = 0;
+    Assert_equals(*gc_bytearray_get(src_bool, 0), 0);
+    Assert_equals(*gc_bytearray_get(arr3, 0), 1);  // Copy unchanged
+
+    // Test 4: Copy from Uint8Array
+    value_t src_byte = gc_make_bytearray(false, 3, 255, 128, 64);
+    rootset.values[0] = src_byte;
+    value_t arr4 = gc_copy_bytearray(false, src_byte);
+    rootset.values[1] = arr4;
+    Assert_equals(gc_bytearray_length(arr4), 3);
+    Assert_equals(*gc_bytearray_get(arr4, 0), 255);
+    Assert_equals(*gc_bytearray_get(arr4, 1), 128);
+    Assert_equals(*gc_bytearray_get(arr4, 2), 64);
+
+    // Test 5: Copy from generic array (type conversion) - boolean
+    value_t gen_arr = gc_make_array(NULL, 3,
+                                    int_to_value(1),
+                                    int_to_value(0),
+                                    VALUE_TRUE);
+    rootset.values[0] = gen_arr;
+    value_t arr5 = gc_copy_bytearray(true, gen_arr);
+    rootset.values[1] = arr5;
+    Assert_equals(gc_bytearray_length(arr5), 3);
+    Assert_equals(*gc_bytearray_get(arr5, 0), 1);
+    Assert_equals(*gc_bytearray_get(arr5, 1), 0);
+    Assert_equals(*gc_bytearray_get(arr5, 2), 1);
+
+    // Test 6: Copy from generic array (type conversion) - byte with overflow
+    value_t gen_arr2 = gc_make_array(NULL, 3,
+                                     int_to_value(256),
+                                     int_to_value(300),
+                                     int_to_value(65));
+    rootset.values[0] = gen_arr2;
+    value_t arr6 = gc_copy_bytearray(false, gen_arr2);
+    rootset.values[1] = arr6;
+    Assert_equals(gc_bytearray_length(arr6), 3);
+    Assert_equals(*gc_bytearray_get(arr6, 0), 0);    // 256 & 0xff = 0
+    Assert_equals(*gc_bytearray_get(arr6, 1), 44);   // 300 & 0xff = 44
+    Assert_equals(*gc_bytearray_get(arr6, 2), 65);
+
+    // Test 7: Copy from negative size integer value (creates empty array)
+    value_t v = gc_copy_bytearray(true, int_to_value(-1));
+    rootset.values[0] = v;
+    Assert_equals(gc_bytearray_length(v), 0);
+
+    DELETE_ROOT_SET(rootset);
+}
+
+void test_copy_array() {
+    ROOT_SET(root_set, 2);
+    // Test 1: Copy from integer value (creates new array with specified size)
+    value_t arr1 = gc_copy_array(NULL, int_to_value(4));
+    root_set.values[0] = arr1;
+    Assert_equals(gc_array_length(arr1), 4);
+
+    // Test 2: Copy from existing array (untyped)
+    value_t src = gc_make_array(NULL, 3,
+                                int_to_value(10),
+                                float_to_value(2.5),
+                                VALUE_TRUE);
+    root_set.values[0] = src;
+    Assert_equals(gc_array_length(src), 3);
+    value_t arr2 = gc_copy_array(NULL, src);
+    root_set.values[1] = arr2;
+    Assert_equals(gc_array_length(arr2), 3);
+
+    // Verify elements are copied correctly
+    Assert_equals(*gc_array_get(arr2, 0), int_to_value(10));
+    Assert_equals(*gc_array_get(arr2, 1), float_to_value(2.5));
+    Assert_equals(*gc_array_get(arr2, 2), VALUE_TRUE);
+
+    // Verify copy is independent (modify original)
+    gc_array_set(src, 0, int_to_value(99));
+    Assert_equals(*gc_array_get(src, 0), int_to_value(99));
+    Assert_equals(*gc_array_get(arr2, 0), int_to_value(10));  // Copy unchanged
+
+    src = gc_make_intarray(3, 1, 2, 3);
+    root_set.values[0] = src;
+    value_t arr2b = gc_copy_array(NULL, src);
+    root_set.values[1] = arr2b;
+    Assert_equals(gc_array_length(arr2b), 3);
+    // Verify elements are copied correctly
+    Assert_equals(*gc_array_get(arr2b, 0), int_to_value(1));
+    Assert_equals(*gc_array_get(arr2b, 1), int_to_value(2));
+    Assert_equals(*gc_array_get(arr2b, 2), int_to_value(3));
+
+    // Test 3: Copy from vector (fixed array)
+    value_t vec = gc_new_vector(3, VALUE_UNDEF);
+    root_set.values[0] = vec;
+    gc_vector_set(vec, 0, int_to_value(5));
+    gc_vector_set(vec, 1, int_to_value(15));
+    gc_vector_set(vec, 2, int_to_value(25));
+    value_t arr3 = gc_copy_array(NULL, vec);
+    root_set.values[1] = arr3;
+    Assert_equals(gc_array_length(arr3), 3);
+    Assert_equals(*gc_array_get(arr3, 0), int_to_value(5));
+    Assert_equals(*gc_array_get(arr3, 1), int_to_value(15));
+    Assert_equals(*gc_array_get(arr3, 2), int_to_value(25));
+
+    // Test 4: Copy empty array
+    value_t empty = gc_make_array(NULL, 0);
+    root_set.values[0] = empty;
+    value_t arr4 = gc_copy_array(NULL, empty);
+    root_set.values[1] = arr4;
+    Assert_equals(gc_array_length(arr4), 0);
+
+    // Test 5: Copy from negative size integer value (creates empty array)
+    value_t v = gc_copy_array(NULL, int_to_value(-1));
+    root_set.values[0] = v;
+    Assert_equals(gc_array_length(v), 0);
+
+    DELETE_ROOT_SET(root_set);
+}
+
+static void test_copy_arrays_int() {
+    ROOT_SET(root_set, 1);
+    value_t v = gc_copy_intarray(VALUE_TRUE);
+    root_set.values[0] = v;
+    DELETE_ROOT_SET(root_set);
+}
+
+static void test_copy_arrays_int2() {
+    ROOT_SET(root_set, 2);
+    value_t a = gc_make_array(NULL, 2, int_to_value(10), VALUE_TRUE);
+    root_set.values[0] = a;
+    value_t v = gc_copy_intarray(a);
+    root_set.values[1] = v;
+    DELETE_ROOT_SET(root_set);
+}
+
+static void test_copy_arrays_float() {
+    ROOT_SET(root_set, 1);
+    value_t v = gc_copy_floatarray(VALUE_TRUE);
+    root_set.values[0] = v;
+    DELETE_ROOT_SET(root_set);
+}
+
+static void test_copy_arrays_float2() {
+    ROOT_SET(root_set, 2);
+    value_t a = gc_make_array(NULL, 2, float_to_value(10.3), VALUE_TRUE);
+    root_set.values[0] = a;
+    value_t v = gc_copy_floatarray(a);
+    root_set.values[1] = v;
+    DELETE_ROOT_SET(root_set);
+}
+
+static void test_copy_arrays_byte() {
+    ROOT_SET(root_set, 1);
+    value_t v = gc_copy_bytearray(true, VALUE_TRUE);
+    root_set.values[0] = v;
+    DELETE_ROOT_SET(root_set);
+}
+
+static void test_copy_arrays_byte2() {
+    ROOT_SET(root_set, 2);
+    value_t a = gc_make_array(NULL, 2, int_to_value(1), VALUE_TRUE);
+    root_set.values[0] = a;
+    value_t v = gc_copy_bytearray(false, a);  // error : byte[] cannot include a boolean value
+    root_set.values[1] = v;
+    DELETE_ROOT_SET(root_set);
+}
+
+static void test_copy_arrays_any() {
+    ROOT_SET(root_set, 1);
+    value_t v = gc_copy_array(NULL, VALUE_TRUE);  // error: any[] cannot be created from a boolean value
+    root_set.values[0] = v;
+    DELETE_ROOT_SET(root_set);
+}
+
+void test_copy_arrays() {
+    ROOT_SET(root_set, 1);
+    Assert_true(try_and_catch(test_copy_arrays_int));
+    Assert_true(try_and_catch(test_copy_arrays_int2));
+    Assert_true(try_and_catch(test_copy_arrays_float));
+    Assert_true(try_and_catch(test_copy_arrays_float2));
+    Assert_true(try_and_catch(test_copy_arrays_byte));
+    Assert_true(try_and_catch(test_copy_arrays_byte2));
+    Assert_true(try_and_catch(test_copy_arrays_any));
+
+    // because try_and_catch() may leave without cleaning up root set
+    DELETE_ROOT_SET(root_set);
 }
 
 void test_vector() {
@@ -570,6 +890,11 @@ void test_main() {
     test_string();
     test_String();
     test_bytearray();
+    test_copy_intarray();
+    test_copy_floatarray();
+    test_copy_bytearray();
+    test_copy_array();
+    test_copy_arrays();
     test_array();
     test_allocate_heap();
     test_root_set();
@@ -580,13 +905,20 @@ void test_main() {
     test_gc_liveness2();
     test_gc_sweep();
     test_gc_write_barrier();
-    puts("done");
 }
 
 int main() {
 #ifdef LINUX64
     test_pointer_table();
 #endif
-  gc_initialize();
-  return try_and_catch(test_main);
+    gc_initialize();
+    nerrors += try_and_catch(test_main);
+    if (nerrors > 0) {
+        printf("Test failed %d\n", nerrors);
+        return 1;
+    }
+    else {
+        puts("Test succeeded");
+        return 0;
+    }
 }

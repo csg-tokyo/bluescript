@@ -109,6 +109,15 @@ The initial values are zero, `false`, or `undefined`.
 For example, `new Array<integer>(7)` is a valid expression, and it
 constructs an array including 7 elements.
 
+The constructor for the `Array<T>` type provides two other overloads: one accepting an array of type `T[]`, and another accepting an array of type `any[]`.  This is particularly convenient when initializing an array using a variable of type `any`."
+
+```tsx
+let three: any = 3
+let arr = [1, 2, three]                         // arr is any[]
+let arr2 = new Array<integer>([1, 2, three])    // arr2 is integer[]
+```
+
+
 ### Type Annotations
 
 Array types are represented by `Type[]`.  Here, `Type` is a meta variable representing the type name of array elements.

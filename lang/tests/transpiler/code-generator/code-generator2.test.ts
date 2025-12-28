@@ -601,6 +601,7 @@ test('object array', () => {
     value: integer
     constructor(n) { this.value = n }
   }
+  const n = 3
   `
   const src2 = `
   const a = new Array<Foo>(n)
@@ -1817,4 +1818,157 @@ test('any parameter and integer return type', () => {
   `
 
   expect(compileAndRun(src, destFile)).toBe('7\n7\n7\n7\n')
+})
+
+test('array initialization with another array', () => {
+  const src = `
+  function foo() {
+    let a = new Array<integer>([1, 2, 3])
+    let a2: any = a
+    print(a.length)
+    let b = new Array<integer>(a)
+    print(b.length)
+    let b2 = new Array<integer>(a2)
+    print(b2.length)
+    let size: any = 4
+    let c = new  Array<integer>(size)
+    print(c.length)
+    let c2 = new Array<integer>(5)
+    print(c2.length)
+    let d = new Array<integer>([1, size])   // any[] is given as an initial value
+    print(d.length)
+    let e = new Array<any>([1, 2, 3, 4])
+    let e2 = new Array<integer>(e)
+    print(e2.length)
+  }
+
+  function bar() {
+    let a = new Array<float>([1, 2, 3])
+    let a2: any = a
+    print(a.length)
+    let b = new Array<float>(a)
+    print(b.length)
+    let b2 = new Array<float>(a2)
+    print(b2.length)
+    let size: any = 4
+    let c = new  Array<float>(size)
+    print(c.length)
+    let c2 = new Array<float>(5)
+    print(c2.length)
+    let d = new Array<float>([1, size])   // any[] is given as an initial value
+    print(d.length)
+    let e = new Array<any>([1, 2, 3, 4])
+    let e2 = new Array<float>(e)
+    print(e2.length)
+  }
+
+  function baz() {
+    let a = new Array<boolean>([false, true, true])
+    print(a.length)
+    print(a[0])
+    print(a[2])
+    let a2: any = a
+    let b = new Array<boolean>(a)
+    print(b.length)
+    let b2 = new Array<boolean>(a2)
+    print(b2.length)
+    let size: any = 4
+    let c = new  Array<boolean>(size)
+    print(c.length)
+    let c2 = new Array<boolean>(5)
+    print(c2.length)
+    let d2: any = false
+    let d = new Array<boolean>([true, d2])   // any[] is given as an initial value
+    print(d.length)
+    let e = new Array<any>([1, 2, false, 4])
+    let e2 = new Array<boolean>(e)
+    print(e2.length)
+    print(e2[2])
+  }
+
+  foo()
+  bar()
+  baz()
+  `
+
+  expect(compileAndRun(src, destFile)).toBe(['3', '3', '3', '4', '5', '2', '4',
+                                              '3', '3', '3', '4', '5', '2', '4',
+                                              '3', 'false', 'true', '3', '3', '4', '5', '2', '4', 'false'
+  ].join('\n') + '\n')
+})
+
+test('array initialization with another object array', () => {
+  const src = `
+  class Foo {
+    value: integer
+    constructor(i: integer) { this.value = i }
+  }
+
+  function foo() {
+    let a = new Array<Foo>([new Foo(1), new Foo(2), new Foo(3)])
+    let a2: any = a
+    print(a.length)
+    let b = new Array<Foo>(a)
+    print(b.length)
+    let b2 = new Array<Foo>(a2)
+    print(b2.length)
+    let size: any = 4
+    let c = new  Array<Foo>(size, new Foo(0))
+    print(c.length)
+    let c2 = new Array<Foo>(5, new Foo(0))
+    print(c2.length)
+    let d = new Array<any>([new Foo(1), new Foo(2), new Foo(3), new Foo(4)])
+    let d2 = new Array<Foo>(d)
+    print(d2.length)
+  }
+
+  function bar() {
+    let a = new Array<any>([1, true, 'foo'])
+    let a2: any = a
+    print(a.length)
+    let b = new Array<any>(a)
+    print(b.length)
+    let b2 = new Array<any>(a2)
+    print(b2.length)
+    let size: any = 4
+    let c = new Array<any>(size)
+    print(c.length)
+    let c2 = new Array<any>(5)
+    print(c2.length)
+  }
+
+  foo()
+  bar()
+  `
+
+  expect(compileAndRun(src, destFile)).toBe(['3', '3', '3', '4', '5', '4',
+                                             '3', '3', '3', '4', '5'
+  ].join('\n') + '\n')
+})
+
+test.only('wrong array construction', () => {
+  let src = `
+  let a = ['one', 2]
+  let b = new Array<string>(a)
+  `
+  expect(() => { compileAndRun(src, destFile) }).toThrow(/runtime type error:.*element type mismatch/)
+
+  src = `
+  let s: any = 'two'
+  let a = new Array<string>(s)
+  `
+  expect(() => { compileAndRun(src, destFile) }).toThrow(/runtime type error:.*new Array/)
+
+  src = `
+  let s: any = 2
+  let a = new Array<string>(s)
+  `
+  expect(() => { compileAndRun(src, destFile) }).toThrow(/runtime error:.*wrong number of arguments/)
+
+  src = `
+  let a = new Array<string>(['foo', 'bar', 3])
+  let b = new Array<integer>([1, 2, true])
+  let c = new Array<boolean>([true, false, 'baz'])
+  `
+  expect(() => { compileAndRun(src, destFile) }).toThrow(/string.*line 2.*\n.*integer.*line 3.*\n.*boolean.*line 4.*\n/)
 })
