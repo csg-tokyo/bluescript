@@ -126,6 +126,7 @@ struct gc_root_set {
 
 #define ROOT_SET(name,n)    ROOT_SET_DECL(name,n); ROOT_SET_INIT(name,n)
 
+#define VALUE_UNDEF_0
 #define VALUE_UNDEF_2       VALUE_UNDEF, VALUE_UNDEF
 #define VALUE_UNDEF_3       VALUE_UNDEF, VALUE_UNDEF, VALUE_UNDEF
 #define ROOT_SET_N(name,n,initv)     ROOT_SET_DECL(name,n) \

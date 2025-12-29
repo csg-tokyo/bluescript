@@ -115,15 +115,18 @@ static char error_message[256];
 // Otherwise, 0.
 int32_t try_and_catch(void (*main_function)()) {
     error_message[0] = '\0';
+    ROOT_SET_N(rootset,0,VALUE_UNDEF_0)
     if (setjmp(long_jump_buffer) != 0) {
         fputs(error_message, stderr);
 #ifndef LINUX64
         bs_protocol_write_error(error_message);
 #endif
+        DELETE_ROOT_SET(rootset)
         return 1;
     }
     else {
         main_function();
+        DELETE_ROOT_SET(rootset)
         return 0;
     }
 }
