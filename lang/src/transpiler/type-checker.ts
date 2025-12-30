@@ -1192,6 +1192,36 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         arg)
   }
 
+  // call-expression's overloaded (OL) arguments
+  private callExpressionOLArg(arg: AST.Node, paramTypes: StaticType[], names: NameTable<Info>, wrongType?: StaticType) {
+    this.visit(arg, names)
+    const argType = this.result
+    for (const t of paramTypes)
+      if (isConsistent(argType, t) || this.isConsistentOnFirstPass(argType, t) || isSubtype(argType, t)) {
+        this.addStaticType(arg, argType)
+        return
+      }
+
+    this.assert(argType !== wrongType, 'wrong number of arguments', arg)
+    this.assert(false,
+      `passing an incompatible argument (${typeToString(argType)} to ${paramTypes.map(t => typeToString(t)).join(' | ')})`,
+      arg)
+  }
+
+  private callExpressionArgOrArray(arg: AST.Node, paramType: StaticType, names: NameTable<Info>) {
+    this.visit(arg, names)
+    const argType = this.result
+    if (isConsistent(argType, paramType) || this.isConsistentOnFirstPass(argType, paramType)
+        || isSubtype(argType, paramType) || argType instanceof ArrayType) {
+      this.addStaticType(arg, argType)
+      return
+    }
+
+    this.assert(false,
+      `passing an incompatible argument (${typeToString(argType)} to ${typeToString(paramType)} or an array type)`,
+      arg)
+  }
+
   protected superConstructorCall(type: StaticType, node: AST.CallExpression, names: NameTable<Info>): void {
     const args = node.arguments
     if (type instanceof InstanceType) {
@@ -1250,16 +1280,25 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       if (this.assert(typeParams.length === 1, 'wrong numberr of type parameters', node))
         etype = typeParams[0]
 
+    const atype = new ArrayType(etype)
     const args = node.arguments
-    if (this.assert(args.length === 2 || (args.length === 1 && (etype === Integer || etype === Float
-                                                                || etype === BooleanT || etype === Any || isEnum(etype))),
-                    'wrong number of arguments', node)) {
-      this.callExpressionArg(args[0], Integer, names)
-      if (args.length === 2)
+    if (args.length === 2) {
+        // new Array<T>(length: Integer, initialValue: T)
+        this.callExpressionArg(args[0], Integer, names)
         this.callExpressionArg(args[1], etype, names)
     }
+    else if (this.assert(args.length === 1, 'wrong number of arguments', node)) {
+      // new Array<T>(p: Integer|T[]|any[])
+      if (AST.isArrayExpression(args[0]))
+        this.arrayExpressionWithUpperType(args[0], names, etype === Any ? undefined : etype)
+      else if (etype === Integer || etype === Float || etype === BooleanT || isEnum(etype))
+        this.callExpressionOLArg(args[0], [Integer, atype, new ArrayType(Any)], names)
+      else if (etype === Any)
+        this.callExpressionArgOrArray(args[0], Integer, names)
+      else
+        this.callExpressionOLArg(args[0], [atype, new ArrayType(Any)], names, Integer)
+    }
 
-    const atype = new ArrayType(etype)
     this.addStaticType(node, atype)
     this.result = atype
   }
@@ -1304,26 +1343,42 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   arrayExpression(node: AST.ArrayExpression, names: NameTable<Info>): void {
+    this.arrayExpressionWithUpperType(node, names)
+  }
+
+  private arrayExpressionWithUpperType(node: AST.ArrayExpression, names: NameTable<Info>, upperType?: StaticType): void {
     let etype: StaticType | undefined = undefined
     for (const ele of node.elements)
       if (AST.isExpression(ele)) {
         this.visit(ele, names)
         this.addStaticType(ele, this.result)
-        if (etype === undefined)
-          etype = this.result
+        if (upperType === undefined) {
+          if (etype === undefined)
+            etype = this.result
+          else {
+            const t = commonSuperType(etype, this.result)
+            if (t === undefined)
+              etype = Any
+            else
+              etype = t
+          }
+        }
         else {
-          const t = commonSuperType(etype, this.result)
-          if (t === undefined)
-            etype = Any
-          else
-            etype = t
+          if (!isSubtype(this.result, upperType) && !isConsistent(this.result, upperType)
+              && !this.isConsistentOnFirstPass(this.result, upperType))
+            this.assert(false,
+              `array element type '${typeToString(this.result)}' is not assignable to '${typeToString(upperType)}'`,
+              ele)
         }
       }
       else
         this.assert(false, 'unsupported array element', node)
 
     if (etype === undefined)
-      etype = Any     // the type of an empty array is any[]
+      if (upperType === undefined)
+        etype = Any     // the type of an empty array is any[]
+      else
+        etype = upperType
 
     const atype = new ArrayType(etype)
     this.addStaticType(node, atype)

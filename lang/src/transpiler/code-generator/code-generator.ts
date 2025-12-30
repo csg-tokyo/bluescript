@@ -1387,7 +1387,27 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       throw this.errorLog.push(`bad new expression`, node)
   }
 
-  newArrayExpression(node: AST.NewExpression, atype: ArrayType, env: VariableEnv): void {
+  private newArrayExpression(node: AST.NewExpression, atype: ArrayType, env: VariableEnv): void {
+    if (node.arguments.length === 1) {
+      if (AST.isArrayExpression(node.arguments[0])) {
+        // this expression is new Array<T>([e0, e1, ...])
+        this.arrayExpressionWithType(node.arguments[0], atype, env)
+        return
+      }
+      else {
+        const type = getStaticType(node.arguments[0])
+        if (type === Any || type instanceof ArrayType) {
+          // this expression is new Array<T>(a: integer|Array<T|Any>)
+          this.result.write(cr.arrayFromArray(atype, env))
+          let numOfObjectArgs = this.callExpressionArg(node.arguments[0], Any, env)
+          env.deallocate(numOfObjectArgs)
+          this.result.write(')')
+          return
+        }
+      }
+    }
+
+    // this expression is new Array<T>(size: integer, initialValue?: T)
     this.result.write(cr.arrayFromSize(atype, env))
     let numOfObjectArgs = this.callExpressionArg(node.arguments[0], Integer, env)
 
@@ -1440,6 +1460,10 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   arrayExpression(node: AST.ArrayExpression, env: VariableEnv):void {
     const atype = getStaticType(node)
+    this.arrayExpressionWithType(node, atype, env)
+  }
+
+  private arrayExpressionWithType(node: AST.ArrayExpression, atype: StaticType | undefined, env: VariableEnv):void {
     if (!(atype instanceof ArrayType))
       throw this.errorLog.push(`bad array expression`, node)
 

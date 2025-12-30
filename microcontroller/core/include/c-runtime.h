@@ -126,6 +126,7 @@ struct gc_root_set {
 
 #define ROOT_SET(name,n)    ROOT_SET_DECL(name,n); ROOT_SET_INIT(name,n)
 
+#define VALUE_UNDEF_0
 #define VALUE_UNDEF_2       VALUE_UNDEF, VALUE_UNDEF
 #define VALUE_UNDEF_3       VALUE_UNDEF, VALUE_UNDEF, VALUE_UNDEF
 #define ROOT_SET_N(name,n,initv)     ROOT_SET_DECL(name,n) \
@@ -237,6 +238,7 @@ extern value_t CR_SECTION gc_new_String(value_t s1, value_t s2);
 
 extern value_t CR_SECTION safe_value_to_intarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_intarray(int32_t n, int32_t init_value);
+extern value_t CR_SECTION gc_copy_intarray(value_t array);
 extern value_t CR_SECTION gc_make_intarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_intarray_length(value_t obj);
 extern int32_t* CR_SECTION gc_intarray_get(value_t obj, int32_t index);
@@ -244,6 +246,7 @@ extern bool CR_SECTION gc_is_intarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_floatarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_floatarray(int32_t n, float init_value);
+extern value_t CR_SECTION gc_copy_floatarray(value_t array);
 extern value_t CR_SECTION gc_make_floatarray(int32_t n, ...);
 extern int32_t CR_SECTION gc_floatarray_length(value_t obj);
 extern float* CR_SECTION gc_floatarray_get(value_t obj, int32_t index);
@@ -251,6 +254,7 @@ extern bool CR_SECTION gc_is_floatarray(value_t v);
 
 extern value_t CR_SECTION safe_value_to_boolarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_bytearray(bool is_boolean, int32_t n, int32_t init_value);
+extern value_t CR_SECTION gc_copy_bytearray(bool is_boolean, value_t array);
 extern value_t CR_SECTION gc_make_bytearray(bool is_boolean, int32_t n, ...);
 extern int32_t CR_SECTION gc_bytearray_length(value_t obj);
 extern uint8_t* CR_SECTION gc_bytearray_get(value_t obj, int32_t index);
@@ -266,6 +270,7 @@ extern value_t CR_SECTION gc_make_vector(int32_t n, ...);
 extern bool CR_SECTION gc_is_instance_of_array(value_t obj);
 extern value_t CR_SECTION safe_value_to_anyarray(bool nullable, value_t v);
 extern value_t CR_SECTION gc_new_array(const class_object* clazz, int32_t n, value_t init_value);
+extern value_t CR_SECTION gc_copy_array(const class_object* clazz, value_t array);
 extern value_t CR_SECTION gc_make_array(const class_object* clazz, int32_t n, ...);
 extern int32_t CR_SECTION gc_array_length(value_t obj);
 extern value_t* CR_SECTION gc_array_get(value_t obj, int32_t index);

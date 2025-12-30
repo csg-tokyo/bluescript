@@ -436,6 +436,20 @@ export function arrayFromSize(arrayType: ArrayType, env: VariableEnv) {
     return `gc_new_array(&${env.useArrayType(arrayType)[0]}.clazz, `
 }
 
+export function arrayFromArray(arrayType: ArrayType, env: VariableEnv) {
+  const t = arrayType.elementType
+  if (t === Integer || t instanceof EnumType)
+    return 'gc_copy_intarray('
+  else if (t === Float)
+    return 'gc_copy_floatarray('
+  else if (t === BooleanT)
+    return 'gc_copy_bytearray(true, '
+  else if (t === Any)
+    return 'gc_copy_array((void*)0, '
+  else
+    return `gc_copy_array(&${env.useArrayType(arrayType)[0]}.clazz, `
+}
+
 export const prefixOfarrayTypeNameInC = 'array_type'
 
 export function actualElementType(t: StaticType) {
