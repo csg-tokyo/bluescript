@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { Esp32BoardConfig, GlobalConfigHandler } from "../../config/global-config";
+import { Esp32BoardConfig } from "../../config/global-config";
 import { BoardName } from "../../config/board-utils";
 import { logger, LogStep, ProgramLogger, showErrorMessages } from "../../core/logger";
 import { 
@@ -14,17 +14,17 @@ import { BleConnection, DeviceService } from "../../services/ble";
 import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
+import { CommandHandler } from "../command";
 
 
-abstract class RunHandler {
-    protected globalConfigHandler: GlobalConfigHandler;
+abstract class RunHandler extends CommandHandler {
     protected projectConfigHandler: ProjectConfigHandler;
     protected programLogger: ProgramLogger;
     protected ble: BleConnection|null = null;
     protected deviceService: DeviceService|null = null;
     
     constructor(projectConfigHandler: ProjectConfigHandler) {
-        this.globalConfigHandler = GlobalConfigHandler.load();
+        super();
         this.projectConfigHandler = projectConfigHandler;
         this.programLogger = new ProgramLogger();
     }

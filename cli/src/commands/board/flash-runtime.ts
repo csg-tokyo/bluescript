@@ -2,24 +2,17 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import * as path from 'path';
 import { SerialPort } from 'serialport'
-import { GlobalConfigHandler } from "../../config/global-config";
 import { BoardName } from "../../config/board-utils";
 import { logger, LogStep, showErrorMessages } from "../../core/logger";
 import { exec } from '../../core/shell';
 import chalk from "chalk";
+import { CommandHandler } from "../command";
 
 
 const RUNTIME_ESP_PORT_DIR = (runtimeDir: string) => path.join(runtimeDir, 'ports/esp32');
 
-abstract class FlashRuntimeHandler {
-    globalConfigHandler: GlobalConfigHandler;
-    
-    constructor() {
-        this.globalConfigHandler = GlobalConfigHandler.load();
-    }
-
+abstract class FlashRuntimeHandler extends CommandHandler {
     abstract isSetup(): boolean;
-
     abstract flashRuntime(port: string, monitor: boolean): Promise<void>;
 }
 

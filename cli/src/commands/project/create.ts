@@ -5,29 +5,47 @@ import * as path from 'path';
 import { logger, showErrorMessages } from "../../core/logger";
 import { DEFAULT_MAIN_FILE_NAME, ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/shell";
-import { BOARD_NAMES, isValidBoard } from "../../config/board-utils";
+import { BOARD_NAMES, BoardName, isValidBoard } from "../../config/board-utils";
 import * as fs from '../../core/fs';
+import { CommandHandler } from "../command";
+
 
 const MAIN_FILE_CONTENTS = `print('Hello world!')\n`;
 const GIT_IGNORE_CONTENTS = `**/dist/\n`;
 
-function createProjectDir(projectName: string) {
-    const projectDir = path.join(cwd(), projectName);
-    if (fs.exists(projectDir)) {
-        throw new Error(`${projectDir} already exists.`);
+class CreateHandler extends CommandHandler {
+    private projectDir: string;
+    private projectConfigHandler: ProjectConfigHandler;
+
+    constructor(projectName: string, board: BoardName) {
+        super();
+        this.projectDir = path.join(cwd(), projectName);
+        this.projectConfigHandler = ProjectConfigHandler.createTemplate(projectName, board);
     }
-    fs.makeDir(projectDir);
-    return projectDir;
-}
 
-function createMainFile(dir: string) {
-    const filePath = path.join(dir, DEFAULT_MAIN_FILE_NAME);
-    fs.writeFile(filePath, MAIN_FILE_CONTENTS);
-}
+    create() {
+        this.createProjectDir();
+        this.createGitIgnore();
+        this.createMainFile();
+        this.projectConfigHandler.save(this.projectDir);
+    }
 
-function createGitIgnore(dir: string) {
-    const filePath = path.join(dir, '.gitignore');
-    fs.writeFile(filePath, GIT_IGNORE_CONTENTS);
+    private createProjectDir() {
+        if (fs.exists(this.projectDir)) {
+            throw new Error(`${this.projectDir} already exists.`);
+        }
+        fs.makeDir(this.projectDir);
+    }
+
+    private createMainFile() {
+        const filePath = path.join(this.projectDir, DEFAULT_MAIN_FILE_NAME);
+        fs.writeFile(filePath, MAIN_FILE_CONTENTS);
+    }
+
+    private createGitIgnore() {
+        const filePath = path.join(this.projectDir, '.gitignore');
+        fs.writeFile(filePath, GIT_IGNORE_CONTENTS);
+    }
 }
 
 export async function handleCreateProjectCommand(name: string, options: { board?: string }) {
@@ -50,13 +68,8 @@ export async function handleCreateProjectCommand(name: string, options: { board?
             throw new Error(`Unsupported board name: ${selectedBoard}`);
         }
 
-        const projectDir = createProjectDir(name);
-        
-        const projectConfigHandler = ProjectConfigHandler.createTemplate(name, selectedBoard);
-        projectConfigHandler.save(projectDir);
-        
-        createMainFile(projectDir);
-        createGitIgnore(projectDir);
+        const createHandler = new CreateHandler(name, selectedBoard);
+        createHandler.create();
 
         logger.br();
         logger.success(`Success to create a new project.`);

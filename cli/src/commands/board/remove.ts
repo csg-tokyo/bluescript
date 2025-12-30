@@ -1,25 +1,17 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
-import { GlobalConfigHandler } from "../../config/global-config";
 import { BoardName } from "../../config/board-utils";
 import { logger, LogStep, showErrorMessages } from "../../core/logger";
 import * as fs from '../../core/fs';
+import { CommandHandler } from "../command";
 
 
-abstract class RemoveHandler {
-    globalConfigHandler: GlobalConfigHandler;
-    
-    constructor() {
-        this.globalConfigHandler = GlobalConfigHandler.load();
-    }
-
+abstract class RemoveHandler extends CommandHandler {
     async remove() {
         await this.removeBoard();
         this.globalConfigHandler.save();
     }
-
     abstract isSetup(): boolean;
-
     abstract removeBoard(): Promise<void>;
 }
 

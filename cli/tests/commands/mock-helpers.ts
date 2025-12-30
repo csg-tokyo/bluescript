@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import { logger, showErrorMessages } from '../../src/core/logger';
 import { GlobalConfigHandler } from '../../src/config/global-config';
 import { ProjectConfigHandler } from '../../src/config/project-config';
+import packageJson from '../../package.json';
 
 
 export const mockedExec = exec as jest.Mock;
@@ -37,7 +38,7 @@ export function setupMocks() {
   jest.spyOn(GlobalConfigHandler, 'load').mockReturnValue(mockGlobalConfigHandler as unknown as GlobalConfigHandler);
 
   const mockProjectConfigHandler = {
-      getConfig: jest.fn(),
+      getConfig: jest.fn().mockReturnValue({version: packageJson.version}),
       getBoardName: jest.fn(),
       asBoard: jest.fn(),
       update: jest.fn(),

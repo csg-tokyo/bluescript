@@ -5,14 +5,16 @@ import { GLOBAL_BLUESCRIPT_PATH } from "../../config/global-config";
 import { cwd, exec } from "../../core/shell";
 import * as fs from '../../core/fs';
 import * as path from 'path';
+import { CommandHandler } from "../command";
 
 
-class InstallationHandler {
+class InstallationHandler extends CommandHandler {
     private projectConfigHandler: ProjectConfigHandler;
     private projectRootDir: string;
     private packagesDir: string;
 
     constructor() {
+        super();
         this.projectRootDir = cwd();
         this.projectConfigHandler = ProjectConfigHandler.load(this.projectRootDir);
         this.packagesDir = LOCAL_PACKAGES_DIR(this.projectRootDir);

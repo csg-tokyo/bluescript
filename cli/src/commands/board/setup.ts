@@ -3,11 +3,12 @@ import * as path from 'path';
 import * as os from 'os';
 import inquirer from 'inquirer';
 import { logger, LogStep, showErrorMessages, SkipStep } from "../../core/logger";
-import { VM_VERSION, GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../../config/global-config";
+import { VM_VERSION, GLOBAL_BLUESCRIPT_PATH } from "../../config/global-config";
 import { BoardName } from "../../config/board-utils";
 import { exec } from '../../core/shell';
 import * as fs from '../../core/fs';
 import chalk from "chalk";
+import { CommandHandler } from "../command";
 
 
 const RUNTIME_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/v${VM_VERSION}/release-microcontroller-v${VM_VERSION}.zip`;
@@ -20,12 +21,7 @@ const ESP_IDF_EXPORT_FILE = path.join(ESP_ROOT_DIR, 'esp-idf/export.sh');
 const ESP_IDF_INSTALL_FILE = path.join(ESP_ROOT_DIR, 'esp-idf/install.sh');
 
 
-abstract class SetupHandler {
-    protected globalConfigHandler: GlobalConfigHandler;
-
-    constructor() {
-        this.globalConfigHandler = GlobalConfigHandler.load();
-    }
+abstract class SetupHandler extends CommandHandler {
 
     getSetupPlan(): string[] {
         const plan: string[] = [];
@@ -65,9 +61,7 @@ abstract class SetupHandler {
     }
 
     abstract needSetup(): boolean;
-
     abstract getBoardSetupPlan(): string[];
-
     abstract setupBoard(): Promise<void>;
 }
 

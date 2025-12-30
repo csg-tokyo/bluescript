@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { Esp32BoardConfig, GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../config/global-config";
+import { Esp32BoardConfig, GLOBAL_BLUESCRIPT_PATH } from "../config/global-config";
 import { BoardName } from "../config/board-utils";
 import { logger, LogStep, replLogger, showErrorMessages } from "../core/logger";
 import { 
@@ -15,19 +15,18 @@ import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
 import * as fs from '../core/fs';
+import { CommandHandler } from "./command";
 
 
-
-abstract class ReplHandler {
+abstract class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
     static readonly tempProjectDir = path.join(GLOBAL_BLUESCRIPT_PATH, this.TEMP_PROJECT_NAME);
-    protected globalConfigHandler: GlobalConfigHandler;
     protected ble: BleConnection|null = null;
     protected deviceService: DeviceService|null = null;
     protected rl: readline.Interface;
 
     constructor() {
-        this.globalConfigHandler = GlobalConfigHandler.load();
+        super();
         this.rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,

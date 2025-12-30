@@ -3,9 +3,25 @@ import inquirer from 'inquirer';
 import { logger, showErrorMessages } from "../../core/logger";
 import * as fs from '../../core/fs';
 import { GLOBAL_BLUESCRIPT_PATH } from "../../config/global-config";
+import { CommandHandler } from "../command";
+
+
+class FullcleanHandler extends CommandHandler {
+    constructor() {
+        super(false);
+    }
+
+    fullclean() {
+        if (fs.exists(GLOBAL_BLUESCRIPT_PATH)) {
+            fs.removeDir(GLOBAL_BLUESCRIPT_PATH);
+        }
+    }
+}
 
 export async function handleFullcleanCommand(options: { force: boolean }) {
     try {
+        const fullcleanHandler = new FullcleanHandler();
+
         let confirmed = options.force;
         if (!confirmed) {
             const { proceed } = await inquirer.prompt([
@@ -24,9 +40,7 @@ export async function handleFullcleanCommand(options: { force: boolean }) {
         }
 
         // Fullclean
-        if (fs.exists(GLOBAL_BLUESCRIPT_PATH)) {
-            fs.removeDir(GLOBAL_BLUESCRIPT_PATH);
-        }
+        fullcleanHandler.fullclean();
 
         logger.br();
         logger.success(`Success to delete entire settings.`);
