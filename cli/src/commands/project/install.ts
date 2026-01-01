@@ -1,11 +1,11 @@
 import { Command } from "commander";
 import { logger, showErrorMessages } from "../../core/logger";
-import { LOCAL_PACKAGES_DIR, ProjectConfigHandler, PackageSource } from "../../config/project-config";
-import { GLOBAL_BLUESCRIPT_PATH } from "../../config/global-config";
+import { ProjectConfigHandler, PackageSource ,PROJECT_PATHS } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import * as fs from '../../core/fs';
 import * as path from 'path';
 import { CommandHandler } from "../command";
+import { GLOBAL_SETTINGS } from "../../config/constants";
 
 
 class InstallationHandler extends CommandHandler {
@@ -17,7 +17,7 @@ class InstallationHandler extends CommandHandler {
         super();
         this.projectRootDir = cwd();
         this.projectConfigHandler = ProjectConfigHandler.load(this.projectRootDir);
-        this.packagesDir = LOCAL_PACKAGES_DIR(this.projectRootDir);
+        this.packagesDir = PROJECT_PATHS.PACKAGES_DIR(this.projectRootDir);
     }
 
     public async installAll() {
@@ -59,7 +59,7 @@ class InstallationHandler extends CommandHandler {
 
     private async downloadPackage(url: string, version?: string): Promise<ProjectConfigHandler> {
         logger.log(`Downloading from ${url}...`);
-        const tmpDir = path.join(GLOBAL_BLUESCRIPT_PATH, 'tmp-package');
+        const tmpDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'tmp-package');
         const branchCmd = version ? `--branch ${version}` : '';
         const cmd = `git clone --depth 1 ${branchCmd} ${url} ${tmpDir}`;
         try {

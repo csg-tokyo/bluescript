@@ -3,11 +3,9 @@ import { Esp32BoardConfig } from "../../config/global-config";
 import { BoardName } from "../../config/board-utils";
 import { logger, LogStep, ProgramLogger, showErrorMessages } from "../../core/logger";
 import { 
-    BUILD_DIR,
     DEFAULT_DEVICE_NAME, 
-    DIST_DIR, 
-    LOCAL_PACKAGES_DIR, 
     ProjectConfigHandler, 
+    PROJECT_PATHS
 } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { BleConnection, DeviceService } from "../../services/ble";
@@ -157,7 +155,7 @@ class ESP32RunHandler extends RunHandler {
 
     private static packageReader(packageName: string): PackageConfig {
         const mainRoot = cwd();
-        const subPackageRoot = path.join(LOCAL_PACKAGES_DIR(mainRoot), packageName);
+        const subPackageRoot = path.join(PROJECT_PATHS.PACKAGES_DIR(mainRoot), packageName);
         const root = packageName === 'main' ? mainRoot : subPackageRoot;
         try {
             const projectConfigHandler = ProjectConfigHandler.load(root).asBoard('esp32');
@@ -167,9 +165,9 @@ class ESP32RunHandler extends RunHandler {
                 dependencies: Object.keys(projectConfigHandler.dependencies),
                 dirs: {
                     root,
-                    dist: DIST_DIR(root),
-                    build: BUILD_DIR(root),
-                    packages: LOCAL_PACKAGES_DIR(root)
+                    dist: PROJECT_PATHS.DIST_DIR(root),
+                    build: PROJECT_PATHS.BUILD_DIR(root),
+                    packages: PROJECT_PATHS.PACKAGES_DIR(root)
                 }
             }
         } catch (error) {

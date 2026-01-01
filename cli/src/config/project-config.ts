@@ -1,24 +1,40 @@
 import { z } from 'zod';
-import * as path from 'path';
 import * as fs from '../core/fs';
+import * as path from 'path';
 import { BoardName } from './board-utils';
-import { VM_VERSION } from './global-config';
+import { GLOBAL_SETTINGS } from './constants';
 
 
-const PROJECT_CONFIG_FILE_NAME = 'bsconfig.json';
 const DEfAULT_PROJECT_VERSION = '1.0.0';
 export const DEFAULT_DEVICE_NAME = 'BLUESCRIPT';
 
-export const DEFAULT_MAIN_FILE_NAME = 'index.bs';
-export const DIST_DIR = (root: string) => path.join(root, 'dist');
-export const BUILD_DIR = (root: string) => path.join(root, 'dist/build');
-export const LOCAL_PACKAGES_DIR = (root: string) => path.join(root, 'packages');
+export const PROJECT_PATHS = {
+    MAIN_FILE: (root: string) => {
+        return path.join(root, 'index.bs');
+    },
+
+    CONFIG_FILE: (root: string) => {
+        return path.join(root, 'bsconfig.json');
+    },
+
+    DIST_DIR: (root: string) => {
+        return path.join(root, 'dist');
+    },
+
+    BUILD_DIR: (root: string) => {
+        return path.join(root, 'dist/build');
+    },
+
+    PACKAGES_DIR: (root: string) => {
+        return path.join(root, 'packages');
+    }
+}
 
 
 const baseConfigSchema = z.object({
     projectName: z.string(),
     version: z.string().default(DEfAULT_PROJECT_VERSION),
-    vmVersion: z.string().default(VM_VERSION),
+    vmVersion: z.string().default(GLOBAL_SETTINGS.VM_VERSION),
     deviceName: z.string().default(DEFAULT_DEVICE_NAME).optional(),
     dependencies: z.record(z.string(), z.string()).default({}),
     runtimeDir: z.string().optional(), // for dev
@@ -51,8 +67,8 @@ export class ProjectConfigHandler {
         this.config = config;
     }
 
-    public static load(dir: string): ProjectConfigHandler {
-        const filePath = path.join(dir, PROJECT_CONFIG_FILE_NAME);
+    public static load(projectRoot: string): ProjectConfigHandler {
+        const filePath = PROJECT_PATHS.CONFIG_FILE(projectRoot);
         try {
             const fileContent = fs.readFile(filePath);
             const json = JSON.parse(fileContent);
@@ -157,12 +173,12 @@ export class ProjectConfigHandler {
         });
     }
 
-    public save(dir: string): void {
+    public save(projectRoot: string): void {
         try {
             const data = JSON.stringify(this.config, null, 2);
-            fs.writeFile(path.join(dir, PROJECT_CONFIG_FILE_NAME), data);
+            fs.writeFile(PROJECT_PATHS.CONFIG_FILE(projectRoot), data);
         } catch (error) {
-            throw new Error(`Failed to save project config to ${dir}.`, { cause: error });
+            throw new Error(`Failed to save project config to ${projectRoot}.`, { cause: error });
         }
     }
 }

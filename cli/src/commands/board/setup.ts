@@ -3,29 +3,19 @@ import * as path from 'path';
 import * as os from 'os';
 import inquirer from 'inquirer';
 import { logger, LogStep, showErrorMessages, SkipStep } from "../../core/logger";
-import { VM_VERSION, GLOBAL_BLUESCRIPT_PATH } from "../../config/global-config";
 import { BoardName } from "../../config/board-utils";
 import { exec } from '../../core/shell';
 import * as fs from '../../core/fs';
 import chalk from "chalk";
 import { CommandHandler } from "../command";
-
-
-const RUNTIME_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/v${VM_VERSION}/release-microcontroller-v${VM_VERSION}.zip`;
-const RUNTIME_DIR = path.join(GLOBAL_BLUESCRIPT_PATH, 'microcontroller');
-
-const ESP_IDF_VERSION = 'v5.4';
-const ESP_IDF_GIT_REPO = 'https://github.com/espressif/esp-idf.git';
-const ESP_ROOT_DIR = path.join(GLOBAL_BLUESCRIPT_PATH, 'esp');
-const ESP_IDF_EXPORT_FILE = path.join(ESP_ROOT_DIR, 'esp-idf/export.sh');
-const ESP_IDF_INSTALL_FILE = path.join(ESP_ROOT_DIR, 'esp-idf/install.sh');
+import { GLOBAL_SETTINGS } from "../../config/constants";
 
 
 abstract class SetupHandler extends CommandHandler {
 
     getSetupPlan(): string[] {
         const plan: string[] = [];
-        plan.push(`Download BlueScript runtime from ${RUNTIME_ZIP_URL}`);
+        plan.push(`Download BlueScript runtime from ${GLOBAL_SETTINGS.RUNTIME_ZIP_URL}`);
         plan.push(...this.getBoardSetupPlan());
         return plan;
     }
@@ -38,8 +28,8 @@ abstract class SetupHandler extends CommandHandler {
     }
 
     private ensureBlueScriptDir() {
-        if (!fs.exists(GLOBAL_BLUESCRIPT_PATH)) {
-            fs.makeDir(GLOBAL_BLUESCRIPT_PATH);
+        if (!fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_DIR)) {
+            fs.makeDir(GLOBAL_SETTINGS.BLUESCRIPT_DIR);
         }
     }
 
@@ -52,12 +42,12 @@ abstract class SetupHandler extends CommandHandler {
         if (!this.needToDownloadBlueScriptRuntime()) {
            throw new SkipStep('already downloaded.', undefined);
         }
-        if (fs.exists(RUNTIME_DIR)) {
-            fs.removeDir(RUNTIME_DIR);
+        if (fs.exists(GLOBAL_SETTINGS.RUNTIME_DIR)) {
+            fs.removeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
         }
         
-        await fs.downloadAndUnzip(RUNTIME_ZIP_URL, GLOBAL_BLUESCRIPT_PATH);
-        this.globalConfigHandler.setRuntimeDir(RUNTIME_DIR);
+        await fs.downloadAndUnzip(GLOBAL_SETTINGS.RUNTIME_ZIP_URL, GLOBAL_SETTINGS.BLUESCRIPT_DIR);
+        this.globalConfigHandler.setRuntimeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
     }
 
     abstract needSetup(): boolean;
@@ -97,7 +87,7 @@ export class ESP32SetupHandler extends SetupHandler {
         } else {
             throw new Error('Unknown OS.');
         }
-        plan.push(`Clone ESP-IDF ${ESP_IDF_VERSION} from ${ESP_IDF_GIT_REPO}.`);
+        plan.push(`Clone ESP-IDF ${GLOBAL_SETTINGS.ESP_IDF_VERSION} from ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}.`);
         plan.push('Run ESP-IDF install script.');
         return plan;
     }
@@ -109,9 +99,9 @@ export class ESP32SetupHandler extends SetupHandler {
         await this.runEspIdfInstallScript();
 
         this.globalConfigHandler.updateBoardConfig(this.boardName, {
-            idfVersion: ESP_IDF_VERSION,
-            rootDir: ESP_ROOT_DIR,
-            exportFile: ESP_IDF_EXPORT_FILE,
+            idfVersion: GLOBAL_SETTINGS.ESP_IDF_VERSION,
+            rootDir: GLOBAL_SETTINGS.ESP_ROOT_DIR,
+            exportFile: GLOBAL_SETTINGS.ESP_IDF_EXPORT_FILE,
             xtensaGccDir: await this.getXtensaGccDir(),
         });
     }
@@ -173,28 +163,29 @@ export class ESP32SetupHandler extends SetupHandler {
     }
 
     @LogStep(
-        `Cloning ESP-IDF ${ESP_IDF_VERSION} from ${ESP_IDF_GIT_REPO}... It may take a while.`
+        `Cloning ESP-IDF ${GLOBAL_SETTINGS.ESP_IDF_VERSION} from ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}... It may take a while.`
     )
     private async cloneEspIdf() {
-        if (fs.exists(ESP_ROOT_DIR)) {
-            fs.removeDir(ESP_ROOT_DIR);
+        if (fs.exists(GLOBAL_SETTINGS.ESP_ROOT_DIR)) {
+            fs.removeDir(GLOBAL_SETTINGS.ESP_ROOT_DIR);
         }
         if (!(await this.isPackageInstalled('git'))) {
             throw new Error('Cannot find git command. Please install git and try again.');
         }
 
-        fs.makeDir(ESP_ROOT_DIR);
-        await exec(`git clone --depth 1 -b ${ESP_IDF_VERSION} --recursive ${ESP_IDF_GIT_REPO}`, { cwd: ESP_ROOT_DIR });
+        fs.makeDir(GLOBAL_SETTINGS.ESP_ROOT_DIR);
+        await exec(`git clone --depth 1 -b ${GLOBAL_SETTINGS.ESP_IDF_VERSION} --recursive ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}`, 
+            { cwd: GLOBAL_SETTINGS.ESP_ROOT_DIR });
     }
 
     @LogStep('Running ESP-IDF install script...')
     private async runEspIdfInstallScript() {
-        await exec(ESP_IDF_INSTALL_FILE);
+        await exec(GLOBAL_SETTINGS.ESP_IDF_INSTALL_FILE);
     }
 
     private async getXtensaGccDir() {
         try {
-            const gccPath = await exec(`source ${ESP_IDF_EXPORT_FILE} > /dev/null 2>&1 && which xtensa-esp32-elf-gcc`, { silent:true });
+            const gccPath = await exec(`source ${GLOBAL_SETTINGS.ESP_IDF_EXPORT_FILE} > /dev/null 2>&1 && which xtensa-esp32-elf-gcc`, { silent:true });
             return path.dirname(gccPath);
         } catch (error) {
             throw new Error('Failed to get xtensa gcc path.', {cause: error});

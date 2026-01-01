@@ -1,12 +1,10 @@
 import { Command } from "commander";
-import { Esp32BoardConfig, GLOBAL_BLUESCRIPT_PATH } from "../config/global-config";
+import { Esp32BoardConfig } from "../config/global-config";
 import { BoardName } from "../config/board-utils";
 import { logger, LogStep, replLogger, showErrorMessages } from "../core/logger";
 import { 
-    BUILD_DIR,
     DEFAULT_DEVICE_NAME, 
-    DIST_DIR, 
-    LOCAL_PACKAGES_DIR, 
+    PROJECT_PATHS,
     ProjectConfigHandler, 
 } from "../config/project-config";
 import { BleConnection, DeviceService } from "../services/ble";
@@ -16,11 +14,12 @@ import * as readline from 'readline';
 import chalk from "chalk";
 import * as fs from '../core/fs';
 import { CommandHandler } from "./command";
+import { GLOBAL_SETTINGS } from "../config/constants";
 
 
 abstract class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
-    static readonly tempProjectDir = path.join(GLOBAL_BLUESCRIPT_PATH, this.TEMP_PROJECT_NAME);
+    static readonly tempProjectDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, this.TEMP_PROJECT_NAME);
     protected ble: BleConnection|null = null;
     protected deviceService: DeviceService|null = null;
     protected rl: readline.Interface;
@@ -193,9 +192,9 @@ class ESP32ReplHandler extends ReplHandler {
                 dependencies: Object.keys(projectConfigHandler.dependencies),
                 dirs: {
                     root,
-                    dist: DIST_DIR(root),
-                    build: BUILD_DIR(root),
-                    packages: LOCAL_PACKAGES_DIR(root)
+                    dist: PROJECT_PATHS.DIST_DIR(root),
+                    build: PROJECT_PATHS.BUILD_DIR(root),
+                    packages: PROJECT_PATHS.PACKAGES_DIR(root)
                 }
             }
         } catch (error) {

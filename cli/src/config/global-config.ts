@@ -1,17 +1,8 @@
 import { z } from 'zod';
-import * as os from 'os';
-import * as path from 'path';
 import * as fs from '../core/fs';
 import { BoardName } from './board-utils';
-import packageJson from '../../package.json';
+import { GLOBAL_SETTINGS } from './constants';
 
-
-const BLUESCRIPT_DIR_NAME = '.bluescript';
-const GLOBAL_CONFIG_FILE_NAME = 'config.json';
-
-export const VM_VERSION = packageJson.version;
-export const GLOBAL_BLUESCRIPT_PATH = path.join(os.homedir(), BLUESCRIPT_DIR_NAME);
-const GLOBAL_CONFIG_PATH = path.join(GLOBAL_BLUESCRIPT_PATH, GLOBAL_CONFIG_FILE_NAME);
 
 const esp32BoardSchema = z.object({
     idfVersion: z.string(),
@@ -25,7 +16,7 @@ const boardConfigSchema = z.object({
 });
 
 const globalConfigSchema = z.object({
-    version: z.string().default(VM_VERSION),
+    version: z.string().default(GLOBAL_SETTINGS.VM_VERSION),
     runtimeDir: z.string().optional(),
     boards: boardConfigSchema.default({}),
 });
@@ -42,11 +33,11 @@ export class GlobalConfigHandler {
     }
 
     static load() {
-        if (!fs.exists(GLOBAL_CONFIG_PATH)) {
+        if (!fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE)) {
             return new GlobalConfigHandler(globalConfigSchema.parse({}));
         }
         try {
-            const fileContent = fs.readFile(GLOBAL_CONFIG_PATH);
+            const fileContent = fs.readFile(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE);
             const json = JSON.parse(fileContent);
             const parsedConfig = globalConfigSchema.parse(json);
             return new GlobalConfigHandler(parsedConfig);
@@ -86,9 +77,9 @@ export class GlobalConfigHandler {
 
     save() {
         try {
-            fs.makeDir(GLOBAL_BLUESCRIPT_PATH);
+            fs.makeDir(GLOBAL_SETTINGS.BLUESCRIPT_DIR);
             const data = JSON.stringify(this.config, null, 2);
-            fs.writeFile(GLOBAL_CONFIG_PATH, data);
+            fs.writeFile(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE, data);
         } catch (error) {
             throw new Error(`Failed to save global config.`, {cause: error});
         }

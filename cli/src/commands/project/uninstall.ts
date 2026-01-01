@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { logger, showErrorMessages } from "../../core/logger";
-import { LOCAL_PACKAGES_DIR, ProjectConfigHandler } from "../../config/project-config";
+import { ProjectConfigHandler, PROJECT_PATHS } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import * as fs from '../../core/fs';
 import * as path from 'path';
@@ -18,7 +18,7 @@ class UninstallHandler extends CommandHandler {
     }
 
     uninstall(packageName: string) {
-        const packageDir = path.join(LOCAL_PACKAGES_DIR(this.projectDir), packageName);
+        const packageDir = path.join(PROJECT_PATHS.PACKAGES_DIR(this.projectDir), packageName);
         if (!this.projectConfigHandler.dependencyExists(packageName)) {
             throw new Error(`Package ${packageName} is not listed in bsconfig.json dependencies.`)
         }

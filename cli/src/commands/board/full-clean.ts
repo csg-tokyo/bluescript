@@ -2,8 +2,8 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import { logger, showErrorMessages } from "../../core/logger";
 import * as fs from '../../core/fs';
-import { GLOBAL_BLUESCRIPT_PATH } from "../../config/global-config";
 import { CommandHandler } from "../command";
+import { GLOBAL_SETTINGS } from "../../config/constants";
 
 
 class FullcleanHandler extends CommandHandler {
@@ -12,8 +12,8 @@ class FullcleanHandler extends CommandHandler {
     }
 
     fullclean() {
-        if (fs.exists(GLOBAL_BLUESCRIPT_PATH)) {
-            fs.removeDir(GLOBAL_BLUESCRIPT_PATH);
+        if (fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_DIR)) {
+            fs.removeDir(GLOBAL_SETTINGS.BLUESCRIPT_DIR);
         }
     }
 }
