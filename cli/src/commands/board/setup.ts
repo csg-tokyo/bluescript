@@ -234,7 +234,7 @@ export async function handleSetupCommand(board: string) {
         await setupHandler.setup();
 
         logger.br();
-        logger.success(`Success to se tup ${board}`);
+        logger.success(`Success to set up ${board}`);
         logger.info(`Next step: run ${chalk.yellow(`bscript board flash-runtime ${board}`)}`);
 
     } catch (error) {
