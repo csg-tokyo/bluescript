@@ -8,9 +8,6 @@ jobs:
   release-microcontroller:
     name: Build and Upload microcontroller
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
 
     steps:
       - name: Checkout code
