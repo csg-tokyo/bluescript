@@ -1,35 +1,34 @@
 import { Command } from "commander";
-import { Esp32BoardConfig, GlobalConfigHandler } from "../../config/global-config";
+import { Esp32BoardConfig } from "../../config/global-config";
 import { BoardName } from "../../config/board-utils";
 import { logger, LogStep, ProgramLogger, showErrorMessages } from "../../core/logger";
 import { 
-    BUILD_DIR,
     DEFAULT_DEVICE_NAME, 
-    DIST_DIR, 
-    LOCAL_PACKAGES_DIR, 
     ProjectConfigHandler, 
+    PROJECT_PATHS
 } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { BleConnection, DeviceService } from "../../services/ble";
 import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
+import { CommandHandler } from "../command";
 
 
-abstract class RunHandler {
-    protected globalConfigHandler: GlobalConfigHandler;
+abstract class RunHandler extends CommandHandler {
     protected projectConfigHandler: ProjectConfigHandler;
     protected programLogger: ProgramLogger;
     protected ble: BleConnection|null = null;
     protected deviceService: DeviceService|null = null;
     
     constructor(projectConfigHandler: ProjectConfigHandler) {
-        this.globalConfigHandler = GlobalConfigHandler.load();
+        super();
         this.projectConfigHandler = projectConfigHandler;
         this.programLogger = new ProgramLogger();
     }
 
     async run() {
+        this.checkBoardEnv();
         await this.setupBle();
         const memoryLayout = await this.initDevice();
         const {bin} = await this.compile(memoryLayout);
@@ -37,6 +36,13 @@ abstract class RunHandler {
         await this.execute(bin);
         await this.disconnectBLE();
         process.exit(0);
+    }
+
+    protected checkBoardEnv() {
+        const boardName = this.projectConfigHandler.getBoardName();
+        if (!this.globalConfigHandler.isBoardSetup(boardName)) {
+            throw new Error(`The environment for ${boardName} is not set up`);
+        }
     }
 
     @LogStep('Connecting via BLE...')
@@ -157,7 +163,7 @@ class ESP32RunHandler extends RunHandler {
 
     private static packageReader(packageName: string): PackageConfig {
         const mainRoot = cwd();
-        const subPackageRoot = path.join(LOCAL_PACKAGES_DIR(mainRoot), packageName);
+        const subPackageRoot = path.join(PROJECT_PATHS.PACKAGES_DIR(mainRoot), packageName);
         const root = packageName === 'main' ? mainRoot : subPackageRoot;
         try {
             const projectConfigHandler = ProjectConfigHandler.load(root).asBoard('esp32');
@@ -167,9 +173,9 @@ class ESP32RunHandler extends RunHandler {
                 dependencies: Object.keys(projectConfigHandler.dependencies),
                 dirs: {
                     root,
-                    dist: DIST_DIR(root),
-                    build: BUILD_DIR(root),
-                    packages: LOCAL_PACKAGES_DIR(root)
+                    dist: PROJECT_PATHS.DIST_DIR(root),
+                    build: PROJECT_PATHS.BUILD_DIR(root),
+                    packages: PROJECT_PATHS.PACKAGES_DIR(root)
                 }
             }
         } catch (error) {

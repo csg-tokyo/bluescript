@@ -1,21 +1,26 @@
 import { Command } from "commander";
 import { logger, showErrorMessages } from "../../core/logger";
-import { LOCAL_PACKAGES_DIR, ProjectConfigHandler, PackageSource } from "../../config/project-config";
-import { GLOBAL_BLUESCRIPT_PATH } from "../../config/global-config";
+import { ProjectConfigHandler, PackageSource ,PROJECT_PATHS } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import * as fs from '../../core/fs';
 import * as path from 'path';
+import { CommandHandler } from "../command";
+import { GLOBAL_SETTINGS } from "../../config/constants";
 
 
-class InstallationHandler {
+class InstallationHandler extends CommandHandler {
     private projectConfigHandler: ProjectConfigHandler;
     private projectRootDir: string;
     private packagesDir: string;
 
     constructor() {
+        super();
         this.projectRootDir = cwd();
         this.projectConfigHandler = ProjectConfigHandler.load(this.projectRootDir);
-        this.packagesDir = LOCAL_PACKAGES_DIR(this.projectRootDir);
+        this.packagesDir = PROJECT_PATHS.PACKAGES_DIR(this.projectRootDir);
+        if (!this.globalConfigHandler.isBoardSetup(this.projectConfigHandler.getBoardName())) {
+            throw new Error(`The environment for ${this.projectConfigHandler.getBoardName()} is not set up.`);
+        }
     }
 
     public async installAll() {
@@ -41,7 +46,8 @@ class InstallationHandler {
             if (installedPackages.has(currentPkg.name)) continue;
 
             const pkgConfigHandler = await this.downloadPackage(currentPkg.url, currentPkg.version);
-            pkgConfigHandler.checkVmVersion(this.projectConfigHandler.getConfig().vmVersion);
+            // pkgConfigHandler.checkVmVersion(this.projectConfigHandler.getConfig().vmVersion);
+            pkgConfigHandler.checkBoardName(this.projectConfigHandler.getBoardName());
             installedPackages.add(currentPkg.name);
             pkgConfigHandler.getDepenencies().forEach((pkgDep) => {
                 installedPackages.add(pkgDep.name);
@@ -57,7 +63,7 @@ class InstallationHandler {
 
     private async downloadPackage(url: string, version?: string): Promise<ProjectConfigHandler> {
         logger.log(`Downloading from ${url}...`);
-        const tmpDir = path.join(GLOBAL_BLUESCRIPT_PATH, 'tmp-package');
+        const tmpDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'tmp-package');
         const branchCmd = version ? `--branch ${version}` : '';
         const cmd = `git clone --depth 1 ${branchCmd} ${url} ${tmpDir}`;
         try {
@@ -88,9 +94,9 @@ export async function handleInstallCommand(url: string|undefined, options: {tag?
     try {
         const installationHandler = new InstallationHandler();
         if (url) {
-            installationHandler.installPackage(url, options.tag);
+            await installationHandler.installPackage(url, options.tag);
         } else {
-            installationHandler.installAll();
+            await installationHandler.installAll();
         }
     } catch (error) {
         const errorMessage = 

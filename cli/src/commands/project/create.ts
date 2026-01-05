@@ -3,31 +3,54 @@ import inquirer from 'inquirer';
 import chalk from "chalk";
 import * as path from 'path';
 import { logger, showErrorMessages } from "../../core/logger";
-import { DEFAULT_MAIN_FILE_NAME, ProjectConfigHandler } from "../../config/project-config";
+import { ProjectConfigHandler, PROJECT_PATHS } from "../../config/project-config";
 import { cwd } from "../../core/shell";
-import { BOARD_NAMES, isValidBoard } from "../../config/board-utils";
+import { BOARD_NAMES, BoardName, isValidBoard } from "../../config/board-utils";
 import * as fs from '../../core/fs';
+import { CommandHandler } from "../command";
+
 
 const MAIN_FILE_CONTENTS = `print('Hello world!')\n`;
 const GIT_IGNORE_CONTENTS = `**/dist/\n`;
 
-function createProjectDir(projectName: string) {
-    const projectDir = path.join(cwd(), projectName);
-    if (fs.exists(projectDir)) {
-        throw new Error(`${projectDir} already exists.`);
+class CreateHandler extends CommandHandler {
+    private board: BoardName;
+    private projectRoot: string;
+    private projectConfigHandler: ProjectConfigHandler;
+
+    constructor(projectName: string, board: BoardName) {
+        super();
+        this.board = board;
+        this.projectRoot = path.join(cwd(), projectName);
+        this.projectConfigHandler = ProjectConfigHandler.createTemplate(projectName, board);
     }
-    fs.makeDir(projectDir);
-    return projectDir;
-}
 
-function createMainFile(dir: string) {
-    const filePath = path.join(dir, DEFAULT_MAIN_FILE_NAME);
-    fs.writeFile(filePath, MAIN_FILE_CONTENTS);
-}
+    isBoardSetup() {
+        return this.globalConfigHandler.isBoardSetup(this.board);
+    } 
 
-function createGitIgnore(dir: string) {
-    const filePath = path.join(dir, '.gitignore');
-    fs.writeFile(filePath, GIT_IGNORE_CONTENTS);
+    create() {
+        this.createProjectDir();
+        this.createGitIgnore();
+        this.createMainFile();
+        this.projectConfigHandler.save(this.projectRoot);
+    }
+
+    private createProjectDir() {
+        if (fs.exists(this.projectRoot)) {
+            throw new Error(`${this.projectRoot} already exists.`);
+        }
+        fs.makeDir(this.projectRoot);
+    }
+
+    private createMainFile() {
+        fs.writeFile(PROJECT_PATHS.MAIN_FILE(this.projectRoot), MAIN_FILE_CONTENTS);
+    }
+
+    private createGitIgnore() {
+        const filePath = path.join(this.projectRoot, '.gitignore');
+        fs.writeFile(filePath, GIT_IGNORE_CONTENTS);
+    }
 }
 
 export async function handleCreateProjectCommand(name: string, options: { board?: string }) {
@@ -50,13 +73,13 @@ export async function handleCreateProjectCommand(name: string, options: { board?
             throw new Error(`Unsupported board name: ${selectedBoard}`);
         }
 
-        const projectDir = createProjectDir(name);
-        
-        const projectConfigHandler = ProjectConfigHandler.createTemplate(name, selectedBoard);
-        projectConfigHandler.save(projectDir);
-        
-        createMainFile(projectDir);
-        createGitIgnore(projectDir);
+        const createHandler = new CreateHandler(name, selectedBoard);
+
+        if (!createHandler.isBoardSetup()) {
+            throw new Error(`The environment for ${selectedBoard} is not set up.`);
+        }
+
+        createHandler.create();
 
         logger.br();
         logger.success(`Success to create a new project.`);

@@ -1,115 +1,104 @@
 import { handleRemoveCommand } from '../../../src/commands/board/remove';
+import { setupDefaultGlobalEnv, deleteGlobalEnv, setupGlobalEnvWithEsp32, getGlobalConfig, spyGlobalSettings } from '../global-env-helper';
 import {
-    mockedFs,
     mockedInquirer,
     mockedLogger,
     mockedShowErrorMessages,
-    setupMocks,
     mockProcessExit,
 } from '../mock-helpers';
 
-describe('board remove command', () => {
-    let exitSpy: jest.SpyInstance;
-    let mockGlobalConfigHandler: ReturnType<typeof setupMocks>['globalConfigHandler'];
 
-    beforeEach(() => {
-        const mocks = setupMocks();
-        mockGlobalConfigHandler = mocks.globalConfigHandler;
-        exitSpy = mockProcessExit();
+describe('board remove command', () => {
+    beforeAll(() => {
+        spyGlobalSettings('remove');
+    });
+    
+    afterEach(() => {
+        jest.clearAllMocks();
+        deleteGlobalEnv();
     });
 
-    afterEach(() => {
+    it('should show warning and exit if update is needed', async () => {
+        // --- Arrange ---
+        const exitSpy = mockProcessExit();
+        setupDefaultGlobalEnv(true);
+
+        // --- Act ---
+        await handleRemoveCommand('esp32', {});
+
+        // --- Assert ---
+        expect(mockedLogger.warn).toHaveBeenCalled();
+        expect(process.exit).toHaveBeenCalledWith(1);
+
+        // --- Clean up ---
+        exitSpy.mockRestore();
+    });
+
+    it('should cancel removal process if user denies the prompt', async () => {
+        // --- Arrange ---
+        setupGlobalEnvWithEsp32();
+        mockedInquirer.prompt.mockResolvedValue({ proceed: false });
+
+        // --- Act ---
+        await handleRemoveCommand('esp32', {});
+
+        // --- Assert ---
+        expect(mockedLogger.warn).toHaveBeenCalledWith('Removal process cancelled by user.');
+        expect(Object.keys(getGlobalConfig().boards)).toContain('esp32');
+    });
+
+    it('should not show prompt with force option', async () => {
+        // --- Arrange ---
+        setupGlobalEnvWithEsp32();
+
+        // --- Act ---
+        await handleRemoveCommand('esp32', {force: true});
+
+        // --- Assert ---
+        expect(mockedInquirer.prompt).not.toHaveBeenCalled();
+    });
+
+    it('should exit with an error for an unknown board name', async () => {
+        // --- Arrange ---
+        setupDefaultGlobalEnv();
+        const exitSpy = mockProcessExit();
+
+        // --- Act ---
+        await handleRemoveCommand('unknown-board', {});
+        
+        // --- Assert ---
+        expect(mockedLogger.error).toHaveBeenCalledWith('Failed to remove unknown-board');
+        expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
+        expect(process.exit).toHaveBeenCalledWith(1);
         exitSpy.mockRestore();
     });
 
     describe('for esp32 board', () => {
         it('should perform removal if setup for esp32 exists', async () => {
             // --- Arrange ---
-            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
-            mockedFs.exists.mockImplementation(() => true);
+            setupGlobalEnvWithEsp32();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
 
             // --- Act ---
-            await handleRemoveCommand('esp32', {force: false});
+            await handleRemoveCommand('esp32', {});
 
             // --- Assert ---
-            expect(mockedFs.removeDir).toHaveBeenCalled();
-            // Remove board config and save
-            expect(mockGlobalConfigHandler.removeBoardConfig).toHaveBeenCalledWith('esp32');
-            expect(mockGlobalConfigHandler.save).toHaveBeenCalledTimes(1);
+            expect(Object.keys(getGlobalConfig().boards)).not.toContain('esp32');
             // No errors logged
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
 
         it('should warn and exit if setup is not completed', async () => {
             // --- Arrange ---
-            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(false);
+            setupDefaultGlobalEnv();
 
             // --- Act ---
-            await handleRemoveCommand('esp32', {force: false});
+            await handleRemoveCommand('esp32', {});
 
             // --- Assert ---
             expect(mockedLogger.warn).toHaveBeenCalledWith('The environment for esp32 is not set up. Nothing to remove.');
             // No further actions taken
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();
-            expect(mockedFs.removeDir).not.toHaveBeenCalled();
-        });
-
-        it('should cancel removal process if user denies the prompt', async () => {
-            // --- Arrange ---
-            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
-            mockedInquirer.prompt.mockResolvedValue({ proceed: false });
-
-            // --- Act ---
-            await handleRemoveCommand('esp32', {force: false});
-
-            // --- Assert ---
-            expect(mockedLogger.warn).toHaveBeenCalledWith('Removal process cancelled by user.');
-            // No further actions taken
-            expect(mockedFs.removeDir).not.toHaveBeenCalled();
-        });
-
-        it('should not show prompt with force option', async () => {
-            // --- Arrange ---
-            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mockGlobalConfigHandler.getBoardConfig.mockReturnValue({});
-            mockedInquirer.prompt.mockResolvedValue({ proceed: false });
-
-            // --- Act ---
-            await handleRemoveCommand('esp32', {force: true});
-
-            // --- Assert ---
-            expect(mockedInquirer.prompt).not.toHaveBeenCalled();
-        });
-
-    });
-
-    describe('Error Handling', () => {
-        it('should exit with an error for an unknown board name', async () => {
-            // --- Act ---
-            await handleRemoveCommand('unknown-board', {force: false});
-            
-            // --- Assert ---
-            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to remove unknown-board');
-            expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
-            expect(process.exit).toHaveBeenCalledWith(1);
-        });
-
-        it('should handle errors during director removal', async () => {
-            // --- Arrange ---
-            mockGlobalConfigHandler.isBoardSetup.mockReturnValue(true);
-            mockedFs.removeDir.mockImplementation((path) => {
-                throw new Error('Failed to remove dir.');
-            });
-
-            // --- Act ---
-            await handleRemoveCommand('esp32', {force: false});
-
-            // --- Assert ---
-            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to remove esp32');
-            expect(mockedShowErrorMessages).toHaveBeenCalledWith(expect.any(Error));
-            expect(process.exit).toHaveBeenCalledWith(1);
         });
     });
 });

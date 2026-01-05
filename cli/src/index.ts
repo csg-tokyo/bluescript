@@ -14,6 +14,7 @@ import { registerFullcleanCommand } from './commands/board/full-clean';
 import { registerReplCommand } from './commands/repl';
 import { registerInstallCommand } from './commands/project/install';
 import { registerUninstallCommand } from './commands/project/uninstall';
+import { registerUpdateCommand } from './commands/board/update';
 
 
 function registerBoardCommands(program: Command) {
@@ -26,6 +27,7 @@ function registerBoardCommands(program: Command) {
     registerFlashRuntimeCommand(boardCommand);
     registerListCommand(boardCommand);
     registerFullcleanCommand(boardCommand);
+    registerUpdateCommand(boardCommand);
 }
 
 function registerProjectCommands(program: Command) {

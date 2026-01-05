@@ -1,12 +1,10 @@
 import { Command } from "commander";
-import { Esp32BoardConfig, GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler } from "../config/global-config";
+import { Esp32BoardConfig } from "../config/global-config";
 import { BoardName } from "../config/board-utils";
 import { logger, LogStep, replLogger, showErrorMessages } from "../core/logger";
 import { 
-    BUILD_DIR,
     DEFAULT_DEVICE_NAME, 
-    DIST_DIR, 
-    LOCAL_PACKAGES_DIR, 
+    PROJECT_PATHS,
     ProjectConfigHandler, 
 } from "../config/project-config";
 import { BleConnection, DeviceService } from "../services/ble";
@@ -15,19 +13,19 @@ import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
 import * as fs from '../core/fs';
+import { CommandHandler } from "./command";
+import { GLOBAL_SETTINGS } from "../config/constants";
 
 
-
-abstract class ReplHandler {
+abstract class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
-    static readonly tempProjectDir = path.join(GLOBAL_BLUESCRIPT_PATH, this.TEMP_PROJECT_NAME);
-    protected globalConfigHandler: GlobalConfigHandler;
+    static readonly tempProjectDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, this.TEMP_PROJECT_NAME);
     protected ble: BleConnection|null = null;
     protected deviceService: DeviceService|null = null;
     protected rl: readline.Interface;
 
     constructor() {
-        this.globalConfigHandler = GlobalConfigHandler.load();
+        super();
         this.rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
@@ -36,6 +34,7 @@ abstract class ReplHandler {
     }
 
     async start() {
+        this.checkBoardEnv();
         await this.setupBle();
         const memoryLayout = await this.initDevice();
         this.createTempProject();
@@ -122,6 +121,8 @@ abstract class ReplHandler {
         throw new Error('Failed to execute binary. BLE is not connected.');
     }
 
+    abstract checkBoardEnv(): void;
+
     abstract createTempProject(): void;
 
     abstract deleteTempProject(): void;
@@ -160,6 +161,12 @@ class ESP32ReplHandler extends ReplHandler {
         }
     }
 
+    checkBoardEnv() {
+        if (!this.globalConfigHandler.isBoardSetup(this.boardName)) {
+            throw new Error(`The environment for ${this.boardName} is not set up`);
+        }
+    }
+
     async compile(memoryLayout: MemoryLayout, src: string): Promise<{ bin: ExecutableBinary; time: number; }> {
             const startCompilation = performance.now();
             if (!this.compiler) {
@@ -194,9 +201,9 @@ class ESP32ReplHandler extends ReplHandler {
                 dependencies: Object.keys(projectConfigHandler.dependencies),
                 dirs: {
                     root,
-                    dist: DIST_DIR(root),
-                    build: BUILD_DIR(root),
-                    packages: LOCAL_PACKAGES_DIR(root)
+                    dist: PROJECT_PATHS.DIST_DIR(root),
+                    build: PROJECT_PATHS.BUILD_DIR(root),
+                    packages: PROJECT_PATHS.PACKAGES_DIR(root)
                 }
             }
         } catch (error) {
