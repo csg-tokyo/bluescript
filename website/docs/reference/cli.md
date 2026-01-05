@@ -54,7 +54,7 @@ bscript project install [git-url] [options]
 ```
 
 **Arguments:**
-*   `<git-url>`: (Optional) The URL of the Git repository to add as a dependency.
+*   `[git-url]`: (Optional) The URL of the Git repository to add as a dependency.
 
 **Options:**
 
@@ -81,8 +81,11 @@ bscript project install https://github.com/bluescript/drivers.git --tag v2.0.0
 Uninstall the specified package from the current project.
 
 ```bash
-bscript project uninstall [package-name]
+bscript project uninstall <package-name>
 ```
+
+**Arguments:**
+*   `<package-name>`: The package name to uninstall.
 
 ---
 
@@ -164,6 +167,9 @@ bscript board remove <board-name> [options]
 
 By default, this command asks for confirmation before deleting files.
 
+**Arguments:**
+*   `<board-name>`: The target board identifier (e.g., `esp32`).
+
 **Options:**
 
 | Option | Alias | Description |
@@ -186,6 +192,16 @@ By default, this command asks for confirmation before deleting files.
 | Option | Alias | Description |
 | :--- | :--- | :--- |
 | `--force` | `-f` | Skips the confirmation prompt and forces removal. |
+
+---
+
+### `bscript board update`
+
+Update the version of installed environments.
+
+```bash
+bscript board update
+```
 
 ---
 
