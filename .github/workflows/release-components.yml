@@ -8,6 +8,9 @@ jobs:
   release-microcontroller:
     name: Build and Upload microcontroller
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -78,12 +81,8 @@ jobs:
 
       - name: Publish @bscript/lang to npm
         working-directory: ./lang
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish || echo 'Failed or skipped publishing @bscript/lang'
+        run: npm publish --provenance || echo 'Failed or skipped publishing @bscript/lang'
 
       - name: Publish @bscript/cli to npm
         working-directory: ./cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish || echo 'Failed or skipped publishing @bscript/cli'
+        run: npm publish --provenance || echo 'Failed or skipped publishing @bscript/cli'
