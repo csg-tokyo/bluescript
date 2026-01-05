@@ -34,6 +34,7 @@ abstract class ReplHandler extends CommandHandler {
     }
 
     async start() {
+        this.checkBoardEnv();
         await this.setupBle();
         const memoryLayout = await this.initDevice();
         this.createTempProject();
@@ -120,6 +121,8 @@ abstract class ReplHandler extends CommandHandler {
         throw new Error('Failed to execute binary. BLE is not connected.');
     }
 
+    abstract checkBoardEnv(): void;
+
     abstract createTempProject(): void;
 
     abstract deleteTempProject(): void;
@@ -155,6 +158,12 @@ class ESP32ReplHandler extends ReplHandler {
     deleteTempProject(): void {
         if (fs.exists(ReplHandler.tempProjectDir)) {
             fs.removeDir(ReplHandler.tempProjectDir)
+        }
+    }
+
+    checkBoardEnv() {
+        if (!this.globalConfigHandler.isBoardSetup(this.boardName)) {
+            throw new Error(`The environment for ${this.boardName} is not set up`);
         }
     }
 

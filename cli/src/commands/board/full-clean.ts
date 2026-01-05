@@ -18,7 +18,7 @@ class FullcleanHandler extends CommandHandler {
     }
 }
 
-export async function handleFullcleanCommand(options: { force: boolean }) {
+export async function handleFullcleanCommand(options: { force?: boolean }) {
     try {
         const fullcleanHandler = new FullcleanHandler();
 

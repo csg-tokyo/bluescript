@@ -16,7 +16,7 @@ const boardConfigSchema = z.object({
 });
 
 const globalConfigSchema = z.object({
-    version: z.string().default(GLOBAL_SETTINGS.VM_VERSION),
+    version: z.string(),
     runtimeDir: z.string().optional(),
     boards: boardConfigSchema.default({}),
 });
@@ -34,7 +34,7 @@ export class GlobalConfigHandler {
 
     static load() {
         if (!fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE)) {
-            return new GlobalConfigHandler(globalConfigSchema.parse({}));
+            return new GlobalConfigHandler(globalConfigSchema.parse({version: GLOBAL_SETTINGS.VM_VERSION}));
         }
         try {
             const fileContent = fs.readFile(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE);
@@ -91,6 +91,10 @@ export class GlobalConfigHandler {
 
     setRuntimeDir(dir: string) {
         this.update({runtimeDir: dir});
+    }
+
+    setVersion(version: string) {
+        this.update({version});
     }
 
     getConfig(): Readonly<GlobalConfig> {

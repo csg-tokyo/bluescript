@@ -113,6 +113,12 @@ export class ProjectConfigHandler {
         }
     }
 
+    public checkBoardName(expected: BoardName) {
+        if (expected !== this.config.boardName) {
+            throw new Error(`The board name of ${this.config.projectName} is not match the expected board name(${expected}).`);
+        }
+    }
+
     public getBoardName(): BoardName {
         return this.config.boardName;
     }

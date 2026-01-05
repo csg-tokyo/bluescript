@@ -44,7 +44,7 @@ function getRemoveHandler(board: string) {
     }
 }
 
-export async function handleRemoveCommand(board: string, options: { force: boolean }) {
+export async function handleRemoveCommand(board: string, options: { force?: boolean }) {
     try {
         const removeHandler = getRemoveHandler(board);
 

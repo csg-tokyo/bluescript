@@ -28,6 +28,7 @@ abstract class RunHandler extends CommandHandler {
     }
 
     async run() {
+        this.checkBoardEnv();
         await this.setupBle();
         const memoryLayout = await this.initDevice();
         const {bin} = await this.compile(memoryLayout);
@@ -35,6 +36,13 @@ abstract class RunHandler extends CommandHandler {
         await this.execute(bin);
         await this.disconnectBLE();
         process.exit(0);
+    }
+
+    protected checkBoardEnv() {
+        const boardName = this.projectConfigHandler.getBoardName();
+        if (!this.globalConfigHandler.isBoardSetup(boardName)) {
+            throw new Error(`The environment for ${boardName} is not set up`);
+        }
     }
 
     @LogStep('Connecting via BLE...')

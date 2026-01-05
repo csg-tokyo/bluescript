@@ -18,6 +18,9 @@ class InstallationHandler extends CommandHandler {
         this.projectRootDir = cwd();
         this.projectConfigHandler = ProjectConfigHandler.load(this.projectRootDir);
         this.packagesDir = PROJECT_PATHS.PACKAGES_DIR(this.projectRootDir);
+        if (!this.globalConfigHandler.isBoardSetup(this.projectConfigHandler.getBoardName())) {
+            throw new Error(`The environment for ${this.projectConfigHandler.getBoardName()} is not set up.`);
+        }
     }
 
     public async installAll() {
@@ -43,7 +46,8 @@ class InstallationHandler extends CommandHandler {
             if (installedPackages.has(currentPkg.name)) continue;
 
             const pkgConfigHandler = await this.downloadPackage(currentPkg.url, currentPkg.version);
-            pkgConfigHandler.checkVmVersion(this.projectConfigHandler.getConfig().vmVersion);
+            // pkgConfigHandler.checkVmVersion(this.projectConfigHandler.getConfig().vmVersion);
+            pkgConfigHandler.checkBoardName(this.projectConfigHandler.getBoardName());
             installedPackages.add(currentPkg.name);
             pkgConfigHandler.getDepenencies().forEach((pkgDep) => {
                 installedPackages.add(pkgDep.name);
@@ -90,9 +94,9 @@ export async function handleInstallCommand(url: string|undefined, options: {tag?
     try {
         const installationHandler = new InstallationHandler();
         if (url) {
-            installationHandler.installPackage(url, options.tag);
+            await installationHandler.installPackage(url, options.tag);
         } else {
-            installationHandler.installAll();
+            await installationHandler.installAll();
         }
     } catch (error) {
         const errorMessage = 

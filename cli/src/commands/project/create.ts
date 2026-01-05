@@ -14,14 +14,20 @@ const MAIN_FILE_CONTENTS = `print('Hello world!')\n`;
 const GIT_IGNORE_CONTENTS = `**/dist/\n`;
 
 class CreateHandler extends CommandHandler {
+    private board: BoardName;
     private projectRoot: string;
     private projectConfigHandler: ProjectConfigHandler;
 
     constructor(projectName: string, board: BoardName) {
         super();
+        this.board = board;
         this.projectRoot = path.join(cwd(), projectName);
         this.projectConfigHandler = ProjectConfigHandler.createTemplate(projectName, board);
     }
+
+    isBoardSetup() {
+        return this.globalConfigHandler.isBoardSetup(this.board);
+    } 
 
     create() {
         this.createProjectDir();
@@ -68,6 +74,11 @@ export async function handleCreateProjectCommand(name: string, options: { board?
         }
 
         const createHandler = new CreateHandler(name, selectedBoard);
+
+        if (!createHandler.isBoardSetup()) {
+            throw new Error(`The environment for ${selectedBoard} is not set up.`);
+        }
+
         createHandler.create();
 
         logger.br();

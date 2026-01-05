@@ -17,6 +17,7 @@ class UpdateHandler extends CommandHandler {
         if (this.globalConfigHandler.isBoardSetup('esp32')) {
             await this.updateEsp32();
         }
+        this.globalConfigHandler.setVersion(GLOBAL_SETTINGS.VM_VERSION);
         this.globalConfigHandler.save();
     }
 

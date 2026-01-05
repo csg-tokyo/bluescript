@@ -36,6 +36,14 @@ jest.mock('../src/core/logger', () => {
 });
 
 
+jest.mock('../src/core/fs', () => {
+    return {
+        ...jest.requireActual('../src/core/fs'),
+        downloadAndUnzip: jest.fn()
+    }
+})
+
+
 jest.mock('../src/core/shell');
-jest.mock('../src/core/fs');
+// jest.mock('../src/core/fs');
 jest.mock('inquirer');

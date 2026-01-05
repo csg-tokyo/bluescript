@@ -1,39 +1,47 @@
-import { GLOBAL_BLUESCRIPT_PATH, GlobalConfigHandler, VM_VERSION } from '../../src/config/global-config';
+import { GlobalConfigHandler } from '../../src/config/global-config';
+import { GLOBAL_SETTINGS } from '../../src/config/constants';
 import * as fs from '../../src/core/fs';
-import * as path from 'path';
+import { deleteGlobalEnv, getGlobalConfig, setupEmpyGlobalEnv, spyGlobalSettings } from '../commands/global-env-helper';
 
-export const mockedFs = fs as jest.Mocked<typeof fs>;
 
 describe('GlobalConfigHandler', () => {
+    beforeAll(() => {
+        spyGlobalSettings('update');
+    });
+
+    afterEach(() => {
+        deleteGlobalEnv();
+    });
+
     it('shold load default confgi if there is no config file', () => {
         // --- Arrange ---
-        mockedFs.exists.mockReturnValue(false);
+        setupEmpyGlobalEnv();
 
         // --- Act ---
         const handler = GlobalConfigHandler.load();
 
         // --- Assert ---
         expect(handler.getConfig()).toEqual({
-            version: VM_VERSION,
+            version: GLOBAL_SETTINGS.VM_VERSION,
             boards: {}
         });
     });
 
     it('should save object to file', () => {
         // --- Arrange ---
-        mockedFs.exists.mockReturnValue(false);
+        setupEmpyGlobalEnv();
 
         // --- Act ---
         const handler = GlobalConfigHandler.load();
         handler.save();
 
         // --- Assert ---
-        expect(mockedFs.writeFile).toHaveBeenCalledWith(path.join(GLOBAL_BLUESCRIPT_PATH, 'config.json'), expect.any(String));
+        expect(fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE));
     });
 
     it('should update board config', () => {
         // --- Arrange ---
-        mockedFs.exists.mockReturnValue(false);
+        setupEmpyGlobalEnv();
 
         // --- Act ---
         const boardConfig = {
@@ -44,10 +52,11 @@ describe('GlobalConfigHandler', () => {
         }
         const handler = GlobalConfigHandler.load();
         handler.updateBoardConfig('esp32', boardConfig);
+        handler.save();
 
         // --- Assert ---
-        expect(handler.getConfig()).toEqual({
-            version: VM_VERSION,
+        expect(getGlobalConfig()).toEqual({
+            version: GLOBAL_SETTINGS.VM_VERSION,
             boards: {
                 esp32: boardConfig
             }
