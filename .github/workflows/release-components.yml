@@ -78,8 +78,8 @@ jobs:
 
       - name: Publish @bscript/lang to npm
         working-directory: ./lang
-        run: npm publish --provenance || echo 'Failed or skipped publishing @bscript/lang'
+        run: npm publish || echo 'Failed or skipped publishing @bscript/lang'
 
       - name: Publish @bscript/cli to npm
         working-directory: ./cli
-        run: npm publish --provenance || echo 'Failed or skipped publishing @bscript/cli'
+        run: npm publish || echo 'Failed or skipped publishing @bscript/cli'
