@@ -1,5 +1,3 @@
-# BlueScript
-
 <img src="./logo/PNG/logo2.png">
 
 **BlueScript** is a small and efficient programming language designed specifically for microcontrollers.  
