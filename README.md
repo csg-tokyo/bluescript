@@ -1,4 +1,4 @@
-<img src="./logo/PNG/logo2.png">
+<img src="./logo/PNG/logo2.png" width="100%" height="150px" style="object-fit: cover;">
 
 **BlueScript** is a small and efficient programming language designed specifically for microcontrollers.  
 While it currently supports only the ESP32 board, future updates will include support for a wider range of boards.
