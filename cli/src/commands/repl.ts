@@ -4,28 +4,30 @@ import { BoardName } from "../config/board-utils";
 import { logger, LogStep, replLogger, showErrorMessages } from "../core/logger";
 import { 
     DEFAULT_DEVICE_NAME, 
-    PROJECT_PATHS,
     ProjectConfigHandler, 
 } from "../config/project-config";
 import { BleConnection, DeviceService } from "../services/ble";
-import { Compiler, CompilerConfig, ErrorLog, ExecutableBinary, MemoryLayout, PackageConfig } from "@bscript/lang";
+import { Compiler, CompilerConfig, ErrorLog, ExecutableBinary, MemoryLayout } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
 import * as fs from '../core/fs';
 import { CommandHandler } from "./command";
 import { GLOBAL_SETTINGS } from "../config/constants";
+import { esp32PackageReader } from "./utils/package-reader";
 
 
 abstract class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
     static readonly tempProjectDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, this.TEMP_PROJECT_NAME);
+    protected projectConfigHandler: ProjectConfigHandler;
     protected ble: BleConnection|null = null;
     protected deviceService: DeviceService|null = null;
     protected rl: readline.Interface;
 
     constructor() {
         super();
+        this.projectConfigHandler = ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, this.getBoardName());
         this.rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
@@ -34,7 +36,6 @@ abstract class ReplHandler extends CommandHandler {
     }
 
     async start() {
-        this.checkBoardEnv();
         await this.setupBle();
         const memoryLayout = await this.initDevice();
         this.createTempProject();
@@ -88,7 +89,7 @@ abstract class ReplHandler extends CommandHandler {
         return new Promise<void>((resolve, reject) => {
             this.rl.on('line', async (line) => {
                 try {
-                    const {bin} = await this.compile(memoryLayout, line);
+                    const bin = await this.compile(memoryLayout, line);
                     await this.load(bin);
                     await this.execute(bin);
                     this.rl.prompt();
@@ -121,20 +122,29 @@ abstract class ReplHandler extends CommandHandler {
         throw new Error('Failed to execute binary. BLE is not connected.');
     }
 
-    abstract checkBoardEnv(): void;
+    protected createTempProject() {
+        if (fs.exists(ReplHandler.tempProjectDir)) {
+            fs.removeDir(ReplHandler.tempProjectDir)
+        }
+        fs.makeDir(ReplHandler.tempProjectDir);
+        this.projectConfigHandler.save(ReplHandler.tempProjectDir);
+    };
 
-    abstract createTempProject(): void;
+    protected deleteTempProject() {
+        if (fs.exists(ReplHandler.tempProjectDir)) {
+            fs.removeDir(ReplHandler.tempProjectDir)
+        }
+    };
 
-    abstract deleteTempProject(): void;
+    abstract getBoardName(): BoardName;
 
-    abstract compile(memoryLayout: MemoryLayout, src: string): Promise<{bin: ExecutableBinary, time: number}>;
+    abstract compile(memoryLayout: MemoryLayout, src: string): Promise<ExecutableBinary>;
 }
 
 
 class ESP32ReplHandler extends ReplHandler {
     readonly boardName: BoardName = 'esp32';
     private boardConfig: Esp32BoardConfig;
-    private projectConfigHandler: ProjectConfigHandler;
     private compiler?: Compiler;
 
     constructor() {
@@ -147,35 +157,16 @@ class ESP32ReplHandler extends ReplHandler {
         this.projectConfigHandler = ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, this.boardName);
     }
 
-    createTempProject(): void {
-        if (fs.exists(ReplHandler.tempProjectDir)) {
-            fs.removeDir(ReplHandler.tempProjectDir)
-        }
-        fs.makeDir(ReplHandler.tempProjectDir);
-        this.projectConfigHandler.save(ReplHandler.tempProjectDir);
+    getBoardName(): BoardName {
+        return this.boardName;
     }
 
-    deleteTempProject(): void {
-        if (fs.exists(ReplHandler.tempProjectDir)) {
-            fs.removeDir(ReplHandler.tempProjectDir)
+    async compile(memoryLayout: MemoryLayout, src: string): Promise<ExecutableBinary> {
+        if (!this.compiler) {
+            this.compiler = new Compiler(memoryLayout, this.getCompilerConfig(), esp32PackageReader);
         }
+        return this.compiler.compile(src);
     }
-
-    checkBoardEnv() {
-        if (!this.globalConfigHandler.isBoardSetup(this.boardName)) {
-            throw new Error(`The environment for ${this.boardName} is not set up`);
-        }
-    }
-
-    async compile(memoryLayout: MemoryLayout, src: string): Promise<{ bin: ExecutableBinary; time: number; }> {
-            const startCompilation = performance.now();
-            if (!this.compiler) {
-                this.compiler = new Compiler(memoryLayout, this.getCompilerConfig(), ESP32ReplHandler.packageReader);
-            }
-            const bin = await this.compiler.compile(src);
-            const time = performance.now() - startCompilation;
-            return {bin, time};
-        }
     
     private getCompilerConfig(): CompilerConfig {
         const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
@@ -187,30 +178,7 @@ class ESP32ReplHandler extends ReplHandler {
             compilerToolchainDir: this.boardConfig.xtensaGccDir,
             espDir: this.boardConfig.rootDir
         }
-    }
-    
-    private static packageReader(packageName: string): PackageConfig {
-        if (packageName !== 'main') {
-            throw new Error('The REPL does not support importing packages.');
-        }
-        const root = ReplHandler.tempProjectDir;
-        try {
-            const projectConfigHandler = ProjectConfigHandler.load(root).asBoard('esp32');
-            return {
-                name: packageName,
-                espIdfComponents: projectConfigHandler.espIdfComponents,
-                dependencies: Object.keys(projectConfigHandler.dependencies),
-                dirs: {
-                    root,
-                    dist: PROJECT_PATHS.DIST_DIR(root),
-                    build: PROJECT_PATHS.BUILD_DIR(root),
-                    packages: PROJECT_PATHS.PACKAGES_DIR(root)
-                }
-            }
-        } catch (error) {
-            throw new Error(`Faild to read ${packageName}.`, { cause: error });
-        }
-    }
+    }    
 }
 
 

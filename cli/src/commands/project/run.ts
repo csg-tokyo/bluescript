@@ -5,14 +5,13 @@ import { logger, LogStep, ProgramLogger, showErrorMessages } from "../../core/lo
 import { 
     DEFAULT_DEVICE_NAME, 
     ProjectConfigHandler, 
-    PROJECT_PATHS
 } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { BleConnection, DeviceService } from "../../services/ble";
-import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout, PackageConfig } from "@bscript/lang";
-import * as path from 'path';
+import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout } from "@bscript/lang";
 import * as readline from 'readline';
 import { CommandHandler } from "../command";
+import { esp32PackageReader } from "../utils/package-reader";
 
 
 abstract class RunHandler extends CommandHandler {
@@ -28,21 +27,13 @@ abstract class RunHandler extends CommandHandler {
     }
 
     async run() {
-        this.checkBoardEnv();
         await this.setupBle();
         const memoryLayout = await this.initDevice();
-        const {bin} = await this.compile(memoryLayout);
+        const bin = await this.compile(memoryLayout);
         await this.load(bin);
         await this.execute(bin);
         await this.disconnectBLE();
         process.exit(0);
-    }
-
-    protected checkBoardEnv() {
-        const boardName = this.projectConfigHandler.getBoardName();
-        if (!this.globalConfigHandler.isBoardSetup(boardName)) {
-            throw new Error(`The environment for ${boardName} is not set up`);
-        }
     }
 
     @LogStep('Connecting via BLE...')
@@ -124,7 +115,7 @@ abstract class RunHandler extends CommandHandler {
         });
     }
 
-    abstract compile(memoryLayout: MemoryLayout): Promise<{bin: ExecutableBinary, time: number}>;
+    abstract compile(memoryLayout: MemoryLayout): Promise<ExecutableBinary>;
 }
 
 class ESP32RunHandler extends RunHandler {
@@ -141,12 +132,9 @@ class ESP32RunHandler extends RunHandler {
     }
 
     @LogStep('Compiling...')
-    async compile(memoryLayout: MemoryLayout): Promise<{ bin: ExecutableBinary; time: number; }> {
-        const startCompilation = performance.now();
-        const compiler = new Compiler(memoryLayout, this.getCompilerConfig(), ESP32RunHandler.packageReader);
-        const bin = await compiler.compile();
-        const time = performance.now() - startCompilation;
-        return {bin, time};
+    async compile(memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
+        const compiler = new Compiler(memoryLayout, this.getCompilerConfig(), esp32PackageReader);
+        return compiler.compile();
     }
 
     private getCompilerConfig(): CompilerConfig {
@@ -159,28 +147,6 @@ class ESP32RunHandler extends RunHandler {
             runtimeDir,
             compilerToolchainDir: this.boardConfig.xtensaGccDir,
             espDir: this.boardConfig.rootDir
-        }
-    }
-
-    private static packageReader(packageName: string): PackageConfig {
-        const mainRoot = cwd();
-        const subPackageRoot = path.join(PROJECT_PATHS.PACKAGES_DIR(mainRoot), packageName);
-        const root = packageName === 'main' ? mainRoot : subPackageRoot;
-        try {
-            const projectConfigHandler = ProjectConfigHandler.load(root).asBoard('esp32');
-            return {
-                name: packageName,
-                espIdfComponents: projectConfigHandler.espIdfComponents,
-                dependencies: Object.keys(projectConfigHandler.dependencies),
-                dirs: {
-                    root,
-                    dist: PROJECT_PATHS.DIST_DIR(root),
-                    build: PROJECT_PATHS.BUILD_DIR(root),
-                    packages: PROJECT_PATHS.PACKAGES_DIR(root)
-                }
-            }
-        } catch (error) {
-            throw new Error(`Faild to read ${packageName}.`, { cause: error });
         }
     }
 }
