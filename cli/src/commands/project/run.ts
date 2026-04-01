@@ -1,105 +1,43 @@
 import { Command } from "commander";
-import { Esp32BoardConfig } from "../../config/global-config";
-import { BoardName } from "../../config/board-utils";
-import { logger, LogStep, ProgramLogger, showErrorMessages } from "../../core/logger";
-import { 
-    DEFAULT_DEVICE_NAME, 
-    ProjectConfigHandler, 
-} from "../../config/project-config";
+import { logger, runAsyncWithLogStep, ProgramLogger, showErrorMessages } from "../../core/logger";
+import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/shell";
-import { BleConnection, DeviceService } from "../../services/ble";
-import { Compiler, CompilerConfig, ExecutableBinary, MemoryLayout } from "@bscript/lang";
 import * as readline from 'readline';
 import { CommandHandler } from "../command";
-import { esp32PackageReader } from "../utils/package-reader";
+import { CompilerAdapter, getCompilerAdapter } from "../../boards/compiler-adapters";
+import { BleDeviceManager } from "../../services/device-manager";
+import { ExecutableBinary } from "@bscript/lang";
 
+class RunHandler extends CommandHandler {
+    private compilerAdapter: CompilerAdapter;
+    private deviceManager: BleDeviceManager;
+    private programLogger: ProgramLogger;
 
-abstract class RunHandler extends CommandHandler {
-    protected projectConfigHandler: ProjectConfigHandler;
-    protected programLogger: ProgramLogger;
-    protected ble: BleConnection|null = null;
-    protected deviceService: DeviceService|null = null;
-    
-    constructor(projectConfigHandler: ProjectConfigHandler) {
+    constructor(private projectConfigHandler: ProjectConfigHandler) {
         super();
-        this.projectConfigHandler = projectConfigHandler;
+
+        const boardName = this.projectConfigHandler.getBoardName();
+        this.compilerAdapter = getCompilerAdapter(boardName, this.globalConfigHandler, this.projectConfigHandler);
+
+        const deviceName = this.projectConfigHandler.getConfig().deviceName ?? DEFAULT_DEVICE_NAME;
         this.programLogger = new ProgramLogger();
+        this.deviceManager = new BleDeviceManager(deviceName, this.programLogger, () => {
+            this.programLogger.end();
+            logger.error('BLE disconnected.');
+            process.exit(1);
+        });
     }
 
     async run() {
-        await this.setupBle();
-        const memoryLayout = await this.initDevice();
-        const bin = await this.compile(memoryLayout);
-        await this.load(bin);
-        await this.execute(bin);
-        await this.disconnectBLE();
+        await runAsyncWithLogStep('Connecting via BLE...', () => this.deviceManager.connect());
+        const memoryLayout = await runAsyncWithLogStep('Initializing Device...', () => this.deviceManager.initDevice());
+        const bin = await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.compile(memoryLayout));
+        await runAsyncWithLogStep('Loading...', () => this.deviceManager.load(bin));
+
+        await this.executeBinary(bin);
+
+        await runAsyncWithLogStep('Disconnecting...', () => this.deviceManager.disconnect());
         process.exit(0);
-    }
-
-    @LogStep('Connecting via BLE...')
-    protected async setupBle() {
-        const deviceName = this.projectConfigHandler.getConfig().deviceName ?? DEFAULT_DEVICE_NAME;
-        this.ble = new BleConnection(deviceName);
-        await this.ble.connect();
-        this.ble.on('disconnected', () => {
-            if (this.ble?.status !== 'disconnecting') {
-                this.programLogger.end();
-                logger.error('BLE disconnected.');
-                process.exit(1);
-            }
-            this.ble = null;
-            this.deviceService = null;
-        });
-        this.deviceService = this.ble.getService('device');
-        this.deviceService.on('log', (message) => {
-            this.programLogger.log(message);
-        });
-        this.deviceService.on('error', (message) => {
-            this.programLogger.error(message);
-        });
-    }
-
-    @LogStep('Disconnecting...')
-    protected async disconnectBLE() {
-        if (this.ble) {
-            await this.ble.disconnect();
-        }
-    }
-
-    @LogStep('Initializing Device...')
-    protected async initDevice(): Promise<MemoryLayout> {
-        if (this.ble && this.deviceService) {
-            return this.deviceService.init();
-        }
-        throw new Error('Failed to initialize device. BLE is not connected.');
-    }
-
-    @LogStep('Loading...')
-    protected async load(bin: ExecutableBinary): Promise<number> {
-        if (this.ble && this.deviceService) {
-            return this.deviceService.load(bin);
-        }
-        throw new Error('Failed to load binary. BLE is not connected.');
-    }
-
-    protected async execute(bin: ExecutableBinary): Promise<number> {
-        this.setupStdin();
-        return new Promise(async (resolve, reject) => {
-            if (this.ble && this.deviceService) {
-                logger.info("Start executing program. Type 'Ctrl-D' to exit.");
-                this.programLogger.start();
-                let exectime: number;
-                process.stdin.on('keypress', (str, key) => {
-                    if (key.ctrl && key.name === 'd') {
-                        this.programLogger.end();
-                        resolve(exectime);
-                    }
-                });
-                exectime = await this.deviceService.execute(bin);
-            } else {
-                reject('Failed to execute binary. BLE is not connected.');
-            }
-        });
     }
 
     private setupStdin() {
@@ -115,56 +53,41 @@ abstract class RunHandler extends CommandHandler {
         });
     }
 
-    abstract compile(memoryLayout: MemoryLayout): Promise<ExecutableBinary>;
-}
+    private async executeBinary(bin: ExecutableBinary) {
+        this.setupStdin();
+        logger.info("Start executing program. Type 'Ctrl-D' to exit.");
+        this.programLogger.start();
 
-class ESP32RunHandler extends RunHandler {
-    readonly boardName: BoardName = 'esp32';
-    private boardConfig: Esp32BoardConfig;
+        await new Promise<void>(async (resolve, reject) => {
+            let done = false;
+            process.stdin.on('keypress', (str, key) => {
+                if (key.ctrl && key.name === 'd') {
+                    if (!done) {
+                        done = true;
+                        resolve();
+                    }
+                }
+            });
+            try {
+                await this.deviceManager.execute(bin);
+                if (!done) {
+                    done = true;
+                    resolve();
+                }
+            } catch (e) {
+                reject(e);
+            }
+        });
 
-    constructor(projectConfigHandler: ProjectConfigHandler) {
-        super(projectConfigHandler);
-        const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
-        if (boardConfig === undefined) {
-            throw new Error(`The environment for ${this.boardName} is not set up.`);
-        }
-        this.boardConfig = boardConfig;
-    }
-
-    @LogStep('Compiling...')
-    async compile(memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
-        const compiler = new Compiler(memoryLayout, this.getCompilerConfig(), esp32PackageReader);
-        return compiler.compile();
-    }
-
-    private getCompilerConfig(): CompilerConfig {
-        const runtimeDir = this.projectConfigHandler.getConfig().runtimeDir 
-                            ?? this.globalConfigHandler.getConfig().runtimeDir;
-        if (!runtimeDir) {
-            throw new Error('An unexpected error occurred: cannot find runtime directory path.');
-        }
-        return {
-            runtimeDir,
-            compilerToolchainDir: this.boardConfig.xtensaGccDir,
-            espDir: this.boardConfig.rootDir
-        }
-    }
-}
-
-function getRunHandler(projectConfigHandler: ProjectConfigHandler) {
-    const boardName = projectConfigHandler.getBoardName();
-    if (boardName === 'esp32') {
-        return new ESP32RunHandler(projectConfigHandler);
-    } else {
-        throw new Error(`Unsupported board name: ${boardName}`);
+        this.programLogger.end();
     }
 }
 
 export async function handleRunCommand() {
     try {
         const projectConfigHandler = ProjectConfigHandler.load(cwd());
-        const runHandler = getRunHandler(projectConfigHandler);
-        await runHandler.run();
+        const handler = new RunHandler(projectConfigHandler);
+        await handler.run();
     } catch (error) {
         logger.error(`Failed to run BlueScript program.`);
         showErrorMessages(error);

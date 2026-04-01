@@ -71,7 +71,7 @@ export const logger = {
     logUpdater.done();
     console.log(ERROR_PREFIX, ...messages);
   },
-  
+
   warn(...messages: string[]): void {
     logUpdater.done();
     console.log(WARN_PREFIX, ...messages);
@@ -81,7 +81,7 @@ export const logger = {
     logUpdater.done();
     console.log(INFO_PREFIX, ...messages);
   },
-  
+
   success(...messages: string[]): void {
     logUpdater.done();
     console.log(SUCCESS_PREFIX, ...messages);
@@ -102,7 +102,7 @@ export const replLogger = {
   log(message: string): void {
     console.log(message.trimEnd());
   },
-  
+
   error(message: string): void {
     console.log(chalk.red.bold(message.trimEnd()));
   }
@@ -118,24 +118,24 @@ export class ProgramLogger {
     this.boxWidth = columns & ~1;
   }
 
-  start() { 
+  start() {
     this.isLogging = true;
-    const lineLength = (this.boxWidth - 8) / 2 
+    const lineLength = (this.boxWidth - 8) / 2
     process.stdout.write(`\n${'='.repeat(lineLength)} OUTPUT ${'='.repeat(lineLength)}\n`);
   }
   end() {
-    if (!this.isLogging) return; 
+    if (!this.isLogging) return;
     process.stdout.write(`${'='.repeat(this.boxWidth)}\n\n`);
     this.isLogging = false;
   }
 
   log(message: string) {
-    if (!this.isLogging) return; 
+    if (!this.isLogging) return;
     process.stdout.write(message);
   }
 
   error(message: string) {
-    if (!this.isLogging) return; 
+    if (!this.isLogging) return;
     process.stdout.write(chalk.red.bold(message));
   }
 }
@@ -157,31 +157,55 @@ export class SkipStep {
  * If SkipStep is throwed, show 'Skipped' at the end.
  */
 export function LogStep(message: string) {
-    return function (
-        target: any,
-        propertyKey: string,
-        descriptor: PropertyDescriptor
-    ) {
-        const originalMethod = descriptor.value;
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const originalMethod = descriptor.value;
 
-        descriptor.value = async function (...args: any[]) {
-          logUpdater.update(INFO_PREFIX, message);
-          try {
-            const result = await originalMethod.apply(this, args);
-            logUpdater.persistent(INFO_PREFIX, message, chalk.green('OK'));
-            return result;
-          } catch (error) {
-            if (error instanceof SkipStep) {
-              logUpdater.persistent(INFO_PREFIX, message, chalk.yellow(`Skipped - ${error.message}`));
-              return error.result;
-            } else {
-              logUpdater.persistent(INFO_PREFIX, message, chalk.red('Failed'));
-              throw error;
-            }
-          }
-        };
+    descriptor.value = async function (...args: any[]) {
+      logUpdater.update(INFO_PREFIX, message);
+      try {
+        const result = await originalMethod.apply(this, args);
+        logUpdater.persistent(INFO_PREFIX, message, chalk.green('OK'));
+        return result;
+      } catch (error) {
+        if (error instanceof SkipStep) {
+          logUpdater.persistent(INFO_PREFIX, message, chalk.yellow(`Skipped - ${error.message}`));
+          return error.result;
+        } else {
+          logUpdater.persistent(INFO_PREFIX, message, chalk.red('Failed'));
+          throw error;
+        }
+      }
+    };
 
-        return descriptor;
+    return descriptor;
+  }
+}
+
+export async function runAsyncWithLogStep<T>(message: string, action: () => Promise<T>): Promise<T> {
+  logUpdater.update(INFO_PREFIX, message);
+  try {
+    const result = await action();
+    logUpdater.persistent(INFO_PREFIX, message, chalk.green('OK'));
+    return result;
+  } catch (error) {
+    logUpdater.persistent(INFO_PREFIX, message, chalk.red('Failed'));
+    throw error;
+  }
+}
+
+export function runWithLogStep<T>(message: string, action: () => T): T {
+  logUpdater.update(INFO_PREFIX, message);
+  try {
+    const result = action();
+    logUpdater.persistent(INFO_PREFIX, message, chalk.green('OK'));
+    return result;
+  } catch (error) {
+    logUpdater.persistent(INFO_PREFIX, message, chalk.red('Failed'));
+    throw error;
   }
 }
 
