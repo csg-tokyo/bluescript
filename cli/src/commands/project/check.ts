@@ -18,7 +18,6 @@ class CheckHandler extends CommandHandler {
     async check() {
         const memoryLayout = this.compilerAdapter.getDummyMemoryLayout();
         await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.compile(memoryLayout));
-        process.exit(0);
     }
 }
 
@@ -27,6 +26,9 @@ export async function handleCheckCommand() {
         const projectConfigHandler = ProjectConfigHandler.load(cwd());
         const handler = new CheckHandler(projectConfigHandler);
         await handler.check();
+
+        logger.br();
+        logger.success('Successfully checked BlueScript program.');
     } catch (error) {
         logger.error(`Failed to check BlueScript program.`);
         showErrorMessages(error);
