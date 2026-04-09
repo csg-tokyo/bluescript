@@ -194,7 +194,7 @@ export class BleConnection extends Connection<Buffer> {
                 await this.characteristic.writeAsync(buff, false);
             }
         } else {
-            console.error("WebSocket is not connected.");
+            console.error("BLE is not connected.");
         }
     }
     
