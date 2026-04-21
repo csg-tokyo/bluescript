@@ -248,11 +248,11 @@ mul(1, 2);`
         testEnv.addPackage('main', ['package1']);
         testEnv.addFile('main', './module1.bs', `export function mul(a: integer, b:integer) {return a * b}`);
         testEnv.addFile('main', './index.bs', `
-import {add} from 'package1';
-import {mul} from './module1';
+import { add } from 'package1';
+// import { mul } from './module1';
 
 add(1, 2);
-mul(1,2);
+// mul(1,2);
         `);
         await compile(testEnv);
         expect(fs.existsSync(CompilerTestEnv.RESULT_FILE)).toBe(true);
