@@ -262,7 +262,7 @@ class TranspilerWithPkgSystem {
     private codeId: number = 0;
     private sessionId: number = 0;
     private moduleId: number = 0;
-    private modules: Map<PathInPkg, GlobalVariableNameTable>;
+    private modules: Map<string, GlobalVariableNameTable>;
     private cProlog: string;
 
     private packageReader: (name: string) => PackageConfig;
@@ -272,7 +272,7 @@ class TranspilerWithPkgSystem {
     constructor(packageReader: (name: string) => PackageConfig, stdModuleFile: string, cProlog: string) {
         const stdSrc = fs.readFileSync(stdModuleFile, 'utf-8');
         this.globalNames = transpile(this.sessionId++, stdSrc).names;
-        this.modules = new Map<PathInPkg, GlobalVariableNameTable>();
+        this.modules = new Map<string, GlobalVariableNameTable>();
         this.cProlog = cProlog;
         this.packageReader = packageReader;
         this.visitedPkgs = [];
@@ -295,19 +295,20 @@ class TranspilerWithPkgSystem {
 
     private makeImporter(pathInPkg: PathInPkg, entryPoints: string[]) {
         return (name: string): GlobalVariableNameTable => {
-            pathInPkg = this.getPathInPkg(name, pathInPkg);
-            if (!this.visitedPkgs.find(p => p.name === pathInPkg.pkg.name))
-                this.visitedPkgs.push(pathInPkg.pkg);
+            const newpathInPkg = this.getPathInPkg(name, pathInPkg);
+            if (!this.visitedPkgs.find(p => p.name === newpathInPkg.pkg.name))
+                this.visitedPkgs.push(newpathInPkg.pkg);
 
-            const mod = this.modules.get(pathInPkg);
+            const absolutePath = path.join(newpathInPkg.pkg.dirs.root, newpathInPkg.dir, newpathInPkg.name + newpathInPkg.ext);
+            const mod = this.modules.get(absolutePath);
             if (mod)
                 return mod;
             else {
-                const src = this.readFile(pathInPkg);
-                const result = transpile(this.sessionId++, src, this.globalNames, this.makeImporter(pathInPkg, entryPoints), this.moduleId++);
-                this.modules.set(pathInPkg, result.names);
+                const src = this.readFile(newpathInPkg);
+                const result = transpile(this.sessionId++, src, this.globalNames, this.makeImporter(newpathInPkg, entryPoints), this.moduleId++);
+                this.modules.set(absolutePath, result.names);
                 entryPoints.push(result.main);
-                this.writeCFile(pathInPkg, result.code);
+                this.writeCFile(newpathInPkg, result.code);
                 return result.names;
             }
         }
