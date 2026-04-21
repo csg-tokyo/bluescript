@@ -2,12 +2,15 @@ import { execSync } from "child_process";
 import { CompilerConfig, PackageConfig } from "../../src/compiler/compiler";
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 export function getCompilerConfig(): CompilerConfig {
     const gccPath = execSync('source ~/esp/esp-idf/export.sh &> /dev/null && which xtensa-esp32-elf-gcc').toString();
+    const espDir = path.join(os.homedir(), 'esp');
     return {
         runtimeDir: path.resolve(__dirname, '../../../microcontroller'),
         compilerToolchainDir: path.resolve(gccPath, '../'),
+        espDir
     }
 }
 

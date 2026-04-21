@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import CompilerTestEnv, {getCompilerConfig} from './compiler-test-utils';
+import CompilerTestEnv, { getCompilerConfig } from './compiler-test-utils';
 import { Compiler } from '../../src/compiler/compiler';
 
 const memoryLayout = {
@@ -230,6 +230,59 @@ mul(1, 2);`
         testEnv.addPackage('main', ['package1']);
         testEnv.addFile('main', './index.bs', `import {addMul} from 'package1';\naddMul(1, 2);`);
 
+        await compile(testEnv);
+        expect(fs.existsSync(CompilerTestEnv.RESULT_FILE)).toBe(true);
+
+        testEnv.clean();
+    });
+
+    it('should compile index.bs which imports a package and a module.', async () => {
+        // index.bs <- package1
+        //          <- ./module1.bs
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('package1');
+        testEnv.addFile('package1',
+            './index.bs',
+            `export function add(a: integer, b:integer) {return a + b;}`
+        );
+        testEnv.addPackage('main', ['package1']);
+        testEnv.addFile('main', './module1.bs', `export function mul(a: integer, b:integer) {return a * b}`);
+        testEnv.addFile('main', './index.bs', `
+import {add} from 'package1';
+import {mul} from './module1';
+
+add(1, 2);
+mul(1,2);
+        `);
+        await compile(testEnv);
+        expect(fs.existsSync(CompilerTestEnv.RESULT_FILE)).toBe(true);
+
+        testEnv.clean();
+    });
+
+    it('Treat a class imported via different routes as the same class.', async () => {
+        // package1 <- package2
+        // index.bs <- package1
+        //          <- package2
+        // Shape from package2 in package1 and Shape from package2 in main should be treated as same class.
+        const testEnv = new CompilerTestEnv();
+        testEnv.addPackage('package2');
+        testEnv.addFile('package2', './index.bs', `export class Shape {constructor() {}}`);
+        testEnv.addPackage('package1', ['package2']);
+        testEnv.addFile('package1', './index.bs', `
+import { Shape } from 'package2';
+export function getShapeArea(shape: Shape) {return 110;}
+`);
+        testEnv.addPackage('main', ['package1', 'package2']);
+        testEnv.addFile('main',
+            './index.bs',
+`import { getShapeArea } from 'package1';
+import { Shape } from 'package2';
+
+const shape = new Shape();
+getShapeArea(shape);
+`
+        );
         await compile(testEnv);
         expect(fs.existsSync(CompilerTestEnv.RESULT_FILE)).toBe(true);
 
