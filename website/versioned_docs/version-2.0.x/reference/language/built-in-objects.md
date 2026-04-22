@@ -169,7 +169,6 @@ arr2[1] = 'five';         // runtime error
 
 Arrays of `integer`, `float`, `boolean`, and `string`
 are fixed-length arrays.
-Currently, array methods such as `push`, `pop`, `map`, `filter`, etc., are not supported in BlueScript.
 
 ### Byte arrays
 
@@ -225,3 +224,6 @@ Here, `T` is an element type.
 However, arrays of `integer`, `float`, or `boolean` do not accept these methods.
 `Uint8Array`, or `Vector` do not accept them, either.
 They are fixed-length arrays.
+
+Currently, methods such as `map`, `filter`, etc., are not supported.
+
