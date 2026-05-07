@@ -94,6 +94,22 @@ const config: Config = {
     },
     footer: {
       style: 'dark',
+      links: [
+        {
+          title: 'Community',
+          items: [
+            {
+              label: 'X (Twitter)',
+              href: 'https://x.com/あなたのアカウントID', // ← ここをご自身のアカウントURLに変更してください
+            },
+            {
+              label: 'GitHub',
+              href: 'https://github.com/csg-tokyo/bluescript',
+            },
+          ],
+        },
+      ],
+      // ▲ ここまで ▲
       copyright: `Copyright © ${new Date().getFullYear()} Computing Software Group, The University of Tokyo`,
     },
     prism: {

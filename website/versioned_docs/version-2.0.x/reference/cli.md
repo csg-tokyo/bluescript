@@ -89,18 +89,6 @@ bscript project uninstall <package-name>
 
 ---
 
-### `bscript project check`
-
-Checks if the current project can be compiled successfully without actually sending it to a device.
-
-```bash
-bscript project check
-```
-
-This command runs the compiler locally on your host machine to verify for syntax errors and ensures that both BlueScript and Inline C code can be built correctly. You can use it to catch errors early before attempting to run the code on the hardware.
-
----
-
 ### `bscript project run`
 
 Compiles the current project and executes it on a target device via Bluetooth.
