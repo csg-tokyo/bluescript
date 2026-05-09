@@ -15,6 +15,7 @@ import { registerReplCommand } from './commands/repl';
 import { registerInstallCommand } from './commands/project/install';
 import { registerUninstallCommand } from './commands/project/uninstall';
 import { registerUpdateCommand } from './commands/board/update';
+import { registerCheckCommand } from './commands/project/check';
 
 
 function registerBoardCommands(program: Command) {
@@ -34,11 +35,12 @@ function registerProjectCommands(program: Command) {
     const projectCommand = program
         .command('project')
         .description('manage projects')
-    
+
     registerCreateProjectCommand(projectCommand);
     registerRunCommand(projectCommand);
     registerInstallCommand(projectCommand);
     registerUninstallCommand(projectCommand);
+    registerCheckCommand(projectCommand);
 }
 
 function main() {

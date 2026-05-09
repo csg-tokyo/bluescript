@@ -16,6 +16,18 @@ Currently, the following libraries are available for stable use.
     *   **Repository:** [https://github.com/bluescript-lang/pkg-gpio-esp32.git](https://github.com/bluescript-lang/pkg-gpio-esp32.git)
     *   **Usage:** `import { GPIO } from "gpio";`
 
+### Control
+*   **PWM (Pulse Width Modulation)**
+    *   Pulse Width Modulation for LEDs and Servos.
+    *   **Repository:** [https://github.com/bluescript-lang/pkg-pwm-esp32.git](https://github.com/bluescript-lang/pkg-pwm-esp32.git)
+    *   **Usage:** `import { PWM } from "pwm";`
+
+### Communication
+*   **I2C (Inter-Integrated Circuit)**
+    *   Interface with sensors and displays (Two-wire master library).
+    *   **Repository:** [https://github.com/bluescript-lang/pkg-i2c-esp32.git](https://github.com/bluescript-lang/pkg-i2c-esp32.git)
+    *   **Usage:** `import { I2CMasterBus, I2CDevice } from "i2c";`
+
 ---
 
 ## Roadmap (Planned Libraries)
@@ -27,9 +39,7 @@ Support for these features will be rolled out in upcoming updates.
 | :--- | :--- | :--- | :--- |
 | **Analog** | **ADC** | 🚧 Planned | Read analog sensor values. |
 | **Analog** | **DAC** | 🚧 Planned | Output analog voltage signals. |
-| **Control** | **PWM** | 🚧 Planned | Pulse Width Modulation for LEDs and Servos. |
 | **Comms** | **UART** | 🚧 Planned | Serial communication with other devices. |
-| **Comms** | **I2C** | 🚧 Planned | Interface with sensors and displays (Two-wire). |
 | **Comms** | **SPI** | 🚧 Planned | High-speed serial communication. |
 | **Audio** | **I2S** | 🚧 Planned | Digital audio data transfer. |
 | **Wireless** | **WiFi** | 🚧 Planned | Connect to the internet, make HTTP requests. |

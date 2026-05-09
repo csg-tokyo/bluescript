@@ -1,31 +1,39 @@
 import { Command } from "commander";
-import { Esp32BoardConfig } from "../config/global-config";
-import { BoardName } from "../config/board-utils";
-import { logger, LogStep, replLogger, showErrorMessages } from "../core/logger";
-import { 
-    DEFAULT_DEVICE_NAME, 
-    PROJECT_PATHS,
-    ProjectConfigHandler, 
-} from "../config/project-config";
-import { BleConnection, DeviceService } from "../services/ble";
-import { Compiler, CompilerConfig, ErrorLog, ExecutableBinary, MemoryLayout, PackageConfig } from "@bscript/lang";
+import { logger, runAsyncWithLogStep, replLogger, showErrorMessages } from "../core/logger";
+import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../config/project-config";
+import { ErrorLog, MemoryLayout } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
 import * as fs from '../core/fs';
 import { CommandHandler } from "./command";
 import { GLOBAL_SETTINGS } from "../config/constants";
+import { CompilerAdapter, getCompilerAdapter } from "../boards/compiler-adapters";
+import { BleDeviceManager } from "../services/device-manager";
+import { BoardName } from "../config/board-utils";
 
-
-abstract class ReplHandler extends CommandHandler {
+class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
     static readonly tempProjectDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, this.TEMP_PROJECT_NAME);
-    protected ble: BleConnection|null = null;
-    protected deviceService: DeviceService|null = null;
-    protected rl: readline.Interface;
 
-    constructor() {
+    private projectConfigHandler: ProjectConfigHandler;
+    private compilerAdapter: CompilerAdapter;
+    private deviceManager: BleDeviceManager;
+    private rl: readline.Interface;
+
+    constructor(private boardName: string) {
         super();
+
+        this.projectConfigHandler = ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, this.boardName as BoardName);
+        this.compilerAdapter = getCompilerAdapter(this.boardName as BoardName, this.globalConfigHandler, this.projectConfigHandler);
+
+        const deviceName = DEFAULT_DEVICE_NAME;
+        this.deviceManager = new BleDeviceManager(deviceName, replLogger, () => {
+            logger.error('BLE disconnected.');
+            this.deleteTempProject();
+            process.exit(1);
+        });
+
         this.rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
@@ -34,63 +42,26 @@ abstract class ReplHandler extends CommandHandler {
     }
 
     async start() {
-        this.checkBoardEnv();
-        await this.setupBle();
-        const memoryLayout = await this.initDevice();
+        await runAsyncWithLogStep('Connecting via BLE...', () => this.deviceManager.connect());
+        const memoryLayout = await runAsyncWithLogStep('Initializing Device...', () => this.deviceManager.initDevice());
+
         this.createTempProject();
         await this.runRepl(memoryLayout);
         this.deleteTempProject();
-        await this.disconnectBLE();
+
+        await runAsyncWithLogStep('Disconnecting...', () => this.deviceManager.disconnect());
         process.exit(0);
     }
 
-    @LogStep('Connecting via BLE...')
-    protected async setupBle() {
-        const deviceName = DEFAULT_DEVICE_NAME;
-        this.ble = new BleConnection(deviceName);
-        await this.ble.connect();
-        this.ble.on('disconnected', () => {
-            if (this.ble?.status !== 'disconnecting') {
-                logger.error('BLE disconnected.');
-                this.deleteTempProject();
-                process.exit(1);
-            }
-            this.ble = null;
-            this.deviceService = null;
-        });
-        this.deviceService = this.ble.getService('device');
-        this.deviceService.on('log', (message) => {
-            replLogger.log(message);
-        });
-        this.deviceService.on('error', (message) => {
-            replLogger.error(message);
-        });
-    }
-
-    @LogStep('Disconnecting...')
-    protected async disconnectBLE() {
-        if (this.ble) {
-            await this.ble.disconnect();
-        }
-    }
-
-    @LogStep('Initializing Device...')
-    protected async initDevice(): Promise<MemoryLayout> {
-        if (this.ble && this.deviceService) {
-            return this.deviceService.init();
-        }
-        throw new Error('Failed to initialize device. BLE is not connected.');
-    }
-
-    protected runRepl(memoryLayout: MemoryLayout) {
+    private runRepl(memoryLayout: MemoryLayout) {
         logger.info("Start REPL. Type 'Ctrl-D' to exit.");
         this.rl.prompt();
         return new Promise<void>((resolve, reject) => {
             this.rl.on('line', async (line) => {
                 try {
-                    const {bin} = await this.compile(memoryLayout, line);
-                    await this.load(bin);
-                    await this.execute(bin);
+                    const bin = await this.compilerAdapter.compile(memoryLayout, line);
+                    await this.deviceManager.load(bin);
+                    await this.deviceManager.execute(bin);
                     this.rl.prompt();
                 } catch (error) {
                     if (error instanceof ErrorLog) {
@@ -107,47 +78,7 @@ abstract class ReplHandler extends CommandHandler {
         });
     }
 
-    protected async load(bin: ExecutableBinary): Promise<number> {
-        if (this.ble && this.deviceService) {
-            return this.deviceService.load(bin);
-        }
-        throw new Error('Failed to load binary. BLE is not connected.');
-    }
-
-    protected async execute(bin: ExecutableBinary): Promise<number> {
-        if (this.ble && this.deviceService) {
-            return this.deviceService.execute(bin);
-        }
-        throw new Error('Failed to execute binary. BLE is not connected.');
-    }
-
-    abstract checkBoardEnv(): void;
-
-    abstract createTempProject(): void;
-
-    abstract deleteTempProject(): void;
-
-    abstract compile(memoryLayout: MemoryLayout, src: string): Promise<{bin: ExecutableBinary, time: number}>;
-}
-
-
-class ESP32ReplHandler extends ReplHandler {
-    readonly boardName: BoardName = 'esp32';
-    private boardConfig: Esp32BoardConfig;
-    private projectConfigHandler: ProjectConfigHandler;
-    private compiler?: Compiler;
-
-    constructor() {
-        super();
-        const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
-        if (boardConfig === undefined) {
-            throw new Error(`The environment for ${this.boardName} is not set up.`);
-        }
-        this.boardConfig = boardConfig;
-        this.projectConfigHandler = ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, this.boardName);
-    }
-
-    createTempProject(): void {
+    private createTempProject() {
         if (fs.exists(ReplHandler.tempProjectDir)) {
             fs.removeDir(ReplHandler.tempProjectDir)
         }
@@ -155,77 +86,17 @@ class ESP32ReplHandler extends ReplHandler {
         this.projectConfigHandler.save(ReplHandler.tempProjectDir);
     }
 
-    deleteTempProject(): void {
+    private deleteTempProject() {
         if (fs.exists(ReplHandler.tempProjectDir)) {
             fs.removeDir(ReplHandler.tempProjectDir)
         }
-    }
-
-    checkBoardEnv() {
-        if (!this.globalConfigHandler.isBoardSetup(this.boardName)) {
-            throw new Error(`The environment for ${this.boardName} is not set up`);
-        }
-    }
-
-    async compile(memoryLayout: MemoryLayout, src: string): Promise<{ bin: ExecutableBinary; time: number; }> {
-            const startCompilation = performance.now();
-            if (!this.compiler) {
-                this.compiler = new Compiler(memoryLayout, this.getCompilerConfig(), ESP32ReplHandler.packageReader);
-            }
-            const bin = await this.compiler.compile(src);
-            const time = performance.now() - startCompilation;
-            return {bin, time};
-        }
-    
-    private getCompilerConfig(): CompilerConfig {
-        const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
-        if (!runtimeDir) {
-            throw new Error('An unexpected error occurred: cannot find runtime directory path.');
-        }
-        return {
-            runtimeDir,
-            compilerToolchainDir: this.boardConfig.xtensaGccDir,
-            espDir: this.boardConfig.rootDir
-        }
-    }
-    
-    private static packageReader(packageName: string): PackageConfig {
-        if (packageName !== 'main') {
-            throw new Error('The REPL does not support importing packages.');
-        }
-        const root = ReplHandler.tempProjectDir;
-        try {
-            const projectConfigHandler = ProjectConfigHandler.load(root).asBoard('esp32');
-            return {
-                name: packageName,
-                espIdfComponents: projectConfigHandler.espIdfComponents,
-                dependencies: Object.keys(projectConfigHandler.dependencies),
-                dirs: {
-                    root,
-                    dist: PROJECT_PATHS.DIST_DIR(root),
-                    build: PROJECT_PATHS.BUILD_DIR(root),
-                    packages: PROJECT_PATHS.PACKAGES_DIR(root)
-                }
-            }
-        } catch (error) {
-            throw new Error(`Faild to read ${packageName}.`, { cause: error });
-        }
-    }
-}
-
-
-function getReplHandler(boardName: string) {
-    if (boardName === 'esp32') {
-        return new ESP32ReplHandler();
-    } else {
-        throw new Error(`Unsupported board name: ${boardName}`);
     }
 }
 
 export async function handleReplCommand(options: { board: string }) {
     try {
-        const replHandler = getReplHandler(options.board);
-        await replHandler.start();
+        const handler = new ReplHandler(options.board);
+        await handler.start();
     } catch (error) {
         logger.error(`Error while running REPL.`);
         showErrorMessages(error);

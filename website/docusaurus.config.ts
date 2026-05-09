@@ -94,7 +94,62 @@ const config: Config = {
     },
     footer: {
       style: 'dark',
-      copyright: `Copyright © ${new Date().getFullYear()} Computing Software Group, The University of Tokyo`,
+      links: [
+        {
+          title: 'Docs',
+          items: [
+            {
+              label: 'Get Started',
+              to: '/docs/tutorial/get-started/introduction', // 実際のURLパスに合わせてください
+            },
+            {
+              label: 'Language Reference',
+              to: '/docs/reference/language/intro', // 実際のURLパスに合わせてください
+            },
+            {
+              label: 'CLI Reference',
+              to: '/docs/reference/cli', // 実際のURLパスに合わせてください
+            },
+          ],
+        },
+        {
+          title: 'Community',
+          items: [
+            {
+              label: 'X (Twitter)',
+              href: 'https://x.com/BlueScriptLang',
+            },
+            {
+              label: 'GitHub',
+              href: 'https://github.com/csg-tokyo/bluescript',
+            },
+          ],
+        },
+        {
+          title: 'Research & About',
+          items: [
+            {
+              label: 'Disaggregated VM (<Programming> \'25)',
+              href: 'https://programming-journal.org/2025/10/21/',
+            },
+            {
+              label: 'Offloaded Compilation (MPLR \'24)',
+              href: 'https://dl.acm.org/doi/10.1145/3679007.3685062',
+            },
+            {
+              label: 'CSG, The University of Tokyo',
+              href: 'https://www.csg.ci.i.u-tokyo.ac.jp/',
+            },
+          ],
+        },
+      ],
+      logo: {
+        alt: 'CSG Tokyo Logo',
+        src: 'img/logo3.png',
+        href: 'https://csg-tokyo.github.io/bluescript/',
+        width: 400,
+      },
+      copyright: `Copyright © ${new Date().getFullYear()} Computing Software Group, The University of Tokyo.`,
     },
     prism: {
       theme: prismThemes.github,
