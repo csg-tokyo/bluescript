@@ -453,7 +453,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       let defaultConstructor = true
       for (const mem of node.body.body) {
         if (AST.isClassMethod(mem))
-          if (mem.kind === 'constructor') {
+          if (mem.static)
+            this.classStaticMethodBody(mem, clazz, env)
+          else if (mem.kind === 'constructor') {
             this.classConstructor(mem, clazz, env)
             defaultConstructor = false
           }
@@ -491,6 +493,25 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       args += `, p${i}`
     this.result.nl().write(`value_t ${cr.constructorNameInC(clazz.name())}${sig} { ${funcName}(${args}); return self; }`).nl().nl()
     this.signatures += `value_t ${cr.constructorNameInC(clazz.name())}${sig};\n`
+    this.result = prevResult
+  }
+
+  private classStaticMethodBody(node: AST.ClassMethod, clazz: InstanceType, env: VariableEnv) {
+    const fenv = new FunctionEnv(getVariableNameTable(node), env)
+    fenv.allocateRootSet()
+    const funcType = getStaticType(node) as FunctionType
+    if (!AST.isIdentifier(node.key))
+      throw this.errorLog.push('internal error: method name must be an identifier', node)
+
+    const found = clazz.findStaticMethod(node.key.name)
+    if (!found)
+      throw this.errorLog.push(`internal error: unknown static method name: ${node.key.name}`, node)
+
+    const funcName = cr.staticMethodBodyNameInC(clazz.name(), node.key.name)
+    const prevResult = this.result
+    this.result = this.declarations
+    const funcHeader = this.functionBody(node, fenv, funcType, funcName, '')
+    this.signatures += `${funcHeader};\n`
     this.result = prevResult
   }
 
@@ -1286,10 +1307,22 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   callExpression(node: AST.CallExpression, env: VariableEnv): void {
-    const ftype = getStaticType(node.callee)
+    let ftype = getStaticType(node.callee)
     let numOfObjectArgs = 0
     let calleeIsIdentifier
-    if (AST.isIdentifier(node.callee)) {
+
+    const staticMethod = AST.isMemberExpression(node.callee) && this.staticMethodCallInfo(node.callee, env)
+    if (staticMethod) {
+      // static method call
+      const [funcType, clazz, methodName] = staticMethod
+      const funcName = cr.staticMethodBodyNameInC(clazz.name(), methodName)
+      this.externalMethods.set(funcName, funcType)
+      this.result.write(`${funcName}(0`)
+      ftype = funcType
+      calleeIsIdentifier = true
+    }
+    else if (AST.isIdentifier(node.callee)) {
+      // simple function call
       calleeIsIdentifier = true
       this.identifierAsCallable(node.callee, node.arguments.length, env)
     }
@@ -1341,6 +1374,23 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     env.deallocate(numOfObjectArgs)
     this.result.write(calleeIsIdentifier ? ')' : '))')
+  }
+
+  private staticMethodCallInfo(node: AST.MemberExpression, env: VariableEnv):
+        [method_type: FunctionType, declaring_class: InstanceType, method_name: string] | undefined {
+    if (node.computed || !AST.isIdentifier(node.object) || !AST.isIdentifier(node.property))
+      return undefined
+
+    const info = env.table.lookup(node.object.name)
+    if (info?.isTypeName && info.type instanceof InstanceType) {
+      const method = info.type.findStaticMethod(node.property.name)
+      if (method)
+        return [method[0], method[1], node.property.name]
+      else
+        throw this.errorLog.push(`fatal: unknown static method name: ${node.property.name}`, node.property)
+    }
+
+    return undefined
   }
 
   private superConstructorCall(node: AST.Super, env: VariableEnv) {

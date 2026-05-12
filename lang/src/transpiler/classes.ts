@@ -8,6 +8,7 @@ import { FunctionType, ObjectType, StaticType, isPrimitiveType, isSubtype,
 export class InstanceType extends ObjectType {
   private properties: { [key: string]: [StaticType, number] } = {}
   private methods: { [key: string]: [StaticType, number, InstanceType] } = {}
+  private staticMethods: { [key: string]: [FunctionType, InstanceType] } = {}
   private constructorFunction: FunctionType | undefined = undefined
   private numOfProperties: number
   private numOfUnboxed: number | undefined = undefined
@@ -120,6 +121,16 @@ export class InstanceType extends ObjectType {
     return undefined  // no error
   }
 
+  addStaticMethod(name: string, type: FunctionType): string | undefined {
+    if (name === 'constructor')
+      return 'static constructor is not supported'
+    else if (this.staticMethods[name])
+      return `duplicate static method name: ${name}`
+
+    this.staticMethods[name] = [type, this]
+    return undefined
+  }
+
   findMethod(name: string): [StaticType, number, InstanceType] | undefined {
     const found = this.methods[name]
     if (found)
@@ -128,6 +139,18 @@ export class InstanceType extends ObjectType {
     const superClass = this.superClass
     if (superClass instanceof InstanceType)
       return superClass.findMethod(name)
+    else
+      return undefined
+  }
+
+  findStaticMethod(name: string): [FunctionType, InstanceType] | undefined {
+    const found = this.staticMethods[name]
+    if (found)
+      return found
+
+    const superClass = this.superClass
+    if (superClass instanceof InstanceType)
+      return superClass.findStaticMethod(name)
     else
       return undefined
   }

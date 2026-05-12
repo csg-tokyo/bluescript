@@ -481,7 +481,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     classBlock.record('this', clazz, this.maker)
     for (const b of node.body) {
       this.result = clazz
-      this.visit(b, classBlock)
+      this.visit(b, AST.isClassMethod(b) && b.static ? names : classBlock)
     }
   }
 
@@ -511,12 +511,16 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   classMethod(node: AST.ClassMethod, names: NameTable<Info>): void {
     const clazz = this.result as InstanceType
-    this.assert(!node.static, 'static method is not supported', node)
     this.assert(!node.abstract, 'abstract method is not supported', node)
     this.assert(node.kind === 'constructor' || node.kind === 'method', 'getter/setter is not supported', node)
     if (this.firstPass)
       if (AST.isIdentifier(node.key)) {
-        if (node.kind === 'constructor') {
+        if (node.static) {
+          this.assert(node.kind !== 'constructor' && node.key.name !== 'constructor',
+                      'static constructor is not supported', node)
+          this.functionDeclarationPass1(node, null, names)
+        }
+        else if (node.kind === 'constructor') {
           const visitor = new ConstructorChecker(this, clazz)
           visitor.functionDeclarationPass1(node, null, names)
           const error = visitor.isValid(clazz)
@@ -530,7 +534,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           throw new Error('fatal: a method type is not recorded')
         else {
           this.assert(node.kind !== 'constructor' || ftype.returnType === Void, 'a constructor cannot return a value', node)
-          const error = clazz.addMethod(node.key.name, ftype)
+          const error = node.static ? clazz.addStaticMethod(node.key.name, ftype)
+                                    : clazz.addMethod(node.key.name, ftype)
           if (error !== undefined)
             this.assert(false, error, node)
         }
@@ -1519,6 +1524,27 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       return false
 
     const propertyName = node.property.name
+    if (AST.isIdentifier(node.object)) {
+      const info = names.lookup(node.object.name)
+      if (info?.isTypeName && info.type instanceof InstanceType) {
+        const method = info.type.findStaticMethod(propertyName)
+        if (method) {
+          this.addStaticType(node.object, info.type)
+          this.result = method[0]
+          return true
+        }
+        else if (this.firstPass) {
+          this.result = Any
+          return true
+        }
+        else {
+          this.result = Any
+          this.assert(false, `unknown static method: ${propertyName}`, node.property)
+          return true
+        }
+      }
+    }
+
     this.visit(node.object, names)
     const type = this.result
     this.addStaticType(node.object, type)

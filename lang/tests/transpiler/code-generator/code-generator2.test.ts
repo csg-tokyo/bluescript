@@ -1235,6 +1235,44 @@ test('a call to an any-type function', () => {
   expect(compileAndRun(src, destFile)).toBe('10\n73\n')
 })
 
+test('static method call', () => {
+  const src = `
+  class Foo {
+    static foo(i: integer) { return i + 1 }
+    foo(i: integer) { return i + 3 }
+  }
+  print(Foo.foo(1))
+  print(new Foo().foo(1))
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('2\n4\n')
+
+  const src2 = `
+  print(Foo.foo(1))
+  print(new Foo().foo(1))
+  `
+
+  expect(multiCompileAndRun(src, src2, destFile)).toBe('2\n4\n2\n4\n')
+})
+
+test('calling a static method in an imported module', () => {
+  const modules = [
+    { name: 'foo', source: `
+  export class Foo {
+    static foo(i: integer) { return i + 1 }
+    foo(i: integer) { return i + 3 }
+  }
+` }]
+
+  const src = `
+import { Foo } from 'foo'
+print(Foo.foo(1))
+print(Foo.foo(2))
+`
+  const imp = new Importer(modules)
+  expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('2\n3\n')
+})
+
 test('Vector class', () => {
   const src = `
   function bar() {
