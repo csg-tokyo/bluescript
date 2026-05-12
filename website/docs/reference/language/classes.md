@@ -34,6 +34,8 @@ In the code above, the types of properties `height` and `width` are `float`.
 All class declarations, properties, and methods are `public`.
 No access modifiers such as `private` and `readonly` are (*currently*) not supported.
 
+A method can be `static`.
+
 ## extends
 
 A class can inherit from another class.
