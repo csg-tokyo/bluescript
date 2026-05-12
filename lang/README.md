@@ -64,10 +64,10 @@ All the temporary files are stored in `./lang/temp-files`.
 
 ## Compile a BlueScript program
 
-To compile a BlueScript program,
+To compile a BlueScript program for executing locally,
 
 ```bash
-npm run compile foo.bs bar.bs
+npm run lcompile foo.bs bar.bs
 ```
 
 This compiles `foo.bs` and `bar.bs` and generates the native binary,
@@ -80,7 +80,7 @@ The compiled programs can access the same built-in functions as the ones availab
 To give an optional argument to the backend C compiler,
 
 ```bash
-npm run compile foo.bs bar.bs -- -args=-g,-o,foo
+npm run lcompile foo.bs bar.bs -- -args=-g,-o,foo
 ```
 
 Arguments specified with `-args=` are passed directly to the C compiler.
@@ -92,12 +92,12 @@ the arguments `-g -o foo`.
 Alternatively, use `+args=` without the `--` separator.
 
 ```bash
-npm run compile +args=-g,-o,foo foo.bs bar.bs
+npm run lcompile +args=-g,-o,foo foo.bs bar.bs
 ```
 
 For debugging, pass the `-g` or `+g` option to the compiler.
 This prevents the compiler from removing working files such as generated source files in C.
 
 ```bash
-npm run compile foo.bs bar.bs -- -g -args=-g,-o,foo
+npm run lcompile foo.bs bar.bs -- -g -args=-g,-o,foo
 ```
