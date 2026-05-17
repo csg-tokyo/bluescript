@@ -48,6 +48,7 @@
     "dev": "ts-node src/index.ts",
     "shell": "npx tsc && node ./dist/transpiler/shell.js",
     "transpile-module": "npx tsc && node ./dist/tools/transpile-module.js",
+    "lcompile": "npx tsc && node ./dist/transpiler/compiler.js",
     "test": "jest",
 
     "prepack:backup": "shx mv README.md README.md.bak || shx echo 'No existing README to backup'",

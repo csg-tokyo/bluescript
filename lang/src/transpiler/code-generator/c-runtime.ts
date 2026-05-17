@@ -517,6 +517,10 @@ export function methodBodyNameInC(className: string, index: number) {
   return `mth_${index}_${className}`
 }
 
+export function staticMethodBodyNameInC(className: string, methodName: string) {
+  return `smth_${className}_${methodName}`
+}
+
 export function externClassDef(clazz: ObjectType) {
   if (clazz) {
     if (clazz === objectType)
