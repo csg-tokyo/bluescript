@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { logger, runAsyncWithLogStep, replLogger, showErrorMessages } from "../core/logger";
 import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../config/project-config";
-import { ErrorLog, MemoryLayout } from "@bscript/lang";
+import { CompileError, ExecutableBinary, MemoryLayout } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
@@ -20,11 +20,13 @@ class ReplHandler extends CommandHandler {
     private compilerAdapter: CompilerAdapter;
     private deviceManager: BleDeviceManager;
     private rl: readline.Interface;
+    private isFirstCompile: boolean;
 
     constructor(private boardName: string) {
         super();
 
-        this.projectConfigHandler = ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, this.boardName as BoardName);
+        this.projectConfigHandler = 
+            ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, this.boardName as BoardName, ReplHandler.tempProjectDir);
         this.compilerAdapter = getCompilerAdapter(this.boardName as BoardName, this.globalConfigHandler, this.projectConfigHandler);
 
         const deviceName = DEFAULT_DEVICE_NAME;
@@ -39,6 +41,7 @@ class ReplHandler extends CommandHandler {
             output: process.stdout,
             prompt: chalk.blue.bold('> ')
         });
+        this.isFirstCompile = true;
     }
 
     async start() {
@@ -59,12 +62,20 @@ class ReplHandler extends CommandHandler {
         return new Promise<void>((resolve, reject) => {
             this.rl.on('line', async (line) => {
                 try {
-                    const bin = await this.compilerAdapter.compile(memoryLayout, line);
+                    let bin: ExecutableBinary;
+                    if (this.isFirstCompile) {
+                        // Compile first line as index.bs.
+                        this.writeEntryFile(line);
+                        bin = await this.compilerAdapter.buildProject(memoryLayout);
+                        this.isFirstCompile = false;
+                    } else {
+                        bin = await this.compilerAdapter.compileFragment(line);
+                    }
                     await this.deviceManager.load(bin);
                     await this.deviceManager.execute(bin);
                     this.rl.prompt();
                 } catch (error) {
-                    if (error instanceof ErrorLog) {
+                    if (error instanceof CompileError) {
                         replLogger.error("** compile error: " + error.toString());
                         this.rl.prompt();
                     } else {
@@ -84,6 +95,11 @@ class ReplHandler extends CommandHandler {
         }
         fs.makeDir(ReplHandler.tempProjectDir);
         this.projectConfigHandler.save(ReplHandler.tempProjectDir);
+    }
+
+    private writeEntryFile(src: string) {
+        const entryPath = path.join(ReplHandler.tempProjectDir, 'index.bs');
+        fs.writeFile(entryPath, src);
     }
 
     private deleteTempProject() {

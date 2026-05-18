@@ -22,7 +22,7 @@ class CreateHandler extends CommandHandler {
         super();
         this.board = board;
         this.projectRoot = path.join(cwd(), projectName);
-        this.projectConfigHandler = ProjectConfigHandler.createTemplate(projectName, board);
+        this.projectConfigHandler = ProjectConfigHandler.createTemplate(projectName, board, this.projectRoot);
     }
 
     isBoardSetup() {

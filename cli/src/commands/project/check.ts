@@ -17,7 +17,7 @@ class CheckHandler extends CommandHandler {
 
     async check() {
         const memoryLayout = this.compilerAdapter.getDummyMemoryLayout();
-        await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.compile(memoryLayout));
+        await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.buildProject(memoryLayout));
     }
 }
 

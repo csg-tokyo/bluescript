@@ -31,7 +31,7 @@ class RunHandler extends CommandHandler {
     async run() {
         await runAsyncWithLogStep('Connecting via BLE...', () => this.deviceManager.connect());
         const memoryLayout = await runAsyncWithLogStep('Initializing Device...', () => this.deviceManager.initDevice());
-        const bin = await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.compile(memoryLayout));
+        const bin = await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.buildProject(memoryLayout));
         await runAsyncWithLogStep('Loading...', () => this.deviceManager.load(bin));
 
         await this.executeBinary(bin);

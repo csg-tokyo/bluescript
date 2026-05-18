@@ -1,4 +1,4 @@
-import { ShadowMemory } from "./compiler";
+import { ShadowMemory } from "./board-toolchain";
 
 
 export default function generateLinkerScript(
