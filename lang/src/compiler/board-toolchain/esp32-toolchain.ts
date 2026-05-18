@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as fs from "fs";
-import { Package, PackageForEsp32, Project } from "../project";
+import { PackageForEsp32, Project } from "../project";
 import { BoardToolchain, ExecutableBinary, MemoryLayout, ShadowMemory } from "./board-toolchain";
 import { executeCommand, getErrorMessage } from "../utils";
 import generateMakefile from "./makefile";
@@ -8,7 +8,7 @@ import { ElfReader } from "./elf-reader";
 import generateLinkerScript from "./linker-script";
 
 
-export type Esp32Config = {
+export type Esp32ToolchainConfig = {
     runtimeDir: string,
     compilerToolchainDir: string,
     espDir: string
@@ -17,7 +17,7 @@ export type Esp32Config = {
 export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
     public memory: ShadowMemory;
 
-    private config: Esp32Config;
+    private config: Esp32ToolchainConfig;
     private espIdfComponents: EspIdfComponents;
     private definedSymbols: Map<string, { name: string; address: number }>; 
 
@@ -32,7 +32,7 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
     get builtinModulePath() { return path.join(this.config.runtimeDir, 'ports/esp32/std-module.bs'); }
     get ld() { return path.join(this.config.compilerToolchainDir, 'xtensa-esp32-elf-ld'); } 
 
-    constructor(config: Esp32Config, memoryLayout: MemoryLayout) {
+    constructor(config: Esp32ToolchainConfig, memoryLayout: MemoryLayout) {
         this.memory = new ShadowMemory(memoryLayout);
         this.config = config;
         this.espIdfComponents = new EspIdfComponents(config.runtimeDir, config.espDir);

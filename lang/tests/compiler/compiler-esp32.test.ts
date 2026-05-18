@@ -358,6 +358,8 @@ describe('Test additional compile: Compiler for ESP32', () => {
 
         const session = await compile(testEnv);
         const binary = await session.compileFragment('1 + 23');
+        expect(binary.iflash).toBeDefined();
+        expect(binary.iflash?.address).not.toBe(memoryLayout.iflash.size);
         expect(binary.entryPoints.length).toBe(1);
     });
 

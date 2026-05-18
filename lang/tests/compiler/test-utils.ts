@@ -1,11 +1,11 @@
 import { execSync } from "child_process";
-import { Esp32Config } from "../../src/compiler/board-toolchain/esp32-toolchain";
+import { Esp32ToolchainConfig } from "../../src/compiler/board-toolchain/esp32-toolchain";
 import { Package, PackageForEsp32 } from "../../src/compiler/project";
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-export function getEsp32CompilerConfig(): Esp32Config {
+export function getEsp32CompilerConfig(): Esp32ToolchainConfig {
     const gccPath = execSync('source ~/esp/esp-idf/export.sh &> /dev/null && which xtensa-esp32-elf-gcc').toString();
     const espDir = path.join(os.homedir(), 'esp');
     return {

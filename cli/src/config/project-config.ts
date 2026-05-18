@@ -61,9 +61,11 @@ export type PackageSource = {
 };
 
 export class ProjectConfigHandler {
+    public root: string;
     private config: ProjectConfig;
 
-    private constructor(config: ProjectConfig) {
+    private constructor(config: ProjectConfig, root: string) {
+        this.root = root;
         this.config = config;
     }
 
@@ -73,7 +75,7 @@ export class ProjectConfigHandler {
             const fileContent = fs.readFile(filePath);
             const json = JSON.parse(fileContent);
             const parsedConfig = projectConfigSchema.parse(json);
-            return new ProjectConfigHandler(parsedConfig);
+            return new ProjectConfigHandler(parsedConfig, projectRoot);
         } catch (error) {
             if (error instanceof z.ZodError) {
                 throw new Error(`Project config validation failed in ${filePath}.`, { cause: error });
@@ -82,10 +84,10 @@ export class ProjectConfigHandler {
         }
     }
 
-    public static fromObject(obj: ProjectConfig): ProjectConfigHandler {
+    public static fromObject(obj: ProjectConfig, root: string): ProjectConfigHandler {
         try {
             const parsedConfig = projectConfigSchema.parse(obj);
-            return new ProjectConfigHandler(parsedConfig);
+            return new ProjectConfigHandler(parsedConfig, root);
         } catch (error) {
             if (error instanceof z.ZodError) {
                 throw new Error(`Project config object validation failed.`, { cause: error });
@@ -94,13 +96,13 @@ export class ProjectConfigHandler {
         }
     }
 
-    public static createTemplate(projectName: string, board: BoardName): ProjectConfigHandler {
+    public static createTemplate(projectName: string, board: BoardName, root: string): ProjectConfigHandler {
         const template = {
             projectName,
             boardName: board,
         };
         const parsedConfig = projectConfigSchema.parse(template);
-        return new ProjectConfigHandler(parsedConfig);
+        return new ProjectConfigHandler(parsedConfig, root);
     }
 
     public getConfig(): Readonly<ProjectConfig> {

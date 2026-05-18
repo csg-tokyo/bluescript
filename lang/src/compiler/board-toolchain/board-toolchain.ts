@@ -23,10 +23,10 @@ export class ShadowMemory {
     }
 
     addUsage(iramSize?: number, dramSize?: number, iflashSize?: number, dflashSize?: number) {
-        this.iram.size += iramSize ?? 0;
-        this.dram.size += dramSize ?? 0;
-        this.iflash.size += iflashSize ?? 0;
-        this.dflash.size += dflashSize ?? 0;
+        this.iram.used += (iramSize ?? 0);
+        this.dram.used += (dramSize ?? 0);
+        this.iflash.used += (iflashSize ?? 0);
+        this.dflash.used += (dflashSize ?? 0);
     }
 }
 
