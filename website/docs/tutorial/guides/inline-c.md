@@ -109,7 +109,7 @@ Once configured, you can include the component's header and call its functions.
 
 Here is an example of calling raw GPIO functions directly from the esp_driver_gpio component.
 
-```typescript title="index.bs"
+```typescript title="src/index.bs"
 
 code`#include "driver/gpio.h"`
 

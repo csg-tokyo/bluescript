@@ -19,7 +19,7 @@ bscript project create <project-name> [options]
 ```
 
 This command generates a new directory containing:
-*   `index.bs`: The main entry point for your application.
+*   `src/index.bs`: The main entry point for your application.
 *   `bsconfig.json`: The project configuration file.
 
 **Arguments:**

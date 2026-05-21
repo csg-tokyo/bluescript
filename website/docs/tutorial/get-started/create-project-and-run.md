@@ -13,15 +13,15 @@ cd hello-bluescript
 
 This creates a simple project structure:
 *   `bsconfig.json`: Project configuration.
-*   `index.bs`: Your entry point file.
+*   `src/index.bs`: Your entry point file.
 
 ---
 
 ## Step 2: Write Code
 
-Open `index.bs` in your code editor and write a simple program.
+Open `src/index.bs` in your code editor and write a simple program.
 
-```typescript title="index.bs"
+```typescript title="src/index.bs"
 console.log("Hello world!");
 ```
 

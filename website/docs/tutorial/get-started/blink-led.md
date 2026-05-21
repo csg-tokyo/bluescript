@@ -40,7 +40,7 @@ bscript project install https://github.com/bluescript-lang/pkg-gpio-esp32.git
 
 ## Step 3: Write Code
 
-Open `index.bs` and replace its content with the code below.
+Open `src/index.bs` and replace its content with the code below.
 
 This program will blink the LED 10 times with a 1-second interval.
 
@@ -49,7 +49,7 @@ The code below uses **GPIO 2** (Onboard LED).
 If you are using the **External LED**, change `2` to `23` in the `new GPIO(...)` line.
 :::
 
-```typescript title="index.bs"
+```typescript title="src/index.bs"
 // Import GPIO class and Enums from the installed package
 import { GPIO, PinMode, PinLevel } from "gpio";
 

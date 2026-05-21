@@ -86,7 +86,7 @@ export class ESP32CompilerAdapter implements CompilerAdapter {
             return  {
                 name,
                 entry: './index.bs',
-                sourceDir: root,
+                sourceDir: PROJECT_PATHS.SRC_DIR(root),
                 distDir: PROJECT_PATHS.DIST_DIR(root),
                 buildDir: PROJECT_PATHS.BUILD_DIR(root),
                 dependencies: Object.keys(projectConfigHandler.dependencies),

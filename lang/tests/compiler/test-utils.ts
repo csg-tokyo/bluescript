@@ -18,11 +18,13 @@ export function getEsp32CompilerConfig(): Esp32ToolchainConfig {
 class CompilerTestEnv<P extends Package = Package> {
     readonly root: string;
     readonly resultElf: string;
-    private packages = new Map<string, P>();
+    public readonly mainPackageName: string;
+    protected packages = new Map<string, P>();
 
     constructor(name?: string) {
-        this.root = path.resolve(__dirname, `../../temp-files/${name ?? 'compiler-test'}`);
-        this.resultElf = path.join(this.root, 'dist/build/main.elf');
+        this.mainPackageName = name ?? 'compiler-test';
+        this.root = path.resolve(__dirname, `../../temp-files/${this.mainPackageName}`);
+        this.resultElf = path.join(this.root, `dist/build/${this.mainPackageName}.elf`);
     }
 
     protected addPackage(pkg: P) {
@@ -69,11 +71,11 @@ class CompilerTestEnv<P extends Package = Package> {
 }
 
 export class Esp32CompilerTestEnv extends CompilerTestEnv<PackageForEsp32> {
-    public createMainPackage(name: string, dependencies: string[] = [], espIdfComponents: string[] = []): void {
+    public createMainPackage(dependencies: string[] = [], espIdfComponents: string[] = []): void {
         const pkg: PackageForEsp32 = {
-            name,
+            name: this.mainPackageName,
             entry: "./index.bs",
-            sourceDir: this.root,
+            sourceDir: path.join(this.root, 'src'),
             distDir: path.join(this.root, 'dist'),
             buildDir: path.join(this.root, 'dist/build'),
             dependencies,
@@ -88,7 +90,7 @@ export class Esp32CompilerTestEnv extends CompilerTestEnv<PackageForEsp32> {
         const pkg: PackageForEsp32 = {
             name,
             entry: "./index.bs",
-            sourceDir: root,
+            sourceDir: path.join(root, 'src'),
             distDir: path.join(root, 'dist'),
             buildDir: path.join(root, 'dist/build'),
             dependencies,

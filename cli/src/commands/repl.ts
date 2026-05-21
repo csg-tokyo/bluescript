@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { logger, runAsyncWithLogStep, replLogger, showErrorMessages } from "../core/logger";
-import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../config/project-config";
+import { DEFAULT_DEVICE_NAME, PROJECT_PATHS, ProjectConfigHandler } from "../config/project-config";
 import { CompileError, ExecutableBinary, MemoryLayout } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
@@ -98,7 +98,9 @@ class ReplHandler extends CommandHandler {
     }
 
     private writeEntryFile(src: string) {
-        const entryPath = path.join(ReplHandler.tempProjectDir, 'index.bs');
+        const srcDir = PROJECT_PATHS.SRC_DIR(ReplHandler.tempProjectDir);
+        fs.makeDir(srcDir);
+        const entryPath = path.join(srcDir, 'index.bs');
         fs.writeFile(entryPath, src);
     }
 
