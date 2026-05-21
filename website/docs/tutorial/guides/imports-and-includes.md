@@ -10,7 +10,7 @@ You can create reusable BlueScript code (`.bs` files) and import them into other
 ### 1. Local Modules
 To import a module from your own project, use the **relative path** (starting with `./` or `../`).
 
-**`math-utils.bs`** (The library)
+**`src/math-utils.bs`** (The library)
 ```typescript
 // Named export
 export function add(a: integer, b: integer): integer {
@@ -21,7 +21,7 @@ export function add(a: integer, b: integer): integer {
 // export default function ...
 ```
 
-**`index.bs`** (The importer)
+**`src/index.bs`** (The importer)
 ```typescript
 // Import using relative path
 import { add } from "./math-utils";
@@ -49,7 +49,7 @@ If you have standalone C source files (`.c`) in your project, you can include th
 
 Unlike standard C compilers, BlueScript's `code` block treats `#include` paths relative to the current file when using quotes.
 
-**`native-lib.c`**
+**`src/native-lib.c`**
 ```c
 // A pure C function
 int native_multiply(int a, int b) {
@@ -57,7 +57,7 @@ int native_multiply(int a, int b) {
 }
 ```
 
-**`index.bs`**
+**`src/index.bs`**
 ```typescript
 // Include the local C file
 code`#include "./native-lib.c"`
