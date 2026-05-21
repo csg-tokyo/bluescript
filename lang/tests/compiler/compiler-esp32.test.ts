@@ -3,7 +3,6 @@ import { CompilerSession } from '../../src/compiler/compiler-session';
 import { PackageForEsp32, Project } from '../../src/compiler/project';
 import { Esp32Toolchain } from '../../src/compiler/board-toolchain/esp32-toolchain';
 
-const mainPackageName = "main";
 const memoryLayout = {
     iram: { address: 0x400a0144, size: 10000 },
     dram: { address: 0x3ffd5b04, size: 10000 },
@@ -15,7 +14,7 @@ const compilerConfig = getEsp32CompilerConfig();
 const compile = async (testEnv: Esp32CompilerTestEnv) => {
     const project = Project.load<PackageForEsp32>(
         testEnv.root,
-        mainPackageName,
+        testEnv.mainPackageName,
         testEnv.getPackageReader()
     );
     const toolchain = new Esp32Toolchain(compilerConfig, memoryLayout);
@@ -38,22 +37,22 @@ describe('Test single compile: Compiler for ESP32', () => {
 
 
     it('should compile simple index.bs.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', '1 + 1');
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
     });
 
     it('should throw error if index.bs does not exist.', async () => {
-        testEnv.createMainPackage(mainPackageName);
+        testEnv.createMainPackage();
 
-        await expect(compile(testEnv)).rejects.toThrow(`Cannot find a module ${testEnv.getSourceFilePath('main', './index.bs')}`);
+        await expect(compile(testEnv)).rejects.toThrow(`Cannot find a module ${testEnv.getSourceFilePath(testEnv.mainPackageName, './index.bs')}`);
     });
 
     it('should compile index.bs with std function.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', 'print("hello world")');
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', 'print("hello world")');
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
@@ -62,25 +61,25 @@ describe('Test single compile: Compiler for ESP32', () => {
     it('should compile index.bs with a module import.', async () => {
         // index.bs <- ./module.bs
 
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {add} from './module1';\nadd(1, 2);`);
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from './module1';\nadd(1, 2);`);
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
     });
 
     it('should throw error if an imported module does not exist.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {add} from './module1';\nadd(1, 2);`);
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from './module1';\nadd(1, 2);`);
 
-        await expect(compile(testEnv)).rejects.toThrow(`Cannot find a module ${testEnv.getSourceFilePath('main', './module1.bs')}`);
+        await expect(compile(testEnv)).rejects.toThrow(`Cannot find a module ${testEnv.getSourceFilePath(testEnv.mainPackageName, './module1.bs')}`);
     });
 
     it('should throw error if an imported module is imported with absolute path.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.addSourceFile(mainPackageName, '/index.bs', `import {add} from '${testEnv.getSourceFilePath('main', './module1.bs')}';\nadd(1, 2);`);
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
+        testEnv.addSourceFile(testEnv.mainPackageName, '/index.bs', `import {add} from '${testEnv.getSourceFilePath(testEnv.mainPackageName, './module1.bs')}';\nadd(1, 2);`);
 
         await expect(compile(testEnv)).rejects.toThrow(`This module system does not support importing from absolute paths.`);
     });
@@ -88,16 +87,16 @@ describe('Test single compile: Compiler for ESP32', () => {
     it('should compile index.bs with module imports chained.', async () => {
         // index.bs <- module1 <- module2
 
-        testEnv.createMainPackage(mainPackageName, []);
-        testEnv.addSourceFile(mainPackageName,
+        testEnv.createMainPackage([]);
+        testEnv.addSourceFile(testEnv.mainPackageName,
             './module2.bs',
             `export function add(a: integer, b:integer) {return a + b}`
         );
-        testEnv.addSourceFile(mainPackageName,
+        testEnv.addSourceFile(testEnv.mainPackageName,
             './module1.bs',
             `import {add} from './module2';\nexport function addMul(a: integer, b:integer) {return add(a, b)*add(a, b)}`
         );
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {addMul} from './module1';\naddMul(1, 2);`);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {addMul} from './module1';\naddMul(1, 2);`);
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
@@ -106,16 +105,16 @@ describe('Test single compile: Compiler for ESP32', () => {
     it('should compile index.bs with module imports from dir.', async () => {
         // index.bs <- dir/module1 <- dir/module2
 
-        testEnv.createMainPackage(mainPackageName, []);
-        testEnv.addSourceFile(mainPackageName,
+        testEnv.createMainPackage([]);
+        testEnv.addSourceFile(testEnv.mainPackageName,
             './dir/module2.bs',
             `export function add(a: integer, b:integer) {return a + b}`
         );
-        testEnv.addSourceFile(mainPackageName,
+        testEnv.addSourceFile(testEnv.mainPackageName,
             './dir/module1.bs',
             `import {add} from './module2';\nexport function addMul(a: integer, b:integer) {return add(a, b)*add(a, b)}`
         );
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {addMul} from './dir/module1';\naddMul(1, 2);`);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {addMul} from './dir/module1';\naddMul(1, 2);`);
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
@@ -126,8 +125,8 @@ describe('Test single compile: Compiler for ESP32', () => {
 
         testEnv.createSubPackage('package1');
         testEnv.addSourceFile('package1', './index.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.createMainPackage(mainPackageName, ['package1']);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
@@ -138,8 +137,8 @@ describe('Test single compile: Compiler for ESP32', () => {
 
         testEnv.createSubPackage('package1');
         testEnv.addSourceFile('package1', './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.createMainPackage(mainPackageName, ['package1']);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {add} from 'package1/module1';\nadd(1, 2);`);
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1/module1';\nadd(1, 2);`);
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
@@ -153,8 +152,8 @@ describe('Test single compile: Compiler for ESP32', () => {
         testEnv.addSourceFile('package2', './index.bs', `export function mul(a: integer, b:integer) {return a * b}`);
         testEnv.createSubPackage('package1');
         testEnv.addSourceFile('package1', './index.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.createMainPackage(mainPackageName, ['package1', 'package2']);
-        testEnv.addSourceFile(mainPackageName,
+        testEnv.createMainPackage(['package1', 'package2']);
+        testEnv.addSourceFile(testEnv.mainPackageName,
             './index.bs',
 `import {add} from 'package1';
 import {mul} from 'package2'
@@ -167,8 +166,8 @@ mul(1, 2);`
     });
 
     it('should throw error if an imported package does not exist.', async () => {
-        testEnv.createMainPackage(mainPackageName, ['package1']);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
 
         await expect(compile(testEnv)).rejects.toThrow(`Package package1 is not registered.`);
     });
@@ -186,8 +185,8 @@ mul(1, 2);`
             './index.bs',
             `import {add} from 'package2';\nexport function addMul(a: integer, b:integer) {return add(a, b)*add(a, b)}`
         );
-        testEnv.createMainPackage(mainPackageName, ['package1']);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {addMul} from 'package1';\naddMul(1, 2);`);
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {addMul} from 'package1';\naddMul(1, 2);`);
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
@@ -202,8 +201,8 @@ mul(1, 2);`
             './index.bs',
             `import {mul} from './module1';\nexport function addMul(a: integer, b:integer) {return mul(a, b)+mul(a, b)}`
         );
-        testEnv.createMainPackage(mainPackageName, ['package1']);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `import {addMul} from 'package1';\naddMul(1, 2);`);
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {addMul} from 'package1';\naddMul(1, 2);`);
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
@@ -218,9 +217,9 @@ mul(1, 2);`
             './index.bs',
             `export function add(a: integer, b:integer) {return a + b;}`
         );
-        testEnv.createMainPackage(mainPackageName, ['package1']);
-        testEnv.addSourceFile(mainPackageName, './module1.bs', `export function mul(a: integer, b:integer) {return a * b}`);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function mul(a: integer, b:integer) {return a * b}`);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
 import { add } from 'package1';
 // import { mul } from './module1';
 
@@ -244,8 +243,8 @@ add(1, 2);
 import { Shape } from 'package2';
 export function getShapeArea(shape: Shape) {return 110;}
 `);
-        testEnv.createMainPackage(mainPackageName, ['package1', 'package2']);
-        testEnv.addSourceFile(mainPackageName,
+        testEnv.createMainPackage(['package1', 'package2']);
+        testEnv.addSourceFile(testEnv.mainPackageName,
             './index.bs',
 `import { getShapeArea } from 'package1';
 import { Shape } from 'package2';
@@ -259,8 +258,8 @@ getShapeArea(shape);
     });
 
     it('should compile index.bs which includes c file.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
 code\`#include<stdio.h>\`
 function foo() {
     code\`puts("foo");\`
@@ -272,9 +271,9 @@ function foo() {
     });
 
     it('should compile index.bs which includes custom c file.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './add.c',  'int add(int a, int b) {return a + b;}')
-        testEnv.addSourceFile(mainPackageName, './index.bs', `
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './add.c',  'int add(int a, int b) {return a + b;}')
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
 code\`#include "./add.c"\`
 function foo() {
     code\`add(1, 2);\`
@@ -286,8 +285,8 @@ function foo() {
     });
 
     it('should throw C compilation error.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
 function foo() {
     code\`puts("foo");\`
 }
@@ -298,8 +297,8 @@ function foo() {
 
     it('should compile index.bs which includes a ESP-IDF component.', async () => {
 
-        testEnv.createMainPackage(mainPackageName, [], ['esp_driver_gpio']);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `
+        testEnv.createMainPackage([], ['esp_driver_gpio']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
 code\`#include "driver/gpio.h"\`
 function gpioInit(pin: integer) {
     code\`gpio_set_direction(\${pin}, GPIO_MODE_OUTPUT);\`
@@ -312,20 +311,20 @@ gpioInit(23);
     });
 
     it('should throw error if a specified ESP-IDF component does not exist.', async () => {
-        testEnv.createMainPackage(mainPackageName, [], ['foo']);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `1 + 1`);
+        testEnv.createMainPackage([], ['foo']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `1 + 1`);
 
         await expect(compile(testEnv)).rejects.toThrow(`foo does not exists in ESP-IDF components.`);
     });
 
     it('should compile index.bs again after editing file.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', '1 + 1');
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
 
-        testEnv.addSourceFile(mainPackageName, './index.bs', '1 + 3');
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 3');
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
@@ -345,16 +344,16 @@ describe('Test additional compile: Compiler for ESP32', () => {
     // });
 
     it('should throw error if a file with a name consisting only numbers exists in main.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', '1 + 1');
-        testEnv.addSourceFile(mainPackageName, './1.bs', '1 + 1');
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
+        testEnv.addSourceFile(testEnv.mainPackageName, './1.bs', '1 + 1');
 
         await expect(compile(testEnv)).rejects.toThrow(`Invalid file name`);
     });
 
     it('should compile an additional code fragment.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', '1 + 1');
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
 
         const session = await compile(testEnv);
         const binary = await session.compileFragment('1 + 23');
@@ -364,8 +363,8 @@ describe('Test additional compile: Compiler for ESP32', () => {
     });
 
     it('should compile an additional code fragment with function call.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', 'function add(a, b) {return a + b}');
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', 'function add(a, b) {return a + b}');
 
         const session = await compile(testEnv);
         const binary = await session.compileFragment('add(2, 3);');
@@ -373,8 +372,8 @@ describe('Test additional compile: Compiler for ESP32', () => {
     });
 
     it('should compile an additional code fragment with variable access', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', 'let a = 1 + 1;');
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', 'let a = 1 + 1;');
 
         const session = await compile(testEnv);
         const binary = await session.compileFragment('a += 1;');
@@ -382,9 +381,9 @@ describe('Test additional compile: Compiler for ESP32', () => {
     });
 
     it('should compile an additional code fragment with a module import.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.addSourceFile(mainPackageName, './index.bs', `1 + 1`);
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `1 + 1`);
 
         const session = await compile(testEnv);
         const binary = await session.compileFragment(`import {add} from './module1';\n add(1, 1);`);
@@ -392,8 +391,8 @@ describe('Test additional compile: Compiler for ESP32', () => {
     });
 
     it('should compile several additional code fragments.', async () => {
-        testEnv.createMainPackage(mainPackageName);
-        testEnv.addSourceFile(mainPackageName, './index.bs', '1 + 1');
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
 
         const session = await compile(testEnv);
         let binary = await session.compileFragment('function add(a, b) {return a + b}');

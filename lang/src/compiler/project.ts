@@ -56,6 +56,9 @@ export class Project<P extends Package = Package> {
 
 	check() {
         const invalidFilePattern = /^\d+\.bs$/;
+        if (!fs.existsSync(this.mainPackage.sourceDir)) {
+            return;
+        }
         const files = fs.readdirSync(this.mainPackage.sourceDir);
 
         for (const file of files) {
