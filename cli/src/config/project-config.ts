@@ -10,11 +10,15 @@ export const DEFAULT_DEVICE_NAME = 'BLUESCRIPT';
 
 export const PROJECT_PATHS = {
     MAIN_FILE: (root: string) => {
-        return path.join(root, 'index.bs');
+        return path.join(root, 'src', 'index.bs');
     },
 
     CONFIG_FILE: (root: string) => {
         return path.join(root, 'bsconfig.json');
+    },
+
+    SRC_DIR: (root: string) => {
+        return path.join(root, 'src');
     },
 
     DIST_DIR: (root: string) => {

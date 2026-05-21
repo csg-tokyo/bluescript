@@ -10,8 +10,11 @@ import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";
 
 
-const MAIN_FILE_CONTENTS = `console.log('Hello world!')\n`;
-const GIT_IGNORE_CONTENTS = `**/dist/\n`;
+const MAIN_FILE_CONTENTS = `console.log('Hello world!');\n`;
+const GIT_IGNORE_CONTENTS = `\
+**/dist/
+**/packages/
+`;
 
 class CreateHandler extends CommandHandler {
     private board: BoardName;
@@ -32,6 +35,7 @@ class CreateHandler extends CommandHandler {
     create() {
         this.createProjectDir();
         this.createGitIgnore();
+        this.createSourceDir();
         this.createMainFile();
         this.projectConfigHandler.save(this.projectRoot);
     }
@@ -41,6 +45,10 @@ class CreateHandler extends CommandHandler {
             throw new Error(`${this.projectRoot} already exists.`);
         }
         fs.makeDir(this.projectRoot);
+    }
+
+    private createSourceDir() {
+        fs.makeDir(PROJECT_PATHS.SRC_DIR(this.projectRoot));
     }
 
     private createMainFile() {
