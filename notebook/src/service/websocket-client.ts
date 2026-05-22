@@ -95,53 +95,26 @@ export class ReplService extends Service<ReplServiceEvents> {
         super('repl', client);
     }
 
-    public executeMain( resultHandlers?: {
-        onFinishCompilation?: (time: number) => void,
-        onFailedToCompile?: (error: string) => void,
-        onFinishLoading?: (time: number) => void,
-        onFinishExecution?: (time: number) => void
-    }): Promise<void> {
-        this.send('executeMain', []);
-        const h = resultHandlers;
-        if (!h) { return new Promise<void>(() => {}) }
-        return this.handleExecutionResults(
-            h.onFinishCompilation, h.onFailedToCompile, h.onFinishLoading, h.onFinishExecution
-        )
-    }
-
-    public executeCell(code: string, resultHandlers?: {
-        onFinishCompilation?: (time: number) => void,
-        onFailedToCompile?: (error: string) => void,
-        onFinishLoading?: (time: number) => void,
-        onFinishExecution?: (time: number) => void
-    }): Promise<void> {
-        this.send('executeCell', [ code ]);
-        const h = resultHandlers;
-        if (!h) { return new Promise<void>(() => {}) }
-        return this.handleExecutionResults(
-            h.onFinishCompilation, h.onFailedToCompile, h.onFinishLoading, h.onFinishExecution
-        )
-    }
-
-    private async handleExecutionResults(
+    public async execute(code: string, 
         onFinishCompilation?: (time: number) => void,
         onFailedToCompile?: (error: string) => void,
         onFinishLoading?: (time: number) => void,
         onFinishExecution?: (time: number) => void
     ): Promise<void> {
-        const [compilationTime, compileError] = await this.awaitCompilation();
+        this.send('execute', [ code ]);
+        const [compilationTime, compileError] = await this.waitCompilation();
         if (compileError) {
             onFailedToCompile && onFailedToCompile(compileError);
             return;
         }
         onFinishCompilation && onFinishCompilation(compilationTime);
-        const loadingTime = await this.awaitLoading();
+        const loadingTime = await this.waitLoading();
         onFinishLoading && onFinishLoading(loadingTime);
-        const executionTime = await this.awaitExecution();
+        const executionTime = await this.waitExecution();
         onFinishExecution && onFinishExecution(executionTime);
     }
 
-    private awaitCompilation() {
+    private waitCompilation() {
         return new Promise<[number, string|undefined]>((resolve)=> {
             this.once('finishCompilation', (time, error) => {
                 resolve([time, error]);
@@ -149,13 +122,13 @@ export class ReplService extends Service<ReplServiceEvents> {
         });
     }
 
-    private awaitLoading() {
+    private waitLoading() {
         return new Promise<number>((resolve)=> {
             this.once('finishLoading', (time) => {resolve(time)});
         });
     }
 
-    private awaitExecution() {
+    private waitExecution() {
         return new Promise<number>((resolve)=> {
             this.once('finishExecution', (time) => {resolve(time)});
         });

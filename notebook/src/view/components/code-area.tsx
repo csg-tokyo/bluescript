@@ -1,4 +1,4 @@
-import { Result, Button } from 'antd';
+import { Result } from 'antd';
 import { useContext } from 'react';
 import {LoadingOutlined, SmileOutlined } from '@ant-design/icons';
 import { ReplContext } from '../../contexts/repl-context';
@@ -21,9 +21,7 @@ export default function CodeArea() {
                 <LoadingScreen message={`Connecting to ${url} ...`} />
             ) : replContext.state === 'network-disconnected' ? (
                 <ErrorScreen message={`Failed to connect to ${url}`}/>
-            ) : replContext.state === 'executing-main' ? (
-                <MainExecutionScreen />
-            ): (
+            ) : (
                 <ActivatedScreen />
             )}
         </div>
@@ -60,43 +58,6 @@ function ErrorScreen(props: {message: string, subMessage?: string}) {
                 title={props.message}
                 subTitle={props.subMessage}
             />
-        </div>
-    );
-}
-
-function MainExecutionScreen() {
-    const replContext = useContext(ReplContext);
-    if (replContext === undefined) {
-        throw new Error('ReplContext can only be used in ReplProvider.');
-    }
-    const state = replContext.mainState.state;
-    const message = state === 'initial' ? 'Welcom to BlueScript REPL.'
-                    : state === 'failed-to-compile' ? 'Failed to compile.'
-                    : state === 'compiling' ? 'Compiling...'
-                    : state === 'loading' ? 'Loading...'
-                    : state === 'executing' ? 'Executing...'
-                    : 'Finish execution.'
-    return (
-        <div className={styles.statusScreen}>
-            { state === 'initial' ? (
-                <Result 
-                    icon={<SmileOutlined />} 
-                    title={message} 
-                    extra={<Button type="primary" onClick={replContext.executeMain}>
-                                Start execution
-                            </Button>}
-                />
-            ) : state === 'failed-to-compile' ? (
-                <Result 
-                    status="error" 
-                    title={message} 
-                    subTitle={replContext.mainState.error}
-                    extra={<Button type="primary" danger onClick={replContext.executeMain}>
-                                Retry
-                            </Button>}
-                />
-            ) : <Result icon={<SmileOutlined />} title={message}/>
-            }
         </div>
     );
 }

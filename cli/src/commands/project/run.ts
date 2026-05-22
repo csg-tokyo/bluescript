@@ -1,13 +1,15 @@
 import { Command, Option } from "commander";
 import chalk from "chalk";
 import * as readline from 'readline';
+import http from 'http';
 import { logger, runAsyncWithLogStep, ProgramLogger, showErrorMessages, replLogger } from "../../core/logger";
 import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
-import { cwd } from "../../core/shell";
+import { cwd, exec } from "../../core/shell";
 import { CommandHandler } from "../command";
 import { CompilerAdapter, getCompilerAdapter } from "../../boards/compiler-adapters";
 import { BleDeviceManager } from "../../services/device-manager";
 import { CompileError, ExecutableBinary } from "@bscript/lang";
+import { WebSocketConnection } from "../../services/websocket";
 
 class RunHandler extends CommandHandler {
     protected compilerAdapter: CompilerAdapter;
@@ -143,10 +145,12 @@ class RunWithReplHandler extends RunHandler {
             });
         });
     }
-    
 }
 
 class RunWithNotebookHandler extends RunHandler {
+    private ws: WebSocketConnection | null = null;
+    private server: http.Server | null = null;
+
     constructor(projectConfigHandler: ProjectConfigHandler) {
         super(projectConfigHandler);
     }
@@ -156,16 +160,87 @@ class RunWithNotebookHandler extends RunHandler {
         if (interrupted) {
             return interrupted;
         }
-        await Promise.all([this.startUiServer(), this.startWebsocket()]);
-        return false;
+        this.startWebsocket();
+        this.startUiServer();
+        logger.info("Type 'Ctrl-D' to exit.");
+
+        return new Promise<boolean>((resolve) => {
+            process.stdin.on('keypress', (str, key) => {
+                if (key && key.ctrl && key.name === 'd') {
+                    resolve(true);
+                }
+            });
+        });
     }
 
-    private async startUiServer() {
-
+    async close(): Promise<void> {
+        await super.close();
+        this.server?.close();
+        this.ws?.close();
     }
 
-    private async startWebsocket() {
+    private startUiServer() {
+        this.server = http.createServer(() => {});
+        const PORT = process.env.PORT || 3001;
+        this.server.listen(PORT, () => {
+            logger.info(`Notebook server is running at: http://localhost:${PORT}`);
+            this.openBrowser(PORT);
+        });
+    }
 
+    private openBrowser(port: number|string) {
+        const url = `http://localhost:${port}`;
+        const startCommand = 
+            process.platform === 'win32' ? 'start' : 
+            process.platform === 'darwin' ? 'open' : 'xdg-open';
+            
+        exec(`${startCommand} ${url}`, {silent: true});
+    }
+
+    private startWebsocket() {
+        this.ws = new WebSocketConnection(8080);
+        const service = this.ws.getService('repl');
+        this.ws.open();
+        this.deviceManager.updateLogger({
+            log: (message: string) => { service.log(message); },
+            error: (message: string) => { service.error(message); }
+        });
+        service.on('execute', async (code: string) => {
+            try {
+                let {bin, time} = await this.compile(code);
+                service.finishCompilation(time);
+                time = await this.load(bin);
+                service.finishLoading(time);
+                time = await this.execute(bin);
+                service.finishExecution(time);
+            } catch (error) {
+                if (error instanceof CompileError) {
+                    service.finishCompilation(-1, error.toString());
+                } else {
+                    console.log(error)
+                    throw error;
+                }
+            }
+        });
+        logger.info('WebSocket server is running at ws://localhost:8080');
+    }
+
+    private async compile(code: string) {
+        const start = performance.now();
+        const bin = await this.compilerAdapter.compileFragment(code);
+        return {bin, time: performance.now() - start};
+    }
+
+    private async load(bin: ExecutableBinary) {
+        const start = performance.now();
+        await this.deviceManager.load(bin);
+        return performance.now() - start;
+    }
+
+    private async execute(bin: ExecutableBinary) {
+        const start = performance.now();
+        await this.deviceManager.execute(bin);
+        return performance.now() - start;
     }
 }
 
