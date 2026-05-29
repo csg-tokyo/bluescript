@@ -2,6 +2,8 @@ import { Command, Option } from "commander";
 import chalk from "chalk";
 import * as readline from 'readline';
 import http from 'http';
+import sirv from 'sirv';
+import path from 'path';
 import { logger, runAsyncWithLogStep, ProgramLogger, showErrorMessages, replLogger } from "../../core/logger";
 import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
@@ -161,7 +163,7 @@ class RunWithNotebookHandler extends RunHandler {
             return interrupted;
         }
         this.startWebsocket();
-        this.startUiServer();
+        await this.startUiServer();
         logger.info("Type 'Ctrl-D' to exit.");
 
         return new Promise<boolean>((resolve) => {
@@ -180,12 +182,24 @@ class RunWithNotebookHandler extends RunHandler {
     }
 
     private startUiServer() {
-        this.server = http.createServer(() => {});
-        const PORT = process.env.PORT || 3001;
-        this.server.listen(PORT, () => {
-            logger.info(`Notebook server is running at: http://localhost:${PORT}`);
-            this.openBrowser(PORT);
+        const notebookPackageJsonPath = require.resolve('@bscript/notebook/package.json');
+        const clientPath = path.join(path.dirname(notebookPackageJsonPath), 'build');
+
+        const serveStaticFiles = sirv(clientPath, {
+            dev: false,
+            single: true,
         });
+
+        this.server = http.createServer(serveStaticFiles);
+        const PORT = process.env.PORT || 3000;
+        return new Promise<void>((resolve) => {
+            this.server?.listen(PORT, () => {
+                logger.info(`Notebook server is running at: http://localhost:${PORT}`);
+                this.openBrowser(PORT);
+                resolve();
+            });
+        });
+        
     }
 
     private openBrowser(port: number|string) {

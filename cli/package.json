@@ -48,12 +48,14 @@
   "dependencies": {
     "@abandonware/noble": "^1.9.2-26",
     "@bscript/lang": "2.0.2",
+    "@bscript/notebook": "2.0.2",
     "axios": "^1.12.2",
     "chalk": "^4.1.2",
     "commander": "^14.0.1",
     "extract-zip": "^2.0.1",
     "inquirer": "^12.11.0",
     "serialport": "^13.0.0",
+    "sirv": "^3.0.2",
     "zod": "^4.1.11"
   }
 }

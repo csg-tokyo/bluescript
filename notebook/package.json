@@ -1,6 +1,6 @@
 {
   "name": "@bscript/notebook",
-  "version": "0.1.0",
+  "version": "2.0.2",
   "private": true,
   "dependencies": {
     "@ant-design/colors": "^7.1.0",
