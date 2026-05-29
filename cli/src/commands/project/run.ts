@@ -186,7 +186,7 @@ class RunWithNotebookHandler extends RunHandler {
         const clientPath = path.join(path.dirname(notebookPackageJsonPath), 'build');
 
         const serveStaticFiles = sirv(clientPath, {
-            dev: false,
+            dev: true,
             single: true,
         });
 

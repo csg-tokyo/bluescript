@@ -73,7 +73,12 @@ function ActivatedScreen() {
         <div className={styles.activatedScreen}>
             { replContext?.executedCells.map(cell => <ExecutedCell cell={cell} key={cell.id} />)}
             { replContext.latestCell.state === 'editing'
-                ? <EditingCell cell={replContext.latestCell} setCode={replContext.setCode} onExecuteClick={replContext.executeLatestCell}/>
+                ? <EditingCell
+                    key={replContext.executedCells.length}
+                    cell={replContext.latestCell}
+                    setCode={replContext.setCode}
+                    onExecuteClick={replContext.executeLatestCell}
+                  />
                 : <ExecutingCell cell={replContext.latestCell} />
             }
         </div>

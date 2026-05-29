@@ -15,7 +15,7 @@ export function EditingCell(props: {cell: EditingCellT, setCode: (code: string) 
             <Row>
             <Flex style={{width: '100%'}}>
                 <Button shape='circle' type='text' onClick={props.onExecuteClick} style={{marginRight:5}} icon={<CaretRightOutlined style={{fontSize:20}} />}/>
-                <CodeEditor onChange={props.setCode} onShiftEnter={props.onExecuteClick} code={props.cell.code}/>
+                <CodeEditor onChange={props.setCode} onShiftEnter={props.onExecuteClick} code={props.cell.code} autoFocus/>
             </Flex>
             </Row>
             { props.cell.compileError &&
@@ -117,7 +117,8 @@ function CodeEditor(props: {
     onChange?: (code: string) => void, 
     onShiftEnter?: () => Promise<void>,
     code: string, 
-    disabled?:boolean
+    disabled?: boolean,
+    autoFocus?: boolean,
 }) {
     const handleChange = useCallback((value: string) => {
         props.onChange && props.onChange(value);
@@ -141,6 +142,7 @@ function CodeEditor(props: {
         <CodeMirror
             value={props.code}
             className={styles.cellCodeEditor}
+            autoFocus={props.autoFocus && !props.disabled}
             extensions={[
                 javascript({ jsx: true, typescript: true }),
                 removeBorderTheme,
