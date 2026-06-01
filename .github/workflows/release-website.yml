@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g. 1.0.0)'
+        description: 'Version number (e.g. 2.0.5 or 2.1.0-alpha.1)'
         required: true
 
 jobs:
@@ -37,20 +37,107 @@ jobs:
       - name: Determine Version
         id: determine_version
         run: |
-          # 1. Get raw version number (e.g., 1.0.0 or 1.0.5)
+          # 1. Get raw version number (e.g. 2.0.5 or 2.1.0-alpha.1)
           if [ "${{ github.event_name }}" == "release" ]; then
             TAG_NAME=${{ github.ref_name }}
             RAW_VERSION=${TAG_NAME#v}
+            IS_PRERELEASE="${{ github.event.release.prerelease }}"
           else
-            RAW_VERSION=${{ inputs.version }}
+            RAW_VERSION="${{ inputs.version }}"
+            if [[ "$RAW_VERSION" == *-* ]]; then
+              IS_PRERELEASE="true"
+            else
+              IS_PRERELEASE="false"
+            fi
           fi
           echo "Detected raw version: $RAW_VERSION"
+          echo "Pre-release: $IS_PRERELEASE"
 
-          # 2. Convert to .x format (e.g., 1.0.5 -> 1.0.x)
-          BASE_VER=${RAW_VERSION%.*}
-          DOC_VERSION="${BASE_VER}.x"
+          # 2. Validate GitHub release type vs semver
+          if [ "${{ github.event_name }}" == "release" ]; then
+            if [ "$IS_PRERELEASE" = "true" ] && [[ "$RAW_VERSION" != *-* ]]; then
+              echo "::error::GitHub pre-release requires a semver prerelease segment (e.g. 2.1.0-alpha.1)"
+              exit 1
+            fi
+            if [ "$IS_PRERELEASE" != "true" ] && [[ "$RAW_VERSION" == *-* ]]; then
+              echo "::error::Stable GitHub release must not use a prerelease version (${RAW_VERSION}). Mark the release as pre-release or use a stable version."
+              exit 1
+            fi
+          fi
+
+          # 3. Convert to Docusaurus doc version
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            DOC_VERSION=$(node -e "
+              const m = process.argv[1].match(/^(\d+\.\d+\.\d+)-([0-9A-Za-z-]+)/);
+              if (!m) {
+                console.error('::error::Could not derive doc version from prerelease (${RAW_VERSION}). Expected format like 2.1.0-alpha.1');
+                process.exit(1);
+              }
+              process.stdout.write(m[1] + '-' + m[2].split('.')[0] + '.x');
+            " "$RAW_VERSION")
+          else
+            BASE_VER=${RAW_VERSION%.*}
+            DOC_VERSION="${BASE_VER}.x"
+          fi
+
           echo "Target Docusaurus Version: $DOC_VERSION"
           echo "doc_version=$DOC_VERSION" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "raw_version=$RAW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Remove prerelease doc versions on stable release
+        if: steps.determine_version.outputs.is_prerelease != 'true'
+        working-directory: ./website
+        env:
+          RAW_VERSION: ${{ steps.determine_version.outputs.raw_version }}
+        run: |
+          VERSIONS_JSON="versions.json"
+
+          remove_doc_version() {
+            local v="$1"
+            local VERSION_DIR="versioned_docs/version-$v"
+            local SIDEBAR_FILE="versioned_sidebars/version-$v-sidebars.json"
+
+            echo "Removing prerelease doc version: $v"
+
+            if [ -d "$VERSION_DIR" ]; then
+              rm -rf "$VERSION_DIR"
+              echo "Removed $VERSION_DIR"
+            fi
+
+            if [ -f "$SIDEBAR_FILE" ]; then
+              rm -f "$SIDEBAR_FILE"
+              echo "Removed $SIDEBAR_FILE"
+            fi
+
+            if [ -f "$VERSIONS_JSON" ]; then
+              tmp=$(mktemp)
+              jq --arg v "$v" 'map(select(. != $v))' "$VERSIONS_JSON" > "$tmp" && mv "$tmp" "$VERSIONS_JSON"
+              echo "Removed $v from $VERSIONS_JSON"
+            fi
+          }
+
+          # e.g. stable 2.1.0 -> 2.1.0-alpha.x, 2.1.0-beta.x
+          PRERELEASE_VERSIONS=$(
+            {
+              if [ -f "$VERSIONS_JSON" ]; then
+                jq -r --arg raw "$RAW_VERSION" '.[] | select(startswith($raw + "-") and endswith(".x"))' "$VERSIONS_JSON"
+              fi
+              shopt -s nullglob
+              for dir in versioned_docs/version-"${RAW_VERSION}"-*.x; do
+                basename "$dir" | sed 's/^version-//'
+              done
+            } | sort -u
+          )
+
+          if [ -z "$PRERELEASE_VERSIONS" ]; then
+            echo "No prerelease doc versions found for stable release ${RAW_VERSION}."
+            exit 0
+          fi
+
+          while IFS= read -r v; do
+            [ -n "$v" ] && remove_doc_version "$v"
+          done <<< "$PRERELEASE_VERSIONS"
 
       - name: Clean up existing version (if any)
         working-directory: ./website
@@ -95,8 +182,8 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "docs: update version ${{ steps.determine_version.outputs.doc_version }}"
-          title: "docs: update version ${{ steps.determine_version.outputs.doc_version }}"
-          body: "Automated docs update for version ${{ steps.determine_version.outputs.doc_version }}"
-          branch: "docs-version-${{ steps.determine_version.outputs.doc_version }}"
+          commit-message: ${{ steps.determine_version.outputs.is_prerelease == 'true' && format('docs: update pre-release version {0} ({1})', steps.determine_version.outputs.doc_version, steps.determine_version.outputs.raw_version) || format('docs: update version {0}', steps.determine_version.outputs.doc_version) }}
+          title: ${{ steps.determine_version.outputs.is_prerelease == 'true' && format('docs: update pre-release version {0} ({1})', steps.determine_version.outputs.doc_version, steps.determine_version.outputs.raw_version) || format('docs: update version {0}', steps.determine_version.outputs.doc_version) }}
+          body: ${{ steps.determine_version.outputs.is_prerelease == 'true' && format('Automated docs update for pre-release {0} (tag version {1}).', steps.determine_version.outputs.doc_version, steps.determine_version.outputs.raw_version) || format('Automated docs update for version {0}.', steps.determine_version.outputs.doc_version) }}
+          branch: docs-version-${{ steps.determine_version.outputs.doc_version }}
           base: main

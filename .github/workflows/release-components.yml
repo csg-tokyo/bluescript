@@ -26,8 +26,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   
-  release-lang-and-cli:
-    name: Publish @bscript/lang and @bscript/cli
+  release-lang-cli-notebook:
+    name: Publish @bscript/lang, @bscript/cli, and @bscript/notebook
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,6 +45,32 @@ jobs:
 
       - name: Install latest npm
         run: npm install -g npm@latest
+
+      - name: Determine npm dist-tag
+        id: npm_tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+
+          if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+            NPM_TAG=$(node -e "
+              const m = process.argv[1].match(/-([0-9A-Za-z-]+)/);
+              if (!m) {
+                console.error('::error::GitHub pre-release requires a semver prerelease segment (e.g. 2.0.0-alpha.1)');
+                process.exit(1);
+              }
+              process.stdout.write(m[1]);
+            " "$TAG_VERSION")
+            echo "Pre-release: publishing to npm dist-tag '${NPM_TAG}' (version ${TAG_VERSION})"
+          else
+            if [[ "$TAG_VERSION" == *-* ]]; then
+              echo "::error::Stable GitHub release must not use a prerelease version (${TAG_VERSION}). Mark the release as pre-release or use a stable version."
+              exit 1
+            fi
+            NPM_TAG="latest"
+            echo "Stable release: publishing to npm dist-tag 'latest' (version ${TAG_VERSION})"
+          fi
+
+          echo "tag=${NPM_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Verify Version of @bscript/lang Matches Tag
         run: |
@@ -73,6 +99,22 @@ jobs:
           fi
           echo "Version check of @bscript/cli passed: $TAG_VERSION"
 
+      - name: Verify Version of @bscript/notebook Matches Tag and @bscript/notebook Installs Correct @bscript/lang Version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(node -p "require('./notebook/package.json').version")
+          DEP_LANG_VERSION=$(node -p "require('./notebook/package.json').dependencies['@bscript/lang']")
+          
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Version Mismatch! Tag ($TAG_VERSION) != ./notebook/package.json ($PKG_VERSION)"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$DEP_LANG_VERSION" ]; then
+            echo "::error::Version Mismatch! @bscript/lang@($DEP_LANG_VERSION) in dependencies is incorrect."
+            exit 1
+          fi
+          echo "Version check of @bscript/notebook passed: $TAG_VERSION"
+
       - name: Install Dependencies
         run: npm ci
 
@@ -81,8 +123,12 @@ jobs:
 
       - name: Publish @bscript/lang to npm
         working-directory: ./lang
-        run: npm publish || echo 'Failed or skipped publishing @bscript/lang'
+        run: npm publish --tag ${{ steps.npm_tag.outputs.tag }} || echo 'Failed or skipped publishing @bscript/lang'
 
       - name: Publish @bscript/cli to npm
         working-directory: ./cli
-        run: npm publish || echo 'Failed or skipped publishing @bscript/cli'
+        run: npm publish --tag ${{ steps.npm_tag.outputs.tag }} || echo 'Failed or skipped publishing @bscript/cli'
+        
+      - name: Publish @bscript/notebook to npm
+        working-directory: ./notebook
+        run: npm publish --tag ${{ steps.npm_tag.outputs.tag }} || echo 'Failed or skipped publishing @bscript/notebook'

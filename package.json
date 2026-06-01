@@ -11,6 +11,6 @@
     "typescript": "^5.9.2"
   },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b && npm run build -w @bscript/notebook"
   }
 }
