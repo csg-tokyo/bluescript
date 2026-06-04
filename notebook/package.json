@@ -23,7 +23,7 @@
     "type": "git",
     "url": "git+https://github.com/csg-tokyo/bluescript.git"
   },
-  "homepage": "https://csg-tokyo.github.io/bluescript/",
+  "homepage": ".",
   "bugs": "https://github.com/user/repo/issues",
   "scripts": {
     "start": "react-scripts start",
