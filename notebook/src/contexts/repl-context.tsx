@@ -1,5 +1,5 @@
 import {useState, createContext, ReactNode, useRef, useEffect} from 'react';
-import { ReplService, WebSocketClient } from '../service/websocket-client';
+import { DEFAULT_URL, ReplService, WebSocketClient } from '../service/websocket-client';
 
 
 export type ReplStateT = 'initial' | 'network-connecting' | 'network-disconnected' | 'activated';
@@ -31,7 +31,7 @@ export default function ReplProvider({children}: {children: ReactNode}) {
     const replService = useRef<ReplService|null>(null);
 
     useEffect(() => {
-        const url = 'ws://localhost:8080';
+        const url = DEFAULT_URL;
         wsc.current = new WebSocketClient();
         wsc.current.on('connected', () => {
             setReplState('activated');

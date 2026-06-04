@@ -55,6 +55,8 @@ export class EventEmitter<TEvents extends EventMap> {
   }
 }
 
+export const DEFAULT_URL = 'ws://localhost:8080';
+
 export interface WebSocketMessage {
     service: string;
     event: string;

@@ -212,7 +212,8 @@ class RunWithNotebookHandler extends RunHandler {
     }
 
     private startWebsocket() {
-        this.ws = new WebSocketConnection(8080);
+        const port = 8080;
+        this.ws = new WebSocketConnection(port);
         const service = this.ws.getService('repl');
         this.ws.open();
         this.deviceManager.updateLogger({
@@ -236,7 +237,7 @@ class RunWithNotebookHandler extends RunHandler {
                 }
             }
         });
-        logger.info('WebSocket server is running at ws://localhost:8080');
+        logger.info(`WebSocket server is running at ws://localhost:${port}`);
     }
 
     private async compile(code: string) {
