@@ -41,13 +41,18 @@ const featureItems: FeatureItem[] = [
     imageUrl: 'img/example-blink.png',
   },
   {
+    title: 'One CLI, End to End',
+    description: 'The `bscript` CLI handles everything—project setup, dependency management, compilation checks, and wireless deployment. Create a project with `bscript project create`, verify your code with `bscript project check`, and push it to your device with `bscript project run`. One familiar workflow, from your terminal to the microcontroller.',
+    imageUrl: 'img/cli-terminal.png',
+  },
+  {
     title: 'Native Speed, Tiny Footprint',
     description: 'Performance that matters. BlueScript compiles directly to native code, delivering exceptional performance. This means blazing-fast execution—20x faster than MicroPython on average. With no VM and no unnecessary libraries, your applications stay small and lean, perfect for resource-constrained devices.\n[1] S. Marr, DLS’16',
-    imageUrl: 'img/execution-time.png',
+    imageUrl: 'img/native-speed-footprint.png',
   },
   {
     title: 'Untethered Wireless Workflow',
-    description: 'BlueScript allows you to update and restart your programs wirelessly over Bluetooth. Stop fumbling with short, cumbersome USB cables. Update code and see your changes instantly from across the room.',
+    description: 'BlueScript allows you to update and restart your programs wirelessly over Bluetooth® wireless technology. Stop fumbling with short, cumbersome USB cables. Update code and see your changes instantly from across the room.',
     imageUrl: 'img/wireless-coding.png',
   },
   {
@@ -59,6 +64,11 @@ const featureItems: FeatureItem[] = [
     title: 'Seamless C Integration',
     description: "Need to get closer to the hardware or optimize a critical section? Easily embed C code directly into your BlueScript program using clean code\`\` template literals. Get the best of both worlds without the hassle.",
     imageUrl: 'img/c-integration.png',
+  },
+  {
+    title: 'Peer-Reviewed Foundations',
+    description: "BlueScript is built on systems research, not guesswork. Its architecture comes from peer-reviewed work on disaggregated virtual machines and offloaded compilation, published at Programming '25 and MPLR '24. Explore the papers behind the language's design.",
+    imageUrl: 'img/publications-papers.png',
   },
 ]
 

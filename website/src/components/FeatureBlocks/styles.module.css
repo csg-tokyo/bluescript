@@ -1,21 +1,18 @@
-
 .featureContainer {
-  grid-template-columns: 1fr;
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
 }
 
 .featureItem {
-  background-color: var(--ifm-background-color); 
-  padding: 20px;
-  padding-left: 150px;
-  padding-right: 150px;
-  text-align: center;
+  background-color: var(--ifm-background-color);
+  padding: clamp(24px, 4vw, 40px) clamp(24px, 8vw, 150px);
   color: var(--ifm-font-color-base);
 
   display: flex;
   align-items: center;
-  column-gap: 150px;
-  row-gap: 50px;
+  column-gap: clamp(32px, 8vw, 150px);
+  row-gap: 32px;
   text-align: left;
   flex-direction: row;
 }
@@ -26,34 +23,41 @@
 }
 
 .featureItemTextContent {
-  flex: 1; 
+  flex: 1 1 280px;
+  min-width: 0;
 }
 
 .featureItem h1 {
-  color: var(--ifm-color-primary); 
+  color: var(--ifm-color-primary);
   margin-bottom: 10px;
   border-bottom: solid 3px var(--ifm-color-primary);
 }
 
 .featureItem p {
-  color: var(--ifm-font-color-base); 
+  color: var(--ifm-font-color-base);
 }
 
 .featureItemImage {
-  width: 500px; 
+  flex: 0 1 min(400px, 35%);
+  width: 100%;
+  max-width: 400px;
   height: auto;
-  border-radius: 4px; 
+  border-radius: 4px;
   filter: drop-shadow(30px 10px 4px var(--ifm-color-gray-300));
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* Stack image above text before the row layout gets cramped */
+@media (max-width: 800px) {
   .featureItem {
-    flex-direction: column !important; 
+    flex-direction: column !important;
     text-align: center;
+    padding-left: clamp(24px, 5vw, 48px);
+    padding-right: clamp(24px, 5vw, 48px);
   }
 
   .featureItemImage {
-    margin-bottom: 10px;
+    flex: none;
+    max-width: min(400px, 100%);
+    margin-bottom: 8px;
   }
 }
