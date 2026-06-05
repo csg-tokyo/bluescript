@@ -149,7 +149,7 @@ const config: Config = {
         href: 'https://csg-tokyo.github.io/bluescript/',
         width: 400,
       },
-      copyright: `Copyright © ${new Date().getFullYear()} Computing Software Group, The University of Tokyo.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Computing Software Group, The University of Tokyo.<br />The Bluetooth® word mark and logos are registered trademarks owned by Bluetooth SIG, Inc.`,
     },
     prism: {
       theme: prismThemes.github,

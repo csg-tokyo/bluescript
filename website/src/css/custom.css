@@ -28,3 +28,10 @@
   --ifm-color-primary-lightest: #00b7f6;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+img[alt='BlueScript Disaggregated VM Architecture'] {
+  max-width: 600px;
+  width: 100%;
+  display: block;
+  margin: 0 auto;
+}

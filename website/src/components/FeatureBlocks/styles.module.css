@@ -1,12 +1,12 @@
 
 .featureContainer {
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: 40px;
 }
 
 .featureItem {
   background-color: var(--ifm-background-color); 
-  padding: 20px;
+  padding: 40px;
   padding-left: 150px;
   padding-right: 150px;
   text-align: center;

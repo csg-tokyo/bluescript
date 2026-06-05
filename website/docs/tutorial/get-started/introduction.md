@@ -25,29 +25,7 @@ BlueScript physically separates (disaggregates) these VM components between the 
 
 ### Architecture Overview
 
-```mermaid
-graph LR
-    subgraph Host["Host Machine (PC)"]
-        Source[Source Code]
-        Compiler[Incremental Compiler]
-        Shadow[Shadow Machine]
-    end
-
-    subgraph Target["Target Device (MCU)"]
-        Runtime[Lightweight Runtime]
-        Execution[Native Execution]
-    end
-
-    Source --> Compiler
-    Compiler -- "Native Code" --> Runtime
-    Runtime --> Execution
-    Shadow -. "State Sync" .- Runtime
-
-    style Host fill:#f9f,stroke:#333,stroke-width:2px
-    style Target fill:#bbf,stroke:#333,stroke-width:2px
-    style Compiler fill:#ff9,stroke:#333
-    style Runtime fill:#9f9,stroke:#333
-```
+![BlueScript Disaggregated VM Architecture](/img/publications-architecture.png)
 
 ### Core Technologies
 
@@ -59,8 +37,8 @@ This architecture is powered by three key technologies:
 2.  **Shadow Machine**
     The Host PC maintains a "Shadow Machine" that mirrors the state of the microcontroller (memory map, symbol tables, etc.). Because the host knows the exact state of the device, it can compile new code fragments that link correctly to the running program. This enables **interactive development**.
 
-3.  **Bluetooth OTA Updates**
-    Since the compiled binary differences are very small, they can be transferred instantly over Bluetooth Low Energy (BLE). Once the runtime is flashed, you can update your program **wirelessly without cables**.
+3.  **Bluetooth® OTA Updates**
+    Since the compiled binary differences are very small, they can be transferred instantly over Bluetooth® Low Energy (BLE). Once the runtime is flashed, you can update your program **wirelessly without cables**.
 
 ## The BlueScript Experience
 
@@ -68,7 +46,7 @@ Thanks to this unique architecture, BlueScript offers a developer experience unl
 
 *   **TypeScript-like Syntax:** Write in a modern, familiar syntax.
 *   **Inline C:** Embed C code directly for critical performance sections or hardware access.
-*   **Interactive development:** Use the **Notebook** (`bscript project run --with-notebook`) or **REPL** to run additional code on the device with incremental compilation over Bluetooth. See the [REPL & Notebook guide](/docs/tutorial/guides/repl).
+*   **Interactive development:** Use the **Notebook** (`bscript project run --with-notebook`) or **REPL** to run additional code on the device with incremental compilation over Bluetooth® wireless technology. See the [REPL & Notebook guide](/docs/tutorial/guides/repl).
 
 :::info Academic Background
 The architecture of BlueScript is based on the research paper *["BlueScript: A Disaggregated Virtual Machine for Microcontrollers"](https://programming-journal.org/2025/10/21/)*.
