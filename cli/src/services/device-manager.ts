@@ -63,4 +63,8 @@ export class BleDeviceManager {
         }
         return this.deviceService.execute(bin);
     }
+
+    updateLogger(logger: DeviceLogger) {
+        this.deviceLogger = logger;
+    }
 }

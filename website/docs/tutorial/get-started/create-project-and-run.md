@@ -54,10 +54,8 @@ If you restart or power off the device, the program will be lost. You will need 
 We are planning to introduce a **`bscript project deploy`** command. This command will permanently install your application, allowing it to start automatically when the device powers on.
 :::
 
-:::tip Try the REPL
-Want to test a command quickly without editing a file? Try the interactive mode!
-
-Run **`bscript repl`** in your terminal. You can type commands like `console.log("Hello")` and see the results instantly on the device.
+:::tip Try interactive development
+Want to experiment without editing files on every try? After you have a project, run **`bscript project run --with-notebook`** for a browser-based Notebook, or see [REPL & Notebook](/docs/tutorial/guides/repl) for all interactive modes.
 :::
 
 ---

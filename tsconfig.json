@@ -3,5 +3,6 @@
   "references": [
     {"path": "cli"},
     {"path": "lang"},
+    {"path": "notebook"},
   ]
 }

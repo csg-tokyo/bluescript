@@ -106,13 +106,22 @@ This command runs the compiler locally on your host machine to verify for syntax
 Compiles the current project and executes it on a target device via Bluetooth.
 
 ```bash
-bscript project run
+bscript project run [options]
 ```
 
 When you run this command:
 1.  The CLI scans for available BlueScript devices over Bluetooth.
 2.  The project is compiled into native code on your host machine.
 3.  The code is transferred and executed immediately.
+
+**Options:**
+
+| Option | Description |
+| :--- | :--- |
+| `--with-repl` | After `index.bs` finishes, start a terminal REPL on the device. Cannot be combined with `--with-notebook`. |
+| `--with-notebook` | After `index.bs` finishes, start the browser Notebook UI (default HTTP port `3000`). Cannot be combined with `--with-repl`. |
+
+See the [REPL & Notebook tutorial](/docs/tutorial/guides/repl) for usage details.
 
 ---
 
@@ -221,13 +230,13 @@ bscript board update
 
 ### `bscript repl`
 
-Starts an interactive Read-Eval-Print Loop (REPL) session with the target device.
+Starts a **global** REPL session with the target device (no project required).
 
 ```bash
 bscript repl --board <board-name>
 ```
 
-Unlike `bscript run` which compiles and sends the entire project, `bscript repl` utilizes the incremental compiler and shadow machine. It allows you to write code line-by-line, compiling only the differences and sending them to the device instantly via Bluetooth.
+This mode is for language syntax experiments only. Hardware libraries installed via `bscript project install` are not available. For GPIO and other drivers, use `bscript project run --with-repl` or `--with-notebook` instead. See the [REPL & Notebook tutorial](/docs/tutorial/guides/repl).
 
 
 **Options:**

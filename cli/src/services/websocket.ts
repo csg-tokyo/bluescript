@@ -2,8 +2,7 @@ import { Connection, ConnectionMessage, EventMap, Service } from "./common";
 import { WebSocketServer, WebSocket } from 'ws';
 
 export type ReplServiceEvents = {
-    executeMain: () => void;
-    executeCell: (code: string) => void;
+    execute: (code: string) => void;
 }
 
 export class ReplService extends Service<ReplServiceEvents, any> {
@@ -77,6 +76,7 @@ export class WebSocketConnection extends Connection<any> {
     }
 
     public close(): void {
+        console.log("closed");
         if(this.server) {
             this.server.close();
         }
