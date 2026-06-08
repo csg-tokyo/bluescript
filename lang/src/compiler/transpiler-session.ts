@@ -67,6 +67,7 @@ export class TranspilerSession {
         return (name: string): GlobalVariableNameTable => {
             const newPath = this.resolveImport(currentPath, name, project.dependencies);
             const mod = this.modules.get(newPath.absolutePath);
+            project.markDependencyAsUsed(newPath.pkg.name);
             if (mod)
                 return mod;
             else {

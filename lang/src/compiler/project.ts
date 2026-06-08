@@ -18,7 +18,7 @@ export interface PackageForEsp32 extends Package {
 export class Project<P extends Package = Package> {
     public readonly projectDir: string;
 	public readonly mainPackage: P;
-	public readonly dependencies: P[];
+	public readonly dependencies: (P & { used?: boolean })[];
     public readonly packageDir: string;
     
     constructor(mainPackage: P, dependencies: P[], projectDir: string) {
@@ -112,6 +112,13 @@ export class Project<P extends Package = Package> {
         const filePath = path.join(this.mainPackage.buildDir, "linkerscript.ld");
         fs.writeFileSync(filePath, data);
         return filePath;
+    }
+
+    markDependencyAsUsed(name: string) {
+        const dependency = this.dependencies.find(dep => dep.name === name);
+        if (dependency) {
+            dependency.used = true;
+        }
     }
 
     archivePath(pkg: P) { return path.join(pkg.buildDir, `lib${pkg.name}.a`); }

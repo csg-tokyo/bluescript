@@ -19,7 +19,7 @@ export class CompilerSession<P extends Package = Package> {
         project.clean();
 
         const entryPoints = this.transpiler.transpile(project);
-        const allPackages = [project.mainPackage, ...project.dependencies];
+        const allPackages = [project.mainPackage, ...project.dependencies.filter(dep => dep.used)];
         for (const pkg of allPackages) {
             await this.toolchain.compileC(project, pkg);
         }
