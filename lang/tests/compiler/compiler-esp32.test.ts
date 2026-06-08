@@ -132,6 +132,16 @@ describe('Test single compile: Compiler for ESP32', () => {
         expect(testEnv.resultElfExists()).toBe(true);
     });
 
+    it('should compile index.bs with an unused package.', async () => {
+        testEnv.createSubPackage('package1');
+        testEnv.addSourceFile('package1', './index.bs', `export function add(a: integer, b:integer) {return a + b}`);
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `1 + 1;`);
+
+        await compile(testEnv);
+        expect(testEnv.resultElfExists()).toBe(true);
+    });
+
     it('should compile index.bs with a package import 2.', async () => {
         // index.bs <- package1/module1
 

@@ -43,11 +43,6 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
 
     async compileC(project: Project<PackageForEsp32>, pkg: PackageForEsp32): Promise<void> {
         try {
-            // If compile target files does exists.
-            if (!fs.existsSync(pkg.distDir)) {
-                return;
-            }
-
             const archivePath = project.archivePath(pkg);
             const includeDirs = [
                 ...this.espIdfComponents.getIncludeDirs(pkg.espIdfComponents), 
@@ -138,7 +133,7 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
             }
         };
 
-        const reversedPackages = [...project.dependencies].reverse();
+        const reversedPackages = project.dependencies.filter(dep => dep.used).reverse();
         for (const pkg of reversedPackages) {
             resultArchives.push(project.archivePath(pkg));
             const espArchivesFromPkg = this.espIdfComponents.getArchiveFilePaths(pkg.espIdfComponents);
