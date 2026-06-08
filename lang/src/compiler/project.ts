@@ -114,10 +114,10 @@ export class Project<P extends Package = Package> {
         return filePath;
     }
 
-    markDepencyAsUsed(name: string) {
-        const depencnecy = this.dependencies.find(dep => dep.name === name);
-        if (depencnecy) {
-            depencnecy.used = true;
+    markDependencyAsUsed(name: string) {
+        const dependency = this.dependencies.find(dep => dep.name === name);
+        if (dependency) {
+            dependency.used = true;
         }
     }
 
