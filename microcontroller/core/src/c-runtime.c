@@ -442,6 +442,7 @@ void gc_initialize() {
     heap_memory[1] = 2;  // the size of the reserved space (first two words).
     heap_memory[2] = HEAP_SIZE;
     heap_memory[3] = HEAP_SIZE - 2;
+    gc_root_set_head = NULL;
 #ifdef LINUX64
     initialize_pointer_table();
 #endif
