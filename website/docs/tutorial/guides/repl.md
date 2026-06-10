@@ -25,7 +25,7 @@ Hardware libraries (e.g. GPIO) work in the Notebook and Project REPL only if you
 
 ## Try the Notebook
 
-This walkthrough continues from [Blink LED](/docs/tutorial/get-started/blink-led) (GPIO package installed, LED wired).
+This walkthrough continues from [Blink LED](../get-started/blink-led.md) (GPIO package installed, LED wired).
 
 ### 1. Shorten `index.bs`
 

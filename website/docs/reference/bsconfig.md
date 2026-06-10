@@ -87,7 +87,7 @@ When `boardName` is `"esp32"`, the following additional field is available.
 }
 ```
 
-See the [Inline C tutorial](/docs/tutorial/guides/inline-c) for usage examples.
+See the [Inline C tutorial](../tutorial/guides/inline-c.md) for usage examples.
 
 ## Generated project layout
 

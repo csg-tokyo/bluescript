@@ -12,7 +12,7 @@ cd hello-bluescript
 ```
 
 This creates a simple project structure:
-*   `bsconfig.json`: Project configuration (see [bsconfig.json](/docs/reference/bsconfig) for details).
+*   `bsconfig.json`: Project configuration (see [bsconfig.json](../../reference/bsconfig.md) for details).
 *   `src/`: Source directory (`srcDir` in `bsconfig.json`).
 *   `src/index.bs`: Entry file (`entryFile` in `bsconfig.json`).
 
@@ -56,7 +56,7 @@ We are planning to introduce a **`bscript project deploy`** command. This comman
 :::
 
 :::tip Try interactive development
-Want to experiment without editing files on every try? After you have a project, run **`bscript project run --with-notebook`** for a browser-based Notebook, or see [REPL & Notebook](/docs/tutorial/guides/repl) for all interactive modes.
+Want to experiment without editing files on every try? After you have a project, run **`bscript project run --with-notebook`** for a browser-based Notebook, or see [REPL & Notebook](../guides/repl.md) for all interactive modes.
 :::
 
 ---
