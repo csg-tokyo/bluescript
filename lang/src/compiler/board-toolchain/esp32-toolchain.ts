@@ -56,10 +56,10 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
 
             const makefile = generateMakefile(
                 this.config.compilerToolchainDir, 
-                pkg, project.packageDir, includeDirs, archivePath
+                pkg, includeDirs, archivePath
             );
             project.writeMakefile(pkg, makefile);
-            await executeCommand('make', [], pkg.distDir);
+            await executeCommand('make', [], pkg.resolvedDistDir);
         } catch (error) {
             throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
         }

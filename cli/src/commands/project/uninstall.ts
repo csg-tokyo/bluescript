@@ -18,7 +18,7 @@ class UninstallHandler extends CommandHandler {
     }
 
     uninstall(packageName: string) {
-        const packageDir = path.join(PROJECT_PATHS.PACKAGES_DIR(this.projectDir), packageName);
+        const packageDir = path.join(this.projectDir, PROJECT_PATHS.PACKAGES_DIR, packageName);
         if (!this.projectConfigHandler.dependencyExists(packageName)) {
             throw new Error(`Package ${packageName} is not listed in bsconfig.json dependencies.`)
         }

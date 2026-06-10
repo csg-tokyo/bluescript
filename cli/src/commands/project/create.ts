@@ -48,11 +48,11 @@ class CreateHandler extends CommandHandler {
     }
 
     private createSourceDir() {
-        fs.makeDir(PROJECT_PATHS.SRC_DIR(this.projectRoot));
+        fs.makeDir(path.join(this.projectRoot, PROJECT_PATHS.SRC_DIR));
     }
 
     private createMainFile() {
-        fs.writeFile(PROJECT_PATHS.MAIN_FILE(this.projectRoot), MAIN_FILE_CONTENTS);
+        fs.writeFile(path.join(this.projectRoot, PROJECT_PATHS.MAIN_FILE), MAIN_FILE_CONTENTS);
     }
 
     private createGitIgnore() {

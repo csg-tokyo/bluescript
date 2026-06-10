@@ -98,9 +98,9 @@ class ReplHandler extends CommandHandler {
     }
 
     private writeEntryFile(src: string) {
-        const srcDir = PROJECT_PATHS.SRC_DIR(ReplHandler.tempProjectDir);
+        const srcDir = path.join(ReplHandler.tempProjectDir, PROJECT_PATHS.SRC_DIR);
         fs.makeDir(srcDir);
-        const entryPath = path.join(srcDir, 'index.bs');
+        const entryPath = path.join(ReplHandler.tempProjectDir, PROJECT_PATHS.MAIN_FILE);
         fs.writeFile(entryPath, src);
     }
 

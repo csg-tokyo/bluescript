@@ -45,7 +45,6 @@ export class ESP32CompilerAdapter implements CompilerAdapter {
 
     async buildProject(memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
         const project = Project.load<PackageForEsp32>(
-            this.projectConfigHandler.root,
             this.projectConfigHandler.getConfig().projectName,
             this.packageReader.bind(this),
         );
@@ -76,22 +75,26 @@ export class ESP32CompilerAdapter implements CompilerAdapter {
 
     private packageReader(name: string): PackageForEsp32 {
         const mainRoot = this.projectConfigHandler.root;
-        const subPackageRoot = path.join(PROJECT_PATHS.PACKAGES_DIR(mainRoot), name);
+        const subPackageRoot = path.join(mainRoot, PROJECT_PATHS.PACKAGES_DIR, name);
         const isMain = name === this.projectConfigHandler.getConfig().projectName;
         const root = isMain ? mainRoot : subPackageRoot;
         try {
             const projectConfigHandler = isMain 
                 ? this.projectConfigHandler.asBoard(this.boardName) 
                 : ProjectConfigHandler.load(root).asBoard(this.boardName);
-            return  {
+            return new PackageForEsp32(
                 name,
-                entry: './index.bs',
-                sourceDir: PROJECT_PATHS.SRC_DIR(root),
-                distDir: PROJECT_PATHS.DIST_DIR(root),
-                buildDir: PROJECT_PATHS.BUILD_DIR(root),
-                dependencies: Object.keys(projectConfigHandler.dependencies),
-                espIdfComponents: projectConfigHandler.espIdfComponents,
-            }
+                {
+                    rootDir: root,
+                    entry: PROJECT_PATHS.MAIN_FILE,
+                    sourceDir: PROJECT_PATHS.SRC_DIR,
+                    distDir: PROJECT_PATHS.DIST_DIR,
+                    buildDir: PROJECT_PATHS.BUILD_DIR,
+                    packageDir: PROJECT_PATHS.PACKAGES_DIR,
+                },
+                Object.keys(projectConfigHandler.dependencies),
+                projectConfigHandler.espIdfComponents,
+            )
         } catch (error) {
             throw new Error(`Failed to read ${name}.`, { cause: error });
         }

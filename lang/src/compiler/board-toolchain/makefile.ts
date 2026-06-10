@@ -1,9 +1,9 @@
 import { Package } from "../project";
 
+
 export default function generateMakefile(
     compilerToolchainDir: string,
     pkg: Package,
-    packageDir: string,
     includeDirs: string[],
     targetFilePath: string,
 ) {
@@ -14,10 +14,10 @@ CC := $(TOOLCHAIN_PREFIX)gcc
 AR := $(TOOLCHAIN_PREFIX)ar
 
 # === Directory settings ===
-SRC_DIR := ${pkg.sourceDir}
-DIST_DIR  := ${pkg.distDir}
-BUILD_DIR := ${pkg.buildDir}
-PACKAGES_DIR := ${packageDir}
+SRC_DIR := ${pkg.resolvedSourceDir}
+DIST_DIR  := ${pkg.resolvedDistDir}
+BUILD_DIR := ${pkg.resolvedBuildDir}
+PACKAGES_DIR := ${pkg.resolvedPackageDir}
 
 TARGET := ${targetFilePath}
 
