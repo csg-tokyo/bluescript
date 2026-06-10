@@ -51,6 +51,7 @@ const sidebars: SidebarsConfig = {
       ]
     },
     'reference/cli',
+    'reference/bsconfig',
   ]
 };
 

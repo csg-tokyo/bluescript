@@ -20,7 +20,7 @@ bscript project create <project-name> [options]
 
 This command generates a new directory containing:
 *   `src/index.bs`: The main entry point for your application.
-*   `bsconfig.json`: The project configuration file.
+*   `bsconfig.json`: The project configuration file. See [bsconfig.json](/docs/reference/bsconfig) for all fields.
 
 **Arguments:**
 *   `<project-name>`: The name of the directory to create.
@@ -46,8 +46,10 @@ bscript project create my-app --board esp32
 
 Installs project dependencies. This command has two modes:
 
-1. **Install All:** If run without arguments, it installs all dependencies listed in bsconfig.json.
-2. **Add Package:** If a Git URL is provided, it downloads the package, adds it to bsconfig.json, and installs it.
+1. **Install All:** If run without arguments, it installs all dependencies listed in `bsconfig.json`.
+2. **Add Package:** If a Git URL is provided, it downloads the package, adds it to `bsconfig.json`, and installs it.
+
+See [bsconfig.json](/docs/reference/bsconfig#dependencies) for the `dependencies` field format.
 
 ```bash
 bscript project install [git-url] [options]
@@ -118,8 +120,8 @@ When you run this command:
 
 | Option | Description |
 | :--- | :--- |
-| `--with-repl` | After `index.bs` finishes, start a terminal REPL on the device. Cannot be combined with `--with-notebook`. |
-| `--with-notebook` | After `index.bs` finishes, start the browser Notebook UI (default HTTP port `3000`). Cannot be combined with `--with-repl`. |
+| `--with-repl` | After the entry file (`entryFile` in `bsconfig.json`) finishes, start a terminal REPL on the device. Cannot be combined with `--with-notebook`. |
+| `--with-notebook` | After the entry file finishes, start the browser Notebook UI (default HTTP port `3000`). Cannot be combined with `--with-repl`. |
 
 See the [REPL & Notebook tutorial](/docs/tutorial/guides/repl) for usage details.
 

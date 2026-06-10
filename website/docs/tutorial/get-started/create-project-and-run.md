@@ -12,8 +12,9 @@ cd hello-bluescript
 ```
 
 This creates a simple project structure:
-*   `bsconfig.json`: Project configuration.
-*   `src/index.bs`: Your entry point file.
+*   `bsconfig.json`: Project configuration (see [bsconfig.json](/docs/reference/bsconfig) for details).
+*   `src/`: Source directory (`srcDir` in `bsconfig.json`).
+*   `src/index.bs`: Entry file (`entryFile` in `bsconfig.json`).
 
 ---
 
