@@ -58,11 +58,19 @@ describe('Test single compile: Compiler for ESP32', () => {
     });
 
     it('can change source directory.', async () => {
-        testEnv.createMainPackage([], [], './src');
+        testEnv.createMainPackage([], [], './src', './src/index.bs');
         testEnv.addSourceFile(testEnv.mainPackageName, './src/index.bs', 'print("hello world")');
 
         await compile(testEnv);
         expect(testEnv.resultElfExists()).toBe(true);
+    });
+
+    it('can change entry file.', async () => {
+        testEnv.createMainPackage([], [], './src', './src/main.bs');
+        testEnv.addSourceFile(testEnv.mainPackageName, './src/main.bs', 'print("hello world")');
+
+        await compile(testEnv);
+        expect(testEnv.resultElfExists()).toBe(true); 
     });
 
     it('should compile index.bs with a module import.', async () => {
@@ -96,7 +104,7 @@ describe('Test single compile: Compiler for ESP32', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
         testEnv.addSourceFile(testEnv.mainPackageName, './src/index.bs', `import {add} from '../module1';\nadd(1, 2);`);
 
-        await expect(compile(testEnv)).rejects.toThrow(`Relative path must be under the source dir: module1.bs`);
+        await expect(compile(testEnv)).rejects.toThrow(`Source file must be under the source dir: module1.bs`);
     });
 
     it('should compile index.bs with module imports chained.', async () => {
@@ -162,6 +170,16 @@ describe('Test single compile: Compiler for ESP32', () => {
     it('should compile index.bs with a package import from different source directory.', async () => {
         testEnv.createSubPackage('package1', [], [], './src');
         testEnv.addSourceFile('package1', './src/index.bs', `export function add(a: integer, b:integer) {return a + b}`);
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
+
+        await compile(testEnv);
+        expect(testEnv.resultElfExists()).toBe(true);
+    });
+
+    it('should compile index.bs with a package import from different source directory and different entry file.', async () => {
+        testEnv.createSubPackage('package1', [], [], './src', './src/main.bs');
+        testEnv.addSourceFile('package1', './src/main.bs', `export function add(a: integer, b:integer) {return a + b}`);
         testEnv.createMainPackage(['package1']);
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
 

@@ -27,7 +27,7 @@ class PathInPkg {
         // check if the relative path is under the source dir
         const absolutePath = path.join(this.pkg.rootDir, relativePath);
         if (!absolutePath.startsWith(this.pkg.resolvedSourceDir)) {
-            throw new Error(`Relative path must be under the source dir: ${relativePath}`);
+            throw new Error(`Source file must be under the source dir: ${relativePath}`);
         }
     }
 }

@@ -72,12 +72,12 @@ class CompilerTestEnv<P extends Package = Package> {
 }
 
 export class Esp32CompilerTestEnv extends CompilerTestEnv<PackageForEsp32> {
-    public createMainPackage(dependencies: string[] = [], espIdfComponents: string[] = [], srcDir: string = "."): void {
+    public createMainPackage(dependencies: string[] = [], espIdfComponents: string[] = [], srcDir: string = ".", entryFile?: string): void {
         const pkg = new PackageForEsp32(
             this.mainPackageName,
             {
                 rootDir: this.root,
-                entry: `${srcDir}/index.bs`,
+                entry: entryFile ?? path.join(srcDir, 'index.bs'),
                 sourceDir: srcDir,
                 distDir: "./dist",
                 buildDir: "./dist/build",
@@ -89,14 +89,14 @@ export class Esp32CompilerTestEnv extends CompilerTestEnv<PackageForEsp32> {
         this.addPackage(pkg);
     }
 
-    public createSubPackage(name: string, dependencies: string[] = [], espIdfComponents: string[] = [], srcDir: string = "."): void {
+    public createSubPackage(name: string, dependencies: string[] = [], espIdfComponents: string[] = [], srcDir: string = ".", entryFile?: string): void {
         const root = path.join(this.root, 'packages', name);
         fs.mkdirSync(root, {recursive: true});
         const pkg = new PackageForEsp32(
             name,
             {
                 rootDir: root,
-                entry: `${srcDir}/index.bs`,
+                entry: entryFile ?? path.join(srcDir, 'index.bs'),
                 sourceDir: srcDir,
                 distDir: "./dist",
                 buildDir: "./dist/build",
