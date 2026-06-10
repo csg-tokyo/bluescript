@@ -10,7 +10,7 @@ import { cwd, exec } from "../../core/shell";
 import { CommandHandler } from "../command";
 import { CompilerAdapter, getCompilerAdapter } from "../../boards/compiler-adapters";
 import { BleDeviceManager } from "../../services/device-manager";
-import { CompileError, ExecutableBinary } from "@bscript/lang";
+import { CompileError, MemoryImage } from "@bscript/lang";
 import { WebSocketConnection } from "../../services/websocket";
 
 class RunHandler extends CommandHandler {
@@ -74,7 +74,7 @@ class RunHandler extends CommandHandler {
         }
     }
 
-    private async executeBinary(bin: ExecutableBinary) {
+    private async executeBinary(bin: MemoryImage) {
         this.setupStdin();
         logger.info("Start executing program. Type 'Ctrl-D' to exit.");
         this.programLogger.start();
@@ -246,13 +246,13 @@ class RunWithNotebookHandler extends RunHandler {
         return {bin, time: performance.now() - start};
     }
 
-    private async load(bin: ExecutableBinary) {
+    private async load(bin: MemoryImage) {
         const start = performance.now();
         await this.deviceManager.load(bin);
         return performance.now() - start;
     }
 
-    private async execute(bin: ExecutableBinary) {
+    private async execute(bin: MemoryImage) {
         const start = performance.now();
         await this.deviceManager.execute(bin);
         return performance.now() - start;

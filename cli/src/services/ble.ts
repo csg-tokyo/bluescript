@@ -1,6 +1,6 @@
 import noble, { Characteristic, Peripheral } from '@abandonware/noble';
 import { Buffer } from "node:buffer";
-import { ExecutableBinary, MemoryLayout } from "@bscript/lang";
+import { MemoryImage, MemoryLayout } from "@bscript/lang";
 import { Connection, ConnectionMessage, Service } from "./common";
 import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protocol';
 
@@ -23,7 +23,7 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         super('device', connection);
     }
 
-    public async load(bin: ExecutableBinary): Promise<number>  {
+    public async load(bin: MemoryImage): Promise<number>  {
         const builder = new ProtocolPacketBuilder(MTU);
         if (bin.iram) builder.load(bin.iram.address, bin.iram.data);
         if (bin.dram) builder.load(bin.dram.address, bin.dram.data);
@@ -34,7 +34,7 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         return performance.now() - startLoading;
     }
 
-    public async execute(bin: ExecutableBinary): Promise<number> {
+    public async execute(bin: MemoryImage): Promise<number> {
         const builder = new ProtocolPacketBuilder(MTU);
         const isMain = 1;
         for (const entryPoint of bin.entryPoints) {

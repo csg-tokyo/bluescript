@@ -1,5 +1,5 @@
 import { BleConnection, DeviceService } from "./ble";
-import { ExecutableBinary, MemoryLayout } from "@bscript/lang";
+import { MemoryImage, MemoryLayout } from "@bscript/lang";
 
 export interface DeviceLogger {
     log(message: string): void;
@@ -50,14 +50,14 @@ export class BleDeviceManager {
         return this.deviceService.init();
     }
 
-    async load(bin: ExecutableBinary): Promise<number> {
+    async load(bin: MemoryImage): Promise<number> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to load binary. BLE is not connected.');
         }
         return this.deviceService.load(bin);
     }
 
-    async execute(bin: ExecutableBinary): Promise<number> {
+    async execute(bin: MemoryImage): Promise<number> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to execute binary. BLE is not connected.');
         }

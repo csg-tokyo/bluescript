@@ -1,7 +1,7 @@
 import * as path from "path";
 import * as fs from "fs";
 import { PackageForEsp32, Project } from "../project";
-import { BoardToolchain, ExecutableBinary, MemoryLayout, ShadowMemory } from "./board-toolchain";
+import { BoardToolchain, MemoryImage, MemoryLayout, ShadowMemory } from "./board-toolchain";
 import { executeCommand, getErrorMessage } from "../utils";
 import generateMakefile from "./makefile";
 import { ElfReader } from "./elf-reader";
@@ -14,7 +14,7 @@ export type Esp32ToolchainConfig = {
     espDir: string
 }
 
-export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
+export class Esp32Toolchain implements BoardToolchain<PackageForEsp32, MemoryImage> {
     public memory: ShadowMemory;
 
     private config: Esp32ToolchainConfig;
@@ -41,7 +41,22 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
         this.definedSymbols = new Map(elfReader.readAllSymbols().map(s => [s.name, s]));
     }
 
-    async compileC(project: Project<PackageForEsp32>, pkg: PackageForEsp32): Promise<void> {
+    async compileAndLink(project: Project<PackageForEsp32>, entryPoints: string[]): Promise<MemoryImage> {
+        const allPackages = [project.mainPackage, ...project.dependencies.filter(dep => dep.used)];
+        for (const pkg of allPackages) {
+            await this.compileC(project, pkg);
+        }
+        const elfPath = await this.link(project, entryPoints);
+        return this.extractBinary(elfPath, entryPoints);
+    }
+
+    async additionalCompileAndLink(project: Project<PackageForEsp32>, entryPoints: string[]): Promise<MemoryImage> {
+        await this.compileC(project, project.mainPackage);
+        const elfPath = await this.link(project, entryPoints);
+        return this.extractBinary(elfPath, entryPoints);
+    }
+
+    private async compileC(project: Project<PackageForEsp32>, pkg: PackageForEsp32): Promise<void> {
         try {
             const archivePath = project.archivePath(pkg);
             const includeDirs = [
@@ -65,7 +80,7 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
         }
     }
 
-    async link(project: Project<PackageForEsp32>, entryPoints: string[]): Promise<string> {
+    private async link(project: Project<PackageForEsp32>, entryPoints: string[]): Promise<string> {
         try {
             const cwd = process.cwd();
             const elfPath = project.elfPath();
@@ -88,7 +103,7 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32> {
         }
     }
 
-    extractBinary(elfPath: string, entryPoints: string[]): ExecutableBinary {
+    private extractBinary(elfPath: string, entryPoints: string[]): MemoryImage {
         const elf = new ElfReader(elfPath);
 
         const sections = {

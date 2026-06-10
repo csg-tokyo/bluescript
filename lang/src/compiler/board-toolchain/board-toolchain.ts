@@ -30,7 +30,7 @@ export class ShadowMemory {
     }
 }
 
-export type ExecutableBinary = {
+export type MemoryImage = {
     iram?: {address: number, data: Buffer},
     dram?: {address: number, data: Buffer},
     iflash?: {address: number, data: Buffer},
@@ -38,12 +38,18 @@ export type ExecutableBinary = {
     entryPoints: {isMain: boolean, address: number}[]
 }
 
-export interface BoardToolchain<P extends Package = Package> {
+export type SharedObject = {
+    soPath: string,
+    entryName: string,
+}
+
+export type CompileOutput = MemoryImage | SharedObject;
+
+export interface BoardToolchain<Pkg extends Package, Output extends CompileOutput> {
     memory: ShadowMemory;
 
 	get cProlog(): string;
     get builtinModulePath(): string;
-	compileC(project: Project<P>, pkg: P): Promise<void>;
-	link(project: Project<P>, entryPoints: string[]): Promise<string>;
-	extractBinary(elfPath: string, entryPoints: string[]): ExecutableBinary;
+    compileAndLink(project: Project<Pkg>, entryPoints: string[]): Promise<Output>;
+    additionalCompileAndLink(project: Project<Pkg>, entryPoints: string[]): Promise<Output>;
 }

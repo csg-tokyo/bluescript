@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { logger, runAsyncWithLogStep, replLogger, showErrorMessages } from "../core/logger";
 import { DEFAULT_DEVICE_NAME, PROJECT_DEFAULT_PATHS, ProjectConfigHandler } from "../config/project-config";
-import { CompileError, ExecutableBinary, MemoryLayout } from "@bscript/lang";
+import { CompileError, MemoryImage, MemoryLayout } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
@@ -62,7 +62,7 @@ class ReplHandler extends CommandHandler {
         return new Promise<void>((resolve, reject) => {
             this.rl.on('line', async (line) => {
                 try {
-                    let bin: ExecutableBinary;
+                    let bin: MemoryImage;
                     if (this.isFirstCompile) {
                         // Compile first line as index.bs.
                         this.writeEntryFile(line);

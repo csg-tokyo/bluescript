@@ -2,7 +2,7 @@ import { GlobalConfigHandler, Esp32BoardConfig } from "../config/global-config";
 import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../config/project-config";
 import { BoardName } from "../config/board-utils";
 import { 
-    CompilerSession, Project, ExecutableBinary, MemoryLayout,
+    CompilerSession, Project, MemoryImage, MemoryLayout,
     PackageForEsp32, Esp32Toolchain, Esp32ToolchainConfig
 } from "@bscript/lang";
 import * as path from 'path';
@@ -11,8 +11,8 @@ import * as path from 'path';
 export interface CompilerAdapter {
     readonly boardName: BoardName;
     getDummyMemoryLayout(): MemoryLayout;
-    buildProject(memoryLayout: MemoryLayout): Promise<ExecutableBinary>;
-    compileFragment(src: string): Promise<ExecutableBinary>;
+    buildProject(memoryLayout: MemoryLayout): Promise<MemoryImage>;
+    compileFragment(src: string): Promise<MemoryImage>;
 }
 
 export class ESP32CompilerAdapter implements CompilerAdapter {
@@ -20,7 +20,7 @@ export class ESP32CompilerAdapter implements CompilerAdapter {
     private globalConfigHandler: GlobalConfigHandler;
     private projectConfigHandler: ProjectConfigHandler;
     private boardConfig: Esp32BoardConfig;
-    private compiler?: CompilerSession;
+    private compiler?: CompilerSession<PackageForEsp32, MemoryImage>;
 
     readonly dummyMemoryLayout: MemoryLayout = {
         iram: { address: 0x40096c34, size: 1000000 },
@@ -43,7 +43,7 @@ export class ESP32CompilerAdapter implements CompilerAdapter {
         return this.dummyMemoryLayout;
     }
 
-    async buildProject(memoryLayout: MemoryLayout): Promise<ExecutableBinary> {
+    async buildProject(memoryLayout: MemoryLayout): Promise<MemoryImage> {
         const project = Project.load<PackageForEsp32>(
             this.projectConfigHandler.getConfig().projectName,
             this.packageReader.bind(this),
