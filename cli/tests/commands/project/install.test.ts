@@ -10,7 +10,7 @@ import {
 } from '../mock-helpers';
 import { deleteGlobalEnv, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32 } from '../global-env-helper';
 import { spyGlobalSettings } from '../global-env-helper';
-import { PROJECT_PATHS } from '../../../src/config/project-config';
+import { PROJECT_DEFAULT_PATHS } from '../../../src/config/project-config';
 
 
 describe('install command', () => { 
@@ -60,7 +60,7 @@ describe('install command', () => {
         await handleInstallCommand('https://github.com/bluescript-lang/pkg-gpio-esp32.git', {});
 
         // --- Assert ---
-        expect(fs.exists(path.join(PROJECT_PATHS.PACKAGES_DIR(projectRoot), 'pkg-gpio-esp32-project')));
+        expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-gpio-esp32-project')));
         expect(getProjectConfig(projectRoot).dependencies['pkg-gpio-esp32-project']).toBe('https://github.com/bluescript-lang/pkg-gpio-esp32.git');
     });
 
@@ -85,8 +85,8 @@ describe('install command', () => {
         await handleInstallCommand('https://github.com/bluescript-lang/pkg-led-esp32.git', {});
 
         // --- Assert ---
-        expect(fs.exists(path.join(PROJECT_PATHS.PACKAGES_DIR(projectRoot), 'pkg-led-esp32-project')));
-        expect(fs.exists(path.join(PROJECT_PATHS.PACKAGES_DIR(projectRoot), 'pkg-gpio-esp32-project')));
+        expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-led-esp32-project')));
+        expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-gpio-esp32-project')));
         expect(getProjectConfig(projectRoot).dependencies['pkg-led-esp32-project']).toBe('https://github.com/bluescript-lang/pkg-led-esp32.git');
     });
 
@@ -113,8 +113,8 @@ describe('install command', () => {
         await handleInstallCommand('https://github.com/bluescript-lang/pkg-led-esp32.git', {});
 
         // --- Assert ---
-        expect(fs.exists(path.join(PROJECT_PATHS.PACKAGES_DIR(projectRoot), 'pkg-led-esp32-project')));
-        expect(fs.exists(path.join(PROJECT_PATHS.PACKAGES_DIR(projectRoot), 'pkg-gpio-esp32-project')));
+        expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-led-esp32-project')));
+        expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-gpio-esp32-project')));
         expect(getProjectConfig(projectRoot).dependencies['pkg-led-esp32-project']).toBe('https://github.com/bluescript-lang/pkg-led-esp32.git');
     });
 
@@ -143,9 +143,9 @@ describe('install command', () => {
         await handleInstallCommand('https://github.com/bluescript-lang/pkg-led-esp32.git', {});
 
         // --- Assert ---
-        expect(fs.exists(path.join(PROJECT_PATHS.PACKAGES_DIR(projectRoot), 'pkg-led-esp32-project')));
-        expect(fs.exists(path.join(PROJECT_PATHS.PACKAGES_DIR(projectRoot), 'pkg-gpio-esp32-project')));
-        expect(fs.exists(path.join(PROJECT_PATHS.PACKAGES_DIR(projectRoot), 'pkg-pwm-esp32-project')));
+        expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-led-esp32-project')));
+        expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-gpio-esp32-project')));
+        expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-pwm-esp32-project')));
     });
 
     it('should exit with an error if the environment of the specified board is not set up', async () => {
@@ -200,7 +200,7 @@ function dummyGitClone(command: string, dependencies: {[name: string]: string}) 
         boardName: "esp32",
         espIdfComponents: []
     };
-    fs.writeFile(PROJECT_PATHS.CONFIG_FILE(targetDir), JSON.stringify(bsConfig, null, 2));
+    fs.writeFile(path.join(targetDir, PROJECT_DEFAULT_PATHS.CONFIG_FILE), JSON.stringify(bsConfig, null, 2));
 }
 
 function createDummyProject(projectRoot: string, dependencies: {[name: string]: string} = {}) {
@@ -214,11 +214,11 @@ function createDummyProject(projectRoot: string, dependencies: {[name: string]: 
         boardName: "esp32",
         espIdfComponents: []
     };
-    fs.writeFile(PROJECT_PATHS.CONFIG_FILE(projectRoot), JSON.stringify(bsConfig, null, 2));
+    fs.writeFile(path.join(projectRoot, PROJECT_DEFAULT_PATHS.CONFIG_FILE), JSON.stringify(bsConfig, null, 2));
 }
 
 function getProjectConfig(projectRoot: string) {
-    return JSON.parse(fs.readFile(PROJECT_PATHS.CONFIG_FILE(projectRoot)));
+    return JSON.parse(fs.readFile(path.join(projectRoot, PROJECT_DEFAULT_PATHS.CONFIG_FILE)));
 }
 
 function deleteDummyProject(projectRoot: string) {

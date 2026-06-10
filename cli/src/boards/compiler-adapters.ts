@@ -1,5 +1,5 @@
 import { GlobalConfigHandler, Esp32BoardConfig } from "../config/global-config";
-import { ProjectConfigHandler, PROJECT_PATHS } from "../config/project-config";
+import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../config/project-config";
 import { BoardName } from "../config/board-utils";
 import { 
     CompilerSession, Project, ExecutableBinary, MemoryLayout,
@@ -75,7 +75,7 @@ export class ESP32CompilerAdapter implements CompilerAdapter {
 
     private packageReader(name: string): PackageForEsp32 {
         const mainRoot = this.projectConfigHandler.root;
-        const subPackageRoot = path.join(mainRoot, PROJECT_PATHS.PACKAGES_DIR, name);
+        const subPackageRoot = path.join(mainRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, name);
         const isMain = name === this.projectConfigHandler.getConfig().projectName;
         const root = isMain ? mainRoot : subPackageRoot;
         try {
@@ -86,11 +86,11 @@ export class ESP32CompilerAdapter implements CompilerAdapter {
                 name,
                 {
                     rootDir: root,
-                    entry: PROJECT_PATHS.MAIN_FILE,
-                    sourceDir: PROJECT_PATHS.SRC_DIR,
-                    distDir: PROJECT_PATHS.DIST_DIR,
-                    buildDir: PROJECT_PATHS.BUILD_DIR,
-                    packageDir: PROJECT_PATHS.PACKAGES_DIR,
+                    entry: projectConfigHandler.entryFile ?? PROJECT_DEFAULT_PATHS.ENTRY_FILE,
+                    sourceDir: projectConfigHandler.srcDir ?? PROJECT_DEFAULT_PATHS.SRC_DIR,
+                    distDir: PROJECT_DEFAULT_PATHS.DIST_DIR,
+                    buildDir: PROJECT_DEFAULT_PATHS.BUILD_DIR,
+                    packageDir: PROJECT_DEFAULT_PATHS.PACKAGES_DIR,
                 },
                 Object.keys(projectConfigHandler.dependencies),
                 projectConfigHandler.espIdfComponents,

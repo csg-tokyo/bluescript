@@ -9,14 +9,16 @@ describe('GlobalConfigHandler', () => {
         spyGlobalSettings('update');
     });
 
-    afterEach(() => {
+    beforeEach(() => {
+        deleteGlobalEnv();
+        setupEmpyGlobalEnv();
+    });
+
+    afterAll(() => {
         deleteGlobalEnv();
     });
 
-    it('shold load default confgi if there is no config file', () => {
-        // --- Arrange ---
-        setupEmpyGlobalEnv();
-
+    it('shold load default config if there is no config file', () => {
         // --- Act ---
         const handler = GlobalConfigHandler.load();
 
@@ -28,9 +30,6 @@ describe('GlobalConfigHandler', () => {
     });
 
     it('should save object to file', () => {
-        // --- Arrange ---
-        setupEmpyGlobalEnv();
-
         // --- Act ---
         const handler = GlobalConfigHandler.load();
         handler.save();
@@ -40,9 +39,6 @@ describe('GlobalConfigHandler', () => {
     });
 
     it('should update board config', () => {
-        // --- Arrange ---
-        setupEmpyGlobalEnv();
-
         // --- Act ---
         const boardConfig = {
             idfVersion: 'v5.4',
