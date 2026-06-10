@@ -94,7 +94,7 @@ console.log(getCircleArea(4.0));
 
 If you want to use specific ESP-IDF APIs (e.g., GPIO driver, NVS, WiFi), you must link the corresponding components.
 
-Add component names to the espIdfComponents field in the project's bsconfig.json.
+Add component names to the `espIdfComponents` field in the project's [bsconfig.json](../../reference/bsconfig.md).
 
 ```json title="bsconfig.json"
 {

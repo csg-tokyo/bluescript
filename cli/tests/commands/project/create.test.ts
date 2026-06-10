@@ -28,12 +28,19 @@ describe('create project command', () => {
 
     beforeEach(() => {
         mockedCwd.mockReturnValue(DUMMY_CWD);
+        deleteGlobalEnv();
+        deleteDummyProject();
     });
 
     afterEach(() => {
         jest.clearAllMocks();
-        deleteGlobalEnv();
-        deleteDummyProject();
+        // deleteGlobalEnv();
+        // deleteDummyProject();
+    });
+
+    afterAll(() => {
+        // deleteGlobalEnv();
+        // deleteDummyProject();
     });
 
     it('should show warning and exit if update is needed', async () => {

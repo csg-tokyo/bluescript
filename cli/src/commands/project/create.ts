@@ -3,14 +3,14 @@ import inquirer from 'inquirer';
 import chalk from "chalk";
 import * as path from 'path';
 import { logger, showErrorMessages } from "../../core/logger";
-import { ProjectConfigHandler, PROJECT_PATHS } from "../../config/project-config";
+import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { BOARD_NAMES, BoardName, isValidBoard } from "../../config/board-utils";
 import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";
 
 
-const MAIN_FILE_CONTENTS = `console.log('Hello world!');\n`;
+const ENTRY_FILE_CONTENTS = `console.log("Hello world!");\n`;
 const GIT_IGNORE_CONTENTS = `\
 **/dist/
 **/packages/
@@ -20,12 +20,18 @@ class CreateHandler extends CommandHandler {
     private board: BoardName;
     private projectRoot: string;
     private projectConfigHandler: ProjectConfigHandler;
+    private srcDir: string = './src';
+    private entryFile: string = './src/index.bs';
 
     constructor(projectName: string, board: BoardName) {
         super();
         this.board = board;
         this.projectRoot = path.join(cwd(), projectName);
         this.projectConfigHandler = ProjectConfigHandler.createTemplate(projectName, board, this.projectRoot);
+        this.projectConfigHandler.update({
+            srcDir: this.srcDir,
+            entryFile: this.entryFile,
+        });
     }
 
     isBoardSetup() {
@@ -36,7 +42,7 @@ class CreateHandler extends CommandHandler {
         this.createProjectDir();
         this.createGitIgnore();
         this.createSourceDir();
-        this.createMainFile();
+        this.createEntryFile();
         this.projectConfigHandler.save(this.projectRoot);
     }
 
@@ -48,11 +54,11 @@ class CreateHandler extends CommandHandler {
     }
 
     private createSourceDir() {
-        fs.makeDir(PROJECT_PATHS.SRC_DIR(this.projectRoot));
+        fs.makeDir(path.join(this.projectRoot, this.srcDir));
     }
 
-    private createMainFile() {
-        fs.writeFile(PROJECT_PATHS.MAIN_FILE(this.projectRoot), MAIN_FILE_CONTENTS);
+    private createEntryFile() {
+        fs.writeFile(path.join(this.projectRoot, this.entryFile), ENTRY_FILE_CONTENTS);
     }
 
     private createGitIgnore() {

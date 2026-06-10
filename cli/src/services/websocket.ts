@@ -76,7 +76,6 @@ export class WebSocketConnection extends Connection<any> {
     }
 
     public close(): void {
-        console.log("closed");
         if(this.server) {
             this.server.close();
         }

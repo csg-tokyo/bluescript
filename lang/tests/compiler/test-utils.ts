@@ -32,9 +32,9 @@ class CompilerTestEnv<P extends Package = Package> {
     }
 
     public addSourceFile(packageName: string, relativePath: string, code: string) {
-        const sourceDir = this.packages.get(packageName)?.sourceDir;
-        if (sourceDir) {
-            const filePath = path.join(sourceDir, relativePath);
+        const pkg = this.packages.get(packageName);
+        if (pkg) {
+            const filePath = path.join(pkg.rootDir, relativePath);
             fs.mkdirSync(path.dirname(filePath), {recursive: true});
             fs.writeFileSync(filePath, code);
         }
@@ -42,9 +42,10 @@ class CompilerTestEnv<P extends Package = Package> {
     }
 
     public getSourceFilePath(packageName: string, relativePath: string) {
-        const packageDir = this.packages.get(packageName)?.sourceDir;
-        if (packageDir)
-            return path.join(packageDir, relativePath);
+        const pkg = this.packages.get(packageName);
+        if (pkg)
+            return path.join(pkg.rootDir, relativePath);
+        else throw new Error(`Package ${packageName} is not registered.`);
     }
 
     public getPackageReader(): (name: string) => P {
@@ -71,31 +72,39 @@ class CompilerTestEnv<P extends Package = Package> {
 }
 
 export class Esp32CompilerTestEnv extends CompilerTestEnv<PackageForEsp32> {
-    public createMainPackage(dependencies: string[] = [], espIdfComponents: string[] = []): void {
-        const pkg: PackageForEsp32 = {
-            name: this.mainPackageName,
-            entry: "./index.bs",
-            sourceDir: path.join(this.root, 'src'),
-            distDir: path.join(this.root, 'dist'),
-            buildDir: path.join(this.root, 'dist/build'),
+    public createMainPackage(dependencies: string[] = [], espIdfComponents: string[] = [], srcDir: string = ".", entryFile?: string): void {
+        const pkg = new PackageForEsp32(
+            this.mainPackageName,
+            {
+                rootDir: this.root,
+                entry: entryFile ?? path.join(srcDir, 'index.bs'),
+                sourceDir: srcDir,
+                distDir: "./dist",
+                buildDir: "./dist/build",
+                packageDir: "./packages",
+            },
             dependencies,
-            espIdfComponents,
-        }
-        super.addPackage(pkg);
+            espIdfComponents
+        );
+        this.addPackage(pkg);
     }
 
-    public createSubPackage(name: string, dependencies: string[] = [], espIdfComponents: string[] = []): void {
+    public createSubPackage(name: string, dependencies: string[] = [], espIdfComponents: string[] = [], srcDir: string = ".", entryFile?: string): void {
         const root = path.join(this.root, 'packages', name);
         fs.mkdirSync(root, {recursive: true});
-        const pkg: PackageForEsp32 = {
+        const pkg = new PackageForEsp32(
             name,
-            entry: "./index.bs",
-            sourceDir: path.join(root, 'src'),
-            distDir: path.join(root, 'dist'),
-            buildDir: path.join(root, 'dist/build'),
+            {
+                rootDir: root,
+                entry: entryFile ?? path.join(srcDir, 'index.bs'),
+                sourceDir: srcDir,
+                distDir: "./dist",
+                buildDir: "./dist/build",
+                packageDir: "./packages",
+            },
             dependencies,
-            espIdfComponents,
-        }
-        super.addPackage(pkg);
+            espIdfComponents
+        )
+        this.addPackage(pkg);
     }
 }

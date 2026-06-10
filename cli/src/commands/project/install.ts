@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { logger, showErrorMessages } from "../../core/logger";
-import { ProjectConfigHandler, PackageSource ,PROJECT_PATHS } from "../../config/project-config";
+import { ProjectConfigHandler, PackageSource ,PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import * as fs from '../../core/fs';
 import * as path from 'path';
@@ -17,7 +17,7 @@ class InstallationHandler extends CommandHandler {
         super();
         this.projectRootDir = cwd();
         this.projectConfigHandler = ProjectConfigHandler.load(this.projectRootDir);
-        this.packagesDir = PROJECT_PATHS.PACKAGES_DIR(this.projectRootDir);
+        this.packagesDir = path.join(this.projectRootDir, PROJECT_DEFAULT_PATHS.PACKAGES_DIR);
         if (!this.globalConfigHandler.isBoardSetup(this.projectConfigHandler.getBoardName())) {
             throw new Error(`The environment for ${this.projectConfigHandler.getBoardName()} is not set up.`);
         }

@@ -10,6 +10,8 @@ You can create reusable BlueScript code (`.bs` files) and import them into other
 ### 1. Local Modules
 To import a module from your own project, use the **relative path** (starting with `./` or `../`).
 
+BlueScript and C source files must be placed under the `srcDir` directory configured in [bsconfig.json](../../reference/bsconfig.md). Relative import paths must resolve to files inside `srcDir`.
+
 **`src/math-utils.bs`** (The library)
 ```typescript
 // Named export

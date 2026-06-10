@@ -8,37 +8,21 @@ import { GLOBAL_SETTINGS } from './constants';
 const DEfAULT_PROJECT_VERSION = '1.0.0';
 export const DEFAULT_DEVICE_NAME = 'BLUESCRIPT';
 
-export const PROJECT_PATHS = {
-    MAIN_FILE: (root: string) => {
-        return path.join(root, 'src', 'index.bs');
-    },
-
-    CONFIG_FILE: (root: string) => {
-        return path.join(root, 'bsconfig.json');
-    },
-
-    SRC_DIR: (root: string) => {
-        return path.join(root, 'src');
-    },
-
-    DIST_DIR: (root: string) => {
-        return path.join(root, 'dist');
-    },
-
-    BUILD_DIR: (root: string) => {
-        return path.join(root, 'dist/build');
-    },
-
-    PACKAGES_DIR: (root: string) => {
-        return path.join(root, 'packages');
-    }
+export const PROJECT_DEFAULT_PATHS = {
+    ENTRY_FILE: './index.bs',
+    CONFIG_FILE: './bsconfig.json',
+    SRC_DIR: '.',
+    DIST_DIR: './dist',
+    BUILD_DIR: './dist/build',
+    PACKAGES_DIR: './packages',
 }
-
 
 const baseConfigSchema = z.object({
     projectName: z.string(),
     version: z.string().default(DEfAULT_PROJECT_VERSION),
     vmVersion: z.string().default(GLOBAL_SETTINGS.VM_VERSION),
+    srcDir: z.string().optional(),
+    entryFile: z.string().optional(),
     deviceName: z.string().default(DEFAULT_DEVICE_NAME).optional(),
     dependencies: z.record(z.string(), z.string()).default({}),
     runtimeDir: z.string().optional(), // for dev
@@ -74,7 +58,7 @@ export class ProjectConfigHandler {
     }
 
     public static load(projectRoot: string): ProjectConfigHandler {
-        const filePath = PROJECT_PATHS.CONFIG_FILE(projectRoot);
+        const filePath = path.join(projectRoot, PROJECT_DEFAULT_PATHS.CONFIG_FILE);
         try {
             const fileContent = fs.readFile(filePath);
             const json = JSON.parse(fileContent);
@@ -188,7 +172,7 @@ export class ProjectConfigHandler {
     public save(projectRoot: string): void {
         try {
             const data = JSON.stringify(this.config, null, 2);
-            fs.writeFile(PROJECT_PATHS.CONFIG_FILE(projectRoot), data);
+            fs.writeFile(path.join(projectRoot, PROJECT_DEFAULT_PATHS.CONFIG_FILE), data);
         } catch (error) {
             throw new Error(`Failed to save project config to ${projectRoot}.`, { cause: error });
         }
