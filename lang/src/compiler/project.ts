@@ -67,26 +67,31 @@ export class PackageForEsp32 extends Package {
 
 export class Project<P extends Package = Package> {
 	public readonly mainPackage: P;
-	public readonly dependencies: (P & { used?: boolean })[];
+	public readonly dependencies: Map<string, P>;
+    private usedDependenciesMap = new Map<string, P>();
     
-    constructor(mainPackage: P, dependencies: P[]) {
+    protected constructor(mainPackage: P, dependencies: Map<string, P>) {
         this.mainPackage = mainPackage;
         this.dependencies = dependencies;
     }
 
-    public static load<P extends Package>(
+    get usedDependencies() {
+        return [...this.usedDependenciesMap.values()];
+    }
+
+    protected static loadHelper<P extends Package>(
         mainPackageName: string,
         packageReader: (name: string) => P
     ) {
         const mainPackage = packageReader(mainPackageName);
-        const dependencies: P[] = [];
+        const dependencies = new Map<string, P>();
         const tmpQueue = [...mainPackage.dependencies];
         const visited = new Set<string>(mainPackage.dependencies);
 
         while (tmpQueue.length > 0) {
             const currName = tmpQueue.shift() as string;
             const pkg = packageReader(currName);
-            dependencies.push(pkg);
+            dependencies.set(pkg.name, pkg);
 
             for (const depName of pkg.dependencies) {
                 if (!visited.has(depName)) {
@@ -119,7 +124,7 @@ export class Project<P extends Package = Package> {
 
 	clean() {
         this.cleanDistDir(this.mainPackage);
-        for (const dep of this.dependencies) {
+        for (const dep of this.dependencies.values()) {
             this.cleanDistDir(dep);
         }
     }
@@ -159,21 +164,54 @@ export class Project<P extends Package = Package> {
         return filePath;
     }
 
-    markDependencyAsUsed(name: string) {
-        const dependency = this.dependencies.find(dep => dep.name === name);
-        if (dependency) {
-            dependency.used = true;
+    addUsedDependency(pkg: P) {
+        if (pkg.name !== this.mainPackage.name) {
+            this.usedDependenciesMap.set(pkg.name, pkg);
         }
     }
+}
 
-    archivePath(pkg: P) { 
+
+export class ProjectForEsp32 extends Project<PackageForEsp32> {
+    private constructor(mainPackage: PackageForEsp32, dependencies: Map<string, PackageForEsp32>) {
+        super(mainPackage, dependencies);
+    }
+
+    public static load(
+        mainPackageName: string,
+        packageReader: (name: string) => PackageForEsp32,
+    ): ProjectForEsp32 {
+        const project = Project.loadHelper<PackageForEsp32>(mainPackageName, packageReader);
+        return new ProjectForEsp32(project.mainPackage, project.dependencies);
+    }
+
+    archiveFile(pkg: PackageForEsp32) { 
         return path.join(pkg.resolvedBuildDir, `lib${pkg.name}.a`); 
     }
 
-    elfPath() { 
+    elfFile() { 
         return path.join(
             this.mainPackage.resolvedBuildDir, 
             `${this.mainPackage.name}.elf`
         ); 
+    }
+}
+
+
+export class ProjectForHost extends Project<Package> {
+    private constructor(mainPackage: Package, dependencies: Map<string, Package>) {
+        super(mainPackage, dependencies);
+    }
+
+    public static load(
+        mainPackageName: string,
+        packageReader: (name: string) => Package,
+    ): ProjectForHost {
+        const project = Project.loadHelper<Package>(mainPackageName, packageReader);
+        return new ProjectForHost(project.mainPackage, project.dependencies);
+    }
+
+    packageSoFile(pkg: Package) { 
+        return path.join(pkg.resolvedBuildDir, `${pkg.name}.so`); 
     }
 }

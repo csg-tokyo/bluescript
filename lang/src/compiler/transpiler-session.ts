@@ -77,7 +77,7 @@ export class TranspilerSession {
         return (name: string): GlobalVariableNameTable => {
             const newPath = this.resolveImport(currentPath, name, project.dependencies);
             const mod = this.modules.get(newPath.absolutePath);
-            project.markDependencyAsUsed(newPath.pkg.name);
+            project.addUsedDependency(newPath.pkg);
             if (mod)
                 return mod;
             else {
@@ -97,14 +97,14 @@ export class TranspilerSession {
         }
     }
 
-    private resolveImport(currentPath: PathInPkg, importName: string, dependencies: Package[]): PathInPkg {
+    private resolveImport(currentPath: PathInPkg, importName: string, dependencies: Map<string, Package>): PathInPkg {
         if (path.isAbsolute(importName)) {
             throw new Error("This module system does not support importing from absolute paths.");
         } else if (importName.startsWith('.')) { // move in package
             return currentPath.resolve(importName + '.bs');
         } else { // move to new package
             const [pkgName, ...remain] = importName.split('/');
-            const pkg = dependencies.find(dep => dep.name === pkgName);
+            const pkg = dependencies.get(pkgName);
             if (pkg === undefined) {
                 throw new Error(`Cannot fine package. Package name: ${pkgName}`);
             }

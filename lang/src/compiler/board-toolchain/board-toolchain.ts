@@ -1,4 +1,4 @@
-import { Package, Project } from '../project';
+import { Project } from '../project';
 
 export type MemoryLayout = {
     iram:{address:number, size:number},
@@ -38,18 +38,16 @@ export type MemoryImage = {
     entryPoints: {isMain: boolean, address: number}[]
 }
 
-export type SharedObject = {
-    soPath: string,
-    entryName: string,
-}
+export type SharedObjects = {
+    soFiles: string[],
+    entryNames: { isMain: boolean, name: string}[],
+};
 
-export type CompileOutput = MemoryImage | SharedObject;
+export type CompileOutput = MemoryImage | SharedObjects;
 
-export interface BoardToolchain<Pkg extends Package, Output extends CompileOutput> {
-    memory: ShadowMemory;
-
+export interface BoardToolchain<P extends Project, Output extends CompileOutput> {
 	get cProlog(): string;
     get builtinModulePath(): string;
-    compileAndLink(project: Project<Pkg>, entryPoints: string[]): Promise<Output>;
-    additionalCompileAndLink(project: Project<Pkg>, entryPoints: string[]): Promise<Output>;
+    compileAndLink(project: P, entryPoints: string[]): Promise<Output>;
+    additionalCompileAndLink(project: P, entryPoints: string[]): Promise<Output>;
 }

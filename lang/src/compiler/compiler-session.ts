@@ -2,17 +2,17 @@ import { BoardToolchain, CompileOutput } from "./board-toolchain/board-toolchain
 import { Package, Project } from "./project";
 import { TranspilerSession } from "./transpiler-session";
 
-export class CompilerSession<Pkg extends Package, Output extends CompileOutput> {
+export class CompilerSession<P extends Project, Output extends CompileOutput> {
     private transpiler: TranspilerSession;
-    private toolchain: BoardToolchain<Pkg, Output>;
-    private currentProject: Project<Pkg> | null = null;
+    private toolchain: BoardToolchain<P, Output>;
+    private currentProject: P | null = null;
 
-    constructor(toolchain: BoardToolchain<Pkg, Output>) {
+    constructor(toolchain: BoardToolchain<P, Output>) {
         this.transpiler = new TranspilerSession(toolchain.builtinModulePath, toolchain.cProlog);
         this.toolchain = toolchain;
     }
 
-    public async buildProject(project: Project<Pkg>): Promise<Output> {
+    public async buildProject(project: P): Promise<Output> {
         this.currentProject = project;
 
         project.check();

@@ -5,13 +5,12 @@ export default function generateMakefile(
     compilerToolchainDir: string,
     pkg: Package,
     includeDirs: string[],
-    targetFilePath: string,
+    outputPath: string,
 ) {
     return `
 # === Basic settings ===
-TOOLCHAIN_PREFIX := ${compilerToolchainDir}/xtensa-esp32-elf-
-CC := $(TOOLCHAIN_PREFIX)gcc
-AR := $(TOOLCHAIN_PREFIX)ar
+CC := ${compilerToolchainDir}/xtensa-esp32-elf-gcc
+AR := ${compilerToolchainDir}/xtensa-esp32-elf-ar
 
 # === Directory settings ===
 SRC_DIR := ${pkg.resolvedSourceDir}
@@ -19,7 +18,7 @@ DIST_DIR  := ${pkg.resolvedDistDir}
 BUILD_DIR := ${pkg.resolvedBuildDir}
 PACKAGES_DIR := ${pkg.resolvedPackageDir}
 
-TARGET := ${targetFilePath}
+TARGET := ${outputPath}
 
 # === Check for illegal file name prefixes ===
 ILLEGAL_PREFIX_FILES := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -path $(PACKAGES_DIR) -prune -o -type f -name "bs_*.c" -print)
