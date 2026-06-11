@@ -22,14 +22,18 @@ endif
 
 # === Source and object file settings ===
 ORIG_SOURCES := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -path $(PACKAGES_DIR) -prune -o -type f -name "*.c" -print)
+ORIG_HEADERS := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -path $(PACKAGES_DIR) -prune -o -type f -name "*.h" -print)
 DIST_SOURCES := $(foreach src,$(ORIG_SOURCES), \\
     $(subst $(SRC_DIR),$(DIST_DIR), $(src)) \\
+)
+DIST_HEADERS := $(foreach hdr,$(ORIG_HEADERS), \\
+    $(subst $(SRC_DIR),$(DIST_DIR), $(hdr)) \\
 )
 DIST_SOURCES += $(shell find $(DIST_DIR) -path $(BUILD_DIR) -prune -o -type f -name "bs_*.c" -print)
 OBJECTS := $(patsubst $(DIST_DIR)/%.c, $(BUILD_DIR)/%.o, $(DIST_SOURCES))
 
 # === Compilation settings ===
-INCLUDES := -I /opt/esp-idf/components/freertos/include -I /opt/esp-idf/components/esp_common/include
+INCLUDES := -I $(DIST_DIR) -I $(SRC_DIR) -I /opt/esp-idf/components/freertos/include -I /opt/esp-idf/components/esp_common/include
 CFLAGS := $(INCLUDES) -O2 -w -fno-common -ffunction-sections -fdata-sections -mtext-section-literals -mlongcalls -fno-zero-initialized-in-bss
 
 # ====================================================================
@@ -54,10 +58,17 @@ $(foreach src,$(ORIG_SOURCES), \\
     )) \\
 )
 
+$(foreach hdr,$(ORIG_HEADERS), \\
+    $(eval $(call COPY_RULE_TEMPLATE, \\
+        $(subst $(SRC_DIR),$(DIST_DIR), $(hdr)), \\
+        $(hdr) \\
+    )) \\
+)
+
 # Build rules
 # --------------------------------------------------------
 
-$(TARGET): $(OBJECTS)
+$(TARGET): $(OBJECTS) | $(DIST_HEADERS)
 	@echo "Archiving library: $@"
 	@mkdir -p $(@D)
 	$(AR) rcs $@ $^
@@ -67,7 +78,9 @@ vpath %.c $(DIST_DIR)
 $(BUILD_DIR)/%.o: $(DIST_DIR)/%.c
 	@echo "Compiling: $< -> $@"
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
+-include $(wildcard $(BUILD_DIR)/*.d)
 
 .PHONY: clean
 clean:
@@ -96,14 +109,18 @@ endif
 
 # === Source and object file settings ===
 ORIG_SOURCES := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -path $(PACKAGES_DIR) -prune -o -type f -name "*.c" -print)
+ORIG_HEADERS := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -path $(PACKAGES_DIR) -prune -o -type f -name "*.h" -print)
 DIST_SOURCES := $(foreach src,$(ORIG_SOURCES), \\
     $(subst $(SRC_DIR),$(DIST_DIR), $(src)) \\
+)
+DIST_HEADERS := $(foreach hdr,$(ORIG_HEADERS), \\
+    $(subst $(SRC_DIR),$(DIST_DIR), $(hdr)) \\
 )
 DIST_SOURCES += $(shell find $(DIST_DIR) -path $(BUILD_DIR) -prune -o -type f -name "bs_*.c" -print)
 OBJECTS := $(patsubst $(DIST_DIR)/%.c, $(BUILD_DIR)/%.o, $(DIST_SOURCES))
 
 # === Compilation settings ===
-INCLUDES := -I /opt/esp-idf/components/freertos/include -I /opt/esp-idf/components/esp_common/include
+INCLUDES := -I $(DIST_DIR) -I $(SRC_DIR) -I /opt/esp-idf/components/freertos/include -I /opt/esp-idf/components/esp_common/include
 CFLAGS := $(INCLUDES) -O2 -w -fPIC -DLINUX64
 
 # ====================================================================
@@ -128,20 +145,29 @@ $(foreach src,$(ORIG_SOURCES), \\
     )) \\
 )
 
+$(foreach hdr,$(ORIG_HEADERS), \\
+    $(eval $(call COPY_RULE_TEMPLATE, \\
+        $(subst $(SRC_DIR),$(DIST_DIR), $(hdr)), \\
+        $(hdr) \\
+    )) \\
+)
+
 # Build rules
 # --------------------------------------------------------
 
-$(TARGET): $(OBJECTS)
+$(TARGET): $(OBJECTS) | $(DIST_HEADERS)
 	@echo "Linking shared library: $@"
 	@mkdir -p $(@D)
-	$(CC) -shared -o $@ $^
+	$(CC) -shared -o $@ $^ 
 
 vpath %.c $(DIST_DIR)
 
 $(BUILD_DIR)/%.o: $(DIST_DIR)/%.c
 	@echo "Compiling: $< -> $@"
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
+-include $(wildcard $(BUILD_DIR)/*.d)
 
 .PHONY: clean
 clean:

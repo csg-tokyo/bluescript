@@ -3,8 +3,7 @@ import * as fs from "fs";
 import { PackageForEsp32, ProjectForEsp32 } from "../project";
 import { BoardToolchain, MemoryImage, MemoryLayout, ShadowMemory } from "./board-toolchain";
 import { executeCommand, getErrorMessage } from "../utils";
-// import generateMakefile from "./makefile";
-import { generateMakefile2, esp32MakefilePreset } from "./makefile2";
+import { generateMakefile, esp32MakefilePreset } from "./makefile";
 import { ElfReader } from "./elf-reader";
 import generateLinkerScript from "./linker-script";
 
@@ -70,7 +69,7 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
                 fs.rmSync(archivePath, { force: true });
             }
 
-            const makefile = generateMakefile2(esp32MakefilePreset(
+            const makefile = generateMakefile(esp32MakefilePreset(
                 this.config.compilerToolchainDir, 
                 pkg, includeDirs, archivePath
             ));

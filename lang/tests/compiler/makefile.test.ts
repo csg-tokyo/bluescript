@@ -1,6 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import generateMakefile from '../../src/compiler/board-toolchain/makefile';
-import { generateMakefile2, esp32MakefilePreset, hostMakefilePreset } from '../../src/compiler/board-toolchain/makefile2';
+import { generateMakefile, esp32MakefilePreset, hostMakefilePreset } from '../../src/compiler/board-toolchain/makefile';
 import { Package } from '../../src/compiler/project';
 
 function createTestPackage(name = 'myapp', rootDir = '/project/myapp'): Package {
@@ -21,7 +20,7 @@ function createTestPackage(name = 'myapp', rootDir = '/project/myapp'): Package 
 describe('generateMakefile', () => {
     test('generates makefile for esp32 archive file.', () => {
         const pkg = createTestPackage();
-        const makefile = generateMakefile2(esp32MakefilePreset(
+        const makefile = generateMakefile(esp32MakefilePreset(
             '/opt/esp-toolchain',
             pkg,
             [
@@ -35,7 +34,7 @@ describe('generateMakefile', () => {
 
     test('generates makefile for host shared library.', () => {
         const pkg = createTestPackage();
-        const makefile = generateMakefile2(hostMakefilePreset(
+        const makefile = generateMakefile(hostMakefilePreset(
             pkg,
             [
                 '/opt/esp-idf/components/freertos/include',

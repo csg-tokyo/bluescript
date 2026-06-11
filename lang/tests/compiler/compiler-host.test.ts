@@ -362,6 +362,22 @@ function foo() {
         expect(testEnv.resultSharedObjectExists()).toBe(true);
     });
 
+    it('should compile index.bs which includes custom header file.', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './add.h', 'int add(int a, int b);');
+        testEnv.addSourceFile(testEnv.mainPackageName, './add.c', `#include "add.h"\nint add(int a, int b) {return a + b;}`);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
+code\`#include "add.h"\`
+function foo() {
+    code\`add(1, 2);\`
+}
+            `);
+
+        await compile(testEnv);
+        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(fs.existsSync(path.join(testEnv.root, 'dist/add.h'))).toBe(true);
+    });
+
     it('should throw C compilation error.', async () => {
         testEnv.createMainPackage();
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `

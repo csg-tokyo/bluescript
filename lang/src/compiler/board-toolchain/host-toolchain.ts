@@ -2,7 +2,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { BoardToolchain, SharedObjects } from "./board-toolchain";
 import { Package, ProjectForHost } from "../project";
-import { generateMakefile2, hostMakefilePreset } from "./makefile2";
+import { generateMakefile, hostMakefilePreset } from "./makefile";
 import { executeCommand, getErrorMessage } from "../utils";
 
 
@@ -55,7 +55,7 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
                 fs.rmSync(soFile, { force: true });
             }
 
-            const makefile = generateMakefile2(hostMakefilePreset(
+            const makefile = generateMakefile(hostMakefilePreset(
                 pkg, includeDirs, soFile, existingSoFiles
             ));
             project.writeMakefile(pkg, makefile);
