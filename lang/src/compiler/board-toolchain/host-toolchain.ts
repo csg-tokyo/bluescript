@@ -2,7 +2,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { BoardToolchain, SharedObjects } from "./board-toolchain";
 import { Package, ProjectForHost } from "../project";
-import { generateMakefile, hostMakefilePreset } from "./makefile";
+import { generateMakefile, hostMakefilePreset } from "./tools/makefile";
 import { executeCommand, getErrorMessage } from "../utils";
 
 

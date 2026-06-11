@@ -1,11 +1,11 @@
 import { BoardToolchain, CompileOutput } from "./board-toolchain/board-toolchain";
-import { Package, Project } from "./project";
+import { Project } from "./project";
 import { TranspilerSession } from "./transpiler-session";
 
 export class CompilerSession<P extends Project, Output extends CompileOutput> {
     private transpiler: TranspilerSession;
     private toolchain: BoardToolchain<P, Output>;
-    private currentProject: P | null = null;
+    private project: P | null = null;
 
     constructor(toolchain: BoardToolchain<P, Output>) {
         this.transpiler = new TranspilerSession(toolchain.builtinModulePath, toolchain.cProlog);
@@ -13,7 +13,7 @@ export class CompilerSession<P extends Project, Output extends CompileOutput> {
     }
 
     public async buildProject(project: P): Promise<Output> {
-        this.currentProject = project;
+        this.project = project;
 
         project.check();
         project.clean();
@@ -23,12 +23,12 @@ export class CompilerSession<P extends Project, Output extends CompileOutput> {
     }
 
     public async compileFragment(src: string): Promise<Output> {
-        if (!this.currentProject) {
+        if (!this.project) {
             throw new Error("Cannot compile fragment before building the workspace.");
         }
 
-        const entryPoints = this.transpiler.transpileFragment(this.currentProject, src);
-        return this.toolchain.additionalCompileAndLink(this.currentProject, entryPoints);
+        const entryPoints = this.transpiler.transpileFragment(this.project, src);
+        return this.toolchain.additionalCompileAndLink(this.project, entryPoints);
     }
 }
 

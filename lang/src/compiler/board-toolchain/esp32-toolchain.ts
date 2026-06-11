@@ -3,9 +3,9 @@ import * as fs from "fs";
 import { PackageForEsp32, ProjectForEsp32 } from "../project";
 import { BoardToolchain, MemoryImage, MemoryLayout, ShadowMemory } from "./board-toolchain";
 import { executeCommand, getErrorMessage } from "../utils";
-import { generateMakefile, esp32MakefilePreset } from "./makefile";
-import { ElfReader } from "./elf-reader";
-import generateLinkerScript from "./linker-script";
+import { generateMakefile, esp32MakefilePreset } from "./tools/makefile";
+import { ElfReader } from "./tools/elf-reader";
+import generateLinkerScript from "./tools/linker-script";
 
 
 export type Esp32ToolchainConfig = {
@@ -148,19 +148,11 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
             }
         };
 
-        for (const pkg of project.usedDependencies) {
+        for (const pkg of project.usedDependencies.reverse()) {
             resultArchives.push(project.archiveFile(pkg));
             const espArchivesFromPkg = this.espIdfComponents.getArchiveFilePaths(pkg.espIdfComponents);
             espArchivesFromPkg.forEach(ar => addEspArchive(ar));
         }
-        // const reversedPackages = usedPackages.reverse();
-        // for (const pkg of reversedPackages) {
-        //     resultArchives.push(project.archivePath(pkg));
-        //     const espArchivesFromPkg = this.espIdfComponents.getArchiveFilePaths(pkg.espIdfComponents);
-        //     espArchivesFromPkg.forEach(ar => addEspArchive(ar));
-        // }
-
-        // Add common components
         this.espIdfComponents.commonArchiveFiles.forEach(ar => addEspArchive(ar));
         
         return resultArchives;

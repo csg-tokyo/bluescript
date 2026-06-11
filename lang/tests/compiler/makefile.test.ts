@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { generateMakefile, esp32MakefilePreset, hostMakefilePreset } from '../../src/compiler/board-toolchain/makefile';
+import { generateMakefile, esp32MakefilePreset, hostMakefilePreset } from '../../src/compiler/board-toolchain/tools/makefile';
 import { Package } from '../../src/compiler/project';
 
 function createTestPackage(name = 'myapp', rootDir = '/project/myapp'): Package {

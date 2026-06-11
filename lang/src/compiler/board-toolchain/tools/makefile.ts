@@ -1,4 +1,4 @@
-import { Package } from "../project";
+import { Package } from "../../project";
 
 
 type BaseMakefileConfig = {
