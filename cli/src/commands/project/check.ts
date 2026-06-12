@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger, runAsyncWithLogStep, showErrorMessages } from "../../core/logger";
+import { logger, runStep } from "../../core/logging";
 import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { CommandHandler } from "../command";
@@ -16,7 +16,7 @@ class CheckHandler extends CommandHandler {
     }
 
     async check() {
-        await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.buildForCheck());
+        await runStep('Compiling...', () => this.compilerAdapter.buildForCheck());
     }
 }
 
@@ -30,7 +30,7 @@ export async function handleCheckCommand() {
         logger.success('Successfully checked BlueScript program.');
     } catch (error) {
         logger.error(`Failed to check BlueScript program.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

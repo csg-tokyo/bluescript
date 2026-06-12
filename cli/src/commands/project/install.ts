@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger, showErrorMessages } from "../../core/logger";
+import { logger } from "../../core/logging";
 import { ProjectConfigHandler, PackageSource ,PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import * as fs from '../../core/fs';
@@ -102,7 +102,7 @@ export async function handleInstallCommand(url: string|undefined, options: {tag?
         const errorMessage = 
             url ? `Failed to install ${url}.` : `Failed to install packages.`;
         logger.error(errorMessage);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import * as path from 'path';
 import { SerialPort } from 'serialport'
 import { BoardName } from "../../config/board-utils";
-import { logger, LogStep, showErrorMessages } from "../../core/logger";
+import { logger, runStep } from "../../core/logging";
 import { exec } from '../../core/shell';
 import chalk from "chalk";
 import { CommandHandler } from "../command";
@@ -14,6 +14,10 @@ const RUNTIME_ESP_PORT_DIR = (runtimeDir: string) => path.join(runtimeDir, 'port
 abstract class FlashRuntimeHandler extends CommandHandler {
     abstract isSetup(): boolean;
     abstract flashRuntime(port: string, monitor: boolean): Promise<void>;
+
+    async flash(port: string) {
+        return runStep('Flashing...', () => this.flashRuntime(port, false));
+    }
 }
 
 class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
@@ -23,7 +27,6 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
         return this.globalConfigHandler.isBoardSetup(this.boardName);
     }
     
-    @LogStep('Flashing...')
     async flashRuntime(port: string) {
         const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
         if (!runtimeDir) {
@@ -88,7 +91,7 @@ export async function handleFlashRuntimeCommand(board: string, options: { port?:
         logger.info(`Using port: ${selectedPort}`);
 
         // Flash runtime.
-        await flashRuntimeHandler.flashRuntime(selectedPort);
+        await flashRuntimeHandler.flash(selectedPort);
 
         logger.br();
         logger.success(`Success to flash the BlueScript runtime to ${board}`);
@@ -96,7 +99,7 @@ export async function handleFlashRuntimeCommand(board: string, options: { port?:
 
     } catch (error) {
         logger.error(`Failed to flash the runtime to ${board}`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

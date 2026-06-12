@@ -1,6 +1,7 @@
 import noble, { Characteristic, Peripheral } from '@abandonware/noble';
 import { Buffer } from "node:buffer";
 import { MemoryImage, MemoryLayout } from "@bscript/lang";
+import { logger } from "../core/logging";
 import { Connection, ConnectionMessage, Service } from "./common";
 import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protocol';
 
@@ -194,7 +195,7 @@ export class BleConnection extends Connection<Buffer> {
                 await this.characteristic.writeAsync(buff, false);
             }
         } else {
-            console.error("BLE is not connected.");
+            logger.error("BLE is not connected.");
         }
     }
     

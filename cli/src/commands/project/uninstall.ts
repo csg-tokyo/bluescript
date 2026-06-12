@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger, showErrorMessages } from "../../core/logger";
+import { logger } from "../../core/logging";
 import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import * as fs from '../../core/fs';
@@ -37,7 +37,7 @@ export async function handleUninstallCommand(packageName: string) {
         uninstallHandler.uninstall(packageName);
     } catch (error) {
         logger.error(`Failed to uninstall ${packageName}.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

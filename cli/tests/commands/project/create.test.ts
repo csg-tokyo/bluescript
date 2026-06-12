@@ -5,7 +5,6 @@ import {
     mockedCwd,
     mockedInquirer,
     mockedLogger,
-    mockedShowErrorMessages,
     mockProcessExit,
 } from '../mock-helpers';
 import { deleteGlobalEnv, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, spyGlobalSettings } from '../global-env-helper';
@@ -94,7 +93,7 @@ describe('create project command', () => {
 
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to create a new project.');
-        expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('The environment for esp32 is not set up.'));
+        expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('The environment for esp32 is not set up.'));
         expect(process.exit).toHaveBeenCalled();
 
         // --- Clean up ---
@@ -111,7 +110,7 @@ describe('create project command', () => {
 
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to create a new project.');
-        expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
+        expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
         expect(process.exit).toHaveBeenCalled();
 
         // --- Clean up ---

@@ -5,7 +5,6 @@ import {
     mockedExec,
     mockedInquirer,
     mockedLogger,
-    mockedShowErrorMessages,
     mockProcessExit,
 } from '../mock-helpers';
 import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, spyGlobalSettings } from '../global-env-helper';
@@ -67,7 +66,7 @@ describe('board setup command', () => {
         
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up unknown-board');
-        expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
+        expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
         expect(process.exit).toHaveBeenCalledWith(1);
         exitSpy.mockRestore();
     });
@@ -88,7 +87,7 @@ describe('board setup command', () => {
 
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
-        expect(mockedShowErrorMessages).toHaveBeenCalledWith(expect.any(Error));
+        expect(mockedLogger.showError).toHaveBeenCalledWith(expect.any(Error));
         expect(process.exit).toHaveBeenCalledWith(1);
         exitSpy.mockRestore();
     });
@@ -228,7 +227,7 @@ describe('board setup command', () => {
 
             // --- Assert ---
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
-            expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported OS.'));
+            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS.'));
             expect(process.exit).toHaveBeenCalledWith(1);
             exitSpy.mockRestore();
         });

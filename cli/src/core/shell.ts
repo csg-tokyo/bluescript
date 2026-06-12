@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { logger } from "./logger";
+import { logger } from "./logging";
 import { exists } from "./fs";
 
 export function cwd() {

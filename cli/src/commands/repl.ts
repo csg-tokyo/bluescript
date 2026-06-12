@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { logger, runAsyncWithLogStep, showErrorMessages } from "../core/logger";
-import { consoleProgramOutput, createConsoleOutput } from "../core/program-output";
+import { logger, runPipeline, step } from "../core/logging";
+import { createConsoleOutput } from "../core/logging/program-output";
 import { DEFAULT_DEVICE_NAME, PROJECT_DEFAULT_PATHS, ProjectConfigHandler } from "../config/project-config";
 import * as path from 'path';
 import * as readline from 'readline';
@@ -50,14 +50,27 @@ class ReplHandler extends CommandHandler {
     }
 
     async start() {
-        await runAsyncWithLogStep('Connecting via BLE...', () => this.platform.runtime.connect());
-        this.compileContext = await runAsyncWithLogStep('Initializing Device...', () => this.platform.runtime.prepare());
+        const ctx: { compileContext?: CompileContext } = {};
+
+        await runPipeline(ctx,
+            step('Connecting via BLE...', async () => {
+                await this.platform.runtime.connect();
+            }),
+            step('Initializing Device...', async (ctx) => {
+                ctx.compileContext = await this.platform.runtime.prepare();
+            }),
+        );
+        this.compileContext = ctx.compileContext;
 
         this.createTempProject();
         await this.runRepl();
         this.deleteTempProject();
 
-        await runAsyncWithLogStep('Disconnecting...', () => this.platform.runtime.disconnect());
+        await runPipeline({},
+            step('Disconnecting...', async () => {
+                await this.platform.runtime.disconnect();
+            }),
+        );
         process.exit(0);
     }
 
@@ -80,7 +93,7 @@ class ReplHandler extends CommandHandler {
                     this.rl.prompt();
                 } catch (error) {
                     if (error instanceof CompileError) {
-                        consoleProgramOutput.writeError("** compile error: " + error.toString());
+                        logger.error("** compile error: " + error.toString());
                         this.rl.prompt();
                     } else {
                         reject(error);
@@ -121,7 +134,7 @@ export async function handleReplCommand(options: { board: string }) {
         await handler.start();
     } catch (error) {
         logger.error(`Error while running REPL.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

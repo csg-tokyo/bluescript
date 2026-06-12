@@ -1,14 +1,14 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
 import { BoardName } from "../../config/board-utils";
-import { logger, LogStep, showErrorMessages } from "../../core/logger";
+import { logger, runStep } from "../../core/logging";
 import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";
 
 
 abstract class RemoveHandler extends CommandHandler {
     async remove() {
-        await this.removeBoard();
+        await runStep('Removing...', () => this.removeBoard());
         this.globalConfigHandler.save();
     }
     abstract isSetup(): boolean;
@@ -22,7 +22,6 @@ class ESP32RemoveHandler extends RemoveHandler {
         return this.globalConfigHandler.isBoardSetup(this.boardName);
     }
     
-    @LogStep(`Removing...`)
     async removeBoard() {
         const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
         if (boardConfig === undefined) {
@@ -81,7 +80,7 @@ export async function handleRemoveCommand(board: string, options: { force?: bool
 
     } catch (error) {
         logger.error(`Failed to remove ${board}`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

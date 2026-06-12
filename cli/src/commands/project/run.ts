@@ -4,12 +4,11 @@ import * as readline from 'readline';
 import http from 'http';
 import sirv from 'sirv';
 import path from 'path';
-import { logger, runAsyncWithLogStep, showErrorMessages } from "../../core/logger";
-import { ProgramOutput, consoleProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput } from "../../core/program-output";
+import { logger, runPipeline, step, ProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput } from "../../core/logging";
 import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import { CommandHandler } from "../command";
-import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
+import { BoardRuntime, CompilerAdapter, CompileContext, createPlatformSession } from "../../platforms";
 import { CompileError, CompileOutput } from "@bscript/lang";
 import { WebSocketConnection } from "../../services/websocket";
 
@@ -45,15 +44,35 @@ class RunHandler extends CommandHandler {
     }
 
     async run(): Promise<boolean> {
-        await runAsyncWithLogStep('Connecting via BLE...', () => this.runtime.connect());
-        const compileContext = await runAsyncWithLogStep('Initializing Device...', () => this.runtime.prepare());
-        const output = await runAsyncWithLogStep('Compiling...', () => this.compiler.buildProject(compileContext));
-        await runAsyncWithLogStep('Loading...', () => this.runtime.load(output));
-        return this.executeProgram(output);
+        const ctx: {
+            compileContext?: CompileContext;
+            output?: CompileOutput;
+        } = {};
+
+        await runPipeline(ctx,
+            step('Connecting via BLE...', async () => {
+                await this.runtime.connect();
+            }),
+            step('Initializing Device...', async (ctx) => {
+                ctx.compileContext = await this.runtime.prepare();
+            }),
+            step('Compiling...', async (ctx) => {
+                ctx.output = await this.compiler.buildProject(ctx.compileContext!);
+            }),
+            step('Loading...', async (ctx) => {
+                await this.runtime.load(ctx.output!);
+            }),
+        );
+
+        return this.executeProgram(ctx.output!);
     }
 
     async close() {
-        await runAsyncWithLogStep('Disconnecting...', () => this.runtime.disconnect());
+        await runPipeline({},
+            step('Disconnecting...', async () => {
+                await this.runtime.disconnect();
+            }),
+        );
         process.exit(0);
     }
 
@@ -143,7 +162,7 @@ class RunWithReplHandler extends RunHandler {
                     this.rl.prompt();
                 } catch (error) {
                     if (error instanceof CompileError) {
-                        consoleProgramOutput.writeError("** compile error: " + error.toString());
+                        logger.error("** compile error: " + error.toString());
                         this.rl.prompt();
                     } else {
                         reject(error);
@@ -237,7 +256,7 @@ class RunWithNotebookHandler extends RunHandler {
                 if (error instanceof CompileError) {
                     service.finishCompilation(-1, error.toString());
                 } else {
-                    console.log(error)
+                    logger.showError(error);
                     throw error;
                 }
             }
@@ -280,7 +299,7 @@ export async function handleRunCommand(options: {withRepl: boolean, withNotebook
         await handler.close();
     } catch (error) {
         logger.error(`Failed to run BlueScript program.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

@@ -3,7 +3,6 @@ import { setupDefaultGlobalEnv, deleteGlobalEnv, setupGlobalEnvWithEsp32, getGlo
 import {
     mockedInquirer,
     mockedLogger,
-    mockedShowErrorMessages,
     mockProcessExit,
 } from '../mock-helpers';
 
@@ -68,7 +67,7 @@ describe('board remove command', () => {
         
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to remove unknown-board');
-        expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
+        expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
         expect(process.exit).toHaveBeenCalledWith(1);
         exitSpy.mockRestore();
     });

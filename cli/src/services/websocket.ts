@@ -1,4 +1,5 @@
 import { Connection, ConnectionMessage, EventMap, Service } from "./common";
+import { logger } from "../core/logging";
 import { WebSocketServer, WebSocket } from 'ws';
 
 export type ReplServiceEvents = {
@@ -56,10 +57,10 @@ export class WebSocketConnection extends Connection<any> {
                     if (service) {
                         service.handleMessage(parsedMessage.event, parsedMessage.payload);
                     } else {
-                        console.warn(`Service "${parsedMessage.service}" not found.`);
+                        logger.warn(`Service "${parsedMessage.service}" not found.`);
                     }
                 } catch (error) {
-                    console.error("Failed to parse message:", message, error);
+                    logger.error("Failed to parse message:", String(message), String(error));
                 }
             });
 
@@ -85,7 +86,7 @@ export class WebSocketConnection extends Connection<any> {
         if (this.client && this.client.readyState === WebSocket.OPEN) {
             this.client.send(JSON.stringify(message));
         } else {
-            console.error("WebSocket is not connected.");
+            logger.error("WebSocket is not connected.");
         }
     }
     

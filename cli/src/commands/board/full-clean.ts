@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
-import { logger, showErrorMessages } from "../../core/logger";
+import { logger } from "../../core/logging";
 import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";
@@ -47,7 +47,7 @@ export async function handleFullcleanCommand(options: { force?: boolean }) {
 
     } catch (error) {
         logger.error(`Failed to delete entire settings.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

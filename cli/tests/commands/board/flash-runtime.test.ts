@@ -4,7 +4,6 @@ import { deleteGlobalEnv, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, spyGlo
 import {
     mockedInquirer,
     mockedLogger,
-    mockedShowErrorMessages,
     mockProcessExit,
     mockedExec,
 } from '../mock-helpers';
@@ -84,7 +83,7 @@ describe('board flash-runtime command', () => {
         
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to flash the runtime to unknown-board');
-        expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
+        expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported board name: unknown-board'));
         expect(process.exit).toHaveBeenCalledWith(1);
 
         // --- Clean up ---

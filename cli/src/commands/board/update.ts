@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger, LogStep, showErrorMessages, SkipStep } from "../../core/logger";
+import { logger, runStep, skip } from "../../core/logging";
 import { CommandHandler } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";
 import * as fs from '../../core/fs';
@@ -19,9 +19,9 @@ class UpdateHandler extends CommandHandler {
 
     async update() {
         try {
-            await this.updateRuntime();
+            await this.updateRuntimeStep();
             if (this.globalConfigHandler.isBoardSetup('esp32')) {
-                await this.updateEsp32();
+                await this.updateEsp32Step();
             }
             this.globalConfigHandler.setVersion(GLOBAL_SETTINGS.VM_VERSION);
         } catch (error) {
@@ -44,24 +44,30 @@ class UpdateHandler extends CommandHandler {
         this.globalConfigHandler.save();
     }
 
-    @LogStep('Updating Runtime...')
-    async updateRuntime() {
+    private updateRuntimeStep() {
+        return runStep('Updating Runtime...', () => this.updateRuntime());
+    }
+
+    private updateEsp32Step() {
+        return runStep('Updating the environment for esp32...', () => this.updateEsp32());
+    }
+
+    private async updateRuntime() {
         const globalConfig = this.globalConfigHandler.getConfig();
         if (globalConfig.runtimeDir === undefined || globalConfig.version === GLOBAL_SETTINGS.VM_VERSION) {
-            throw new SkipStep('not needed', undefined);
+            return skip('not needed');
         }
         this.existingRuntimeDir = globalConfig.runtimeDir;
-        
+
         fs.moveDir(this.existingRuntimeDir, this.tmpRuntimeDir);
         await fs.downloadAndUnzip(GLOBAL_SETTINGS.RUNTIME_ZIP_URL, GLOBAL_SETTINGS.BLUESCRIPT_DIR);
         this.globalConfigHandler.setRuntimeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
     }
 
-    @LogStep('Updating the environment for esp32...')
-    async updateEsp32() {
+    private async updateEsp32() {
         const esp32Config = this.globalConfigHandler.getBoardConfig('esp32')!;
         if (esp32Config.idfVersion === GLOBAL_SETTINGS.ESP_IDF_VERSION) {
-            throw new SkipStep('not needed', undefined);
+            return skip('not needed');
         }
         this.existingEspDir = esp32Config.rootDir;
 
@@ -78,7 +84,7 @@ class UpdateHandler extends CommandHandler {
     }
 
     private async cloneEspIdf() {
-        await exec(`git clone --depth 1 -b ${GLOBAL_SETTINGS.ESP_IDF_VERSION} --recursive ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}`, 
+        await exec(`git clone --depth 1 -b ${GLOBAL_SETTINGS.ESP_IDF_VERSION} --recursive ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}`,
             { cwd: GLOBAL_SETTINGS.ESP_ROOT_DIR });
     }
 
@@ -93,7 +99,6 @@ class UpdateHandler extends CommandHandler {
         } catch (error) {
             throw new Error('Failed to get xtensa gcc path.', {cause: error});
         }
-        
     }
 }
 
@@ -107,7 +112,7 @@ export async function handleUpdateCommand() {
 
     } catch (error) {
         logger.error(`Failed to update board environments.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

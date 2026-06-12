@@ -5,7 +5,6 @@ import {
     mockedCwd,
     mockedExec,
     mockedLogger,
-    mockedShowErrorMessages,
     mockProcessExit,
 } from '../mock-helpers';
 import { deleteGlobalEnv, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32 } from '../global-env-helper';
@@ -164,7 +163,7 @@ describe('install command', () => {
 
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to install https://github.com/bluescript-lang/pkg-gpio-esp32.git.');
-        expect(mockedShowErrorMessages).toHaveBeenCalledWith(new Error('The environment for esp32 is not set up.'));
+        expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('The environment for esp32 is not set up.'));
         expect(process.exit).toHaveBeenCalled();
 
         // --- Clean up ---
