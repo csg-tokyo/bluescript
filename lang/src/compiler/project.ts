@@ -211,10 +211,10 @@ export class ProjectForHost extends Project<Package> {
         return new ProjectForHost(project.mainPackage, project.dependencies);
     }
 
-    soFile(): AbsolutePath {
+    soFile(id?: number): AbsolutePath {
         return path.join(
             this.mainPackage.resolvedBuildDir, 
-            `${this.mainPackage.name}.so`
+            `${this.mainPackage.name}${id ?? ''}.so`
         ); 
     }
 }

@@ -19,6 +19,7 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
 
     private config: Esp32ToolchainConfig;
     private espIdfComponents: EspIdfComponents;
+    private compiledPackages = new Set<string>();
     private definedSymbols: Map<string, { name: string; address: number }>; 
 
     get cProlog() {
@@ -44,6 +45,7 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
     async compileAndLink(project: ProjectForEsp32, entryPoints: string[]): Promise<MemoryImage> {
         for (const pkg of project.usedDependencies) {
             await this.compileC(project, pkg);
+            this.compiledPackages.add(pkg.name);
         }
         await this.compileC(project, project.mainPackage);
         const elfPath = await this.link(project, entryPoints);
@@ -51,6 +53,12 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
     }
 
     async additionalCompileAndLink(project: ProjectForEsp32, entryPoints: string[]): Promise<MemoryImage> {
+        for (const pkg of project.usedDependencies) {
+            if (!this.compiledPackages.has(pkg.name)) {
+                await this.compileC(project, pkg);
+                this.compiledPackages.add(pkg.name);
+            }
+        }
         await this.compileC(project, project.mainPackage);
         const elfPath = await this.link(project, entryPoints);
         return this.extractBinary(elfPath, entryPoints);

@@ -27,7 +27,7 @@ const compile = async (testEnv: Esp32CompilerTestEnv) => {
 
 
 describe('Test single compile: Compiler for ESP32', () => {
-    const testEnv = new Esp32CompilerTestEnv();
+    const testEnv = new Esp32CompilerTestEnv('compiler-test-esp32');
 
     beforeEach(() => {
         testEnv.init();
@@ -423,9 +423,9 @@ describe('Test additional compile: Compiler for ESP32', () => {
         testEnv.init();
     });
 
-    // afterAll(() => {
-    //     testEnv.delete();
-    // });
+    afterAll(() => {
+        testEnv.delete();
+    });
 
     it('should throw error if a file with a name consisting only numbers exists in main.', async () => {
         testEnv.createMainPackage();
@@ -471,6 +471,20 @@ describe('Test additional compile: Compiler for ESP32', () => {
 
         const session = await compile(testEnv);
         const binary = await session.compileFragment(`import {add} from './module1';\n add(1, 1);`);
+        expect(binary.entryPoints.length).toBe(2);
+    });
+
+    it('should compile an additional code fragment with a package import.', async () => {
+        testEnv.createSubPackage('package1');
+        testEnv.addSourceFile('package1',
+            './index.bs',
+            `export function add(a: integer, b:integer) {return a + b;}`
+        );
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `1 + 1`);
+
+        const session = await compile(testEnv);
+        const binary = await session.compileFragment(`import {add} from 'package1';\n add(1, 1);`);
         expect(binary.entryPoints.length).toBe(2);
     });
 

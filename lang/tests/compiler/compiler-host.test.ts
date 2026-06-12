@@ -33,7 +33,7 @@ const compile = async (testEnv: HostCompilerTestEnv) => {
 
 
 describe('Test single compile: Compiler for Host', () => {
-    const testEnv = new HostCompilerTestEnv('compiler-host');
+    const testEnv = new HostCompilerTestEnv('compiler-test-host');
     
     beforeAll(async () => {
         await buildRuntime();
@@ -402,4 +402,87 @@ function foo() {
         expect(testEnv.resultSharedObjectExists()).toBe(true);
     });
 
+});
+
+
+describe('Test additional compile: Compiler for ESP32', () => {
+    const testEnv = new HostCompilerTestEnv('compiler-test-host');
+
+    beforeEach(() => {
+        testEnv.init();
+    });
+
+    afterAll(() => {
+        testEnv.delete();
+    });
+
+    it('should throw error if a file with a name consisting only numbers exists in main.', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
+        testEnv.addSourceFile(testEnv.mainPackageName, './1.bs', '1 + 1');
+
+        await expect(compile(testEnv)).rejects.toThrow(`Invalid file name`);
+    });
+
+    it('should compile an additional code fragment.', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
+
+        const session = await compile(testEnv);
+        const sharedObjest = await session.compileFragment('1 + 23');
+        expect(sharedObjest.entryNames.length).toBe(1);
+    });
+
+    it('should compile an additional code fragment with function call.', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', 'function add(a, b) {return a + b}');
+
+        const session = await compile(testEnv);
+        const sharedObjest = await session.compileFragment('add(2, 3);');
+        expect(sharedObjest.entryNames.length).toBe(1);
+    });
+
+    it('should compile an additional code fragment with variable access', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', 'let a = 1 + 1;');
+
+        const session = await compile(testEnv);
+        const sharedObjest = await session.compileFragment('a += 1;');
+        expect(sharedObjest.entryNames.length).toBe(1);
+    });
+
+    it('should compile an additional code fragment with a module import.', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `1 + 1`);
+
+        const session = await compile(testEnv);
+        const sharedObjest = await session.compileFragment(`import {add} from './module1';\n add(1, 1);`);
+        expect(sharedObjest.entryNames.length).toBe(2);
+    });
+
+    it('should compile an additional code fragment with a package import.', async () => {
+        testEnv.createSubPackage('package1');
+        testEnv.addSourceFile('package1',
+            './index.bs',
+            `export function add(a: integer, b:integer) {return a + b;}`
+        );
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `1 + 1`);
+
+        const session = await compile(testEnv);
+        const sharedObjest = await session.compileFragment(`import {add} from 'package1';\n add(1, 1);`);
+        expect(sharedObjest.entryNames.length).toBe(2);
+    });
+
+    it('should compile several additional code fragments.', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
+
+        const session = await compile(testEnv);
+        let sharedObjest = await session.compileFragment('function add(a, b) {return a + b}');
+        expect(sharedObjest.entryNames.length).toBe(1);
+        sharedObjest = await session.compileFragment('add(1, 2);');
+        expect(sharedObjest.entryNames.length).toBe(1);
+    });
 });

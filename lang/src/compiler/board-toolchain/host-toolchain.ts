@@ -8,6 +8,9 @@ import { executeCommand, getErrorMessage } from "../utils";
 
 export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObject> {
     private runtimeDir: string;
+    private compileId: number = 0;
+    private compiledPackages = new Set<string>();
+    private generatedSoFiles: string[] = [];
 
     constructor(runtimeDir: string) {
         this.runtimeDir = runtimeDir;
@@ -29,9 +32,12 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
         const archiveFiles: string[] = [];
         for (const pkg of project.usedDependencies) {
             archiveFiles.push(await this.compilePackage(project, pkg));
+            this.compiledPackages.add(pkg.name);
         }
         archiveFiles.push(await this.compilePackage(project, project.mainPackage));
-        const soFile = await this.link(project, archiveFiles);
+        const soFile = project.soFile();
+        await this.link(archiveFiles, soFile);
+        this.generatedSoFiles.push(soFile);
         return {
             soFile,
             entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
@@ -39,10 +45,21 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
     }
 
     async additionalCompileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObject> {
+        const archiveFiles: string[] = [];
+        for (const pkg of project.usedDependencies) {
+            if (!this.compiledPackages.has(pkg.name)) {
+                archiveFiles.push(await this.compilePackage(project, pkg));
+                this.compiledPackages.add(pkg.name);
+            }
+        }
+        archiveFiles.push(await this.compilePackage(project, project.mainPackage));
+        const soFile = project.soFile(this.compileId++);
+        await this.link(archiveFiles, soFile);
+        this.generatedSoFiles.push(soFile);
         return {
-            soFile: "",
-            entryNames: [],
-        };
+            soFile,
+            entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
+        }
     }
 
     private async compilePackage(project: ProjectForHost, pkg: Package): Promise<string> {
@@ -63,12 +80,10 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
         }
     }
 
-    private async link(project: ProjectForHost, archiveFiles: string[]): Promise<string> {
+    private async link(archiveFiles: string[], outputFile: string): Promise<void> {
         try {
-            const soFile = project.soFile();
-            const args = ['-shared', '-fPIC', '-o', soFile, ...archiveFiles, this.runtimeSo, '-lm', '-ldl'];
+            const args = ['-shared', '-fPIC', '-o', outputFile, ...archiveFiles, ...this.generatedSoFiles, this.runtimeSo, '-lm', '-ldl'];
             await executeCommand('cc', args);
-            return soFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});
         }
