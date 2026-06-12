@@ -158,16 +158,14 @@ export class Project<P extends Package = Package> {
         return filePath;
     }
 
-    writeLinkerScript(data: string) {
-        const filePath = path.join(this.mainPackage.resolvedBuildDir, "linkerscript.ld");
-        fs.writeFileSync(filePath, data);
-        return filePath;
-    }
-
     addUsedDependency(pkg: P) {
         if (pkg.name !== this.mainPackage.name) {
             this.usedDependenciesMap.set(pkg.name, pkg);
         }
+    }
+
+    archiveFile(pkg: Package): AbsolutePath { 
+        return path.join(pkg.resolvedBuildDir, `lib${pkg.name}.a`); 
     }
 }
 
@@ -185,11 +183,13 @@ export class ProjectForEsp32 extends Project<PackageForEsp32> {
         return new ProjectForEsp32(project.mainPackage, project.dependencies);
     }
 
-    archiveFile(pkg: PackageForEsp32) { 
-        return path.join(pkg.resolvedBuildDir, `lib${pkg.name}.a`); 
+    writeLinkerScript(data: string) {
+        const filePath = path.join(this.mainPackage.resolvedBuildDir, "linkerscript.ld");
+        fs.writeFileSync(filePath, data);
+        return filePath;
     }
 
-    elfFile() { 
+    elfFile(): AbsolutePath { 
         return path.join(
             this.mainPackage.resolvedBuildDir, 
             `${this.mainPackage.name}.elf`
@@ -211,7 +211,10 @@ export class ProjectForHost extends Project<Package> {
         return new ProjectForHost(project.mainPackage, project.dependencies);
     }
 
-    packageSoFile(pkg: Package) { 
-        return path.join(pkg.resolvedBuildDir, `${pkg.name}.so`); 
+    soFile(): AbsolutePath {
+        return path.join(
+            this.mainPackage.resolvedBuildDir, 
+            `${this.mainPackage.name}.so`
+        ); 
     }
 }

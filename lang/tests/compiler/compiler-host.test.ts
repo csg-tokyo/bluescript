@@ -3,7 +3,7 @@ import * as fs from "fs";
 import { ProjectForHost } from "../../src/compiler/project";
 import { HostToolchain } from "../../src/compiler/board-toolchain/host-toolchain";
 import { HostCompilerTestEnv, runtimeDir } from "./test-utils";
-import { SharedObjects } from "../../src/compiler/board-toolchain/board-toolchain";
+import { SharedObject } from "../../src/compiler/board-toolchain/board-toolchain";
 import { CompilerSession } from "../../src/compiler/compiler-session";
 import { executeCommand } from "../../src/compiler/utils";
 
@@ -26,7 +26,7 @@ const compile = async (testEnv: HostCompilerTestEnv) => {
         testEnv.getPackageReader()
     );
     const toolchain = new HostToolchain(runtimeDir);
-    const session = new CompilerSession<ProjectForHost, SharedObjects>(toolchain);
+    const session = new CompilerSession<ProjectForHost, SharedObject>(toolchain);
     await session.buildProject(project);
     return session;
 }
@@ -352,7 +352,7 @@ function foo() {
         testEnv.createMainPackage();
         testEnv.addSourceFile(testEnv.mainPackageName, './add.c',  'int add(int a, int b) {return a + b;}')
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
-code\`extern int add(int a, int b);\`
+code\`#include "./add.c"\`
 function foo() {
     code\`add(1, 2);\`
 }

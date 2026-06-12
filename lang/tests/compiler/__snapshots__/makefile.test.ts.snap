@@ -91,6 +91,7 @@ clean:
 exports[`generateMakefile generates makefile for host shared library. 1`] = `
 "# === Basic settings ===
 CC := cc
+AR := ar
 
 # === Directory settings ===
 SRC_DIR := /project/myapp/src
@@ -98,7 +99,7 @@ DIST_DIR  := /project/myapp/dist
 BUILD_DIR := /project/myapp/dist/build
 PACKAGES_DIR := /project/myapp/packages
 
-TARGET := /project/myapp/dist/build/libmyapp.so
+TARGET := /project/myapp/dist/build/libmyapp.a
 
 # === Check for illegal file name prefixes ===
 ILLEGAL_PREFIX_FILES := $(shell find $(SRC_DIR) -path $(DIST_DIR) -prune -o -path $(PACKAGES_DIR) -prune -o -type f -name "bs_*.c" -print)
@@ -120,7 +121,7 @@ DIST_SOURCES += $(shell find $(DIST_DIR) -path $(BUILD_DIR) -prune -o -type f -n
 OBJECTS := $(patsubst $(DIST_DIR)/%.c, $(BUILD_DIR)/%.o, $(DIST_SOURCES))
 
 # === Compilation settings ===
-INCLUDES := -I $(DIST_DIR) -I $(SRC_DIR) -I /opt/esp-idf/components/freertos/include -I /opt/esp-idf/components/esp_common/include
+INCLUDES := -I $(DIST_DIR) -I $(SRC_DIR)
 CFLAGS := $(INCLUDES) -O2 -w -fPIC -DLINUX64
 
 # ====================================================================
@@ -156,9 +157,9 @@ $(foreach hdr,$(ORIG_HEADERS), \\
 # --------------------------------------------------------
 
 $(TARGET): $(OBJECTS) | $(DIST_HEADERS)
-	@echo "Linking shared library: $@"
+	@echo "Archiving library: $@"
 	@mkdir -p $(@D)
-	$(CC) -shared -o $@ $^ 
+	$(AR) rcs $@ $^
 
 vpath %.c $(DIST_DIR)
 

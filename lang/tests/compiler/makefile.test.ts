@@ -36,12 +36,7 @@ describe('generateMakefile', () => {
         const pkg = createTestPackage();
         const makefile = generateMakefile(hostMakefilePreset(
             pkg,
-            [
-                '/opt/esp-idf/components/freertos/include',
-                '/opt/esp-idf/components/esp_common/include',
-            ],
-            '/project/myapp/dist/build/libmyapp.so',
-            []
+            '/project/myapp/dist/build/libmyapp.a',
         ));
         expect(makefile).toMatchSnapshot();
     });

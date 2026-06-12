@@ -1,12 +1,12 @@
 import * as path from "path";
 import * as fs from "fs";
-import { BoardToolchain, SharedObjects } from "./board-toolchain";
+import { BoardToolchain, SharedObject } from "./board-toolchain";
 import { Package, ProjectForHost } from "../project";
 import { generateMakefile, hostMakefilePreset } from "./tools/makefile";
 import { executeCommand, getErrorMessage } from "../utils";
 
 
-export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjects> {
+export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObject> {
     private runtimeDir: string;
 
     constructor(runtimeDir: string) {
@@ -25,44 +25,52 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
     get executableShell() { return path.join(this.runtimeBuildDir, 'shell'); }
     get runtimeSo() { return path.join(this.runtimeBuildDir, 'c-runtime.so'); }
 
-    async compileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObjects> {
-        const soFiles: string[] = [ this.runtimeSo ];
-        const packages = project.usedDependencies.reverse();
-        for (const pkg of packages) {
-            soFiles.push(await this.compilePackage(project, pkg, soFiles));
+    async compileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObject> {
+        const archiveFiles: string[] = [];
+        for (const pkg of project.usedDependencies) {
+            archiveFiles.push(await this.compilePackage(project, pkg));
         }
-        soFiles.push(await this.compilePackage(project, project.mainPackage, soFiles));
+        archiveFiles.push(await this.compilePackage(project, project.mainPackage));
+        const soFile = await this.link(project, archiveFiles);
         return {
-            soFiles: soFiles,
-            entryNames: entryPoints.map((v, i) => ({isMain: i === entryPoints.length - 1, name: v})),
-        };
+            soFile,
+            entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
+        }
     }
 
-    async additionalCompileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObjects> {
+    async additionalCompileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObject> {
         return {
-            soFiles: [],
+            soFile: "",
             entryNames: [],
         };
     }
 
-    private async compilePackage(project: ProjectForHost, pkg: Package, existingSoFiles: string[]): Promise<string> {
+    private async compilePackage(project: ProjectForHost, pkg: Package): Promise<string> {
         try {
-            const soFile = project.packageSoFile(pkg);
-            const includeDirs: string[] = [];
+            const archiveFile = project.archiveFile(pkg);
 
-            // Remove old so file.
-            if (fs.existsSync(soFile)) {
-                fs.rmSync(soFile, { force: true });
+            // Remove old archive file.
+            if (fs.existsSync(archiveFile)) {
+                fs.rmSync(archiveFile, { force: true });
             }
 
-            const makefile = generateMakefile(hostMakefilePreset(
-                pkg, includeDirs, soFile, existingSoFiles
-            ));
+            const makefile = generateMakefile(hostMakefilePreset(pkg, archiveFile));
             project.writeMakefile(pkg, makefile);
             await executeCommand('make', [], pkg.resolvedDistDir);
-            return soFile;
+            return archiveFile;
         } catch (error) {
             throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
+        }
+    }
+
+    private async link(project: ProjectForHost, archiveFiles: string[]): Promise<string> {
+        try {
+            const soFile = project.soFile();
+            const args = ['-shared', '-fPIC', '-o', soFile, ...archiveFiles, this.runtimeSo, '-lm', '-ldl'];
+            await executeCommand('cc', args);
+            return soFile;
+        } catch (error) {
+            throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});
         }
     }
 }

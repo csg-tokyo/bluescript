@@ -1,25 +1,16 @@
 import { Package } from "../../project";
 
 
-type BaseMakefileConfig = {
+type MakefileConfig = {
     pkg: Package,
     includeDirs: string[],
     compileFlags: string[],
-}
-
-type ArchiveMakefileConfig = BaseMakefileConfig & {
-    output: { kind: 'archive', path: string },
+    outputFile: string,
     toolchain: { cc: string; ar: string }
 }
 
-type SharedMakefileConfig = BaseMakefileConfig & {
-    output: { kind: 'shared', path: string, libs: string[] },
-    toolchain: { cc: string }
-};
 
-type MakefileConfig = ArchiveMakefileConfig | SharedMakefileConfig;
-
-export function esp32MakefilePreset(toolchainDir: string, pkg: Package, includeDirs: string[], archivePath: string): ArchiveMakefileConfig {
+export function esp32MakefilePreset(toolchainDir: string, pkg: Package, includeDirs: string[], outputFile: string): MakefileConfig {
     return {
         pkg, includeDirs,
         compileFlags: [
@@ -28,7 +19,7 @@ export function esp32MakefilePreset(toolchainDir: string, pkg: Package, includeD
             '-mtext-section-literals', '-mlongcalls',
             '-fno-zero-initialized-in-bss',
         ],
-        output: { kind: 'archive', path: archivePath },
+        outputFile,
         toolchain: {
             cc: `${toolchainDir}/xtensa-esp32-elf-gcc`,
             ar: `${toolchainDir}/xtensa-esp32-elf-ar`
@@ -36,12 +27,16 @@ export function esp32MakefilePreset(toolchainDir: string, pkg: Package, includeD
     }
 }
 
-export function hostMakefilePreset(pkg: Package, includeDirs: string[], soPath: string, libs: string[]): SharedMakefileConfig {
+export function hostMakefilePreset(pkg: Package, outputFile: string): MakefileConfig {
     return {
-        pkg, includeDirs,
+        pkg, 
+        includeDirs: [],
         compileFlags: ['-O2', '-w', '-fPIC', '-DLINUX64'],
-        output: { kind: 'shared', path: soPath, libs },
-        toolchain: { cc: `cc` }
+        outputFile,
+        toolchain: {
+            cc: `cc`,
+            ar: `ar`
+        }
     }
 }
 
@@ -61,18 +56,11 @@ export function generateMakefile(config: MakefileConfig): string {
     ].join('\n\n');
 }
 
-function isArchiveConfig(config: MakefileConfig): config is ArchiveMakefileConfig {
-    return config.output.kind === 'archive';
-}
-
 function renderHeader(config: MakefileConfig): string {
     const { pkg } = config;
-    const basicSettings = isArchiveConfig(config)
-        ? renderArchiveToolchain(config.toolchain)
-        : renderSharedToolchain(config.toolchain);
-
     return `# === Basic settings ===
-${basicSettings}
+CC := ${config.toolchain.cc}
+AR := ${config.toolchain.ar}
 
 # === Directory settings ===
 SRC_DIR := ${pkg.resolvedSourceDir}
@@ -80,16 +68,7 @@ DIST_DIR  := ${pkg.resolvedDistDir}
 BUILD_DIR := ${pkg.resolvedBuildDir}
 PACKAGES_DIR := ${pkg.resolvedPackageDir}
 
-TARGET := ${config.output.path}`;
-}
-
-function renderArchiveToolchain(toolchain: ArchiveMakefileConfig['toolchain']): string {
-    return `CC := ${toolchain.cc}
-AR := ${toolchain.ar}`;
-}
-
-function renderSharedToolchain(toolchain: SharedMakefileConfig['toolchain']): string {
-    return `CC := ${toolchain.cc}`;
+TARGET := ${config.outputFile}`;
 }
 
 function renderValidation(_config: MakefileConfig): string {
@@ -158,11 +137,14 @@ $(foreach hdr,$(ORIG_HEADERS), \\
 )`;
 }
 
-function renderBuildRules(config: MakefileConfig): string {
+function renderBuildRules(_config: MakefileConfig): string {
     return `# Build rules
 # --------------------------------------------------------
 
-${renderAggregationRule(config)}
+$(TARGET): $(OBJECTS) | $(DIST_HEADERS)
+\t@echo "Archiving library: $@"
+\t@mkdir -p $(@D)
+\t$(AR) rcs $@ $^
 
 vpath %.c $(DIST_DIR)
 
@@ -172,22 +154,6 @@ $(BUILD_DIR)/%.o: $(DIST_DIR)/%.c
 \t$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 -include $(wildcard $(BUILD_DIR)/*.d)`;
-}
-
-function renderAggregationRule(config: MakefileConfig): string {
-    const prerequisites = `$(OBJECTS) | $(DIST_HEADERS)`;
-    switch (config.output.kind) {
-        case 'archive':
-            return `$(TARGET): ${prerequisites}
-\t@echo "Archiving library: $@"
-\t@mkdir -p $(@D)
-\t$(AR) rcs $@ $^`;
-        case 'shared':
-            return `$(TARGET): ${prerequisites}
-\t@echo "Linking shared library: $@"
-\t@mkdir -p $(@D)
-\t$(CC) -shared -o $@ $^ ${config.output.libs.join(' ')}`;
-    }
 }
 
 function renderClean(_config: MakefileConfig): string {

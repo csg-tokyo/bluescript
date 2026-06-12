@@ -38,12 +38,12 @@ export type MemoryImage = {
     entryPoints: {isMain: boolean, address: number}[]
 }
 
-export type SharedObjects = {
-    soFiles: string[],
+export type SharedObject = {
+    soFile: string,
     entryNames: { isMain: boolean, name: string}[],
 };
 
-export type CompileOutput = MemoryImage | SharedObjects;
+export type CompileOutput = MemoryImage | SharedObject;
 
 export interface BoardToolchain<P extends Project, Output extends CompileOutput> {
 	get cProlog(): string;
