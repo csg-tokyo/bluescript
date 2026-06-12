@@ -1,40 +1,45 @@
 import { Command } from "commander";
-import { logger, runAsyncWithLogStep, replLogger, showErrorMessages } from "../core/logger";
+import { logger, runAsyncWithLogStep, showErrorMessages } from "../core/logger";
+import { consoleProgramOutput, createConsoleOutput } from "../core/program-output";
 import { DEFAULT_DEVICE_NAME, PROJECT_DEFAULT_PATHS, ProjectConfigHandler } from "../config/project-config";
-import { CompileError, MemoryImage, MemoryLayout } from "@bscript/lang";
 import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
 import * as fs from '../core/fs';
 import { CommandHandler } from "./command";
 import { GLOBAL_SETTINGS } from "../config/constants";
-import { CompilerAdapter, getCompilerAdapter } from "../boards/compiler-adapters";
-import { BleDeviceManager } from "../services/device-manager";
+import { CompileContext, createPlatformSession } from "../platforms";
 import { BoardName } from "../config/board-utils";
+import { CompileError, CompileOutput } from "@bscript/lang";
 
 class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
     static readonly tempProjectDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, this.TEMP_PROJECT_NAME);
 
     private projectConfigHandler: ProjectConfigHandler;
-    private compilerAdapter: CompilerAdapter;
-    private deviceManager: BleDeviceManager;
+    private platform: ReturnType<typeof createPlatformSession>;
     private rl: readline.Interface;
+    private compileContext?: CompileContext;
     private isFirstCompile: boolean;
 
     constructor(private boardName: string) {
         super();
 
-        this.projectConfigHandler = 
+        this.projectConfigHandler =
             ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, this.boardName as BoardName, ReplHandler.tempProjectDir);
-        this.compilerAdapter = getCompilerAdapter(this.boardName as BoardName, this.globalConfigHandler, this.projectConfigHandler);
 
-        const deviceName = DEFAULT_DEVICE_NAME;
-        this.deviceManager = new BleDeviceManager(deviceName, replLogger, () => {
-            logger.error('BLE disconnected.');
-            this.deleteTempProject();
-            process.exit(1);
-        });
+        this.platform = createPlatformSession(
+            this.boardName as BoardName,
+            this.globalConfigHandler,
+            this.projectConfigHandler,
+            DEFAULT_DEVICE_NAME,
+            createConsoleOutput(),
+            () => {
+                logger.error('BLE disconnected.');
+                this.deleteTempProject();
+                process.exit(1);
+            },
+        );
 
         this.rl = readline.createInterface({
             input: process.stdin,
@@ -45,38 +50,37 @@ class ReplHandler extends CommandHandler {
     }
 
     async start() {
-        await runAsyncWithLogStep('Connecting via BLE...', () => this.deviceManager.connect());
-        const memoryLayout = await runAsyncWithLogStep('Initializing Device...', () => this.deviceManager.initDevice());
+        await runAsyncWithLogStep('Connecting via BLE...', () => this.platform.runtime.connect());
+        this.compileContext = await runAsyncWithLogStep('Initializing Device...', () => this.platform.runtime.prepare());
 
         this.createTempProject();
-        await this.runRepl(memoryLayout);
+        await this.runRepl();
         this.deleteTempProject();
 
-        await runAsyncWithLogStep('Disconnecting...', () => this.deviceManager.disconnect());
+        await runAsyncWithLogStep('Disconnecting...', () => this.platform.runtime.disconnect());
         process.exit(0);
     }
 
-    private runRepl(memoryLayout: MemoryLayout) {
+    private runRepl() {
         logger.info("Start REPL. Type 'Ctrl-D' to exit.");
         this.rl.prompt();
         return new Promise<void>((resolve, reject) => {
             this.rl.on('line', async (line) => {
                 try {
-                    let bin: MemoryImage;
+                    let output: CompileOutput;
                     if (this.isFirstCompile) {
-                        // Compile first line as index.bs.
                         this.writeEntryFile(line);
-                        bin = await this.compilerAdapter.buildProject(memoryLayout);
+                        output = await this.platform.compiler.buildProject(this.compileContext);
                         this.isFirstCompile = false;
                     } else {
-                        bin = await this.compilerAdapter.compileFragment(line);
+                        output = await this.platform.compiler.compileFragment(line);
                     }
-                    await this.deviceManager.load(bin);
-                    await this.deviceManager.execute(bin);
+                    await this.platform.runtime.load(output);
+                    await this.platform.runtime.execute(output);
                     this.rl.prompt();
                 } catch (error) {
                     if (error instanceof CompileError) {
-                        replLogger.error("** compile error: " + error.toString());
+                        consoleProgramOutput.writeError("** compile error: " + error.toString());
                         this.rl.prompt();
                     } else {
                         reject(error);

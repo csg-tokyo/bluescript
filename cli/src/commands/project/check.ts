@@ -3,7 +3,7 @@ import { logger, runAsyncWithLogStep, showErrorMessages } from "../../core/logge
 import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { CommandHandler } from "../command";
-import { CompilerAdapter, getCompilerAdapter } from "../../boards/compiler-adapters";
+import { CompilerAdapter, getCompilerAdapter } from "../../platforms";
 
 class CheckHandler extends CommandHandler {
     private compilerAdapter: CompilerAdapter;
@@ -16,8 +16,7 @@ class CheckHandler extends CommandHandler {
     }
 
     async check() {
-        const memoryLayout = this.compilerAdapter.getDummyMemoryLayout();
-        await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.buildProject(memoryLayout));
+        await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.buildForCheck());
     }
 }
 
