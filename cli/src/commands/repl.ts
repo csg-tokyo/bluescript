@@ -8,7 +8,7 @@ import chalk from "chalk";
 import * as fs from '../core/fs';
 import { CommandHandler } from "./command";
 import { GLOBAL_SETTINGS } from "../config/constants";
-import { CompileContext, createPlatformSession } from "../platforms";
+import { CompileContext, createPlatformSession, getPipelineLabels } from "../platforms";
 import { BoardName } from "../config/board-utils";
 import { CompileError, CompileOutput } from "@bscript/lang";
 
@@ -21,21 +21,24 @@ class ReplHandler extends CommandHandler {
     private rl: readline.Interface;
     private compileContext?: CompileContext;
     private isFirstCompile: boolean;
+    private pipelineLabels: ReturnType<typeof getPipelineLabels>;
 
     constructor(private boardName: string) {
         super();
 
+        const board = this.boardName as BoardName;
+        this.pipelineLabels = getPipelineLabels(board);
         this.projectConfigHandler =
-            ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, this.boardName as BoardName, ReplHandler.tempProjectDir);
+            ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, board, ReplHandler.tempProjectDir);
 
         this.platform = createPlatformSession(
-            this.boardName as BoardName,
+            board,
             this.globalConfigHandler,
             this.projectConfigHandler,
             DEFAULT_DEVICE_NAME,
             createConsoleOutput(),
             () => {
-                logger.error('BLE disconnected.');
+                logger.error(this.pipelineLabels.disconnectError);
                 this.deleteTempProject();
                 process.exit(1);
             },
@@ -53,10 +56,10 @@ class ReplHandler extends CommandHandler {
         const ctx: { compileContext?: CompileContext } = {};
 
         await runPipeline(ctx,
-            step('Connecting via BLE...', async () => {
+            step(this.pipelineLabels.connect, async () => {
                 await this.platform.runtime.connect();
             }),
-            step('Initializing Device...', async (ctx) => {
+            step(this.pipelineLabels.prepare, async (ctx) => {
                 ctx.compileContext = await this.platform.runtime.prepare();
             }),
         );

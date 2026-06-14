@@ -1,5 +1,5 @@
 import { handleRemoveCommand } from '../../../src/commands/board/remove';
-import { setupDefaultGlobalEnv, deleteGlobalEnv, setupGlobalEnvWithEsp32, getGlobalConfig, spyGlobalSettings } from '../global-env-helper';
+import { setupDefaultGlobalEnv, deleteGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, getGlobalConfig, spyGlobalSettings } from '../global-env-helper';
 import {
     mockedInquirer,
     mockedLogger,
@@ -97,6 +97,27 @@ describe('board remove command', () => {
             // --- Assert ---
             expect(mockedLogger.warn).toHaveBeenCalledWith('The environment for esp32 is not set up. Nothing to remove.');
             // No further actions taken
+            expect(mockedInquirer.prompt).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('for host board', () => {
+        it('should perform removal if setup for host exists', async () => {
+            setupGlobalEnvWithHost();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
+
+            await handleRemoveCommand('host', {});
+
+            expect(Object.keys(getGlobalConfig().boards)).not.toContain('host');
+            expect(mockedLogger.error).not.toHaveBeenCalled();
+        });
+
+        it('should warn and exit if setup is not completed', async () => {
+            setupDefaultGlobalEnv();
+
+            await handleRemoveCommand('host', {});
+
+            expect(mockedLogger.warn).toHaveBeenCalledWith('The environment for host is not set up. Nothing to remove.');
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();
         });
     });

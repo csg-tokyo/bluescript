@@ -36,7 +36,7 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
         }
         archiveFiles.push(await this.compilePackage(project, project.mainPackage));
         const soFile = project.soFile();
-        await this.link(archiveFiles, soFile);
+        await this.link(archiveFiles, entryPoints, soFile);
         this.generatedSoFiles.push(soFile);
         return {
             soFile,
@@ -54,7 +54,7 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
         }
         archiveFiles.push(await this.compilePackage(project, project.mainPackage));
         const soFile = project.soFile(this.compileId++);
-        await this.link(archiveFiles, soFile);
+        await this.link(archiveFiles, entryPoints, soFile);
         this.generatedSoFiles.push(soFile);
         return {
             soFile,
@@ -80,9 +80,24 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
         }
     }
 
-    private async link(archiveFiles: string[], outputFile: string): Promise<void> {
+    private linkerSymbolName(sym: string): string {
+        return process.platform === 'darwin' ? `_${sym}` : sym;
+    }
+
+    private async link(archiveFiles: string[], entryPoints: string[], outputFile: string): Promise<void> {
         try {
-            const args = ['-shared', '-fPIC', '-o', outputFile, ...archiveFiles, ...this.generatedSoFiles, this.runtimeSo, '-lm', '-ldl'];
+            const keepEntrySymbols = entryPoints.map(
+                (sym) => `-Wl,-u,${this.linkerSymbolName(sym)}`,
+            );
+            const args = [
+                '-shared', '-fPIC', 
+                '-o', outputFile, 
+                ...archiveFiles, 
+                ...this.generatedSoFiles, 
+                this.runtimeSo, 
+                '-lm', '-ldl',
+                ...keepEntrySymbols,
+            ];
             await executeCommand('cc', args);
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});

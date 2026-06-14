@@ -5,6 +5,7 @@ import { GLOBAL_SETTINGS } from "../../config/constants";
 import * as fs from '../../core/fs';
 import { exec } from "../../core/shell";
 import * as path from 'path';
+import { buildHostRuntime } from "../../platforms/runtime/host-board-runtime";
 
 
 class UpdateHandler extends CommandHandler {
@@ -22,6 +23,9 @@ class UpdateHandler extends CommandHandler {
             await this.updateRuntimeStep();
             if (this.globalConfigHandler.isBoardSetup('esp32')) {
                 await this.updateEsp32Step();
+            }
+            if (this.globalConfigHandler.isBoardSetup('host')) {
+                await this.updateHostStep();
             }
             this.globalConfigHandler.setVersion(GLOBAL_SETTINGS.VM_VERSION);
         } catch (error) {
@@ -52,6 +56,10 @@ class UpdateHandler extends CommandHandler {
         return runStep('Updating the environment for esp32...', () => this.updateEsp32());
     }
 
+    private updateHostStep() {
+        return runStep('Updating the environment for host...', () => this.updateHost());
+    }
+
     private async updateRuntime() {
         const globalConfig = this.globalConfigHandler.getConfig();
         if (globalConfig.runtimeDir === undefined || globalConfig.version === GLOBAL_SETTINGS.VM_VERSION) {
@@ -62,6 +70,15 @@ class UpdateHandler extends CommandHandler {
         fs.moveDir(this.existingRuntimeDir, this.tmpRuntimeDir);
         await fs.downloadAndUnzip(GLOBAL_SETTINGS.RUNTIME_ZIP_URL, GLOBAL_SETTINGS.BLUESCRIPT_DIR);
         this.globalConfigHandler.setRuntimeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
+    }
+
+    private async updateHost() {
+        const globalConfig = this.globalConfigHandler.getConfig();
+        if (globalConfig.runtimeDir === undefined || globalConfig.version === GLOBAL_SETTINGS.VM_VERSION) {
+            return skip('not needed');
+        }
+        const hostConfig = this.globalConfigHandler.getBoardConfig('host')!;
+        await buildHostRuntime(globalConfig.runtimeDir, hostConfig.buildDir);
     }
 
     private async updateEsp32() {

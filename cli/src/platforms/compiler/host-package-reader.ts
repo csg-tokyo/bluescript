@@ -1,12 +1,12 @@
 import * as path from 'path';
-import { PackageForEsp32 } from "@bscript/lang";
+import { Package } from "@bscript/lang";
 import { BoardName } from "../../config/board-utils";
 import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 
-export function createEsp32PackageReader(
+export function createHostPackageReader(
     _boardName: BoardName,
     projectConfigHandler: ProjectConfigHandler,
-): (name: string) => PackageForEsp32 {
+): (name: string) => Package {
     return (name: string) => {
         const mainRoot = projectConfigHandler.root;
         const subPackageRoot = path.join(mainRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, name);
@@ -14,9 +14,9 @@ export function createEsp32PackageReader(
         const root = isMain ? mainRoot : subPackageRoot;
         try {
             const configHandler = isMain
-                ? projectConfigHandler.asBoard('esp32')
-                : ProjectConfigHandler.load(root).asBoard('esp32');
-            return new PackageForEsp32(
+                ? projectConfigHandler.asBoard('host')
+                : ProjectConfigHandler.load(root).asBoard('host');
+            return new Package(
                 name,
                 {
                     rootDir: root,
@@ -27,7 +27,6 @@ export function createEsp32PackageReader(
                     packageDir: PROJECT_DEFAULT_PATHS.PACKAGES_DIR,
                 },
                 Object.keys(configHandler.dependencies),
-                configHandler.espIdfComponents,
             );
         } catch (error) {
             throw new Error(`Failed to read ${name}.`, { cause: error });

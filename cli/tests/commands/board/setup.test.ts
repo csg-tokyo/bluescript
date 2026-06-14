@@ -7,7 +7,15 @@ import {
     mockedLogger,
     mockProcessExit,
 } from '../mock-helpers';
-import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, spyGlobalSettings } from '../global-env-helper';
+import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings } from '../global-env-helper';
+
+jest.mock('../../../src/platforms/runtime/host-runtime-builder', () => ({
+    buildHostRuntime: jest.fn().mockResolvedValue('/mock/host/build'),
+    getHostBuildDir: jest.fn(),
+}));
+
+import { buildHostRuntime } from '../../../src/platforms/runtime/host-runtime-builder';
+const mockedBuildHostRuntime = buildHostRuntime as jest.Mock;
 
 jest.mock('os', () => ({
     ...jest.requireActual('os'),
@@ -230,6 +238,64 @@ describe('board setup command', () => {
             expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS.'));
             expect(process.exit).toHaveBeenCalledWith(1);
             exitSpy.mockRestore();
+        });
+    });
+
+    describe('for host board on macOS', () => {
+        beforeEach(() => {
+            mockedOs.platform.mockReturnValue('darwin');
+        });
+
+        it('should perform a full setup if not already set up', async () => {
+            setupEmpyGlobalEnv();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
+            mockedExec.mockImplementation(async (command: string) => {
+                if (command.startsWith('which')) {
+                    return '';
+                }
+                return '';
+            });
+
+            await handleSetupCommand('host');
+
+            expect(mockedInquirer.prompt).toHaveBeenCalledTimes(1);
+            expect(mockedDownloadAndUnzip).toHaveBeenCalledTimes(1);
+            expect(mockedBuildHostRuntime).toHaveBeenCalledTimes(1);
+            expect(getGlobalConfig().boards.host).toEqual({ buildDir: '/mock/host/build' });
+            expect(mockedLogger.info).toHaveBeenCalledWith(expect.stringContaining('bscript project create'));
+            expect(mockedLogger.info).not.toHaveBeenCalledWith(expect.stringContaining('flash-runtime'));
+            expect(mockedLogger.error).not.toHaveBeenCalled();
+        });
+
+        it('should exit with an error when cc is missing', async () => {
+            setupEmpyGlobalEnv();
+            const exitSpy = mockProcessExit();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
+            mockedExec.mockImplementation(async (command: string) => {
+                if (command.includes('which cc')) {
+                    throw new Error('not found');
+                }
+                if (command.startsWith('which')) {
+                    return '';
+                }
+                return '';
+            });
+
+            await handleSetupCommand('host');
+
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up host');
+            expect(process.exit).toHaveBeenCalledWith(1);
+            exitSpy.mockRestore();
+        });
+
+        it('should warn and exit if setup is already completed', async () => {
+            setupGlobalEnvWithHost();
+
+            await handleSetupCommand('host');
+
+            expect(mockedLogger.warn).toHaveBeenCalledWith('The setup for host has already been completed.');
+            expect(mockedInquirer.prompt).not.toHaveBeenCalled();
+            expect(mockedBuildHostRuntime).not.toHaveBeenCalled();
         });
     });
 });

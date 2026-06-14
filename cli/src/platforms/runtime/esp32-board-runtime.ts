@@ -1,17 +1,11 @@
 import { BleConnection, DeviceService } from "../../services/ble";
-import { CompileOutput, MemoryImage } from "@bscript/lang";
+import { MemoryImage } from "@bscript/lang";
 import { ProgramOutput } from "../../core/logging/program-output";
 import { BoardRuntime } from "./board-runtime";
 import { CompileContext } from "../compiler/compiler-adapter";
 
-function asMemoryImage(output: CompileOutput): MemoryImage {
-    if (!('entryPoints' in output)) {
-        throw new Error('Expected a memory image for ESP32 execution.');
-    }
-    return output;
-}
 
-export class Esp32BoardRuntime implements BoardRuntime {
+export class Esp32BoardRuntime implements BoardRuntime<MemoryImage> {
     private ble: BleConnection | null = null;
     private deviceService: DeviceService | null = null;
     private programOutput: ProgramOutput;
@@ -59,18 +53,18 @@ export class Esp32BoardRuntime implements BoardRuntime {
         return { memoryLayout };
     }
 
-    async load(output: CompileOutput): Promise<void> {
+    async load(output: MemoryImage): Promise<void> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to load binary. BLE is not connected.');
         }
-        await this.deviceService.load(asMemoryImage(output));
+        await this.deviceService.load(output);
     }
 
-    async execute(output: CompileOutput): Promise<void> {
+    async execute(output: MemoryImage): Promise<void> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to execute binary. BLE is not connected.');
         }
-        await this.deviceService.execute(asMemoryImage(output));
+        await this.deviceService.execute(output);
     }
 
     setOutput(output: ProgramOutput): void {

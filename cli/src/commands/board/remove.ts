@@ -15,6 +15,26 @@ abstract class RemoveHandler extends CommandHandler {
     abstract removeBoard(): Promise<void>;
 }
 
+class HostRemoveHandler extends RemoveHandler {
+    readonly boardName: BoardName = 'host';
+
+    isSetup(): boolean {
+        return this.globalConfigHandler.isBoardSetup(this.boardName);
+    }
+
+    async removeBoard() {
+        const boardConfig = this.globalConfigHandler.getBoardConfig('host');
+        if (boardConfig === undefined) {
+            throw new Error(`Cannot find config for ${this.boardName}.`);
+        }
+        if (fs.exists(boardConfig.buildDir)) {
+            fs.removeDir(boardConfig.buildDir);
+        }
+
+        this.globalConfigHandler.removeBoardConfig(this.boardName);
+    }
+}
+
 class ESP32RemoveHandler extends RemoveHandler {
     readonly boardName: BoardName = 'esp32';
 
@@ -23,7 +43,7 @@ class ESP32RemoveHandler extends RemoveHandler {
     }
     
     async removeBoard() {
-        const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
+        const boardConfig = this.globalConfigHandler.getBoardConfig('esp32');
         if (boardConfig === undefined) {
             throw new Error(`Cannot find config for ${this.boardName}.`);
         }
@@ -38,9 +58,11 @@ class ESP32RemoveHandler extends RemoveHandler {
 function getRemoveHandler(board: string) {
     if (board === 'esp32') {
         return new ESP32RemoveHandler();
-    } else {
-        throw new Error(`Unsupported board name: ${board}`);
     }
+    if (board === 'host') {
+        return new HostRemoveHandler();
+    }
+    throw new Error(`Unsupported board name: ${board}`);
 }
 
 export async function handleRemoveCommand(board: string, options: { force?: boolean }) {

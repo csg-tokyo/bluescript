@@ -9,6 +9,7 @@ import * as fs from '../../core/fs';
 import chalk from "chalk";
 import { CommandHandler } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";
+import { buildHostRuntime } from "../../platforms/runtime/host-board-runtime";
 
 
 abstract class SetupHandler extends CommandHandler {
@@ -208,13 +209,72 @@ export class ESP32SetupHandler extends SetupHandler {
     }
 }
 
+export class HostSetupHandler extends SetupHandler {
+    readonly boardName: BoardName = 'host';
+
+    constructor() {
+        super();
+        if (os.platform() !== 'darwin') {
+            throw new Error('Unsupported OS.');
+        }
+    }
+
+    needSetup(): boolean {
+        return !this.globalConfigHandler.isBoardSetup(this.boardName);
+    }
+
+    getBoardSetupPlan(): string[] {
+        return [
+            'Verify that cc and make are installed (Xcode Command Line Tools).',
+            'Build host runtime process.',
+        ];
+    }
+
+    async setupBoard(): Promise<void> {
+        await this.verifyBuildToolsStep();
+        const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
+        if (!runtimeDir) {
+            throw new Error('An unexpected error occurred: cannot find runtime directory path.');
+        }
+        const buildDir = await this.buildHostRuntimeStep(runtimeDir);
+        this.globalConfigHandler.updateBoardConfig(this.boardName, { buildDir });
+    }
+
+    private async verifyBuildToolsStep() {
+        const missing: string[] = [];
+        if (!(await this.isCommandInstalled('cc'))) { missing.push('cc'); }
+        if (!(await this.isCommandInstalled('make'))) { missing.push('make'); }
+        if (missing.length === 0) {
+            return skip('already installed.');
+        }
+        throw new Error(
+            `Missing required tools: ${missing.join(', ')}. Install Xcode Command Line Tools and try again.`,
+        );
+    }
+
+    private buildHostRuntimeStep(runtimeDir: string) {
+        return runStep('Building host runtime...', () => buildHostRuntime(runtimeDir));
+    }
+
+    private async isCommandInstalled(name: string) {
+        try {
+            await exec(`which ${name}`, { silent: true });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+}
+
 
 function getSetupHandler(board: string): SetupHandler {
         if (board === 'esp32') {
             return new ESP32SetupHandler();
-        } else {
-            throw new Error(`Unsupported board name: ${board}`);
         }
+        if (board === 'host') {
+            return new HostSetupHandler();
+        }
+        throw new Error(`Unsupported board name: ${board}`);
 }
 
 export async function handleSetupCommand(board: string) {
@@ -249,7 +309,11 @@ export async function handleSetupCommand(board: string) {
 
         logger.br();
         logger.success(`Success to set up ${board}`);
-        logger.info(`Next step: run ${chalk.yellow(`bscript board flash-runtime ${board}`)}`);
+        if (board === 'host') {
+            logger.info(`Next step: run ${chalk.yellow('bscript project create <project-name> -b host')}`);
+        } else {
+            logger.info(`Next step: run ${chalk.yellow(`bscript board flash-runtime ${board}`)}`);
+        }
 
     } catch (error) {
         logger.error(`Failed to set up ${board}`);

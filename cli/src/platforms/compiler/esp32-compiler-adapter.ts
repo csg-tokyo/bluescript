@@ -24,7 +24,7 @@ export class Esp32CompilerAdapter implements CompilerAdapter {
         private globalConfigHandler: GlobalConfigHandler,
         private projectConfigHandler: ProjectConfigHandler,
     ) {
-        const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
+        const boardConfig = this.globalConfigHandler.getBoardConfig('esp32');
         if (boardConfig === undefined) {
             throw new Error(`The environment for ${this.boardName} is not set up.`);
         }

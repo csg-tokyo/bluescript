@@ -33,7 +33,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
         }
 
-        const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
+        const boardConfig = this.globalConfigHandler.getBoardConfig('esp32');
         if (!boardConfig) {
             throw new Error('An unexpected error occurred: cannot find board config.');
         }
@@ -46,11 +46,13 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
 }
 
 function getFlashRuntimeHandler(board: string) {
+    if (board === 'host') {
+        throw new Error('flash-runtime is not supported for the host board');
+    }
     if (board === 'esp32') {
         return new ESP32FlashRuntimeHandler();
-    } else {
-        throw new Error(`Unsupported board name: ${board}`);
     }
+    throw new Error(`Unsupported board name: ${board}`);
 }
 
 export async function handleFlashRuntimeCommand(board: string, options: { port?: string }) {

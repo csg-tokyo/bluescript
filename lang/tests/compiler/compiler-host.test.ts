@@ -70,6 +70,14 @@ describe('Test single compile: Compiler for Host', () => {
         expect(testEnv.resultSharedObjectExists()).toBe(true);
     });
 
+    it('should compile index.bs with std object.', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', 'console.log("hello world")');
+
+        await compile(testEnv);
+        expect(testEnv.resultSharedObjectExists()).toBe(true);
+    });
+
     it('can change source directory.', async () => {
         testEnv.createMainPackage([], './src', './src/index.bs');
         testEnv.addSourceFile(testEnv.mainPackageName, './src/index.bs', 'print("hello world")');

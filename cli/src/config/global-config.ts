@@ -11,8 +11,13 @@ const esp32BoardSchema = z.object({
     xtensaGccDir: z.string(),
 });
 
+const hostBoardSchema = z.object({
+    buildDir: z.string(),
+});
+
 const boardConfigSchema = z.object({
     esp32: esp32BoardSchema.optional(),
+    host: hostBoardSchema.optional(),
 });
 
 const globalConfigSchema = z.object({
@@ -22,6 +27,7 @@ const globalConfigSchema = z.object({
 });
 
 export type Esp32BoardConfig = z.infer<typeof esp32BoardSchema>;
+export type HostBoardConfig = z.infer<typeof hostBoardSchema>;
 export type BoardConfig = z.infer<typeof boardConfigSchema>;
 export type GlobalConfig = z.infer<typeof globalConfigSchema>;
 

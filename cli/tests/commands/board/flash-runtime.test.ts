@@ -1,6 +1,6 @@
 import { handleFlashRuntimeCommand } from '../../../src/commands/board/flash-runtime';
 import { SerialPort } from 'serialport';
-import { deleteGlobalEnv, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, spyGlobalSettings } from '../global-env-helper';
+import { deleteGlobalEnv, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings } from '../global-env-helper';
 import {
     mockedInquirer,
     mockedLogger,
@@ -120,6 +120,22 @@ describe('board flash-runtime command', () => {
             expect(mockedLogger.warn).toHaveBeenCalledWith(`The environment for esp32 is not set up. Run 'bscript board setup esp32' and try again.`);
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();
             expect(mockedExec).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('for host board', () => {
+        it('should exit with an error because flash-runtime is not supported', async () => {
+            setupGlobalEnvWithHost();
+            const exitSpy = mockProcessExit();
+
+            await handleFlashRuntimeCommand('host', {});
+
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to flash the runtime to host');
+            expect(mockedLogger.showError).toHaveBeenCalledWith(
+                new Error('flash-runtime is not supported for the host board'),
+            );
+            expect(process.exit).toHaveBeenCalledWith(1);
+            exitSpy.mockRestore();
         });
     });
 });
