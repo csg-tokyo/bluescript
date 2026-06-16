@@ -8,7 +8,7 @@ import chalk from "chalk";
 import * as fs from '../core/fs';
 import { CommandHandler } from "./command";
 import { GLOBAL_SETTINGS } from "../config/constants";
-import { CompileContext, createPlatformSession, getPipelineLabels } from "../platforms";
+import { CompileContext, createPlatformSession } from "../platforms";
 import { BoardName } from "../config/board-utils";
 import { CompileError, CompileOutput } from "@bscript/lang";
 
@@ -21,13 +21,11 @@ class ReplHandler extends CommandHandler {
     private rl: readline.Interface;
     private compileContext?: CompileContext;
     private isFirstCompile: boolean;
-    private pipelineLabels: ReturnType<typeof getPipelineLabels>;
 
     constructor(private boardName: string) {
         super();
 
         const board = this.boardName as BoardName;
-        this.pipelineLabels = getPipelineLabels(board);
         this.projectConfigHandler =
             ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, board, ReplHandler.tempProjectDir);
 
@@ -38,7 +36,7 @@ class ReplHandler extends CommandHandler {
             DEFAULT_DEVICE_NAME,
             createConsoleOutput(),
             () => {
-                logger.error(this.pipelineLabels.disconnectError);
+                logger.error('Disconnected.');
                 this.deleteTempProject();
                 process.exit(1);
             },
@@ -56,10 +54,10 @@ class ReplHandler extends CommandHandler {
         const ctx: { compileContext?: CompileContext } = {};
 
         await runPipeline(ctx,
-            step(this.pipelineLabels.connect, async () => {
+            step('Connecting...', async () => {
                 await this.platform.runtime.connect();
             }),
-            step(this.pipelineLabels.prepare, async (ctx) => {
+            step('Initializing...', async (ctx) => {
                 ctx.compileContext = await this.platform.runtime.prepare();
             }),
         );

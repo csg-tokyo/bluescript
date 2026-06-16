@@ -8,7 +8,7 @@ import { logger, runPipeline, step, ProgramOutput, createBoxedOutput, createCons
 import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import { CommandHandler } from "../command";
-import { BoardRuntime, CompilerAdapter, CompileContext, createPlatformSession, getPipelineLabels } from "../../platforms";
+import { BoardRuntime, CompilerAdapter, CompileContext, createPlatformSession } from "../../platforms";
 import { CompileError, CompileOutput } from "@bscript/lang";
 import { WebSocketConnection } from "../../services/websocket";
 
@@ -16,7 +16,6 @@ class RunHandler extends CommandHandler {
     protected compiler: CompilerAdapter;
     protected runtime: BoardRuntime;
     protected programOutput: ProgramOutput;
-    protected pipelineLabels: ReturnType<typeof getPipelineLabels>;
 
     private globalKeypressHandler?: (str: string, key: any) => void;
     private ctrlDKeypressHandler?: (str: string, key: any) => void;
@@ -25,7 +24,6 @@ class RunHandler extends CommandHandler {
         super();
 
         const boardName = this.projectConfigHandler.getBoardName();
-        this.pipelineLabels = getPipelineLabels(boardName);
         const deviceName = this.projectConfigHandler.getConfig().deviceName ?? DEFAULT_DEVICE_NAME;
         this.programOutput = createBoxedOutput();
 
@@ -37,7 +35,7 @@ class RunHandler extends CommandHandler {
             this.programOutput,
             () => {
                 this.programOutput.onRunEnd?.();
-                logger.error(this.pipelineLabels.disconnectError);
+                logger.error("Disconnected.");
                 process.exit(1);
             },
         );
@@ -52,10 +50,10 @@ class RunHandler extends CommandHandler {
         } = {};
 
         await runPipeline(ctx,
-            step(this.pipelineLabels.connect, async () => {
+            step('Connecting...', async () => {
                 await this.runtime.connect();
             }),
-            step(this.pipelineLabels.prepare, async (ctx) => {
+            step('Initializing...', async (ctx) => {
                 ctx.compileContext = await this.runtime.prepare();
             }),
             step('Compiling...', async (ctx) => {

@@ -11,7 +11,7 @@ import { HostBoardRuntime } from "./runtime/host-board-runtime";
 
 export { CompilerAdapter, CompileContext } from "./compiler/compiler-adapter";
 export { BoardRuntime } from "./runtime/board-runtime";
-export { getPipelineLabels, PipelineLabels } from "./pipeline-labels";
+
 
 export function getCompilerAdapter(
     boardName: BoardName,

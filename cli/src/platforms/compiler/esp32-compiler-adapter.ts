@@ -1,12 +1,13 @@
 import { GlobalConfigHandler, Esp32BoardConfig } from "../../config/global-config";
-import { ProjectConfigHandler } from "../../config/project-config";
+import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { BoardName } from "../../config/board-utils";
 import {
     CompilerSession, MemoryImage, MemoryLayout,
-    Esp32Toolchain, Esp32ToolchainConfig, ProjectForEsp32
+    Esp32Toolchain, Esp32ToolchainConfig, ProjectForEsp32, PackageForEsp32
 } from "@bscript/lang";
 import { CompilerAdapter, CompileContext } from "./compiler-adapter";
-import { createEsp32PackageReader } from "./package-reader";
+import * as path from 'path';
+
 
 const DUMMY_MEMORY_LAYOUT: MemoryLayout = {
     iram: { address: 0x40096c34, size: 1000000 },
@@ -68,4 +69,36 @@ export class Esp32CompilerAdapter implements CompilerAdapter {
             espDir: this.boardConfig.rootDir,
         };
     }
+}
+
+export function createEsp32PackageReader(
+    _boardName: BoardName,
+    projectConfigHandler: ProjectConfigHandler,
+): (name: string) => PackageForEsp32 {
+    return (name: string) => {
+        const mainRoot = projectConfigHandler.root;
+        const subPackageRoot = path.join(mainRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, name);
+        const isMain = name === projectConfigHandler.getConfig().projectName;
+        const root = isMain ? mainRoot : subPackageRoot;
+        try {
+            const configHandler = isMain
+                ? projectConfigHandler.asBoard('esp32')
+                : ProjectConfigHandler.load(root).asBoard('esp32');
+            return new PackageForEsp32(
+                name,
+                {
+                    rootDir: root,
+                    entry: configHandler.entryFile ?? PROJECT_DEFAULT_PATHS.ENTRY_FILE,
+                    sourceDir: configHandler.srcDir ?? PROJECT_DEFAULT_PATHS.SRC_DIR,
+                    distDir: PROJECT_DEFAULT_PATHS.DIST_DIR,
+                    buildDir: PROJECT_DEFAULT_PATHS.BUILD_DIR,
+                    packageDir: PROJECT_DEFAULT_PATHS.PACKAGES_DIR,
+                },
+                Object.keys(configHandler.dependencies),
+                configHandler.espIdfComponents,
+            );
+        } catch (error) {
+            throw new Error(`Failed to read ${name}.`, { cause: error });
+        }
+    };
 }

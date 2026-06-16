@@ -1,12 +1,13 @@
 import { GlobalConfigHandler } from "../../config/global-config";
-import { ProjectConfigHandler } from "../../config/project-config";
+import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { BoardName } from "../../config/board-utils";
 import {
     CompilerSession, SharedObject,
-    HostToolchain, ProjectForHost
+    HostToolchain, ProjectForHost, Package
 } from "@bscript/lang";
 import { CompilerAdapter, CompileContext } from "./compiler-adapter";
-import { createHostPackageReader } from "./host-package-reader";
+import * as path from 'path';
+
 
 export class HostCompilerAdapter implements CompilerAdapter {
     readonly boardName: BoardName = 'host';
@@ -50,4 +51,35 @@ export class HostCompilerAdapter implements CompilerAdapter {
         }
         return runtimeDir;
     }
+}
+
+export function createHostPackageReader(
+    _boardName: BoardName,
+    projectConfigHandler: ProjectConfigHandler,
+): (name: string) => Package {
+    return (name: string) => {
+        const mainRoot = projectConfigHandler.root;
+        const subPackageRoot = path.join(mainRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, name);
+        const isMain = name === projectConfigHandler.getConfig().projectName;
+        const root = isMain ? mainRoot : subPackageRoot;
+        try {
+            const configHandler = isMain
+                ? projectConfigHandler.asBoard('host')
+                : ProjectConfigHandler.load(root).asBoard('host');
+            return new Package(
+                name,
+                {
+                    rootDir: root,
+                    entry: configHandler.entryFile ?? PROJECT_DEFAULT_PATHS.ENTRY_FILE,
+                    sourceDir: configHandler.srcDir ?? PROJECT_DEFAULT_PATHS.SRC_DIR,
+                    distDir: PROJECT_DEFAULT_PATHS.DIST_DIR,
+                    buildDir: PROJECT_DEFAULT_PATHS.BUILD_DIR,
+                    packageDir: PROJECT_DEFAULT_PATHS.PACKAGES_DIR,
+                },
+                Object.keys(configHandler.dependencies),
+            );
+        } catch (error) {
+            throw new Error(`Failed to read ${name}.`, { cause: error });
+        }
+    };
 }

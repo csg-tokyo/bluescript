@@ -7,9 +7,10 @@
 #include <time.h>
 #include "../../core/include/c-runtime.h"
 #include "../../core/include/protocol.h"
-#include "./std-module.c"
 #include "./comm.h"
 
+
+extern void bluescript_main0_();
 
 void* file_handle;
 
@@ -25,7 +26,7 @@ static float get_time_ms() {
 
 static void load(char* filename) {
     float start_time = get_time_ms();
-    file_handle = dlopen(filename, RTLD_NOW);
+    file_handle = dlopen(filename, RTLD_NOW | RTLD_GLOBAL);
     bs_comm_send_loadtime(get_time_ms() - start_time);
 }
 

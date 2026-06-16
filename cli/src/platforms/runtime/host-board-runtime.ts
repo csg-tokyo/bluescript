@@ -18,7 +18,6 @@ export async function buildHostRuntime(runtimeDir: string, buildDir?: string): P
     const runtimeSo = path.join(resolvedBuildDir, 'c-runtime.so');
     const shell = path.join(resolvedBuildDir, 'shell');
 
-    // fs.removeDir(resolvedBuildDir);
     fs.makeDir(resolvedBuildDir);
 
     await exec(
