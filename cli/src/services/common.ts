@@ -86,6 +86,8 @@ export type ConnectionEvents = {
     connected: () => void;
     disconnected: (event: any) => void;
     error: (error: Error) => void;
+    receiveMessage: (message: string) => void;
+    receiveError: (message: string) => void;
 }
 
 export abstract class Connection<T> extends EventEmitter<ConnectionEvents> {

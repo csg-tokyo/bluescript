@@ -279,9 +279,7 @@ class RunWithNotebookHandler extends RunHandler {
     }
 
     private async execute(output: CompileOutput) {
-        const start = performance.now();
-        await this.runtime.execute(output);
-        return performance.now() - start;
+        return await this.runtime.execute(output);
     }
 }
 

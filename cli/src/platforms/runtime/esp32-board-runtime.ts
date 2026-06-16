@@ -53,18 +53,18 @@ export class Esp32BoardRuntime implements BoardRuntime<MemoryImage> {
         return { memoryLayout };
     }
 
-    async load(output: MemoryImage): Promise<void> {
+    async load(output: MemoryImage): Promise<number> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to load binary. BLE is not connected.');
         }
-        await this.deviceService.load(output);
+        return this.deviceService.load(output);
     }
 
-    async execute(output: MemoryImage): Promise<void> {
+    async execute(output: MemoryImage): Promise<number> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to execute binary. BLE is not connected.');
         }
-        await this.deviceService.execute(output);
+        return this.deviceService.execute(output);
     }
 
     setOutput(output: ProgramOutput): void {

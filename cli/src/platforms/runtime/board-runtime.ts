@@ -6,7 +6,7 @@ export interface BoardRuntime<Output extends CompileOutput = CompileOutput> {
     connect(): Promise<void>;
     disconnect(): Promise<void>;
     prepare(): Promise<CompileContext>;
-    load(output: Output): Promise<void>;
-    execute(output: Output): Promise<void>;
+    load(output: Output): Promise<number>;
+    execute(output: Output): Promise<number>;
     setOutput(output: ProgramOutput): void;
 }
