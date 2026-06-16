@@ -1,5 +1,11 @@
-import { ERROR_PREFIX, INFO_PREFIX, SUCCESS_PREFIX, WARN_PREFIX } from './format';
+import chalk from 'chalk';
 import { logUpdater } from './log-updater';
+
+
+export const ERROR_PREFIX = chalk.red.bold('ERROR:');
+export const WARN_PREFIX = chalk.yellow.bold('WARN:');
+export const INFO_PREFIX = chalk.blue.bold('INFO:');
+export const SUCCESS_PREFIX = chalk.green.bold('SUCCESS:');
 
 export interface CliLogger {
     error(...messages: string[]): void;
@@ -49,7 +55,7 @@ export const logger: CliLogger = {
     },
 };
 
-export function collectErrorMessages(error: unknown): string[] {
+function collectErrorMessages(error: unknown): string[] {
     const messages: string[] = [];
     let currentError = error;
     while (currentError) {

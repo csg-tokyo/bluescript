@@ -82,15 +82,15 @@ export abstract class Service<TEvents extends EventMap, K> extends EventEmitter<
     }
 }
 
-export type ConnectionEvents = {
+export type ConnectionEvents<T> = {
     connected: () => void;
     disconnected: (event: any) => void;
     error: (error: Error) => void;
-    receiveMessage: (message: string) => void;
-    receiveError: (message: string) => void;
+    receiveData: (data: T) => void;
+    receiveError: (error: T) => void;
 }
 
-export abstract class Connection<T> extends EventEmitter<ConnectionEvents> {
+export abstract class Connection<T> extends EventEmitter<ConnectionEvents<T>> {
     abstract send(message: ConnectionMessage<T>): Promise<void>;
     abstract getService<K extends Service<EventMap, T>>(serviceName: string): K;
 }

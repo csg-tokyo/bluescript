@@ -1,10 +1,8 @@
-export { CliLogger, logger, collectErrorMessages } from './cli-logger';
-export { LogUpdater, logUpdater } from './log-updater';
-export { ERROR_PREFIX, INFO_PREFIX, SUCCESS_PREFIX, WARN_PREFIX } from './format';
-export { runStep, skip, StepSkip } from './step-runner';
+export { logger } from './cli-logger';
+export { logUpdater } from './log-updater';
+export { runStep, skip } from './step-runner';
 export {
     ProgramOutput,
-    consoleProgramOutput,
     createBoxedOutput,
     createConsoleOutput,
     createWebSocketOutput,

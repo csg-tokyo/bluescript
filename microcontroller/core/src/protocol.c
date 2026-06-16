@@ -1,11 +1,27 @@
 #include <string.h>
 #include <stdio.h>
-
 #include "utils.h"
 #include "memory.h"
-
 #include "../include/protocol.h"
 #include "../include/main-thread.h"
+
+
+#define PROTOCOL_LEN 1
+
+typedef enum {
+    PROTOCOL_NONE = 0x00,
+    PROTOCOL_LOAD,
+    PROTOCOL_JUMP,
+    PROTOCOL_RESET,
+
+    PROTOCOL_LOG,
+    PROTOCOL_ERROR,
+    PROTOCOL_MEMINFO,
+    PROTOCOL_EXECTIME,
+    PROTOCOL_PROFILE,
+
+    PROTOCOL_END
+} protocol_t;
 
 
 static void send_buffer(uint8_t* buffer, uint32_t len) {

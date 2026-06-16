@@ -18,8 +18,6 @@ export function createConsoleOutput(): ProgramOutput {
     };
 }
 
-export const consoleProgramOutput = createConsoleOutput();
-
 export function createBoxedOutput(): ProgramOutput {
     let isRunning = false;
     const columns = process.stdout.columns || 60;

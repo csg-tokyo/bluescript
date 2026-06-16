@@ -34,15 +34,13 @@ abstract class SetupHandler extends CommandHandler {
         }
     }
 
-    private needToDownloadBlueScriptRuntime() {
-        return !this.globalConfigHandler.isRuntimeSetup();
-    }
-
     private async downloadBlueScriptRuntimeStep() {
-        if (!this.needToDownloadBlueScriptRuntime()) {
-            return skip('already downloaded.');
-        }
-        return runStep('Downloading BlueScript runtime...', () => this.downloadBlueScriptRuntime());
+        return runStep('Downloading BlueScript runtime...', async () => {
+            if (this.globalConfigHandler.isRuntimeSetup()) {
+                return skip('already downloaded.');
+            }
+            await this.downloadBlueScriptRuntime();
+        });
     }
 
     private async downloadBlueScriptRuntime() {
@@ -238,31 +236,32 @@ export class HostSetupHandler extends SetupHandler {
 
     async setupBoard(): Promise<void> {
         await this.verifyBuildToolsStep();
-        const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
-        if (!runtimeDir) {
-            throw new Error('An unexpected error occurred: cannot find runtime directory path.');
-        }
-        const buildDir = await this.buildHostRuntimeStep(runtimeDir);
-        this.globalConfigHandler.updateBoardConfig(this.boardName, { buildDir });
+        const buildDir = await this.buildHostRuntimeStep();
+        this.globalConfigHandler.updateBoardConfig(this.boardName, { buildDir: buildDir! });
     }
 
     private async verifyBuildToolsStep() {
-        const missing: string[] = [];
-        if (!(await this.isCommandInstalled('cc'))) { missing.push('cc'); }
-        if (!(await this.isCommandInstalled('make'))) { missing.push('make'); }
-        if (missing.length === 0) {
-            return;
-        }
-        throw new Error(
-            `Missing required tools: ${missing.join(', ')}. Install Xcode Command Line Tools and try again.`,
-        );
+        return runStep('Verifying that cc and make are installed...', async () => {
+            const missing: string[] = [];
+            if (!(await this.isCommandInstalled('cc'))) { missing.push('cc'); }
+            if (!(await this.isCommandInstalled('make'))) { missing.push('make'); }
+            if (missing.length === 0) {
+                return;
+            }
+            throw new Error(
+                `Missing required tools: ${missing.join(', ')}. Install Xcode Command Line Tools and try again.`,
+            );
+        });
     }
 
-    private buildHostRuntimeStep(runtimeDir: string) {
-        return runStep(
-            'Building host runtime...', 
-            () => buildHostRuntime(runtimeDir)
-        );
+    private buildHostRuntimeStep() {
+        return runStep('Building host runtime...', async () => {
+            const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
+            if (!runtimeDir) {
+                throw new Error('An unexpected error occurred: cannot find runtime directory path.');
+            }
+            return await buildHostRuntime(runtimeDir);
+        });
     }
 
     private async isCommandInstalled(name: string) {

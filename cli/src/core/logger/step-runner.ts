@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { INFO_PREFIX } from './format';
+import { INFO_PREFIX } from './cli-logger';
 import { logUpdater } from './log-updater';
 
 export class StepSkip {

@@ -17,7 +17,7 @@ export class HostService extends Service<HostServiceEvents, string> {
     constructor(connection: ProcessConnection) {
         super('host', connection);
         this.messageQueue = new HostMessageQueue(this);
-        this.connection.on('receiveMessage', (message) => {
+        this.connection.on('receiveData', (message) => {
             this.messageQueue.addChunk(message);
         });
         this.connection.on('receiveError', (message) => {
@@ -124,7 +124,7 @@ export class ProcessConnection extends Connection<String> {
         this.shellProcess.stdout.setEncoding('utf8');
         this.shellProcess.stderr.setEncoding('utf8');
         this.shellProcess.stdout.on('data', (message) => {
-            this.emit('receiveMessage', message);
+            this.emit('receiveData', message);
         });
         this.shellProcess.stderr.on('data', (message) => {
             this.emit('receiveError', message);

@@ -22,6 +22,9 @@ export type DeviceServiceEvents = {
 export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
     constructor(connection: BleConnection) {
         super('device', connection);
+        this.connection.on('receiveData', data => {
+            this.handleReceivedData(data);
+        })
     }
 
     public async load(bin: MemoryImage): Promise<number>  {
@@ -62,6 +65,26 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
                 resolve(layout);
             });
         });
+    }
+
+    private handleReceivedData(data: Buffer) {
+        const parseResult = new ProtocolParser().parse(data);
+        switch(parseResult.protocol) {
+            case Protocol.Log:
+                this.handleMessage('log', [parseResult.log]);
+                break;
+            case Protocol.Error:
+                this.handleMessage('error', [parseResult.error]);
+                break;
+            case Protocol.Profile:
+                this.handleMessage('profile', [parseResult.fid, parseResult.paramtypes]);
+                break;
+            case Protocol.Exectime:
+                this.handleMessage('exectime', [parseResult.id, parseResult.time]);
+                break;
+            case Protocol.Memory:
+                this.handleMessage('memory', [parseResult.layout]);
+        }
     }
 }
 
@@ -134,7 +157,7 @@ export class BleConnection extends Connection<Buffer> {
         this.characteristic = characteristics[0];
         this.characteristic.on('data', (data, isNotification) => {
             if (isNotification) {
-                this.handleReceivedData(data);
+                this.emit('receiveData', data);
             }
         })
         await this.characteristic.subscribeAsync();
@@ -153,28 +176,6 @@ export class BleConnection extends Connection<Buffer> {
                 }
             });
         });
-    }
-
-    private handleReceivedData(data: Buffer) {
-        const service = this.services.get('device');
-        if (!service) { return }
-        const parseResult = new ProtocolParser().parse(data);
-        switch(parseResult.protocol) {
-            case Protocol.Log:
-                service.handleMessage('log', [parseResult.log]);
-                break;
-            case Protocol.Error:
-                service.handleMessage('error', [parseResult.error]);
-                break;
-            case Protocol.Profile:
-                service.handleMessage('profile', [parseResult.fid, parseResult.paramtypes]);
-                break;
-            case Protocol.Exectime:
-                service.handleMessage('exectime', [parseResult.id, parseResult.time]);
-                break;
-            case Protocol.Memory:
-                service.handleMessage('memory', [parseResult.layout]);
-        }
     }
 
     public async disconnect(): Promise<void> {
