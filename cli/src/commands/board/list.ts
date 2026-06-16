@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import chalk from 'chalk';
 import { BOARD_NAMES } from "../../config/board-utils";
-import { logger } from "../../core/logging";
+import { logger } from "../../core/logger";
 import { CommandHandler } from "../command";
 
 

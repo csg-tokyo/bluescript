@@ -1,6 +1,6 @@
 import { exec, cwd } from '../../src/core/shell';
 import inquirer from 'inquirer';
-import { logger } from '../../src/core/logging';
+import { logger } from '../../src/core/logger';
 import { downloadAndUnzip } from '../../src/core/fs';
 
 

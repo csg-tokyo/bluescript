@@ -1,7 +1,7 @@
 import { GlobalConfigHandler } from "../config/global-config";
 import { ProjectConfigHandler } from "../config/project-config";
 import { BoardName } from "../config/board-utils";
-import { ProgramOutput } from "../core/logging/program-output";
+import { ProgramOutput } from "../core/logger/program-output";
 import { CompilerAdapter } from "./compiler/compiler-adapter";
 import { Esp32CompilerAdapter } from "./compiler/esp32-compiler-adapter";
 import { HostCompilerAdapter } from "./compiler/host-compiler-adapter";

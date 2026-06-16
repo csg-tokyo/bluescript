@@ -1,8 +1,8 @@
-jest.mock('../src/core/logging', () => {
-    const actual = jest.requireActual('../src/core/logging/step-runner');
+jest.mock('../src/core/logger', () => {
+    const actual = jest.requireActual('../src/core/logger/step-runner');
     const { StepSkip } = actual;
     return {
-        ...jest.requireActual('../src/core/logging'),
+        ...jest.requireActual('../src/core/logger'),
         runStep: jest.fn(async (_message: string, action: () => Promise<unknown>) => {
             const result = await action();
             if (result instanceof StepSkip) {

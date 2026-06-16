@@ -1,5 +1,5 @@
 import { GlobalConfigHandler } from "../config/global-config";
-import { logger } from "../core/logging";
+import { logger } from "../core/logger";
 import chalk from "chalk";
 import { GLOBAL_SETTINGS } from "../config/constants";
 import * as fs from '../core/fs';

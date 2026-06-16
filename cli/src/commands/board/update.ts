@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger, runStep, skip } from "../../core/logging";
+import { logger, runStep, skip } from "../../core/logger";
 import { CommandHandler } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";
 import * as fs from '../../core/fs';
@@ -49,46 +49,50 @@ class UpdateHandler extends CommandHandler {
     }
 
     private updateRuntimeStep() {
-        return runStep('Updating Runtime...', () => this.updateRuntime());
+        return runStep('Updating Runtime...', async () => {
+            const globalConfig = this.globalConfigHandler.getConfig();
+            if (globalConfig.runtimeDir === undefined || globalConfig.version === GLOBAL_SETTINGS.VM_VERSION) {
+                return skip('not needed');
+            }
+            this.existingRuntimeDir = globalConfig.runtimeDir;
+            await this.updateRuntime(this.existingRuntimeDir);
+        });
     }
 
     private updateEsp32Step() {
-        return runStep('Updating the environment for esp32...', () => this.updateEsp32());
+        return runStep('Updating the environment for esp32...', async () => {
+            const esp32Config = this.globalConfigHandler.getBoardConfig('esp32')!;
+            if (esp32Config.idfVersion === GLOBAL_SETTINGS.ESP_IDF_VERSION) {
+                return skip('not needed');
+            }
+            this.existingEspDir = esp32Config.rootDir;
+            await this.updateEsp32(this.existingEspDir);
+        });
     }
 
     private updateHostStep() {
-        return runStep('Updating the environment for host...', () => this.updateHost());
+        return runStep('Updating the environment for host...', async () => {
+            const globalConfig = this.globalConfigHandler.getConfig();
+            if (globalConfig.runtimeDir === undefined || globalConfig.version === GLOBAL_SETTINGS.VM_VERSION) {
+                return skip('not needed');
+            }
+            await this.updateHost(globalConfig.runtimeDir);
+    });
     }
 
-    private async updateRuntime() {
-        const globalConfig = this.globalConfigHandler.getConfig();
-        if (globalConfig.runtimeDir === undefined || globalConfig.version === GLOBAL_SETTINGS.VM_VERSION) {
-            return skip('not needed');
-        }
-        this.existingRuntimeDir = globalConfig.runtimeDir;
-
-        fs.moveDir(this.existingRuntimeDir, this.tmpRuntimeDir);
+    private async updateRuntime(existingRuntimeDir: string) {
+        fs.moveDir(existingRuntimeDir, this.tmpRuntimeDir);
         await fs.downloadAndUnzip(GLOBAL_SETTINGS.RUNTIME_ZIP_URL, GLOBAL_SETTINGS.BLUESCRIPT_DIR);
         this.globalConfigHandler.setRuntimeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
     }
 
-    private async updateHost() {
-        const globalConfig = this.globalConfigHandler.getConfig();
-        if (globalConfig.runtimeDir === undefined || globalConfig.version === GLOBAL_SETTINGS.VM_VERSION) {
-            return skip('not needed');
-        }
+    private async updateHost(runtimeDir: string) {
         const hostConfig = this.globalConfigHandler.getBoardConfig('host')!;
-        await buildHostRuntime(globalConfig.runtimeDir, hostConfig.buildDir);
+        await buildHostRuntime(runtimeDir, hostConfig.buildDir);
     }
 
-    private async updateEsp32() {
-        const esp32Config = this.globalConfigHandler.getBoardConfig('esp32')!;
-        if (esp32Config.idfVersion === GLOBAL_SETTINGS.ESP_IDF_VERSION) {
-            return skip('not needed');
-        }
-        this.existingEspDir = esp32Config.rootDir;
-
-        fs.moveDir(this.existingEspDir, this.tmpEspDir);
+    private async updateEsp32(existingEspDir: string) {
+        fs.moveDir(existingEspDir, this.tmpEspDir);
         fs.makeDir(GLOBAL_SETTINGS.ESP_ROOT_DIR);
         await this.cloneEspIdf();
         await this.runEspIdfInstallScript();

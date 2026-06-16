@@ -1,5 +1,5 @@
 import { CompileOutput } from "@bscript/lang";
-import { ProgramOutput } from "../../core/logging/program-output";
+import { ProgramOutput } from "../../core/logger/program-output";
 import { CompileContext } from "../compiler/compiler-adapter";
 
 export interface BoardRuntime<Output extends CompileOutput = CompileOutput> {

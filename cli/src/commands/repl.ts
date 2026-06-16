@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { logger, runPipeline, step } from "../core/logging";
-import { createConsoleOutput } from "../core/logging/program-output";
+import { logger, runStep } from "../core/logger";
+import { createConsoleOutput } from "../core/logger/program-output";
 import { DEFAULT_DEVICE_NAME, PROJECT_DEFAULT_PATHS, ProjectConfigHandler } from "../config/project-config";
 import * as path from 'path';
 import * as readline from 'readline';
@@ -51,27 +51,14 @@ class ReplHandler extends CommandHandler {
     }
 
     async start() {
-        const ctx: { compileContext?: CompileContext } = {};
-
-        await runPipeline(ctx,
-            step('Connecting...', async () => {
-                await this.platform.runtime.connect();
-            }),
-            step('Initializing...', async (ctx) => {
-                ctx.compileContext = await this.platform.runtime.prepare();
-            }),
-        );
-        this.compileContext = ctx.compileContext;
+        await runStep('Connecting...', () => this.platform.runtime.connect());
+        this.compileContext = await runStep('Initializing...', () => this.platform.runtime.prepare())!;
 
         this.createTempProject();
         await this.runRepl();
         this.deleteTempProject();
 
-        await runPipeline({},
-            step('Disconnecting...', async () => {
-                await this.platform.runtime.disconnect();
-            }),
-        );
+        await runStep('Disconnecting...', () => this.platform.runtime.disconnect());
         process.exit(0);
     }
 

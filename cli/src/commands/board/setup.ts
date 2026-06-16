@@ -2,7 +2,7 @@ import { Command } from "commander";
 import * as path from 'path';
 import * as os from 'os';
 import inquirer from 'inquirer';
-import { logger, runStep, skip } from "../../core/logging";
+import { logger, runStep, skip } from "../../core/logger";
 import { BoardName } from "../../config/board-utils";
 import { exec } from '../../core/shell';
 import * as fs from '../../core/fs';
@@ -110,23 +110,26 @@ export class ESP32SetupHandler extends SetupHandler {
     }
 
     private async installRequiredPackagesStep() {
-        let packages: string[] = [];
-        if (!(await this.isPackageInstalled('cmake'))) { packages.push('cmake'); }
-        if (!(await this.isPackageInstalled('ninja'))) { packages.push('ninja'); }
-        if (!(await this.isPackageInstalled('dfu-util'))) { packages.push('dfu-util'); }
-        if (!(await this.isPackageInstalled('ccache'))) { packages.push('ccache'); }
-        if (packages.length === 0) {
-            return skip('already installed.');
-        }
-
-        return runStep('Installing required packages...', () => this.installEspidfRequiredPackages(packages));
+        return runStep('Installing required packages...', async () => {
+            let packages: string[] = [];
+            if (!(await this.isPackageInstalled('cmake'))) { packages.push('cmake'); }
+            if (!(await this.isPackageInstalled('ninja'))) { packages.push('ninja'); }
+            if (!(await this.isPackageInstalled('dfu-util'))) { packages.push('dfu-util'); }
+            if (!(await this.isPackageInstalled('ccache'))) { packages.push('ccache'); }
+            if (packages.length === 0) {
+                return skip('already installed.');
+            }
+            await this.installEspidfRequiredPackages(packages);
+        });
     }
 
     private async installPython3Step() {
-        if ((await this.isPythonVersionGreaterThan3()) || (await this.isPackageInstalled('python3'))) {
-            return skip('already installed.');
-        }
-        return runStep('Installing Python3...', () => this.installPython3());
+        return runStep('Installing Python3...', async () => {
+            if ((await this.isPythonVersionGreaterThan3()) || (await this.isPackageInstalled('python3'))) {
+                return skip('already installed.');
+            }
+            await this.installPython3();
+        });
     }
 
     private cloneEspIdfStep() {
@@ -137,7 +140,10 @@ export class ESP32SetupHandler extends SetupHandler {
     }
 
     private runEspIdfInstallScriptStep() {
-        return runStep('Running ESP-IDF install script...', () => this.runEspIdfInstallScript());
+        return runStep(
+            'Running ESP-IDF install script...', 
+            () => this.runEspIdfInstallScript()
+        );
     }
 
     private async installEspidfRequiredPackages(packages: string[]) {
@@ -245,7 +251,7 @@ export class HostSetupHandler extends SetupHandler {
         if (!(await this.isCommandInstalled('cc'))) { missing.push('cc'); }
         if (!(await this.isCommandInstalled('make'))) { missing.push('make'); }
         if (missing.length === 0) {
-            return skip('already installed.');
+            return;
         }
         throw new Error(
             `Missing required tools: ${missing.join(', ')}. Install Xcode Command Line Tools and try again.`,
@@ -253,7 +259,10 @@ export class HostSetupHandler extends SetupHandler {
     }
 
     private buildHostRuntimeStep(runtimeDir: string) {
-        return runStep('Building host runtime...', () => buildHostRuntime(runtimeDir));
+        return runStep(
+            'Building host runtime...', 
+            () => buildHostRuntime(runtimeDir)
+        );
     }
 
     private async isCommandInstalled(name: string) {

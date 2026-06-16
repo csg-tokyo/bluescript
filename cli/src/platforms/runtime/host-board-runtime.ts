@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { exec } from '../../core/shell';
 import { SharedObject } from "@bscript/lang";
-import { ProgramOutput } from "../../core/logging/program-output";
+import { ProgramOutput } from "../../core/logger/program-output";
 import { BoardRuntime } from "./board-runtime";
 import { CompileContext } from "../compiler/compiler-adapter";
 import { HostBoardConfig } from "../../config/global-config";

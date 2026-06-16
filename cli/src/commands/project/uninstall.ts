@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger } from "../../core/logging";
+import { logger } from "../../core/logger";
 import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import * as fs from '../../core/fs';

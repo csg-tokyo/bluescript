@@ -1,5 +1,5 @@
 import { Connection, ConnectionMessage, EventMap, Service } from "./common";
-import { logger } from "../core/logging";
+import { logger } from "../core/logger";
 import { WebSocketServer, WebSocket } from 'ws';
 
 export type ReplServiceEvents = {

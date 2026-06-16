@@ -9,12 +9,12 @@ import {
 } from '../mock-helpers';
 import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings } from '../global-env-helper';
 
-jest.mock('../../../src/platforms/runtime/host-runtime-builder', () => ({
+jest.mock('../../../src/platforms/runtime/host-board-runtime', () => ({
     buildHostRuntime: jest.fn().mockResolvedValue('/mock/host/build'),
     getHostBuildDir: jest.fn(),
 }));
 
-import { buildHostRuntime } from '../../../src/platforms/runtime/host-runtime-builder';
+import { buildHostRuntime } from '../../../src/platforms/runtime/host-board-runtime';
 const mockedBuildHostRuntime = buildHostRuntime as jest.Mock;
 
 jest.mock('os', () => ({

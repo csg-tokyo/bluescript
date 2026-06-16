@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger, runStep } from "../../core/logging";
+import { logger, runStep } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { CommandHandler } from "../command";

@@ -3,7 +3,7 @@ import inquirer from 'inquirer';
 import * as path from 'path';
 import { SerialPort } from 'serialport'
 import { BoardName } from "../../config/board-utils";
-import { logger, runStep } from "../../core/logging";
+import { logger, runStep } from "../../core/logger";
 import { exec } from '../../core/shell';
 import chalk from "chalk";
 import { CommandHandler } from "../command";

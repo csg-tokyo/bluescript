@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
-import { logger } from "../../core/logging";
+import { logger } from "../../core/logger";
 import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger } from "../../core/logging";
+import { logger } from "../../core/logger";
 import { ProjectConfigHandler, PackageSource ,PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import * as fs from '../../core/fs';
@@ -46,7 +46,6 @@ class InstallationHandler extends CommandHandler {
             if (installedPackages.has(currentPkg.name)) continue;
 
             const pkgConfigHandler = await this.downloadPackage(currentPkg.url, currentPkg.version);
-            // pkgConfigHandler.checkVmVersion(this.projectConfigHandler.getConfig().vmVersion);
             pkgConfigHandler.checkBoardName(this.projectConfigHandler.getBoardName());
             installedPackages.add(currentPkg.name);
             pkgConfigHandler.getDepenencies().forEach((pkgDep) => {

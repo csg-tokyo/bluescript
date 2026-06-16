@@ -2,7 +2,7 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import chalk from "chalk";
 import * as path from 'path';
-import { logger } from "../../core/logging";
+import { logger } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { BOARD_NAMES, BoardName, isValidBoard } from "../../config/board-utils";

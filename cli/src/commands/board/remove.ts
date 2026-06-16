@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
 import { BoardName } from "../../config/board-utils";
-import { logger, runStep } from "../../core/logging";
+import { logger, runStep } from "../../core/logger";
 import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";
 

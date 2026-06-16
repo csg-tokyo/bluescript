@@ -1,4 +1,4 @@
-import { logger } from "../core/logging";
+import { logger } from "../core/logger";
 import { Connection, ConnectionMessage, Service } from "./common";
 import { hostProtocolBuilder, HostProtocolParser, HostProtocol, HostParseResult } from "./host-protocol";
 import { ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
