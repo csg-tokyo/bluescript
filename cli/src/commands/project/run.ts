@@ -11,6 +11,7 @@ import { CommandHandler } from "../command";
 import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
 import { CompileError, CompileOutput } from "@bscript/lang";
 import { WebSocketConnection } from "../../services/websocket";
+import { SerialTaskQueue } from "../../core/serial-task-queue";
 
 class RunHandler extends CommandHandler {
     protected compiler: CompilerAdapter;
@@ -52,11 +53,10 @@ class RunHandler extends CommandHandler {
     }
 
     async close() {
-        runStep('Disconnecting...', async () => this.runtime.disconnect());
-        process.exit(0);
+        await runStep('Disconnecting...', async () => this.runtime.disconnect());
     }
 
-    private setupStdin() {
+    protected setupStdin() {
         readline.emitKeypressEvents(process.stdin);
         if (process.stdin.isTTY) {
             process.stdin.setRawMode(true);
@@ -109,6 +109,7 @@ class RunHandler extends CommandHandler {
 
 class RunWithReplHandler extends RunHandler {
     private rl: readline.Interface;
+    private readonly taskQueue = new SerialTaskQueue();
 
     constructor(projectConfigHandler: ProjectConfigHandler) {
         super(projectConfigHandler);
@@ -134,20 +135,25 @@ class RunWithReplHandler extends RunHandler {
         logger.info("Start REPL. Type 'Ctrl-D' to exit.");
         this.rl.prompt();
         return new Promise<void>((resolve, reject) => {
-            this.rl.on('line', async (line) => {
-                try {
-                    const output = await this.compiler.compileFragment(line);
-                    await this.runtime.load(output);
-                    await this.runtime.execute(output);
-                    this.rl.prompt();
-                } catch (error) {
-                    if (error instanceof CompileError) {
-                        logger.error("** compile error: " + error.toString());
+            this.rl.on('line', (line) => {
+                this.rl.pause();
+                this.taskQueue.enqueue(async () => {
+                    try {
+                        const output = await this.compiler.compileFragment(line);
+                        await this.runtime.load(output);
+                        await this.runtime.execute(output);
+                    } catch (error) {
+                        if (error instanceof CompileError) {
+                            logger.error("** compile error: " + error.toString());
+                        } else {
+                            reject(error);
+                            return;
+                        }
+                    } finally {
+                        this.rl.resume();
                         this.rl.prompt();
-                    } else {
-                        reject(error);
                     }
-                }
+                });
             });
             this.rl.on('close', () => {
                 resolve();
@@ -159,6 +165,7 @@ class RunWithReplHandler extends RunHandler {
 class RunWithNotebookHandler extends RunHandler {
     private ws: WebSocketConnection | null = null;
     private server: http.Server | null = null;
+    private readonly executeQueue = new SerialTaskQueue();
 
     constructor(projectConfigHandler: ProjectConfigHandler) {
         super(projectConfigHandler);
@@ -173,6 +180,7 @@ class RunWithNotebookHandler extends RunHandler {
         await this.startUiServer();
         logger.info("Type 'Ctrl-D' to exit.");
 
+        this.setupStdin();
         return new Promise<boolean>((resolve) => {
             process.stdin.on('keypress', (str, key) => {
                 if (key && key.ctrl && key.name === 'd') {
@@ -183,9 +191,9 @@ class RunWithNotebookHandler extends RunHandler {
     }
 
     async close(): Promise<void> {
-        await super.close();
         this.server?.close();
         this.ws?.close();
+        await super.close();
     }
 
     private startUiServer() {
@@ -224,22 +232,24 @@ class RunWithNotebookHandler extends RunHandler {
         const service = this.ws.getService('repl');
         this.ws.open();
         this.runtime.setOutput(createWebSocketOutput(service));
-        service.on('execute', async (code: string) => {
-            try {
-                let {output, time} = await this.compile(code);
-                service.finishCompilation(time);
-                time = await this.load(output);
-                service.finishLoading(time);
-                time = await this.execute(output);
-                service.finishExecution(time);
-            } catch (error) {
-                if (error instanceof CompileError) {
-                    service.finishCompilation(-1, error.toString());
-                } else {
-                    logger.showError(error);
-                    throw error;
+        service.on('execute', (code: string) => {
+            this.executeQueue.enqueue(async () => {
+                try {
+                    let {output, time} = await this.compile(code);
+                    service.finishCompilation(time);
+                    time = await this.load(output);
+                    service.finishLoading(time);
+                    time = await this.execute(output);
+                    service.finishExecution(time);
+                } catch (error) {
+                    if (error instanceof CompileError) {
+                        service.finishCompilation(-1, error.toString());
+                    } else {
+                        logger.showError(error);
+                        throw error;
+                    }
                 }
-            }
+            });
         });
         logger.info(`WebSocket server is running at ws://localhost:${port}`);
     }
@@ -275,6 +285,8 @@ export async function handleRunCommand(options: {withRepl: boolean, withNotebook
 
         await handler.run();
         await handler.close();
+        process.exit(0);
+
     } catch (error) {
         logger.error(`Failed to run BlueScript program.`);
         logger.showError(error);

@@ -48,9 +48,11 @@ class InstallationHandler extends CommandHandler {
             const pkgConfigHandler = await this.downloadPackage(currentPkg.url, currentPkg.version);
             pkgConfigHandler.checkBoardName(this.projectConfigHandler.getBoardName());
             installedPackages.add(currentPkg.name);
-            pkgConfigHandler.getDepenencies().forEach((pkgDep) => {
-                installedPackages.add(pkgDep.name);
-            });        
+            for (const pkgDep of pkgConfigHandler.getDepenencies()) {
+                if (!installedPackages.has(pkgDep.name)) {
+                    queue.push(pkgDep);
+                }
+            }
         }
     }
 

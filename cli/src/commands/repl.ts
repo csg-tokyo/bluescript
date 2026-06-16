@@ -11,6 +11,7 @@ import { GLOBAL_SETTINGS } from "../config/constants";
 import { CompileContext, createPlatformSession } from "../platforms";
 import { BoardName } from "../config/board-utils";
 import { CompileError, CompileOutput } from "@bscript/lang";
+import { SerialTaskQueue } from "../core/serial-task-queue";
 
 class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
@@ -21,6 +22,7 @@ class ReplHandler extends CommandHandler {
     private rl: readline.Interface;
     private compileContext?: CompileContext;
     private isFirstCompile: boolean;
+    private readonly taskQueue = new SerialTaskQueue();
 
     constructor(private boardName: string) {
         super();
@@ -66,32 +68,41 @@ class ReplHandler extends CommandHandler {
         logger.info("Start REPL. Type 'Ctrl-D' to exit.");
         this.rl.prompt();
         return new Promise<void>((resolve, reject) => {
-            this.rl.on('line', async (line) => {
-                try {
-                    let output: CompileOutput;
-                    if (this.isFirstCompile) {
-                        this.writeEntryFile(line);
-                        output = await this.platform.compiler.buildProject(this.compileContext);
-                        this.isFirstCompile = false;
-                    } else {
-                        output = await this.platform.compiler.compileFragment(line);
-                    }
-                    await this.platform.runtime.load(output);
-                    await this.platform.runtime.execute(output);
-                    this.rl.prompt();
-                } catch (error) {
-                    if (error instanceof CompileError) {
-                        logger.error("** compile error: " + error.toString());
+            this.rl.on('line', (line) => {
+                this.rl.pause();
+                this.taskQueue.enqueue(async () => {
+                    try {
+                        await this.processReplLine(line);
+                    } catch (error) {
+                        if (error instanceof CompileError) {
+                            logger.error("** compile error: " + error.toString());
+                        } else {
+                            reject(error);
+                            return;
+                        }
+                    } finally {
+                        this.rl.resume();
                         this.rl.prompt();
-                    } else {
-                        reject(error);
                     }
-                }
+                });
             });
             this.rl.on('close', () => {
                 resolve();
             });
         });
+    }
+
+    private async processReplLine(line: string) {
+        let output: CompileOutput;
+        if (this.isFirstCompile) {
+            this.writeEntryFile(line);
+            output = await this.platform.compiler.buildProject(this.compileContext);
+            this.isFirstCompile = false;
+        } else {
+            output = await this.platform.compiler.compileFragment(line);
+        }
+        await this.platform.runtime.load(output);
+        await this.platform.runtime.execute(output);
     }
 
     private createTempProject() {

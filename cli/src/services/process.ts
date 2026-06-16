@@ -133,11 +133,29 @@ export class ProcessConnection extends Connection<String> {
     }
 
     public async disconnect(): Promise<void> {
-        if (this.checkProcessRunning(this.shellProcess)) {
-            this.shellProcess.stdin.end();
-            // TODO: Kill?
-            this.emit('disconnected', 0);
+        if (!this.checkProcessRunning(this.shellProcess)) {
+            return;
         }
+
+        const proc = this.shellProcess;
+        this.shellProcess = null;
+
+        await new Promise<void>((resolve) => {
+            const timeout = setTimeout(() => {
+                proc.kill('SIGKILL');
+                resolve();
+            }, 3_000);
+
+            proc.once('exit', () => {
+                clearTimeout(timeout);
+                resolve();
+            });
+
+            proc.stdin.end();
+            proc.kill();
+        });
+
+        this.emit('disconnected', 0);
     }
 
     public async send(message: ConnectionMessage<string>): Promise<void> {

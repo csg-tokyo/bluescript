@@ -117,7 +117,7 @@ describe('install command', () => {
         expect(getProjectConfig(projectRoot).dependencies['pkg-led-esp32-project']).toBe('https://github.com/bluescript-lang/pkg-led-esp32.git');
     });
 
-    it('should install all packages', async () => {
+    it('should install all packages from bsconfig', async () => {
         // --- Arrange ---
         setupGlobalEnvWithEsp32();
         createDummyProject(projectRoot, {
@@ -139,7 +139,7 @@ describe('install command', () => {
         });
         
         // --- Act ---
-        await handleInstallCommand('https://github.com/bluescript-lang/pkg-led-esp32.git', {});
+        await handleInstallCommand(undefined, {});
 
         // --- Assert ---
         expect(fs.exists(path.join(projectRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, 'pkg-led-esp32-project')));

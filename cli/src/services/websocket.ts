@@ -77,9 +77,8 @@ export class WebSocketConnection extends Connection<any> {
     }
 
     public close(): void {
-        if(this.server) {
-            this.server.close();
-        }
+        this.server?.close();
+        this.client?.close();
     }
 
     public async send(message: ConnectionMessage<any>): Promise<void> {
