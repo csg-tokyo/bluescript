@@ -54,9 +54,12 @@ The architecture of BlueScript is based on the research paper *["BlueScript: A D
 
 ## Supported Hardware
 
-Currently, BlueScript supports the following platform:
-- Espressif ESP32 (Supported)
+BlueScript targets microcontroller development first. The primary supported platform is:
+
+- **Espressif ESP32** — real hardware development over Bluetooth
+
+You can also run BlueScript on the **host runtime** without a microcontroller. This is useful for language checks and quick experiments. See [Try Without Microcontroller](../guides/try-without-microcontroller.md).
 
 :::note Future Roadmap
-We plan to support other boards in the future.
+We plan to support additional microcontroller boards in the future.
 :::

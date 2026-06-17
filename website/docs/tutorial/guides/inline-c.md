@@ -4,9 +4,13 @@ One of BlueScript's most powerful features is **Inline C**.
 Because BlueScript compiles to native code on the host before transmission, you can embed standard C code directly within your TypeScript-like source files.
 
 This allows you to:
-*   Call native ESP-IDF APIs not yet wrapped by libraries.
+*   Call native ESP-IDF APIs not yet wrapped by libraries (ESP32 only).
 *   Optimize critical loops for maximum performance.
 *   Port existing C drivers easily.
+
+:::note Board support
+Examples that use **ESP-IDF** APIs apply to **ESP32** projects only. Standard C (for example `math.h`) works on both ESP32 and host.
+:::
 
 ## Basic Syntax
 

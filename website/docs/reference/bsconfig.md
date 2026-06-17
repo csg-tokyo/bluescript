@@ -27,12 +27,12 @@ These fields are shared across all supported boards.
 | Field | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
 | `projectName` | Yes | — | Project name. Also used as the main package name during compilation. |
-| `boardName` | Yes | — | Target board. Currently supported: `esp32`. |
+| `boardName` | Yes | — | Target board. Supported: `esp32`, `host`. |
 | `version` | No | `"1.0.0"` | Project version string. |
 | `vmVersion` | No | CLI version | BlueScript runtime version this project targets. |
 | `srcDir` | No | `"."` | Directory containing BlueScript (`.bs`) and C (`.c`) source files, relative to the project root. |
 | `entryFile` | No | `"./index.bs"` | Entry BlueScript file executed by `bscript project run`, relative to the project root. |
-| `deviceName` | No | `"BLUESCRIPT"` | Bluetooth device name used when scanning for hardware. |
+| `deviceName` | No | `"BLUESCRIPT"` | Bluetooth device name used when scanning for hardware. **ESP32 only** — ignored for `host` projects. |
 | `dependencies` | No | `{}` | Installed package dependencies. Usually managed by `bscript project install`. |
 
 ### `srcDir` and `entryFile`
@@ -72,7 +72,7 @@ Use `bscript project install` to add packages instead of editing this field by h
 
 ## ESP32 fields
 
-When `boardName` is `"esp32"`, the following additional field is available.
+When `boardName` is `"esp32"`, the following additional field is available. These fields do not apply to `host` projects.
 
 | Field | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
@@ -88,6 +88,24 @@ When `boardName` is `"esp32"`, the following additional field is available.
 ```
 
 See the [Inline C tutorial](../tutorial/guides/inline-c.md) for usage examples.
+
+## Host example
+
+A minimal `bsconfig.json` for the host runtime:
+
+```json title="bsconfig.json (host)"
+{
+  "projectName": "hello-host",
+  "boardName": "host",
+  "version": "1.0.0",
+  "vmVersion": "2.0.0",
+  "srcDir": "./src",
+  "entryFile": "./src/index.bs",
+  "dependencies": {}
+}
+```
+
+See [Try Without Microcontroller](../tutorial/guides/try-without-microcontroller.md) for setup steps.
 
 ## Generated project layout
 

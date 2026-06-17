@@ -19,7 +19,8 @@ const sidebars: SidebarsConfig = {
         'tutorial/guides/inline-c',
         'tutorial/guides/repl',
         'tutorial/guides/interrupts',
-        'tutorial/guides/imports-and-includes'
+        'tutorial/guides/imports-and-includes',
+        'tutorial/guides/try-without-microcontroller',
       ],
     },
   ],

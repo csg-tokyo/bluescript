@@ -14,7 +14,7 @@ The easiest way is the **Notebook**: a browser UI where you run code in cells. Y
 | :--- | :--- | :--- |
 | **Notebook** | `bscript project run --with-notebook` | You have a project and want to try code in cells (recommended) |
 | **Project REPL** | `bscript project run --with-repl` | Same as above, but you prefer the terminal |
-| **Global REPL** | `bscript repl -b esp32` | No project yet—language syntax only |
+| **Global REPL** | `bscript repl -b esp32` or `bscript repl -b host` | No project yet—language syntax only |
 | **Normal run** | `bscript project run` | You are writing the full app in `index.bs` |
 
 **Notebook vs REPL:** The Notebook supports multi-line cells (**Shift+Enter** to run) and shows output on the side. The REPL accepts **one line per Enter**.
@@ -88,9 +88,15 @@ After `index.bs` runs, type one line at the `>` prompt. Installed packages (e.g.
 
 ```bash
 bscript repl -b esp32
+# or, without hardware:
+bscript repl -b host
 ```
 
 Use this for quick syntax checks without a project. **GPIO and other installed libraries are not available.** Exit with **`Ctrl+D`**.
+
+:::note Host runtime
+The host runtime must be set up first. See [Try Without Microcontroller](./try-without-microcontroller.md) for setup.
+:::
 
 :::note
 A global Notebook (without a project) is planned for a future release.
