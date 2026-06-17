@@ -78,6 +78,8 @@ console.log(getCurrentTime());
 If you place a `code` block at the top level of your file (outside of any class or function), it will be placed in the global scope of the generated C file.
 This is used for `#include` directives or defining C global variables.
 
+To include project-local `.c` or `.h` files, see [Imports & Includes](./imports-and-includes.md).
+
 ```typescript
 // Global scope: Includes and Helper functions
 code`
