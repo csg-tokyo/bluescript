@@ -32,8 +32,13 @@
     "build": "tsc --build",
     "start": "ts-node src/index.ts",
     "test": "jest",
-    "prepack": "shx cp ../README.md README.md",
-    "postpack": "shx rm README.md",
+
+    "prepack:backup": "shx mv README.md README.md.bak || shx echo 'No existing README to backup'",
+    "prepack:copy": "shx cp ../README.md README.md",
+    "prepack": "npm run prepack:backup && npm run prepack:copy",
+    "postpack:cleanup": "shx rm README.md",
+    "postpack:restore": "shx mv README.md.bak README.md || shx echo 'No backup to restore'",
+    "postpack": "npm run postpack:cleanup && npm run postpack:restore",
     "prepublishOnly": "npm run build"
   },
   "bin": {
