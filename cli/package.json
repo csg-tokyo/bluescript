@@ -31,7 +31,9 @@
   "scripts": {
     "build": "tsc --build",
     "start": "ts-node src/index.ts",
-    "test": "jest",
+    "test": "jest --selectProjects unit",
+    "test:integration": "jest --selectProjects integration",
+    "test:all": "jest",
 
     "prepack:backup": "shx mv README.md README.md.bak || shx echo 'No existing README to backup'",
     "prepack:copy": "shx cp ../README.md README.md",

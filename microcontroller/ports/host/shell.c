@@ -6,7 +6,6 @@
 #include <dlfcn.h>
 #include <time.h>
 #include "../../core/include/c-runtime.h"
-#include "../../core/include/protocol.h"
 #include "./comm.h"
 
 

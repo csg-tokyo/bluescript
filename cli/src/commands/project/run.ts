@@ -57,10 +57,11 @@ class RunHandler extends CommandHandler {
     }
 
     protected setupStdin() {
-        readline.emitKeypressEvents(process.stdin);
-        if (process.stdin.isTTY) {
-            process.stdin.setRawMode(true);
+        if (!process.stdin.isTTY) {
+            return;
         }
+        readline.emitKeypressEvents(process.stdin);
+        process.stdin.setRawMode(true);
         this.globalKeypressHandler = (str, key) => {
             if (key && key.ctrl && key.name === 'c') {
                 process.exit(0);
@@ -71,6 +72,9 @@ class RunHandler extends CommandHandler {
     }
 
     private resetStdin() {
+        if (!process.stdin.isTTY) {
+            return;
+        }
         if (this.globalKeypressHandler) {
             process.stdin.off('keypress', this.globalKeypressHandler);
             this.globalKeypressHandler = undefined;
@@ -79,13 +83,19 @@ class RunHandler extends CommandHandler {
             process.stdin.off('keypress', this.ctrlDKeypressHandler);
             this.ctrlDKeypressHandler = undefined;
         }
+        process.stdin.setRawMode(false);
     }
 
     private async executeProgram(output: CompileOutput) {
-        this.setupStdin();
         logger.info("Start executing program. Type 'Ctrl-D' to exit.");
         this.programOutput.onRunStart?.();
         try {
+            if (!process.stdin.isTTY) {
+                await this.runtime.execute(output);
+                return false;
+            }
+
+            this.setupStdin();
             const interrupted = await new Promise<boolean>((resolve, reject) => {
                 this.ctrlDKeypressHandler = (str, key) => {
                     if (key && key.ctrl && key.name === 'd') {
@@ -272,9 +282,9 @@ class RunWithNotebookHandler extends RunHandler {
 }
 
 export async function handleRunCommand(options: {withRepl: boolean, withNotebook: boolean}) {
+    let handler: RunHandler | undefined;
     try {
         const projectConfigHandler = ProjectConfigHandler.load(cwd());
-        let handler: RunHandler;
         if (options.withRepl) {
             handler = new RunWithReplHandler(projectConfigHandler);
         } else if (options.withNotebook) {
@@ -288,6 +298,13 @@ export async function handleRunCommand(options: {withRepl: boolean, withNotebook
         process.exit(0);
 
     } catch (error) {
+        if (handler) {
+            try {
+                await handler.close();
+            } catch {
+                // Ignore cleanup errors after a run failure.
+            }
+        }
         logger.error(`Failed to run BlueScript program.`);
         logger.showError(error);
         process.exit(1);

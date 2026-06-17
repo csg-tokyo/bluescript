@@ -10,6 +10,8 @@ For command syntax and option descriptions, see the [CLI Reference](../../websit
 - Before publishing a new `@bscript/cli` release
 - After changes to `@bscript/lang`, `@bscript/notebook`, or the runtime bundle consumed by the CLI
 
+Run automated tests first (see [Automated tests](#automated-tests)); use this checklist for behavior that integration tests do not cover (ESP32 hardware, interactive prompts, Notebook UI, and so on).
+
 ## Prerequisites
 
 ### Test target
@@ -40,6 +42,24 @@ Use a clean working directory for project commands (no existing `bsconfig.json` 
 | **esp32** | macOS | v18+ (v20+ recommended) | ESP32 board, USB cable, Bluetooth enabled |
 
 > **Note:** The host runtime currently requires **macOS**. ESP32 setup is also macOS-only in the current CLI implementation.
+
+### Automated integration tests (host)
+
+Host integration tests live in `cli/tests/integration/`. They spawn the real host `shell` binary and exercise `project run` and `repl` end-to-end on disk (no ESP32, no global `bscript` install).
+
+| Requirement | Detail |
+| :--- | :--- |
+| OS | macOS only (tests are skipped on other platforms) |
+| Toolchain | `cc` (builds `microcontroller/ports/host/build/` on first run if missing) |
+| Repo layout | Run from `cli/` with the `microcontroller/` tree at the repository root |
+
+```bash
+cd cli
+npm run test:integration   # integration only (14 tests)
+npm run test:all           # unit + integration
+```
+
+CLI log output is suppressed during integration runs (`tests/integration-setup.ts` mocks `logger` and `runStep`). Program output from BlueScript code is still verified via captured stdout.
 
 ---
 
@@ -648,26 +668,35 @@ For failures, include the item ID (e.g. `MT-PROJ-RUN-03`) in Notes or link to an
 
 ## Coverage map: automated vs manual
 
-Jest tests in `cli/tests/` mock filesystem, network, and device I/O. Use this table to avoid re-testing mocked behavior manually while ensuring gaps are covered.
+Jest **unit** tests in `cli/tests/` mock filesystem, network, and device I/O. **Integration** tests in `cli/tests/integration/` use real host runtime processes on macOS. Use this table to avoid re-testing automated behavior manually while ensuring gaps are covered.
 
-| Area | Jest coverage | Manual testing still needed |
-| :--- | :--- | :--- |
-| `board setup` | Handler logic, macOS paths, skip-if-done | Real download, ESP-IDF install, host runtime build |
-| `board flash-runtime` | ESP32 handler, host rejection, port prompt mocked | Actual USB flash on hardware |
-| `board remove` / `fullclean` | File removal, prompts mocked | Confirm disk state after real removal |
-| `board update` | Update steps, rollback logic | End-to-end after real version bump |
-| `board list` | — | Visual output, setup status labels |
-| `project create` | File generation, validation | Interactive board picker |
-| `project install` | Git clone mocked | Real Git URLs, tag checkout, board mismatch |
-| `project uninstall` | — | Full uninstall flow |
-| `project check` | — | Real compiler, Inline C |
-| `project run` | — | Process output, built-in/local import/package usage, REPL state, Notebook UI, BLE |
-| `repl` | — | Built-in library, variable/function persistence, interactive session, device connection |
-| WebSocket / device protocol | Unit tests | Browser Notebook integration |
-| Global help / version | — | Quick smoke items |
+| Area | Unit tests | Integration tests (host, macOS) | Manual testing still needed |
+| :--- | :--- | :--- | :--- |
+| `board setup` | Handler logic, macOS paths, skip-if-done | — | Real download, ESP-IDF install, host runtime build |
+| `board flash-runtime` | ESP32 handler, host rejection, port prompt mocked | — | Actual USB flash on hardware |
+| `board remove` / `fullclean` | File removal, prompts mocked | — | Confirm disk state after real removal |
+| `board update` | Update steps, rollback logic | — | End-to-end after real version bump |
+| `board list` | — | — | Visual output, setup status labels |
+| `project create` | File generation, validation | — | Interactive board picker |
+| `project install` | Git clone mocked | — | Real Git URLs, tag checkout, board mismatch |
+| `project uninstall` | — | — | Full uninstall flow |
+| `project check` | — | — | Real compiler, Inline C |
+| `project run` | Handler wiring | Normal run; built-in; functions/variables; local import; local package import; inline C; `.c` / `.h` includes; compile error (`run.host.test.ts`) | Ctrl-D / TTY; `--with-repl`; `--with-notebook`; ESP32; BLE; real `project install` packages |
+| `repl` | — | Entry line; built-in; variable/function persistence; compile-error recovery (`repl.host.test.ts`) | Interactive session; ESP32; device connection; global REPL without mocked readline |
+| WebSocket / device protocol | Unit tests | — | Browser Notebook integration |
+| Global help / version | — | — | Quick smoke items |
 
-Run automated tests before manual QA:
+### Integration test ↔ manual item map (host)
 
-```bash
-cd cli && npm test
-```
+| Integration test (`run.host.test.ts` / `repl.host.test.ts`) | Related manual IDs |
+| :--- | :--- |
+| Runs a program and prints output | MT-PROJ-RUN-01 (host) |
+| Built-in library | MT-PROJ-RUN-08 (host), MT-REPL-06 (host) |
+| User-defined functions and variables | MT-PROJ-RUN-09 (host) |
+| Local module import | MT-PROJ-RUN-10 (host) |
+| Package import (local `packages/` fixture) | MT-PROJ-RUN-11 (partial — not Git install) |
+| Inline C / `.c` / `.h` includes | MT-PROJ-CHECK-03 (host) |
+| Compile error on run | MT-PROJ-RUN-02 (host) |
+| REPL entry line | MT-REPL-02 (host) |
+| REPL variables / functions across lines | MT-REPL-07, MT-REPL-08 (host) |
+| REPL continues after compile error | MT-REPL-04 (host) |

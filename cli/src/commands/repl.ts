@@ -13,6 +13,16 @@ import { BoardName } from "../config/board-utils";
 import { CompileError, CompileOutput } from "@bscript/lang";
 import { SerialTaskQueue } from "../core/serial-task-queue";
 
+type ReplReadlineFactory = () => readline.Interface;
+
+function defaultReplReadlineFactory(): readline.Interface {
+    return readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        prompt: chalk.blue.bold('> '),
+    });
+}
+
 class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
     static readonly tempProjectDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, this.TEMP_PROJECT_NAME);
@@ -24,7 +34,10 @@ class ReplHandler extends CommandHandler {
     private isFirstCompile: boolean;
     private readonly taskQueue = new SerialTaskQueue();
 
-    constructor(private boardName: string) {
+    constructor(
+        private boardName: string,
+        private createReadline: ReplReadlineFactory = defaultReplReadlineFactory,
+    ) {
         super();
 
         const board = this.boardName as BoardName;
@@ -44,11 +57,7 @@ class ReplHandler extends CommandHandler {
             },
         );
 
-        this.rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout,
-            prompt: chalk.blue.bold('> ')
-        });
+        this.rl = this.createReadline();
         this.isFirstCompile = true;
     }
 
@@ -59,6 +68,7 @@ class ReplHandler extends CommandHandler {
         this.createTempProject();
         await this.runRepl();
         this.deleteTempProject();
+        this.rl.close();
 
         await runStep('Disconnecting...', () => this.platform.runtime.disconnect());
         process.exit(0);
@@ -110,6 +120,10 @@ class ReplHandler extends CommandHandler {
             fs.removeDir(ReplHandler.tempProjectDir)
         }
         fs.makeDir(ReplHandler.tempProjectDir);
+        const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
+        if (runtimeDir) {
+            this.projectConfigHandler.update({ runtimeDir });
+        }
         this.projectConfigHandler.save(ReplHandler.tempProjectDir);
     }
 
@@ -127,9 +141,12 @@ class ReplHandler extends CommandHandler {
     }
 }
 
-export async function handleReplCommand(options: { board: string }) {
+export async function handleReplCommand(
+    options: { board: string },
+    deps?: { createReadline?: ReplReadlineFactory },
+) {
     try {
-        const handler = new ReplHandler(options.board);
+        const handler = new ReplHandler(options.board, deps?.createReadline);
         await handler.start();
     } catch (error) {
         logger.error(`Error while running REPL.`);

@@ -64,7 +64,7 @@ export class HostBoardRuntime implements BoardRuntime<SharedObject> {
     }
 
     async disconnect(): Promise<void> {
-        this.shellProcess.disconnect();
+        await this.shellProcess.disconnect();
     }
 
     async prepare(): Promise<CompileContext> {

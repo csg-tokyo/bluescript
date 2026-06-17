@@ -105,6 +105,7 @@ export class ProcessConnection extends Connection<String> {
     private shellFile: string;
     private services = new Map<string, Service<any, string>>();
     private shellProcess: ChildProcessWithoutNullStreams | null = null;
+    private disconnecting = false;
 
 
     constructor(shellFile: string) {
@@ -114,11 +115,15 @@ export class ProcessConnection extends Connection<String> {
 
     public async connect(): Promise<void> {
         this.shellProcess = spawn(this.shellFile);
-        this.shellProcess.on('exit', (code, signal) => {
-            if (code === 0)
+        this.shellProcess.on('exit', (code) => {
+            if (this.disconnecting) {
+                return;
+            }
+            if (code === 0) {
                 this.emit('disconnected', 0);
-            else
+            } else {
                 this.emit('disconnected', 1);
+            }
         });
 
         this.shellProcess.stdout.setEncoding('utf8');
@@ -139,23 +144,34 @@ export class ProcessConnection extends Connection<String> {
 
         const proc = this.shellProcess;
         this.shellProcess = null;
+        this.disconnecting = true;
 
         await new Promise<void>((resolve) => {
             const timeout = setTimeout(() => {
                 proc.kill('SIGKILL');
+                proc.stdout.destroy();
+                proc.stderr.destroy();
+                proc.stdin.destroy();
                 resolve();
             }, 3_000);
+            timeout.unref();
 
             proc.once('exit', () => {
                 clearTimeout(timeout);
+                proc.stdout.destroy();
+                proc.stderr.destroy();
+                proc.stdin.destroy();
                 resolve();
             });
 
+            proc.stdout.removeAllListeners('data');
+            proc.stderr.removeAllListeners('data');
             proc.stdin.end();
             proc.kill();
         });
 
         this.emit('disconnected', 0);
+        this.disconnecting = false;
     }
 
     public async send(message: ConnectionMessage<string>): Promise<void> {
