@@ -360,21 +360,118 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 
 #### MT-PROJ-RUN-05: With REPL
 
-- **Priority:** P0 · **Requires:** host
-- **Steps:** Run `bscript project run --with-repl`
-- **Expected:** Entry file runs first; then `>` REPL prompt; one line compiles and runs; compile errors shown without exiting REPL; Ctrl-D exits
+- **Priority:** P0 · **Requires:** both
+- **Steps:** Repeat in a **host** project and an **ESP32** project.
+  1. Run `bscript project run --with-repl`
+  2. Enter one valid line at the `>` prompt (e.g. `console.log("repl");`)
+- **Expected:** Entry file runs first; then `>` REPL prompt; REPL line compiles and runs; compile errors shown without exiting REPL; Ctrl-D exits. On ESP32, Bluetooth connection succeeds before REPL starts.
 
 #### MT-PROJ-RUN-06: With Notebook
 
-- **Priority:** P1 · **Requires:** host
-- **Steps:** Run `bscript project run --with-notebook`
-- **Expected:** Entry runs; browser opens `http://localhost:3000`; WebSocket at `ws://localhost:8080`; cell execution works; Ctrl-D in terminal exits
+- **Priority:** P1 · **Requires:** both
+- **Steps:** Repeat in a **host** project and an **ESP32** project.
+  1. Run `bscript project run --with-notebook`
+  2. Run one cell in the browser UI
+- **Expected:** Entry runs; browser opens `http://localhost:3000`; WebSocket at `ws://localhost:8080`; cell execution works; Ctrl-D in terminal exits. On ESP32, device connection succeeds before Notebook starts.
 
 #### MT-PROJ-RUN-07: Conflicting options
 
 - **Priority:** P2 · **Requires:** both
 - **Steps:** Run `bscript project run --with-repl --with-notebook`
 - **Expected:** Commander reports option conflict; command does not run
+
+#### MT-PROJ-RUN-08: Built-in library
+
+- **Priority:** P0 · **Requires:** both
+- **Steps:** Repeat in a **host** project and an **ESP32** project. Set `src/index.bs` to use built-in APIs (no `import`):
+  ```typescript
+  console.log("built-in");
+  print("via print");
+  console.log(time.now());
+  ```
+  Run `bscript project run`.
+  On **ESP32**, optionally add `time.delay(500);` before the last line and confirm it also works (ESP32-only API).
+- **Expected:** All lines produce output; no compile or runtime error. See [Built-in Library](../../website/docs/reference/libraries/builtin.md).
+
+#### MT-PROJ-RUN-09: User-defined functions and variables
+
+- **Priority:** P0 · **Requires:** both
+- **Steps:** Repeat in a **host** project and an **ESP32** project. Set `src/index.bs` to:
+  ```typescript
+  const message = "hello";
+  function greet(): void {
+      console.log(message);
+  }
+  greet();
+  ```
+  Run `bscript project run`.
+- **Expected:** `hello` printed on both boards; function and variable bindings work at runtime.
+
+#### MT-PROJ-RUN-10: Local module import
+
+- **Priority:** P0 · **Requires:** both
+- **Steps:** Repeat in a **host** project and an **ESP32** project.
+  1. Create `src/math-utils.bs`:
+     ```typescript
+     export function add(a: integer, b: integer): integer {
+         return a + b;
+     }
+     ```
+  2. Set `src/index.bs` to:
+     ```typescript
+     import { add } from "./math-utils";
+     console.log(add(10, 20));
+     ```
+  3. Run `bscript project run`.
+- **Expected:** `30` printed on both boards; relative import resolves under `srcDir`.
+
+#### MT-PROJ-RUN-11: Installed package
+
+- **Priority:** P0 · **Requires:** esp32
+- **Precondition:** GPIO package installed (`bscript project install https://github.com/bluescript-lang/pkg-gpio-esp32.git`)
+- **Steps:** Set `src/index.bs` to:
+  ```typescript
+  import { GPIO, PinMode } from "gpio";
+  const led = new GPIO(2, PinMode.InputOutput);
+  console.log("GPIO ready");
+  ```
+  Run `bscript project run`.
+- **Expected:** Compiles and runs without import/resolve errors; `GPIO ready` printed. See [Standard Libraries](../../website/docs/reference/libraries/standard.md).
+
+#### MT-PROJ-RUN-12: Built-in library in project REPL
+
+- **Priority:** P1 · **Requires:** both
+- **Steps:** Repeat in a **host** project and an **ESP32** project.
+  1. Set `src/index.bs` to `console.log("entry done");`
+  2. Run `bscript project run --with-repl`
+  3. At the `>` prompt, enter: `console.log(time.now());`
+- **Expected:** Entry runs first; REPL line executes using built-in `console.log` and `time.now` without error on both boards.
+
+#### MT-PROJ-RUN-13: Entry variables and functions in project REPL
+
+- **Priority:** P1 · **Requires:** both
+- **Steps:** Repeat in a **host** project and an **ESP32** project.
+  1. Set `src/index.bs` to:
+     ```typescript
+     const msg = "from entry";
+     function show(): void {
+         console.log(msg);
+     }
+     console.log("entry done");
+     ```
+  2. Run `bscript project run --with-repl`
+  3. At the `>` prompt, enter: `show();`
+  4. Enter: `console.log(msg);`
+- **Expected:** Both REPL lines succeed on both boards; `from entry` printed twice (once per line); entry-defined function and variable remain available in REPL.
+
+#### MT-PROJ-RUN-14: Installed package in project REPL
+
+- **Priority:** P1 · **Requires:** esp32
+- **Precondition:** GPIO package installed; entry file sets up a `led` instance (see [REPL & Notebook tutorial](../../website/docs/tutorial/guides/repl.md))
+- **Steps:**
+  1. Run `bscript project run --with-repl`
+  2. At the `>` prompt, enter a line that uses `led` (e.g. `console.log("LED ready in REPL");`)
+- **Expected:** Entry-imported package symbols (e.g. `led`) are usable in REPL without re-importing.
 
 ---
 
@@ -450,23 +547,49 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 - **Steps:** Run `bscript repl -b host`
 - **Expected:** Connecting → REPL prompt; first line treated as entry; subsequent lines as fragments; Ctrl-D exits cleanly
 
-#### MT-REPL-03: Compile error in REPL
-
-- **Priority:** P2 · **Requires:** host
-- **Steps:** Enter invalid syntax at REPL prompt
-- **Expected:** Compile error shown; REPL continues
-
-#### MT-REPL-04: ESP32 global REPL
+#### MT-REPL-03: ESP32 global REPL
 
 - **Priority:** P1 · **Requires:** esp32
 - **Steps:** Run `bscript repl -b esp32` with device available
 - **Expected:** Bluetooth connection; REPL works
+
+#### MT-REPL-04: Compile error in REPL
+
+- **Priority:** P2 · **Requires:** both
+- **Steps:** Run `bscript repl -b host` and `bscript repl -b esp32`. Enter invalid syntax at the REPL prompt on each board.
+- **Expected:** Compile error shown; REPL continues on both boards.
 
 #### MT-REPL-05: No hardware libraries
 
 - **Priority:** P1 · **Requires:** esp32
 - **Steps:** Try importing a project-only package (e.g. GPIO) in global REPL
 - **Expected:** Not available (project REPL / Notebook required for installed packages)
+
+#### MT-REPL-06: Built-in library
+
+- **Priority:** P0 · **Requires:** both
+- **Steps:** Run `bscript repl -b host` and `bscript repl -b esp32`. At the `>` prompt on each board, enter lines that use built-in APIs (no `import`):
+  1. `console.log("built-in");`
+  2. `print("via print");`
+  3. `console.log(time.now());`
+  On **ESP32**, optionally enter `time.delay(500);` and confirm it works.
+- **Expected:** Each line compiles and runs; output appears for all entries on both boards. See [Built-in Library](../../website/docs/reference/libraries/builtin.md).
+
+#### MT-REPL-07: Variables persist across REPL lines
+
+- **Priority:** P0 · **Requires:** both
+- **Steps:** Run `bscript repl -b host` and `bscript repl -b esp32`. On each board:
+  1. First line: `const x = 42; console.log("init");`
+  2. Second line: `console.log(x);`
+- **Expected:** First line prints `init`; second line prints `42` on both boards; variable defined on an earlier line remains in scope.
+
+#### MT-REPL-08: User-defined functions persist across REPL lines
+
+- **Priority:** P1 · **Requires:** both
+- **Steps:** Run `bscript repl -b host` and `bscript repl -b esp32`. On each board:
+  1. First line: `function double(n: integer): integer { return n * 2; } console.log("fn defined");`
+  2. Second line: `console.log(double(21));`
+- **Expected:** First line prints `fn defined`; second line prints `42` on both boards; function defined on an earlier line can be called later.
 
 ---
 
@@ -481,9 +604,10 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 5. `cd hello-host`
 6. Edit `src/index.bs` — add a `console.log` with a distinct message
 7. `bscript project check`
-8. `bscript project run` — verify output
-9. `bscript project run --with-repl` — run a REPL line
+8. `bscript project run` — verify output (MT-PROJ-RUN-08–10: built-in, functions/variables, local import)
+9. `bscript project run --with-repl` — run REPL lines (MT-PROJ-RUN-12–13)
 10. `bscript project run --with-notebook` — run a cell in the browser
+11. `bscript repl -b host` — verify built-in and REPL state (MT-REPL-06–08)
 
 ### Scenario B: ESP32 (hardware required)
 
@@ -492,10 +616,13 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 3. `bscript project create hello-esp32 -b esp32`
 4. `cd hello-esp32`
 5. `bscript project check`
-6. `bscript project run` — verify Bluetooth connection and execution
-7. `bscript project install <package-git-url>` *(e.g. GPIO library)*
-8. Update source to use the package; `bscript project run --with-notebook`
-9. `bscript project uninstall <package-name>`
+6. `bscript project run` — verify Bluetooth connection and execution (MT-PROJ-RUN-08–10)
+7. `bscript project run --with-repl` — verify REPL built-in and entry state (MT-PROJ-RUN-12–13)
+8. `bscript repl -b esp32` — verify built-in and REPL state (MT-REPL-06–08)
+9. `bscript project install <package-git-url>` *(e.g. GPIO library)*
+10. Update source to use the package; `bscript project run` (MT-PROJ-RUN-11)
+11. `bscript project run --with-notebook` — use package symbols in a cell (MT-PROJ-RUN-14)
+12. `bscript project uninstall <package-name>`
 
 ### Scenario C: Board lifecycle
 
@@ -534,8 +661,8 @@ Jest tests in `cli/tests/` mock filesystem, network, and device I/O. Use this ta
 | `project install` | Git clone mocked | Real Git URLs, tag checkout, board mismatch |
 | `project uninstall` | — | Full uninstall flow |
 | `project check` | — | Real compiler, Inline C |
-| `project run` | — | Process output, REPL, Notebook UI, BLE |
-| `repl` | — | Interactive session, device connection |
+| `project run` | — | Process output, built-in/local import/package usage, REPL state, Notebook UI, BLE |
+| `repl` | — | Built-in library, variable/function persistence, interactive session, device connection |
 | WebSocket / device protocol | Unit tests | Browser Notebook integration |
 | Global help / version | — | Quick smoke items |
 
