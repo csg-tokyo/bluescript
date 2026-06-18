@@ -54,7 +54,7 @@ export function exec(command: string, options?: {cwd?: string, silent?: boolean}
 }
 
 function getErrorMessage(command: string, code: number|null, stdout: string, stderr: string) {
-    let message = `Command faild: ${command}\n`;
+    let message = `Command failed: ${command}\n`;
     if (code)
         message += `> Exit code: ${code}\n`;
     message += `> Stdout: ${stdout === '' ? 'N/A' : stdout}\n`;

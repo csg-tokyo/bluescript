@@ -1,4 +1,4 @@
-import { Package, Project } from '../project';
+import { Project } from '../project';
 
 export type MemoryLayout = {
     iram:{address:number, size:number},
@@ -30,7 +30,7 @@ export class ShadowMemory {
     }
 }
 
-export type ExecutableBinary = {
+export type MemoryImage = {
     iram?: {address: number, data: Buffer},
     dram?: {address: number, data: Buffer},
     iflash?: {address: number, data: Buffer},
@@ -38,12 +38,16 @@ export type ExecutableBinary = {
     entryPoints: {isMain: boolean, address: number}[]
 }
 
-export interface BoardToolchain<P extends Package = Package> {
-    memory: ShadowMemory;
+export type SharedObject = {
+    soFile: string,
+    entryNames: { isMain: boolean, name: string}[],
+};
 
+export type CompileOutput = MemoryImage | SharedObject;
+
+export interface BoardToolchain<P extends Project, Output extends CompileOutput> {
 	get cProlog(): string;
     get builtinModulePath(): string;
-	compileC(project: Project<P>, pkg: P): Promise<void>;
-	link(project: Project<P>, entryPoints: string[]): Promise<string>;
-	extractBinary(elfPath: string, entryPoints: string[]): ExecutableBinary;
+    compileAndLink(project: P, entryPoints: string[]): Promise<Output>;
+    additionalCompileAndLink(project: P, entryPoints: string[]): Promise<Output>;
 }

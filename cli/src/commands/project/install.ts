@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { logger, showErrorMessages } from "../../core/logger";
+import { logger } from "../../core/logger";
 import { ProjectConfigHandler, PackageSource ,PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import * as fs from '../../core/fs';
@@ -46,12 +46,13 @@ class InstallationHandler extends CommandHandler {
             if (installedPackages.has(currentPkg.name)) continue;
 
             const pkgConfigHandler = await this.downloadPackage(currentPkg.url, currentPkg.version);
-            // pkgConfigHandler.checkVmVersion(this.projectConfigHandler.getConfig().vmVersion);
             pkgConfigHandler.checkBoardName(this.projectConfigHandler.getBoardName());
             installedPackages.add(currentPkg.name);
-            pkgConfigHandler.getDepenencies().forEach((pkgDep) => {
-                installedPackages.add(pkgDep.name);
-            });        
+            for (const pkgDep of pkgConfigHandler.getDepenencies()) {
+                if (!installedPackages.has(pkgDep.name)) {
+                    queue.push(pkgDep);
+                }
+            }
         }
     }
 
@@ -102,7 +103,7 @@ export async function handleInstallCommand(url: string|undefined, options: {tag?
         const errorMessage = 
             url ? `Failed to install ${url}.` : `Failed to install packages.`;
         logger.error(errorMessage);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

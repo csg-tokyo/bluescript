@@ -2,13 +2,14 @@ import { Command } from "commander";
 import * as path from 'path';
 import * as os from 'os';
 import inquirer from 'inquirer';
-import { logger, LogStep, showErrorMessages, SkipStep } from "../../core/logger";
+import { logger, runStep, skip } from "../../core/logger";
 import { BoardName } from "../../config/board-utils";
 import { exec } from '../../core/shell';
 import * as fs from '../../core/fs';
 import chalk from "chalk";
 import { CommandHandler } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";
+import { buildHostRuntime } from "../../platforms/runtime/host-board-runtime";
 
 
 abstract class SetupHandler extends CommandHandler {
@@ -22,7 +23,7 @@ abstract class SetupHandler extends CommandHandler {
 
     async setup(): Promise<void> {
         this.ensureBlueScriptDir();
-        await this.downloadBlueScriptRuntime();
+        await this.downloadBlueScriptRuntimeStep();
         await this.setupBoard();
         this.globalConfigHandler.save();
     }
@@ -33,19 +34,19 @@ abstract class SetupHandler extends CommandHandler {
         }
     }
 
-    private needToDownloadBlueScriptRuntime() {
-        return !this.globalConfigHandler.isRuntimeSetup();
+    private async downloadBlueScriptRuntimeStep() {
+        return runStep('Downloading BlueScript runtime...', async () => {
+            if (this.globalConfigHandler.isRuntimeSetup()) {
+                return skip('already downloaded.');
+            }
+            await this.downloadBlueScriptRuntime();
+        });
     }
 
-    @LogStep(`Downloading BlueScript runtime...`)
     private async downloadBlueScriptRuntime() {
-        if (!this.needToDownloadBlueScriptRuntime()) {
-           throw new SkipStep('already downloaded.', undefined);
-        }
         if (fs.exists(GLOBAL_SETTINGS.RUNTIME_DIR)) {
             fs.removeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
         }
-        
         await fs.downloadAndUnzip(GLOBAL_SETTINGS.RUNTIME_ZIP_URL, GLOBAL_SETTINGS.BLUESCRIPT_DIR);
         this.globalConfigHandler.setRuntimeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
     }
@@ -93,10 +94,10 @@ export class ESP32SetupHandler extends SetupHandler {
     }
 
     async setupBoard(): Promise<void> {
-        await this.installEspidfRequiredPackages();
-        await this.installPython3();
-        await this.cloneEspIdf();
-        await this.runEspIdfInstallScript();
+        await this.installRequiredPackagesStep();
+        await this.installPython3Step();
+        await this.cloneEspIdfStep();
+        await this.runEspIdfInstallScriptStep();
 
         this.globalConfigHandler.updateBoardConfig(this.boardName, {
             idfVersion: GLOBAL_SETTINGS.ESP_IDF_VERSION,
@@ -106,17 +107,44 @@ export class ESP32SetupHandler extends SetupHandler {
         });
     }
 
-    @LogStep('Installing required packages...')
-    private async installEspidfRequiredPackages() {
-        let packages: string[] = [];
-        if (!(await this.isPackageInstalled('cmake'))) { packages.push('cmake'); }
-        if (!(await this.isPackageInstalled('ninja'))) { packages.push('ninja'); }
-        if (!(await this.isPackageInstalled('dfu-util'))) { packages.push('dfu-util'); }
-        if (!(await this.isPackageInstalled('ccache'))) { packages.push('ccache'); }
-        if (packages.length === 0) {
-            throw new SkipStep('already installed.', undefined);
-        }
+    private async installRequiredPackagesStep() {
+        return runStep('Installing required packages...', async () => {
+            let packages: string[] = [];
+            if (!(await this.isPackageInstalled('cmake'))) { packages.push('cmake'); }
+            if (!(await this.isPackageInstalled('ninja'))) { packages.push('ninja'); }
+            if (!(await this.isPackageInstalled('dfu-util'))) { packages.push('dfu-util'); }
+            if (!(await this.isPackageInstalled('ccache'))) { packages.push('ccache'); }
+            if (packages.length === 0) {
+                return skip('already installed.');
+            }
+            await this.installEspidfRequiredPackages(packages);
+        });
+    }
 
+    private async installPython3Step() {
+        return runStep('Installing Python3...', async () => {
+            if ((await this.isPythonVersionGreaterThan3()) || (await this.isPackageInstalled('python3'))) {
+                return skip('already installed.');
+            }
+            await this.installPython3();
+        });
+    }
+
+    private cloneEspIdfStep() {
+        return runStep(
+            `Cloning ESP-IDF ${GLOBAL_SETTINGS.ESP_IDF_VERSION} from ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}... It may take a while.`,
+            () => this.cloneEspIdf(),
+        );
+    }
+
+    private runEspIdfInstallScriptStep() {
+        return runStep(
+            'Running ESP-IDF install script...', 
+            () => this.runEspIdfInstallScript()
+        );
+    }
+
+    private async installEspidfRequiredPackages(packages: string[]) {
         let installer: string;
         if (await this.isPackageInstalled('brew')) {
             installer = 'brew';
@@ -129,12 +157,7 @@ export class ESP32SetupHandler extends SetupHandler {
         await exec(`${installer} install ${packages.join(' ')}`);
     }
 
-    @LogStep('Installing Python3...')
     private async installPython3() {
-        if ((await this.isPythonVersionGreaterThan3()) || (await this.isPackageInstalled('python3'))) {
-            throw new SkipStep('already installed.', undefined);
-        }
-
         if (await this.isPackageInstalled('brew')) {
             await exec('brew install python3');
         } else if (await this.isPackageInstalled('port')) {
@@ -162,9 +185,6 @@ export class ESP32SetupHandler extends SetupHandler {
         }
     }
 
-    @LogStep(
-        `Cloning ESP-IDF ${GLOBAL_SETTINGS.ESP_IDF_VERSION} from ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}... It may take a while.`
-    )
     private async cloneEspIdf() {
         if (fs.exists(GLOBAL_SETTINGS.ESP_ROOT_DIR)) {
             fs.removeDir(GLOBAL_SETTINGS.ESP_ROOT_DIR);
@@ -174,11 +194,10 @@ export class ESP32SetupHandler extends SetupHandler {
         }
 
         fs.makeDir(GLOBAL_SETTINGS.ESP_ROOT_DIR);
-        await exec(`git clone --depth 1 -b ${GLOBAL_SETTINGS.ESP_IDF_VERSION} --recursive ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}`, 
+        await exec(`git clone --depth 1 -b ${GLOBAL_SETTINGS.ESP_IDF_VERSION} --recursive ${GLOBAL_SETTINGS.ESP_IDF_GIT_REPO}`,
             { cwd: GLOBAL_SETTINGS.ESP_ROOT_DIR });
     }
 
-    @LogStep('Running ESP-IDF install script...')
     private async runEspIdfInstallScript() {
         await exec(GLOBAL_SETTINGS.ESP_IDF_INSTALL_FILE);
     }
@@ -190,7 +209,68 @@ export class ESP32SetupHandler extends SetupHandler {
         } catch (error) {
             throw new Error('Failed to get xtensa gcc path.', {cause: error});
         }
-        
+
+    }
+}
+
+export class HostSetupHandler extends SetupHandler {
+    readonly boardName: BoardName = 'host';
+
+    constructor() {
+        super();
+        if (os.platform() !== 'darwin') {
+            throw new Error('Unsupported OS.');
+        }
+    }
+
+    needSetup(): boolean {
+        return !this.globalConfigHandler.isBoardSetup(this.boardName);
+    }
+
+    getBoardSetupPlan(): string[] {
+        return [
+            'Verify that cc and make are installed (Xcode Command Line Tools).',
+            'Build host runtime process.',
+        ];
+    }
+
+    async setupBoard(): Promise<void> {
+        await this.verifyBuildToolsStep();
+        const buildDir = await this.buildHostRuntimeStep();
+        this.globalConfigHandler.updateBoardConfig(this.boardName, { buildDir: buildDir! });
+    }
+
+    private async verifyBuildToolsStep() {
+        return runStep('Verifying that cc and make are installed...', async () => {
+            const missing: string[] = [];
+            if (!(await this.isCommandInstalled('cc'))) { missing.push('cc'); }
+            if (!(await this.isCommandInstalled('make'))) { missing.push('make'); }
+            if (missing.length === 0) {
+                return;
+            }
+            throw new Error(
+                `Missing required tools: ${missing.join(', ')}. Install Xcode Command Line Tools and try again.`,
+            );
+        });
+    }
+
+    private buildHostRuntimeStep() {
+        return runStep('Building host runtime...', async () => {
+            const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
+            if (!runtimeDir) {
+                throw new Error('An unexpected error occurred: cannot find runtime directory path.');
+            }
+            return await buildHostRuntime(runtimeDir);
+        });
+    }
+
+    private async isCommandInstalled(name: string) {
+        try {
+            await exec(`which ${name}`, { silent: true });
+            return true;
+        } catch {
+            return false;
+        }
     }
 }
 
@@ -198,9 +278,11 @@ export class ESP32SetupHandler extends SetupHandler {
 function getSetupHandler(board: string): SetupHandler {
         if (board === 'esp32') {
             return new ESP32SetupHandler();
-        } else {
-            throw new Error(`Unsupported board name: ${board}`);
         }
+        if (board === 'host') {
+            return new HostSetupHandler();
+        }
+        throw new Error(`Unsupported board name: ${board}`);
 }
 
 export async function handleSetupCommand(board: string) {
@@ -235,11 +317,15 @@ export async function handleSetupCommand(board: string) {
 
         logger.br();
         logger.success(`Success to set up ${board}`);
-        logger.info(`Next step: run ${chalk.yellow(`bscript board flash-runtime ${board}`)}`);
+        if (board === 'host') {
+            logger.info(`Next step: run ${chalk.yellow('bscript project create <project-name> -b host')}`);
+        } else {
+            logger.info(`Next step: run ${chalk.yellow(`bscript board flash-runtime ${board}`)}`);
+        }
 
     } catch (error) {
         logger.error(`Failed to set up ${board}`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }
@@ -249,9 +335,8 @@ export function registerSetupCommand(program: Command) {
     program
         .command('setup')
         .description('set up the environment for the specified board')
-        .argument('<board-name>', 'name of the board to setup (e.g., esp32)') 
+        .argument('<board-name>', 'name of the board to setup (e.g., esp32)')
         .action(handleSetupCommand);
 }
-
 
 

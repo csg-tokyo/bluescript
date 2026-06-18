@@ -6,6 +6,10 @@ Core features are kept minimal, while hardware drivers are provided as external 
 To install any of these libraries, use the command:
 `bscript project install <git-url>`
 
+:::note ESP32 only
+The libraries listed below are for **ESP32** hardware. They are not available on the host runtime.
+:::
+
 ## Available Libraries
 
 Currently, the following libraries are available for stable use.

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import chalk from 'chalk';
 import { BOARD_NAMES } from "../../config/board-utils";
-import { logger, showErrorMessages } from "../../core/logger";
+import { logger } from "../../core/logger";
 import { CommandHandler } from "../command";
 
 
@@ -26,7 +26,7 @@ export async function handleListCommand() {
 
     } catch (error) {
         logger.error(`Failed to list up available board names`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

@@ -1,9 +1,9 @@
 import { Command } from "commander";
-import { logger, runAsyncWithLogStep, showErrorMessages } from "../../core/logger";
+import { logger, runStep } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { CommandHandler } from "../command";
-import { CompilerAdapter, getCompilerAdapter } from "../../boards/compiler-adapters";
+import { CompilerAdapter, getCompilerAdapter } from "../../platforms";
 
 class CheckHandler extends CommandHandler {
     private compilerAdapter: CompilerAdapter;
@@ -16,8 +16,7 @@ class CheckHandler extends CommandHandler {
     }
 
     async check() {
-        const memoryLayout = this.compilerAdapter.getDummyMemoryLayout();
-        await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.buildProject(memoryLayout));
+        await runStep('Compiling...', () => this.compilerAdapter.buildForCheck());
     }
 }
 
@@ -31,7 +30,7 @@ export async function handleCheckCommand() {
         logger.success('Successfully checked BlueScript program.');
     } catch (error) {
         logger.error(`Failed to check BlueScript program.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

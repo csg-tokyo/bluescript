@@ -1,11 +1,10 @@
 #include <string.h>
 #include <stdio.h>
-
 #include "utils.h"
 #include "memory.h"
-
 #include "../include/protocol.h"
 #include "../include/main-thread.h"
+
 
 #define PROTOCOL_LEN 1
 
@@ -23,6 +22,7 @@ typedef enum {
 
     PROTOCOL_END
 } protocol_t;
+
 
 static void send_buffer(uint8_t* buffer, uint32_t len) {
 #ifdef BS_PROTOCL_USE_BLUETOOTH

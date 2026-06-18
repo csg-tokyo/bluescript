@@ -2,8 +2,8 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import chalk from "chalk";
 import * as path from 'path';
-import { logger, showErrorMessages } from "../../core/logger";
-import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
+import { logger } from "../../core/logger";
+import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/shell";
 import { BOARD_NAMES, BoardName, isValidBoard } from "../../config/board-utils";
 import * as fs from '../../core/fs';
@@ -100,7 +100,7 @@ export async function handleCreateProjectCommand(name: string, options: { board?
         logger.info(`Next step: go to the project directory and run ${chalk.yellow('bscript project run')}`);
     } catch (error) {
         logger.error(`Failed to create a new project.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

@@ -1,28 +1,21 @@
 jest.mock('../src/core/logger', () => {
-    const { SkipStep } = jest.requireActual('../src/core/logger');
-    const mockDecorator = jest.fn().mockImplementation(
-        (message: string) => {
-        return function (
-            target: any,
-            propertyKey: string,
-            descriptor: PropertyDescriptor
-        ) {
-            const originalMethod = descriptor.value;
-            descriptor.value = async function (...args: any[]) {
-            try {
-                return await originalMethod.apply(this, args);
-            } catch (error) {
-                if (error instanceof SkipStep) {return;}
-                throw error;
-            }
-            };
-            return descriptor;
-        };
-        }
-    )
+    const actual = jest.requireActual('../src/core/logger/step-runner');
+    const { StepSkip } = actual;
     return {
         ...jest.requireActual('../src/core/logger'),
-        LogStep: mockDecorator,
+        runStep: jest.fn(async (_message: string, action: () => Promise<unknown>) => {
+            const result = await action();
+            if (result instanceof StepSkip) {
+                return undefined;
+            }
+            return result;
+        }),
+        runPipeline: jest.fn(async (ctx: unknown, ...steps: { action: (ctx: unknown) => Promise<void> }[]) => {
+            for (const { action } of steps) {
+                await action(ctx);
+            }
+            return ctx;
+        }),
         logger: {
             error: jest.fn(),
             warn: jest.fn(),
@@ -30,8 +23,8 @@ jest.mock('../src/core/logger', () => {
             success: jest.fn(),
             log: jest.fn(),
             br: jest.fn(),
+            showError: jest.fn(),
         },
-        showErrorMessages: jest.fn(),
     }
 });
 

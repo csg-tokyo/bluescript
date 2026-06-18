@@ -1,0 +1,78 @@
+export type integer = number;
+export type float = number;
+export function code(strings: any, ... keys: any[]) {}
+
+code`
+#include <string.h>
+#include <stdio.h>
+#include <time.h>
+#include <stdarg.h>
+#include "../../core/include/c-runtime.h"
+#include "./comm.h"
+
+
+void send_message(const char* format, ...) {
+  static char message[MAX_LINE_SIZE];
+  va_list list;
+  va_start(list, format);
+  vsnprintf(message, MAX_LINE_SIZE, format, list);
+  bs_comm_send_log(message);
+}
+
+void print_message(value_t m) { 
+    static char buffer[256];
+    if (is_int_value(m))
+        send_message("%d\n", value_to_int(m));
+    else if (is_float_value(m))
+        send_message("%f\n", value_to_float(m));
+    else if (m == VALUE_NULL || m == VALUE_UNDEF)
+        send_message("undefined\n");
+    else if (m == VALUE_TRUE)
+        send_message("true\n");
+    else if (m == VALUE_FALSE)
+        send_message("false\n");
+    else if (gc_is_string_object(m))
+        send_message("'%s'\n", gc_string_to_cstr(m));
+    else {
+        class_object* cls = gc_get_class_of(m);
+        if (cls == NULL)
+        send_message("??\n");
+        else
+        send_message("<class %s>\n", cls->name);
+    }
+}
+`
+
+function print(message: any) {
+    code`print_message(${message});`
+}
+
+class Console {
+    log(message: any) {
+        code`print_message(${message});`
+    }
+
+    error(message: any) {
+        code`print_message(${message});`
+    }
+}
+
+
+class Time {
+    now(): float {
+        let t: integer = 0
+        code`
+        static struct timespec ts0 = { 0, -1 };
+        struct timespec ts;
+        if (ts0.tv_nsec < 0)
+            clock_gettime(CLOCK_REALTIME, &ts0);
+
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ${t} = (int32_t)((ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000);
+        `
+        return t
+    }
+}
+
+const console = new Console();
+const time = new Time();

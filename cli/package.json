@@ -11,7 +11,15 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["BlueScript", "TypeScript", "Microcontroller", "MCU", "IoT", "Robotics", "ESP32"],
+  "keywords": [
+    "BlueScript",
+    "TypeScript",
+    "Microcontroller",
+    "MCU",
+    "IoT",
+    "Robotics",
+    "ESP32"
+  ],
   "author": "Fumika Mochizuki <fumika.maejima@csg.ci.i.u-tokyo.ac.jp>",
   "description": "A CLI for BlueScript",
   "repository": {
@@ -23,10 +31,16 @@
   "scripts": {
     "build": "tsc --build",
     "start": "ts-node src/index.ts",
-    "test": "jest",
+    "test": "jest --selectProjects unit",
+    "test:integration": "jest --selectProjects integration",
+    "test:all": "jest",
 
-    "prepack": "shx cp ../README.md README.md",
-    "postpack": "shx rm README.md",
+    "prepack:backup": "shx mv README.md README.md.bak || shx echo 'No existing README to backup'",
+    "prepack:copy": "shx cp ../README.md README.md",
+    "prepack": "npm run prepack:backup && npm run prepack:copy",
+    "postpack:cleanup": "shx rm README.md",
+    "postpack:restore": "shx mv README.md.bak README.md || shx echo 'No backup to restore'",
+    "postpack": "npm run postpack:cleanup && npm run postpack:restore",
     "prepublishOnly": "npm run build"
   },
   "bin": {

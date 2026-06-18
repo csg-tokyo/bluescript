@@ -1,7 +1,10 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { getEsp32CompilerConfig, Esp32CompilerTestEnv } from './test-utils';
 import { CompilerSession } from '../../src/compiler/compiler-session';
-import { PackageForEsp32, Project } from '../../src/compiler/project';
+import { ProjectForEsp32 } from '../../src/compiler/project';
 import { Esp32Toolchain } from '../../src/compiler/board-toolchain/esp32-toolchain';
+import { MemoryImage } from '../../src/compiler/board-toolchain/board-toolchain';
 
 const memoryLayout = {
     iram: { address: 0x400a0144, size: 10000 },
@@ -12,19 +15,19 @@ const memoryLayout = {
 const compilerConfig = getEsp32CompilerConfig();
 
 const compile = async (testEnv: Esp32CompilerTestEnv) => {
-    const project = Project.load<PackageForEsp32>(
+    const project = ProjectForEsp32.load(
         testEnv.mainPackageName,
         testEnv.getPackageReader()
     );
     const toolchain = new Esp32Toolchain(compilerConfig, memoryLayout);
-    const session = new CompilerSession(toolchain);
+    const session = new CompilerSession<ProjectForEsp32, MemoryImage>(toolchain);
     await session.buildProject(project);
     return session;
 }
 
 
 describe('Test single compile: Compiler for ESP32', () => {
-    const testEnv = new Esp32CompilerTestEnv();
+    const testEnv = new Esp32CompilerTestEnv('compiler-test-esp32');
 
     beforeEach(() => {
         testEnv.init();
@@ -349,6 +352,22 @@ function foo() {
         expect(testEnv.resultElfExists()).toBe(true);
     });
 
+    it('should compile index.bs which includes custom header file.', async () => {
+        testEnv.createMainPackage();
+        testEnv.addSourceFile(testEnv.mainPackageName, './add.h', 'int add(int a, int b);');
+        testEnv.addSourceFile(testEnv.mainPackageName, './add.c', `#include "add.h"\nint add(int a, int b) {return a + b;}`);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
+code\`#include "add.h"\`
+function foo() {
+    code\`add(1, 2);\`
+}
+            `);
+
+        await compile(testEnv);
+        expect(testEnv.resultElfExists()).toBe(true);
+        expect(fs.existsSync(path.join(testEnv.root, 'dist/add.h'))).toBe(true);
+    });
+
     it('should throw C compilation error.', async () => {
         testEnv.createMainPackage();
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `
@@ -404,9 +423,9 @@ describe('Test additional compile: Compiler for ESP32', () => {
         testEnv.init();
     });
 
-    // afterAll(() => {
-    //     testEnv.delete();
-    // });
+    afterAll(() => {
+        testEnv.delete();
+    });
 
     it('should throw error if a file with a name consisting only numbers exists in main.', async () => {
         testEnv.createMainPackage();
@@ -452,6 +471,20 @@ describe('Test additional compile: Compiler for ESP32', () => {
 
         const session = await compile(testEnv);
         const binary = await session.compileFragment(`import {add} from './module1';\n add(1, 1);`);
+        expect(binary.entryPoints.length).toBe(2);
+    });
+
+    it('should compile an additional code fragment with a package import.', async () => {
+        testEnv.createSubPackage('package1');
+        testEnv.addSourceFile('package1',
+            './index.bs',
+            `export function add(a: integer, b:integer) {return a + b;}`
+        );
+        testEnv.createMainPackage(['package1']);
+        testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `1 + 1`);
+
+        const session = await compile(testEnv);
+        const binary = await session.compileFragment(`import {add} from 'package1';\n add(1, 1);`);
         expect(binary.entryPoints.length).toBe(2);
     });
 

@@ -1,25 +1,27 @@
-import { BleConnection, DeviceService } from "./ble";
-import { ExecutableBinary, MemoryLayout } from "@bscript/lang";
+import { BleConnection, DeviceService } from "../../services/ble";
+import { MemoryImage } from "@bscript/lang";
+import { ProgramOutput } from "../../core/logger/program-output";
+import { BoardRuntime } from "./board-runtime";
+import { CompileContext } from "../compiler/compiler-adapter";
 
-export interface DeviceLogger {
-    log(message: string): void;
-    error(message: string): void;
-}
 
-export class BleDeviceManager {
+export class Esp32BoardRuntime implements BoardRuntime<MemoryImage> {
     private ble: BleConnection | null = null;
     private deviceService: DeviceService | null = null;
+    private programOutput: ProgramOutput;
 
     constructor(
         private deviceName: string,
-        private deviceLogger: DeviceLogger,
-        private onUnexpectedDisconnect?: () => void
-    ) {}
+        programOutput: ProgramOutput,
+        private onUnexpectedDisconnect?: () => void,
+    ) {
+        this.programOutput = programOutput;
+    }
 
     async connect(): Promise<void> {
         this.ble = new BleConnection(this.deviceName);
         await this.ble.connect();
-        
+
         this.ble.on('disconnected', () => {
             if (this.ble?.status !== 'disconnecting') {
                 if (this.onUnexpectedDisconnect) {
@@ -33,8 +35,8 @@ export class BleDeviceManager {
         });
 
         this.deviceService = this.ble.getService('device');
-        this.deviceService.on('log', (message) => this.deviceLogger.log(message));
-        this.deviceService.on('error', (message) => this.deviceLogger.error(message));
+        this.deviceService.on('log', (message) => this.programOutput.write(message));
+        this.deviceService.on('error', (message) => this.programOutput.writeError(message));
     }
 
     async disconnect(): Promise<void> {
@@ -43,28 +45,29 @@ export class BleDeviceManager {
         }
     }
 
-    async initDevice(): Promise<MemoryLayout> {
+    async prepare(): Promise<CompileContext> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to initialize device. BLE is not connected.');
         }
-        return this.deviceService.init();
+        const memoryLayout = await this.deviceService.init();
+        return { memoryLayout };
     }
 
-    async load(bin: ExecutableBinary): Promise<number> {
+    async load(output: MemoryImage): Promise<number> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to load binary. BLE is not connected.');
         }
-        return this.deviceService.load(bin);
+        return this.deviceService.load(output);
     }
 
-    async execute(bin: ExecutableBinary): Promise<number> {
+    async execute(output: MemoryImage): Promise<number> {
         if (!this.ble || !this.deviceService) {
             throw new Error('Failed to execute binary. BLE is not connected.');
         }
-        return this.deviceService.execute(bin);
+        return this.deviceService.execute(output);
     }
 
-    updateLogger(logger: DeviceLogger) {
-        this.deviceLogger = logger;
+    setOutput(output: ProgramOutput): void {
+        this.programOutput = output;
     }
 }

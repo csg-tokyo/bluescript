@@ -53,6 +53,33 @@ export function setupDefaultGlobalEnv(isOldVersion = false) {
     fs.makeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
 }
 
+export function setupGlobalEnvWithHost(isOldVersion = false, buildDir?: string) {
+    const resolvedBuildDir = buildDir ?? path.join(GLOBAL_SETTINGS.RUNTIME_DIR, 'ports/host/build');
+    setupGlobalEnv({
+        version: isOldVersion ? DUMMY_OLD_VM_VERSION : DUMMY_VM_VERSION,
+        runtimeDir: GLOBAL_SETTINGS.RUNTIME_DIR,
+        boards: {
+            host: {
+                buildDir: resolvedBuildDir,
+            },
+        },
+    });
+    fs.makeDir(resolvedBuildDir);
+    fs.makeDir(GLOBAL_SETTINGS.RUNTIME_DIR);
+}
+
+export function setupGlobalEnvWithHostIntegration(runtimeDir: string, buildDir: string) {
+    setupGlobalEnv({
+        version: DUMMY_VM_VERSION,
+        runtimeDir,
+        boards: {
+            host: {
+                buildDir,
+            },
+        },
+    });
+}
+
 export function setupGlobalEnvWithEsp32(isOldVersion = false, isEspIdfOldVersion = false) {
     setupGlobalEnv({
         version:  isOldVersion ? DUMMY_OLD_VM_VERSION : DUMMY_VM_VERSION,

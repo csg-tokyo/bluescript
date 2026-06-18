@@ -4,9 +4,7 @@
 Currently, BlueScript strictly requires **macOS**. Windows and Linux support is under development.
 :::
 
-In this guide, we will install the BlueScript CLI and flash the runtime environment to your microcontroller.
-
-Currently, only **ESP32 development boards** are supported.
+In this guide, we will install the BlueScript CLI and flash the runtime environment to your ESP32 microcontroller.
 
 ## Prerequisites
 
@@ -51,7 +49,6 @@ Download the necessary environment files for the ESP32 platform:
 ```bash
 bscript board setup esp32
 ```
-*Note: Currently, only `esp32` is supported.*
 
 ### 2. Flash the Runtime
 
@@ -70,3 +67,7 @@ See also [Establish Serial Connection with ESP32](https://docs.espressif.com/pro
 :::
 
 If the flash is successful, your device is now ready to receive BlueScript code wirelessly!
+
+:::note No microcontroller?
+If you want to try BlueScript without hardware, see [Try Without Microcontroller](../guides/try-without-microcontroller.md).
+:::

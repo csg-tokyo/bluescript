@@ -29,7 +29,7 @@ This command generates a new directory containing:
 
 | Option | Alias | Description |
 | :--- | :--- | :--- |
-| `--board` | `-b` | Specify the target board (e.g., `esp32`). If omitted, an interactive selection list will appear. |
+| `--board` | `-b` | Specify the target board (`esp32` or `host`). If omitted, an interactive selection list will appear. |
 
 **Example:**
 ```bash
@@ -38,6 +38,9 @@ bscript project create my-app
 
 # Create a project specifically for ESP32
 bscript project create my-app --board esp32
+
+# Create a project for the host runtime (no hardware)
+bscript project create my-app --board host
 ```
 
 ---
@@ -105,16 +108,18 @@ This command runs the compiler locally on your host machine to verify for syntax
 
 ### `bscript project run`
 
-Compiles the current project and executes it on a target device via Bluetooth.
+Compiles the current project and executes it on the target board.
 
 ```bash
 bscript project run [options]
 ```
 
-When you run this command:
+When you run this command on an **ESP32** project:
 1.  The CLI scans for available BlueScript devices over Bluetooth.
 2.  The project is compiled into native code on your host machine.
 3.  The code is transferred and executed immediately.
+
+When you run this command on a **host** project, the CLI compiles the project and runs it in a local runtime process on your development machine. No Bluetooth connection is required.
 
 **Options:**
 
@@ -141,21 +146,23 @@ bscript board setup <board-name>
 ```
 
 **Arguments:**
-*   `<board-name>`: The target board identifier (e.g., `esp32`).
+*   `<board-name>`: The target board identifier (`esp32` or `host`).
+
+For `esp32`, this downloads ESP-IDF and related tools. For `host`, this builds the local runtime process and requires a C compiler toolchain (`cc` and `make`). See [Try Without Microcontroller](../tutorial/guides/try-without-microcontroller.md).
 
 ---
 
 ### `bscript board flash-runtime`
 
 Flashes the BlueScript Runtime firmware onto the microcontroller.
-**Note:** This command requires a physical USB connection to the device.
+**Note:** This command requires a physical USB connection to the device. It is **not supported** for `host`.
 
 ```bash
 bscript board flash-runtime <board-name> [options]
 ```
 
 **Arguments:**
-*   `<board-name>`: The target board identifier.
+*   `<board-name>`: The target board identifier (e.g., `esp32`).
 
 **Options:**
 
@@ -172,7 +179,7 @@ bscript board flash-runtime esp32 --port /dev/ttyUSB0
 
 ### `bscript board list`
 
-Lists all board architectures currently supported by the installed CLI version.
+Lists all board architectures currently supported by the installed CLI version (`esp32` and `host`).
 
 ```bash
 bscript board list
@@ -191,7 +198,7 @@ bscript board remove <board-name> [options]
 By default, this command asks for confirmation before deleting files.
 
 **Arguments:**
-*   `<board-name>`: The target board identifier (e.g., `esp32`).
+*   `<board-name>`: The target board identifier (`esp32` or `host`).
 
 **Options:**
 
@@ -245,4 +252,4 @@ This mode is for language syntax experiments only. Hardware libraries installed 
 
 | Option | Alias | Description |
 | :--- | :--- | :--- |
-| `--board` | `-b` | Specify the target board (e.g., `esp32`). |
+| `--board` | `-b` | Specify the target board (`esp32` or `host`). |

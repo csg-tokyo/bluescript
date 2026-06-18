@@ -1,6 +1,7 @@
 import noble, { Characteristic, Peripheral } from '@abandonware/noble';
 import { Buffer } from "node:buffer";
-import { ExecutableBinary, MemoryLayout } from "@bscript/lang";
+import { MemoryImage, MemoryLayout } from "@bscript/lang";
+import { logger } from "../core/logger";
 import { Connection, ConnectionMessage, Service } from "./common";
 import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protocol';
 
@@ -21,9 +22,12 @@ export type DeviceServiceEvents = {
 export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
     constructor(connection: BleConnection) {
         super('device', connection);
+        this.connection.on('receiveData', data => {
+            this.handleReceivedData(data);
+        })
     }
 
-    public async load(bin: ExecutableBinary): Promise<number>  {
+    public async load(bin: MemoryImage): Promise<number>  {
         const builder = new ProtocolPacketBuilder(MTU);
         if (bin.iram) builder.load(bin.iram.address, bin.iram.data);
         if (bin.dram) builder.load(bin.dram.address, bin.dram.data);
@@ -34,7 +38,7 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         return performance.now() - startLoading;
     }
 
-    public async execute(bin: ExecutableBinary): Promise<number> {
+    public async execute(bin: MemoryImage): Promise<number> {
         const builder = new ProtocolPacketBuilder(MTU);
         const isMain = 1;
         for (const entryPoint of bin.entryPoints) {
@@ -61,6 +65,26 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
                 resolve(layout);
             });
         });
+    }
+
+    private handleReceivedData(data: Buffer) {
+        const parseResult = new ProtocolParser().parse(data);
+        switch(parseResult.protocol) {
+            case Protocol.Log:
+                this.handleMessage('log', [parseResult.log]);
+                break;
+            case Protocol.Error:
+                this.handleMessage('error', [parseResult.error]);
+                break;
+            case Protocol.Profile:
+                this.handleMessage('profile', [parseResult.fid, parseResult.paramtypes]);
+                break;
+            case Protocol.Exectime:
+                this.handleMessage('exectime', [parseResult.id, parseResult.time]);
+                break;
+            case Protocol.Memory:
+                this.handleMessage('memory', [parseResult.layout]);
+        }
     }
 }
 
@@ -133,7 +157,7 @@ export class BleConnection extends Connection<Buffer> {
         this.characteristic = characteristics[0];
         this.characteristic.on('data', (data, isNotification) => {
             if (isNotification) {
-                this.handleReceivedData(data);
+                this.emit('receiveData', data);
             }
         })
         await this.characteristic.subscribeAsync();
@@ -154,28 +178,6 @@ export class BleConnection extends Connection<Buffer> {
         });
     }
 
-    private handleReceivedData(data: Buffer) {
-        const service = this.services.get('device');
-        if (!service) { return }
-        const parseResult = new ProtocolParser().parse(data);
-        switch(parseResult.protocol) {
-            case Protocol.Log:
-                service.handleMessage('log', [parseResult.log]);
-                break;
-            case Protocol.Error:
-                service.handleMessage('error', [parseResult.error]);
-                break;
-            case Protocol.Profile:
-                service.handleMessage('profile', [parseResult.fid, parseResult.paramtypes]);
-                break;
-            case Protocol.Exectime:
-                service.handleMessage('exectime', [parseResult.id, parseResult.time]);
-                break;
-            case Protocol.Memory:
-                service.handleMessage('memory', [parseResult.layout]);
-        }
-    }
-
     public async disconnect(): Promise<void> {
         if (this.characteristic) {
             await this.characteristic.unsubscribeAsync();
@@ -194,7 +196,7 @@ export class BleConnection extends Connection<Buffer> {
                 await this.characteristic.writeAsync(buff, false);
             }
         } else {
-            console.error("BLE is not connected.");
+            logger.error("BLE is not connected.");
         }
     }
     

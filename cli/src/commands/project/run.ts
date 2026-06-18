@@ -4,56 +4,64 @@ import * as readline from 'readline';
 import http from 'http';
 import sirv from 'sirv';
 import path from 'path';
-import { logger, runAsyncWithLogStep, ProgramLogger, showErrorMessages, replLogger } from "../../core/logger";
+import { logger, ProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput, runStep } from "../../core/logger";
 import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import { CommandHandler } from "../command";
-import { CompilerAdapter, getCompilerAdapter } from "../../boards/compiler-adapters";
-import { BleDeviceManager } from "../../services/device-manager";
-import { CompileError, ExecutableBinary } from "@bscript/lang";
+import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
+import { CompileError, CompileOutput } from "@bscript/lang";
 import { WebSocketConnection } from "../../services/websocket";
+import { SerialTaskQueue } from "../../core/serial-task-queue";
 
 class RunHandler extends CommandHandler {
-    protected compilerAdapter: CompilerAdapter;
-    protected deviceManager: BleDeviceManager;
-    protected programLogger: ProgramLogger;
+    protected compiler: CompilerAdapter;
+    protected runtime: BoardRuntime;
+    protected programOutput: ProgramOutput;
 
     private globalKeypressHandler?: (str: string, key: any) => void;
-    private ctrlDKeypressHandler?: (str: string, key: any) => void; 
+    private ctrlDKeypressHandler?: (str: string, key: any) => void;
 
     constructor(protected projectConfigHandler: ProjectConfigHandler) {
         super();
 
         const boardName = this.projectConfigHandler.getBoardName();
-        this.compilerAdapter = getCompilerAdapter(boardName, this.globalConfigHandler, this.projectConfigHandler);
-
         const deviceName = this.projectConfigHandler.getConfig().deviceName ?? DEFAULT_DEVICE_NAME;
-        this.programLogger = new ProgramLogger();
-        this.deviceManager = new BleDeviceManager(deviceName, this.programLogger, () => {
-            this.programLogger.end();
-            logger.error('BLE disconnected.');
-            process.exit(1);
-        });
+        this.programOutput = createBoxedOutput();
+
+        const platform = createPlatformSession(
+            boardName,
+            this.globalConfigHandler,
+            this.projectConfigHandler,
+            deviceName,
+            this.programOutput,
+            () => {
+                this.programOutput.onRunEnd?.();
+                logger.error("Disconnected.");
+                process.exit(1);
+            },
+        );
+        this.compiler = platform.compiler;
+        this.runtime = platform.runtime;
     }
 
     async run(): Promise<boolean> {
-        await runAsyncWithLogStep('Connecting via BLE...', () => this.deviceManager.connect());
-        const memoryLayout = await runAsyncWithLogStep('Initializing Device...', () => this.deviceManager.initDevice());
-        const bin = await runAsyncWithLogStep('Compiling...', () => this.compilerAdapter.buildProject(memoryLayout));
-        await runAsyncWithLogStep('Loading...', () => this.deviceManager.load(bin));
-        return this.executeBinary(bin);
+        await runStep('Connecting...', () => this.runtime.connect());
+        const compileContext = await runStep('Initializing', () => this.runtime.prepare());
+        const compileOutput = await runStep('Compiling...', () => this.compiler.buildProject(compileContext));
+        await runStep('Loading...', () => this.runtime.load(compileOutput!));
+        return this.executeProgram(compileOutput!);
     }
 
     async close() {
-        await runAsyncWithLogStep('Disconnecting...', () => this.deviceManager.disconnect());
-        process.exit(0);
+        await runStep('Disconnecting...', async () => this.runtime.disconnect());
     }
 
-    private setupStdin() {
-        readline.emitKeypressEvents(process.stdin);
-        if (process.stdin.isTTY) {
-            process.stdin.setRawMode(true);
+    protected setupStdin() {
+        if (!process.stdin.isTTY) {
+            return;
         }
+        readline.emitKeypressEvents(process.stdin);
+        process.stdin.setRawMode(true);
         this.globalKeypressHandler = (str, key) => {
             if (key && key.ctrl && key.name === 'c') {
                 process.exit(0);
@@ -64,6 +72,9 @@ class RunHandler extends CommandHandler {
     }
 
     private resetStdin() {
+        if (!process.stdin.isTTY) {
+            return;
+        }
         if (this.globalKeypressHandler) {
             process.stdin.off('keypress', this.globalKeypressHandler);
             this.globalKeypressHandler = undefined;
@@ -72,36 +83,43 @@ class RunHandler extends CommandHandler {
             process.stdin.off('keypress', this.ctrlDKeypressHandler);
             this.ctrlDKeypressHandler = undefined;
         }
+        process.stdin.setRawMode(false);
     }
 
-    private async executeBinary(bin: ExecutableBinary) {
-        this.setupStdin();
+    private async executeProgram(output: CompileOutput) {
         logger.info("Start executing program. Type 'Ctrl-D' to exit.");
-        this.programLogger.start();
+        this.programOutput.onRunStart?.();
         try {
+            if (!process.stdin.isTTY) {
+                await this.runtime.execute(output);
+                return false;
+            }
+
+            this.setupStdin();
             const interrupted = await new Promise<boolean>((resolve, reject) => {
                 this.ctrlDKeypressHandler = (str, key) => {
                     if (key && key.ctrl && key.name === 'd') {
-                        resolve(true); 
+                        resolve(true);
                         if (str) process.stdout.write(str);
                     }
                 };
                 process.stdin.on('keypress', this.ctrlDKeypressHandler);
 
-                this.deviceManager.execute(bin)
+                this.runtime.execute(output)
                     .then(() => resolve(false))
                     .catch(reject);
             });
             return interrupted;
         } finally {
-            this.programLogger.end();
-            this.resetStdin(); 
+            this.programOutput.onRunEnd?.();
+            this.resetStdin();
         }
     }
 }
 
 class RunWithReplHandler extends RunHandler {
     private rl: readline.Interface;
+    private readonly taskQueue = new SerialTaskQueue();
 
     constructor(projectConfigHandler: ProjectConfigHandler) {
         super(projectConfigHandler);
@@ -118,7 +136,7 @@ class RunWithReplHandler extends RunHandler {
             return interrupted;
         }
 
-        this.deviceManager.updateLogger(replLogger);
+        this.runtime.setOutput(createConsoleOutput());
         await this.runRepl();
         return false;
     }
@@ -127,20 +145,25 @@ class RunWithReplHandler extends RunHandler {
         logger.info("Start REPL. Type 'Ctrl-D' to exit.");
         this.rl.prompt();
         return new Promise<void>((resolve, reject) => {
-            this.rl.on('line', async (line) => {
-                try {
-                    const bin = await this.compilerAdapter.compileFragment(line);
-                    await this.deviceManager.load(bin);
-                    await this.deviceManager.execute(bin);
-                    this.rl.prompt();
-                } catch (error) {
-                    if (error instanceof CompileError) {
-                        replLogger.error("** compile error: " + error.toString());
+            this.rl.on('line', (line) => {
+                this.rl.pause();
+                this.taskQueue.enqueue(async () => {
+                    try {
+                        const output = await this.compiler.compileFragment(line);
+                        await this.runtime.load(output);
+                        await this.runtime.execute(output);
+                    } catch (error) {
+                        if (error instanceof CompileError) {
+                            logger.error("** compile error: " + error.toString());
+                        } else {
+                            reject(error);
+                            return;
+                        }
+                    } finally {
+                        this.rl.resume();
                         this.rl.prompt();
-                    } else {
-                        reject(error);
                     }
-                }
+                });
             });
             this.rl.on('close', () => {
                 resolve();
@@ -152,6 +175,7 @@ class RunWithReplHandler extends RunHandler {
 class RunWithNotebookHandler extends RunHandler {
     private ws: WebSocketConnection | null = null;
     private server: http.Server | null = null;
+    private readonly executeQueue = new SerialTaskQueue();
 
     constructor(projectConfigHandler: ProjectConfigHandler) {
         super(projectConfigHandler);
@@ -166,6 +190,7 @@ class RunWithNotebookHandler extends RunHandler {
         await this.startUiServer();
         logger.info("Type 'Ctrl-D' to exit.");
 
+        this.setupStdin();
         return new Promise<boolean>((resolve) => {
             process.stdin.on('keypress', (str, key) => {
                 if (key && key.ctrl && key.name === 'd') {
@@ -176,9 +201,9 @@ class RunWithNotebookHandler extends RunHandler {
     }
 
     async close(): Promise<void> {
-        await super.close();
         this.server?.close();
         this.ws?.close();
+        await super.close();
     }
 
     private startUiServer() {
@@ -199,15 +224,15 @@ class RunWithNotebookHandler extends RunHandler {
                 resolve();
             });
         });
-        
+
     }
 
     private openBrowser(port: number|string) {
         const url = `http://localhost:${port}`;
-        const startCommand = 
-            process.platform === 'win32' ? 'start' : 
+        const startCommand =
+            process.platform === 'win32' ? 'start' :
             process.platform === 'darwin' ? 'open' : 'xdg-open';
-            
+
         exec(`${startCommand} ${url}`, {silent: true});
     }
 
@@ -216,53 +241,50 @@ class RunWithNotebookHandler extends RunHandler {
         this.ws = new WebSocketConnection(port);
         const service = this.ws.getService('repl');
         this.ws.open();
-        this.deviceManager.updateLogger({
-            log: (message: string) => { service.log(message); },
-            error: (message: string) => { service.error(message); }
-        });
-        service.on('execute', async (code: string) => {
-            try {
-                let {bin, time} = await this.compile(code);
-                service.finishCompilation(time);
-                time = await this.load(bin);
-                service.finishLoading(time);
-                time = await this.execute(bin);
-                service.finishExecution(time);
-            } catch (error) {
-                if (error instanceof CompileError) {
-                    service.finishCompilation(-1, error.toString());
-                } else {
-                    console.log(error)
-                    throw error;
+        this.runtime.setOutput(createWebSocketOutput(service));
+        service.on('execute', (code: string) => {
+            this.executeQueue.enqueue(async () => {
+                try {
+                    let {output, time} = await this.compile(code);
+                    service.finishCompilation(time);
+                    time = await this.load(output);
+                    service.finishLoading(time);
+                    time = await this.execute(output);
+                    service.finishExecution(time);
+                } catch (error) {
+                    if (error instanceof CompileError) {
+                        service.finishCompilation(-1, error.toString());
+                    } else {
+                        logger.showError(error);
+                        throw error;
+                    }
                 }
-            }
+            });
         });
         logger.info(`WebSocket server is running at ws://localhost:${port}`);
     }
 
     private async compile(code: string) {
         const start = performance.now();
-        const bin = await this.compilerAdapter.compileFragment(code);
-        return {bin, time: performance.now() - start};
+        const output = await this.compiler.compileFragment(code);
+        return {output, time: performance.now() - start};
     }
 
-    private async load(bin: ExecutableBinary) {
+    private async load(output: CompileOutput) {
         const start = performance.now();
-        await this.deviceManager.load(bin);
+        await this.runtime.load(output);
         return performance.now() - start;
     }
 
-    private async execute(bin: ExecutableBinary) {
-        const start = performance.now();
-        await this.deviceManager.execute(bin);
-        return performance.now() - start;
+    private async execute(output: CompileOutput) {
+        return await this.runtime.execute(output);
     }
 }
 
 export async function handleRunCommand(options: {withRepl: boolean, withNotebook: boolean}) {
+    let handler: RunHandler | undefined;
     try {
         const projectConfigHandler = ProjectConfigHandler.load(cwd());
-        let handler: RunHandler;
         if (options.withRepl) {
             handler = new RunWithReplHandler(projectConfigHandler);
         } else if (options.withNotebook) {
@@ -273,9 +295,18 @@ export async function handleRunCommand(options: {withRepl: boolean, withNotebook
 
         await handler.run();
         await handler.close();
+        process.exit(0);
+
     } catch (error) {
+        if (handler) {
+            try {
+                await handler.close();
+            } catch {
+                // Ignore cleanup errors after a run failure.
+            }
+        }
         logger.error(`Failed to run BlueScript program.`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

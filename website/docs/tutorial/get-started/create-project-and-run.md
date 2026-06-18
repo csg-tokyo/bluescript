@@ -59,4 +59,8 @@ We are planning to introduce a **`bscript project deploy`** command. This comman
 Want to experiment without editing files on every try? After you have a project, run **`bscript project run --with-notebook`** for a browser-based Notebook, or see [REPL & Notebook](../guides/repl.md) for all interactive modes.
 :::
 
+:::note No microcontroller?
+To run BlueScript on the host runtime without an ESP32, see [Try Without Microcontroller](../guides/try-without-microcontroller.md).
+:::
+
 ---

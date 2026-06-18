@@ -82,6 +82,10 @@ console.log(current);
 
 Synchronously pauses the program execution for a specified duration.
 
+:::note ESP32 only
+`time.delay` is available on **ESP32** only. It is not available on the host runtime.
+:::
+
 **Parameters**
 - `ms` (integer): The number of milliseconds to wait.
 

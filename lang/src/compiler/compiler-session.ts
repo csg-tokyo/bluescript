@@ -1,41 +1,34 @@
-import { BoardToolchain, ExecutableBinary } from "./board-toolchain/board-toolchain";
-import { Package, Project } from "./project";
+import { BoardToolchain, CompileOutput } from "./board-toolchain/board-toolchain";
+import { Project } from "./project";
 import { TranspilerSession } from "./transpiler-session";
 
-export class CompilerSession<P extends Package = Package> {
+export class CompilerSession<P extends Project, Output extends CompileOutput> {
     private transpiler: TranspilerSession;
-    private toolchain: BoardToolchain;
-    private currentProject: Project<P> | null = null;
+    private toolchain: BoardToolchain<P, Output>;
+    private project: P | null = null;
 
-    constructor(toolchain: BoardToolchain<P>) {
+    constructor(toolchain: BoardToolchain<P, Output>) {
         this.transpiler = new TranspilerSession(toolchain.builtinModulePath, toolchain.cProlog);
         this.toolchain = toolchain;
     }
 
-    public async buildProject(project: Project<P>): Promise<ExecutableBinary> {
-        this.currentProject = project;
+    public async buildProject(project: P): Promise<Output> {
+        this.project = project;
 
         project.check();
         project.clean();
 
         const entryPoints = this.transpiler.transpile(project);
-        const allPackages = [project.mainPackage, ...project.dependencies.filter(dep => dep.used)];
-        for (const pkg of allPackages) {
-            await this.toolchain.compileC(project, pkg);
-        }
-        const elfPath = await this.toolchain.link(project, entryPoints);
-        return this.toolchain.extractBinary(elfPath, entryPoints);
+        return this.toolchain.compileAndLink(project, entryPoints);
     }
 
-    public async compileFragment(src: string): Promise<ExecutableBinary> {
-        if (!this.currentProject) {
+    public async compileFragment(src: string): Promise<Output> {
+        if (!this.project) {
             throw new Error("Cannot compile fragment before building the workspace.");
         }
 
-        const entryPoints = this.transpiler.transpileFragment(this.currentProject, src);
-        await this.toolchain.compileC(this.currentProject, this.currentProject.mainPackage);
-        const elfPath = await this.toolchain.link(this.currentProject, entryPoints);
-        return this.toolchain.extractBinary(elfPath, entryPoints);
+        const entryPoints = this.transpiler.transpileFragment(this.project, src);
+        return this.toolchain.additionalCompileAndLink(this.project, entryPoints);
     }
 }
 

@@ -1,18 +1,38 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
 import { BoardName } from "../../config/board-utils";
-import { logger, LogStep, showErrorMessages } from "../../core/logger";
+import { logger, runStep } from "../../core/logger";
 import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";
 
 
 abstract class RemoveHandler extends CommandHandler {
     async remove() {
-        await this.removeBoard();
+        await runStep('Removing...', () => this.removeBoard());
         this.globalConfigHandler.save();
     }
     abstract isSetup(): boolean;
     abstract removeBoard(): Promise<void>;
+}
+
+class HostRemoveHandler extends RemoveHandler {
+    readonly boardName: BoardName = 'host';
+
+    isSetup(): boolean {
+        return this.globalConfigHandler.isBoardSetup(this.boardName);
+    }
+
+    async removeBoard() {
+        const boardConfig = this.globalConfigHandler.getBoardConfig('host');
+        if (boardConfig === undefined) {
+            throw new Error(`Cannot find config for ${this.boardName}.`);
+        }
+        if (fs.exists(boardConfig.buildDir)) {
+            fs.removeDir(boardConfig.buildDir);
+        }
+
+        this.globalConfigHandler.removeBoardConfig(this.boardName);
+    }
 }
 
 class ESP32RemoveHandler extends RemoveHandler {
@@ -22,9 +42,8 @@ class ESP32RemoveHandler extends RemoveHandler {
         return this.globalConfigHandler.isBoardSetup(this.boardName);
     }
     
-    @LogStep(`Removing...`)
     async removeBoard() {
-        const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
+        const boardConfig = this.globalConfigHandler.getBoardConfig('esp32');
         if (boardConfig === undefined) {
             throw new Error(`Cannot find config for ${this.boardName}.`);
         }
@@ -39,9 +58,11 @@ class ESP32RemoveHandler extends RemoveHandler {
 function getRemoveHandler(board: string) {
     if (board === 'esp32') {
         return new ESP32RemoveHandler();
-    } else {
-        throw new Error(`Unsupported board name: ${board}`);
     }
+    if (board === 'host') {
+        return new HostRemoveHandler();
+    }
+    throw new Error(`Unsupported board name: ${board}`);
 }
 
 export async function handleRemoveCommand(board: string, options: { force?: boolean }) {
@@ -81,7 +102,7 @@ export async function handleRemoveCommand(board: string, options: { force?: bool
 
     } catch (error) {
         logger.error(`Failed to remove ${board}`);
-        showErrorMessages(error);
+        logger.showError(error);
         process.exit(1);
     }
 }

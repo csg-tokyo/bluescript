@@ -1,13 +1,11 @@
 #ifndef __BS_PROTOCOL__
 #define __BS_PROTOCOL__
-
 #include <stdint.h>
 #include "memory.h"
 #include "ble.h"
-
 #define CORE_TEXT_SECTION __attribute__((section(".core_text")))
-
 #define BS_PROTOCL_USE_BLUETOOTH
+
 
 void CORE_TEXT_SECTION bs_protocol_init(void);
 
