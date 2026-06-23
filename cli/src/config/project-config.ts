@@ -23,7 +23,6 @@ const baseConfigSchema = z.object({
     vmVersion: z.string().default(GLOBAL_SETTINGS.VM_VERSION),
     srcDir: z.string().optional(),
     entryFile: z.string().optional(),
-    deviceName: z.string().default(DEFAULT_DEVICE_NAME).optional(),
     dependencies: z.record(z.string(), z.string()).default({}),
     runtimeDir: z.string().optional(), // for dev
     globalPackagesDir: z.string().optional(), // for dev
@@ -31,6 +30,7 @@ const baseConfigSchema = z.object({
 
 const esp32ProjectSchema = baseConfigSchema.extend({
     boardName: z.literal('esp32'),
+    deviceName: z.string().default(DEFAULT_DEVICE_NAME),
     espIdfComponents: z.array(z.string()).default([]),
 });
 

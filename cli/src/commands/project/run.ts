@@ -5,7 +5,7 @@ import http from 'http';
 import sirv from 'sirv';
 import path from 'path';
 import { logger, ProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput, runStep } from "../../core/logger";
-import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
+import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import { CommandHandler } from "../command";
 import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
@@ -25,14 +25,12 @@ class RunHandler extends CommandHandler {
         super();
 
         const boardName = this.projectConfigHandler.getBoardName();
-        const deviceName = this.projectConfigHandler.getConfig().deviceName ?? DEFAULT_DEVICE_NAME;
         this.programOutput = createBoxedOutput();
 
         const platform = createPlatformSession(
             boardName,
             this.globalConfigHandler,
             this.projectConfigHandler,
-            deviceName,
             this.programOutput,
             () => {
                 this.programOutput.onRunEnd?.();

@@ -96,6 +96,9 @@ export class BleConnection extends Connection<Buffer> {
     private peripheral: Peripheral|null = null;
     private services: Map<string, Service<any, Buffer>> = new Map();
 
+    private foundPeriferals: Peripheral[] = [];
+    private discoverHandler: ((p: Peripheral) => void) | null = null;
+
     constructor(deviceName: string) {
         super();
         this.deviceName = deviceName;
@@ -107,11 +110,14 @@ export class BleConnection extends Connection<Buffer> {
             const connectPromise = this.doConnect();
             const timeoutPromise = new Promise<never>((_, reject) => {
                 timeoutHandle = setTimeout(
-                    () => reject(new Error('BLE connection timed out.')),
+                    () => reject(this.buildConnectionTimeoutError()),
                     timeoutMs
                 );
             });
             await Promise.race([connectPromise, timeoutPromise]);
+        } catch (error) {
+            await this.abortConnect();
+            throw error;
         } finally {
             if (timeoutHandle) {
                 clearTimeout(timeoutHandle);
@@ -119,19 +125,60 @@ export class BleConnection extends Connection<Buffer> {
         }
     }
 
+    private buildConnectionTimeoutError(): Error {
+        const scannedNames = [...new Set(
+            this.foundPeriferals
+                .map(p => p.advertisement.localName)
+                .filter((name): name is string => name != null && name !== '')
+        )];
+        const scanResult = scannedNames.length > 0
+            ? scannedNames.map(name => `  - "${name}"`).join('\n')
+            : '  (none)';
+
+        return new Error(
+            `BLE connection timed out while looking for device "${this.deviceName}".\n\n` +
+            `Nearby devices found during scan:\n${scanResult}\n\n` +
+            `Please check the following:\n` +
+            `  1. Is the device powered on?\n` +
+            `  2. Does the device name match between flash and connect?\n` +
+            `     Connect is looking for: "${this.deviceName}"\n` +
+            `     Flash sets the name via \`bscript board flash-runtime <board> -d <name>\`.\n` +
+            `     Connect uses \`deviceName\` in bsconfig.json (or \`-d\` for REPL).\n` +
+            `     If the names differ, re-flash or update the connect name to match.`
+        );
+    }
+
+    private async abortConnect(): Promise<void> {
+        if (this.discoverHandler) {
+            noble.removeListener('discover', this.discoverHandler);
+            this.discoverHandler = null;
+        }
+        try {
+            await noble.stopScanningAsync();
+        } catch {
+            // ignore if scanning is not active
+        }
+        if (this.status === 'connecting') {
+            this.status = 'disconnected';
+        }
+    }
+
     private async doConnect(): Promise<void> {
         this.status = 'connecting';
         await this.waitForPoweredOn();
 
+        this.foundPeriferals = [];
         await noble.startScanningAsync([SERVICE_UUID], false);
         const peripheral = await new Promise<Peripheral>((resolve) => {
-            const discoverHandler = (p: Peripheral) => {
+            this.discoverHandler = (p: Peripheral) => {
+                this.foundPeriferals.push(p);
                 if (p.advertisement.localName === this.deviceName) {
-                    noble.removeListener('discover', discoverHandler);
+                    noble.removeListener('discover', this.discoverHandler!);
+                    this.discoverHandler = null;
                     resolve(p);
                 }
             };
-            noble.on('discover', discoverHandler);
+            noble.on('discover', this.discoverHandler);
         });
         await noble.stopScanningAsync();
         this.peripheral = peripheral;

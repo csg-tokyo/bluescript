@@ -30,11 +30,12 @@ export function getCompilerAdapter(
 export function getBoardRuntime(
     boardName: BoardName,
     globalConfigHandler: GlobalConfigHandler,
-    deviceName: string,
+    projectConfigHandler: ProjectConfigHandler,
     programOutput: ProgramOutput,
     onUnexpectedDisconnect?: () => void,
 ): BoardRuntime {
     if (boardName === 'esp32') {
+        const deviceName = projectConfigHandler.asBoard(boardName).deviceName;
         return new Esp32BoardRuntime(deviceName, programOutput, onUnexpectedDisconnect);
     }
     if (boardName === 'host') {
@@ -51,12 +52,11 @@ export function createPlatformSession(
     boardName: BoardName,
     globalConfigHandler: GlobalConfigHandler,
     projectConfigHandler: ProjectConfigHandler,
-    deviceName: string,
     programOutput: ProgramOutput,
     onUnexpectedDisconnect?: () => void,
 ): { compiler: CompilerAdapter; runtime: BoardRuntime } {
     return {
         compiler: getCompilerAdapter(boardName, globalConfigHandler, projectConfigHandler),
-        runtime: getBoardRuntime(boardName, globalConfigHandler, deviceName, programOutput, onUnexpectedDisconnect),
+        runtime: getBoardRuntime(boardName, globalConfigHandler, projectConfigHandler, programOutput, onUnexpectedDisconnect),
     };
 }

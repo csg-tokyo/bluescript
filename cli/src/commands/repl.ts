@@ -36,6 +36,7 @@ class ReplHandler extends CommandHandler {
 
     constructor(
         private boardName: string,
+        private deviceName?: string,
         private createReadline: ReplReadlineFactory = defaultReplReadlineFactory,
     ) {
         super();
@@ -43,12 +44,12 @@ class ReplHandler extends CommandHandler {
         const board = this.boardName as BoardName;
         this.projectConfigHandler =
             ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, board, ReplHandler.tempProjectDir);
+        this.projectConfigHandler.update({ deviceName: this.deviceName ?? DEFAULT_DEVICE_NAME });
 
         this.platform = createPlatformSession(
             board,
             this.globalConfigHandler,
             this.projectConfigHandler,
-            DEFAULT_DEVICE_NAME,
             createConsoleOutput(),
             () => {
                 logger.error('Disconnected.');
@@ -142,11 +143,11 @@ class ReplHandler extends CommandHandler {
 }
 
 export async function handleReplCommand(
-    options: { board: string },
+    options: { board: string, deviceName?: string },
     deps?: { createReadline?: ReplReadlineFactory },
 ) {
     try {
-        const handler = new ReplHandler(options.board, deps?.createReadline);
+        const handler = new ReplHandler(options.board, options.deviceName, deps?.createReadline);
         await handler.start();
     } catch (error) {
         logger.error(`Error while running REPL.`);
@@ -160,5 +161,6 @@ export function registerReplCommand(program: Command) {
         .command('repl')
         .description('start REPL')
         .requiredOption('-b, --board <board>', 'board name')
+        .option('-d, --device-name <device-name>', `device name to connect to, the default is '${DEFAULT_DEVICE_NAME}'`)
         .action(handleReplCommand);
 }
