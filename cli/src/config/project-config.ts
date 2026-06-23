@@ -30,7 +30,7 @@ const baseConfigSchema = z.object({
 
 const esp32ProjectSchema = baseConfigSchema.extend({
     boardName: z.literal('esp32'),
-    deviceName: z.string().default(DEFAULT_DEVICE_NAME),
+    deviceName: z.string().optional().default(DEFAULT_DEVICE_NAME),
     espIdfComponents: z.array(z.string()).default([]),
 });
 

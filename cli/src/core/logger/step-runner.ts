@@ -25,3 +25,23 @@ export async function runStep<T>(message: string, action: () => Promise<T | Step
         throw error;
     }
 }
+
+export class LoadStepLogger {
+    private readonly messagePrefix = "Loading...";
+
+    start() {
+        logUpdater.update(INFO_PREFIX, this.messagePrefix);
+    }
+
+    update(percent: number) {
+        logUpdater.update(INFO_PREFIX, this.messagePrefix, `${percent}%`);
+    }
+
+    endWithSuccess() {
+        logUpdater.persistent(INFO_PREFIX, this.messagePrefix, chalk.green('OK'));
+    }
+
+    endWithFailure() {
+        logUpdater.persistent(INFO_PREFIX, this.messagePrefix, chalk.red('Failed'));
+    }
+}

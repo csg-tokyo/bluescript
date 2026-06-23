@@ -27,14 +27,14 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         })
     }
 
-    public async load(bin: MemoryImage): Promise<number>  {
+    public async load(bin: MemoryImage, onPacketSent?: (percent: number) => void): Promise<number>  {
         const builder = new ProtocolPacketBuilder(MTU);
         if (bin.iram) builder.load(bin.iram.address, bin.iram.data);
         if (bin.dram) builder.load(bin.dram.address, bin.dram.data);
         if (bin.iflash) builder.load(bin.iflash.address, bin.iflash.data);
         if (bin.dflash) builder.load(bin.dflash.address, bin.dflash.data);
         const startLoading = performance.now();
-        await this.send('load', builder.build());
+        await this.send('load', builder.build(), onPacketSent);
         return performance.now() - startLoading;
     }
 
@@ -237,10 +237,14 @@ export class BleConnection extends Connection<Buffer> {
         }
     }
 
-    public async send(message: ConnectionMessage<Buffer>): Promise<void> {
+    public async send(message: ConnectionMessage<Buffer>, onPacketSent?: (percent: number) => void): Promise<void> {
         if (this.peripheral &&  this.characteristic && this.peripheral.state === 'connected') {
+            const totalSize = message.payload.reduce((acc, curr) => acc + curr.length, 0);
+            let sentSize = 0;
             for (const buff of message.payload) {
                 await this.characteristic.writeAsync(buff, false);
+                sentSize += buff.length;
+                onPacketSent?.(Math.floor(sentSize / totalSize * 100));
             }
         } else {
             logger.error("BLE is not connected.");
