@@ -191,8 +191,8 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 
 - **Priority:** P0 · **Requires:** esp32
 - **Precondition:** ESP32 set up; device connected via USB
-- **Steps:** Run `bscript board flash-runtime esp32` (no `--port`)
-- **Expected:** Serial port list appears; flash succeeds; success message with `bscript project run` hint
+- **Steps:** Run `bscript board flash-runtime esp32` (no `--port`, no `-d`)
+- **Expected:** Serial port list appears; flash succeeds; device advertises as **`BLUESCRIPT`** over Bluetooth; success message with `bscript project run` hint
 
 #### MT-BOARD-FLASH-04: Explicit port
 
@@ -206,6 +206,19 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 - **Precondition:** No device connected
 - **Steps:** Run `bscript board flash-runtime esp32`
 - **Expected:** `No serial ports found` error
+
+#### MT-BOARD-FLASH-06: Custom device name
+
+- **Priority:** P0 · **Requires:** esp32
+- **Precondition:** ESP32 set up; device connected via USB
+- **Steps:** Run `bscript board flash-runtime esp32 -d my-device` (with or without `--port`)
+- **Expected:** Flash succeeds; `idf.py` build uses `DEVICE_NAME=my-device`; device advertises as **`my-device`** over Bluetooth
+
+#### MT-BOARD-FLASH-07: Help shows device-name option
+
+- **Priority:** P2 · **Requires:** both
+- **Steps:** Run `bscript board flash-runtime -h`
+- **Expected:** Help lists `-d, --device-name <device-name>` with default `BLUESCRIPT`
 
 ---
 
@@ -284,7 +297,7 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 - **Priority:** P0 · **Requires:** host
 - **Steps:** Run `bscript project create test-host -b host`
 - **Expected:** Directory created with:
-  - `bsconfig.json` (`boardName: "host"`)
+  - `bsconfig.json` (`boardName: "host"`; **no** `deviceName` field)
   - `src/index.bs` (Hello world sample)
   - `.gitignore`
 
@@ -298,7 +311,7 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 
 - **Priority:** P0 · **Requires:** esp32
 - **Steps:** Run `bscript project create test-esp32 -b esp32`
-- **Expected:** `bsconfig.json` has `boardName: "esp32"`
+- **Expected:** `bsconfig.json` has `boardName: "esp32"` and `deviceName: "BLUESCRIPT"` (ESP32-only field)
 
 #### MT-PROJ-CREATE-04: Directory already exists
 
@@ -365,12 +378,12 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 - **Steps:** Run with invalid source
 - **Expected:** `Failed to run BlueScript program.`; non-zero exit
 
-#### MT-PROJ-RUN-03: ESP32 run
+#### MT-PROJ-RUN-03: ESP32 run (default device name)
 
 - **Priority:** P0 · **Requires:** esp32
-- **Precondition:** Runtime flashed; device powered and in range
+- **Precondition:** Runtime flashed with default name (`BLUESCRIPT`); device powered and in range; `bsconfig.json` has `deviceName: "BLUESCRIPT"` (or field omitted — defaults to `BLUESCRIPT`)
 - **Steps:** Run `bscript project run` in an ESP32 project
-- **Expected:** Bluetooth scan/connect; compile; transfer; execution succeeds
+- **Expected:** CLI connects automatically to the device named `BLUESCRIPT` (no interactive device picker); compile; transfer; execution succeeds
 
 #### MT-PROJ-RUN-04: ESP32 disconnect
 
@@ -384,7 +397,7 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 - **Steps:** Repeat in a **host** project and an **ESP32** project.
   1. Run `bscript project run --with-repl`
   2. Enter one valid line at the `>` prompt (e.g. `console.log("repl");`)
-- **Expected:** Entry file runs first; then `>` REPL prompt; REPL line compiles and runs; compile errors shown without exiting REPL; Ctrl-D exits. On ESP32, Bluetooth connection succeeds before REPL starts.
+- **Expected:** Entry file runs first; then `>` REPL prompt; REPL line compiles and runs; compile errors shown without exiting REPL; Ctrl-D exits. On ESP32, connects to device matching `deviceName` in `bsconfig.json` before REPL starts.
 
 #### MT-PROJ-RUN-06: With Notebook
 
@@ -392,7 +405,7 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 - **Steps:** Repeat in a **host** project and an **ESP32** project.
   1. Run `bscript project run --with-notebook`
   2. Run one cell in the browser UI
-- **Expected:** Entry runs; browser opens `http://localhost:3000`; WebSocket at `ws://localhost:8080`; cell execution works; Ctrl-D in terminal exits. On ESP32, device connection succeeds before Notebook starts.
+- **Expected:** Entry runs; browser opens `http://localhost:3000`; WebSocket at `ws://localhost:8080`; cell execution works; Ctrl-D in terminal exits. On ESP32, connects to device matching `deviceName` in `bsconfig.json` before Notebook starts.
 
 #### MT-PROJ-RUN-07: Conflicting options
 
@@ -493,6 +506,29 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
   2. At the `>` prompt, enter a line that uses `led` (e.g. `console.log("LED ready in REPL");`)
 - **Expected:** Entry-imported package symbols (e.g. `led`) are usable in REPL without re-importing.
 
+#### MT-PROJ-RUN-15: ESP32 custom device name
+
+- **Priority:** P0 · **Requires:** esp32
+- **Precondition:** Runtime flashed with `bscript board flash-runtime esp32 -d my-device`
+- **Steps:**
+  1. Create or edit an ESP32 project so `bsconfig.json` has `"deviceName": "my-device"`
+  2. Run `bscript project run`
+- **Expected:** Connects to `my-device` automatically; compile and execution succeed
+
+#### MT-PROJ-RUN-16: ESP32 device name mismatch
+
+- **Priority:** P1 · **Requires:** esp32
+- **Precondition:** Runtime flashed with one name (e.g. `BLUESCRIPT`); `bsconfig.json` has a different `deviceName` (e.g. `wrong-name`)
+- **Steps:** Run `bscript project run`
+- **Expected:** Connection times out; error mentions the expected name (`wrong-name`), lists nearby device names if any, and hints to align `flash-runtime -d` with `deviceName` in `bsconfig.json`
+
+#### MT-PROJ-RUN-17: ESP32 omitted deviceName defaults
+
+- **Priority:** P2 · **Requires:** esp32
+- **Precondition:** Runtime flashed with default name; `deviceName` removed from `bsconfig.json`
+- **Steps:** Run `bscript project run`
+- **Expected:** Connects to `BLUESCRIPT` (schema default); run succeeds
+
 ---
 
 ### `bscript project install`
@@ -567,11 +603,12 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 - **Steps:** Run `bscript repl -b host`
 - **Expected:** Connecting → REPL prompt; first line treated as entry; subsequent lines as fragments; Ctrl-D exits cleanly
 
-#### MT-REPL-03: ESP32 global REPL
+#### MT-REPL-03: ESP32 global REPL (default device name)
 
 - **Priority:** P1 · **Requires:** esp32
-- **Steps:** Run `bscript repl -b esp32` with device available
-- **Expected:** Bluetooth connection; REPL works
+- **Precondition:** Runtime flashed with default name (`BLUESCRIPT`); device powered and in range
+- **Steps:** Run `bscript repl -b esp32`
+- **Expected:** Connects to device named `BLUESCRIPT`; REPL works
 
 #### MT-REPL-04: Compile error in REPL
 
@@ -611,6 +648,26 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
   2. Second line: `console.log(double(21));`
 - **Expected:** First line prints `fn defined`; second line prints `42` on both boards; function defined on an earlier line can be called later.
 
+#### MT-REPL-09: ESP32 global REPL with custom device name
+
+- **Priority:** P1 · **Requires:** esp32
+- **Precondition:** Runtime flashed with `bscript board flash-runtime esp32 -d my-device`
+- **Steps:** Run `bscript repl -b esp32 -d my-device`
+- **Expected:** Connects to `my-device`; REPL works
+
+#### MT-REPL-10: ESP32 global REPL device name mismatch
+
+- **Priority:** P2 · **Requires:** esp32
+- **Precondition:** Runtime flashed with one name; `-d` specifies a different name
+- **Steps:** Run `bscript repl -b esp32 -d wrong-name`
+- **Expected:** Connection times out; error mentions expected name and hints to align `flash-runtime -d` with `-d`
+
+#### MT-REPL-11: Help shows device-name option
+
+- **Priority:** P2 · **Requires:** both
+- **Steps:** Run `bscript repl -h`
+- **Expected:** Help lists `-d, --device-name <device-name>` with default `BLUESCRIPT`
+
 ---
 
 ## End-to-end scenarios
@@ -632,17 +689,26 @@ Each item has an ID for bug reports and test records. Record pass/fail in the [t
 ### Scenario B: ESP32 (hardware required)
 
 1. `bscript board setup esp32`
-2. `bscript board flash-runtime esp32` *(select port or use `--port`)*
+2. `bscript board flash-runtime esp32` *(select port or use `--port`; default BLE name `BLUESCRIPT`)*
 3. `bscript project create hello-esp32 -b esp32`
-4. `cd hello-esp32`
+4. `cd hello-esp32` — confirm `bsconfig.json` contains `deviceName: "BLUESCRIPT"`
 5. `bscript project check`
-6. `bscript project run` — verify Bluetooth connection and execution (MT-PROJ-RUN-08–10)
+6. `bscript project run` — verify automatic connection by device name and execution (MT-PROJ-RUN-03, MT-PROJ-RUN-08–10)
 7. `bscript project run --with-repl` — verify REPL built-in and entry state (MT-PROJ-RUN-12–13)
-8. `bscript repl -b esp32` — verify built-in and REPL state (MT-REPL-06–08)
+8. `bscript repl -b esp32` — verify built-in and REPL state (MT-REPL-03, MT-REPL-06–08)
 9. `bscript project install <package-git-url>` *(e.g. GPIO library)*
 10. Update source to use the package; `bscript project run` (MT-PROJ-RUN-11)
 11. `bscript project run --with-notebook` — use package symbols in a cell (MT-PROJ-RUN-14)
 12. `bscript project uninstall <package-name>`
+
+### Scenario B2: ESP32 with custom device name
+
+1. `bscript board flash-runtime esp32 -d my-esp32` *(re-flash if already flashed with default name)*
+2. `bscript project create hello-custom -b esp32`
+3. Edit `bsconfig.json`: set `"deviceName": "my-esp32"`
+4. `bscript project run` — connects to `my-esp32` (MT-PROJ-RUN-15)
+5. `bscript repl -b esp32 -d my-esp32` — global REPL connects (MT-REPL-09)
+6. Temporarily set `"deviceName": "wrong"` in `bsconfig.json`; `bscript project run` — connection fails with helpful error (MT-PROJ-RUN-16)
 
 ### Scenario C: Board lifecycle
 
@@ -673,16 +739,16 @@ Jest **unit** tests in `cli/tests/` mock filesystem, network, and device I/O. **
 | Area | Unit tests | Integration tests (host, macOS) | Manual testing still needed |
 | :--- | :--- | :--- | :--- |
 | `board setup` | Handler logic, macOS paths, skip-if-done | — | Real download, ESP-IDF install, host runtime build |
-| `board flash-runtime` | ESP32 handler, host rejection, port prompt mocked | — | Actual USB flash on hardware |
+| `board flash-runtime` | ESP32 handler, host rejection, port prompt mocked, `deviceName` passed to build | — | Actual USB flash on hardware; BLE advertised name after flash |
 | `board remove` / `fullclean` | File removal, prompts mocked | — | Confirm disk state after real removal |
 | `board update` | Update steps, rollback logic | — | End-to-end after real version bump |
 | `board list` | — | — | Visual output, setup status labels |
-| `project create` | File generation, validation | — | Interactive board picker |
+| `project create` | File generation, validation | — | Interactive board picker; ESP32 `deviceName` in generated `bsconfig.json` |
 | `project install` | Git clone mocked | — | Real Git URLs, tag checkout, board mismatch |
 | `project uninstall` | — | — | Full uninstall flow |
 | `project check` | — | — | Real compiler, Inline C |
-| `project run` | Handler wiring | Normal run; built-in; functions/variables; local import; local package import; inline C; `.c` / `.h` includes; compile error (`run.host.test.ts`) | Ctrl-D / TTY; `--with-repl`; `--with-notebook`; ESP32; BLE; real `project install` packages |
-| `repl` | — | Entry line; built-in; variable/function persistence; compile-error recovery (`repl.host.test.ts`) | Interactive session; ESP32; device connection; global REPL without mocked readline |
+| `project run` | Handler wiring | Normal run; built-in; functions/variables; local import; local package import; inline C; `.c` / `.h` includes; compile error (`run.host.test.ts`) | Ctrl-D / TTY; `--with-repl`; `--with-notebook`; ESP32; BLE connect by `deviceName`; device name mismatch errors; real `project install` packages |
+| `repl` | — | Entry line; built-in; variable/function persistence; compile-error recovery (`repl.host.test.ts`) | Interactive session; ESP32; BLE connect by `-d`; device name mismatch errors; global REPL without mocked readline |
 | WebSocket / device protocol | Unit tests | — | Browser Notebook integration |
 | Global help / version | — | — | Quick smoke items |
 
