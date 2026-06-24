@@ -41,9 +41,9 @@ bscript project run
 
 ### What happens next?
 
-1.  **Scan:** The CLI scans for nearby BlueScript devices over Bluetooth.
+1.  **Connect:** The CLI scans for a BlueScript device over Bluetooth whose name matches `deviceName` in `bsconfig.json` (default: `"BLUESCRIPT"`) and connects automatically.
 2.  **Compile:** The CLI compiles your project into **Native Code** on your PC.
-3.  **Upload:** Upon selecting your device, it transfers the binary via **Bluetooth**.
+3.  **Upload:** The compiled binary is transferred to the device via **Bluetooth**.
 4.  **Execute:** The ESP32 executes the code immediately.
 
 :::warning Program Lost on Restart

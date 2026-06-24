@@ -4,8 +4,9 @@ import * as readline from 'readline';
 import http from 'http';
 import sirv from 'sirv';
 import path from 'path';
-import { logger, ProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput, runStep } from "../../core/logger";
-import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
+import { logger, ProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput, 
+    runStep, LoadStepLogger } from "../../core/logger";
+import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd, exec } from "../../core/shell";
 import { CommandHandler } from "../command";
 import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
@@ -25,14 +26,12 @@ class RunHandler extends CommandHandler {
         super();
 
         const boardName = this.projectConfigHandler.getBoardName();
-        const deviceName = this.projectConfigHandler.getConfig().deviceName ?? DEFAULT_DEVICE_NAME;
         this.programOutput = createBoxedOutput();
 
         const platform = createPlatformSession(
             boardName,
             this.globalConfigHandler,
             this.projectConfigHandler,
-            deviceName,
             this.programOutput,
             () => {
                 this.programOutput.onRunEnd?.();
@@ -48,8 +47,19 @@ class RunHandler extends CommandHandler {
         await runStep('Connecting...', () => this.runtime.connect());
         const compileContext = await runStep('Initializing', () => this.runtime.prepare());
         const compileOutput = await runStep('Compiling...', () => this.compiler.buildProject(compileContext));
-        await runStep('Loading...', () => this.runtime.load(compileOutput!));
+        await this.loadStep(compileOutput!);
         return this.executeProgram(compileOutput!);
+    }
+
+    async loadStep(compileOutput: CompileOutput) {
+        const loadLogger = new LoadStepLogger();
+        loadLogger.start();
+        try {
+            await this.runtime.load(compileOutput, (percent) => loadLogger.update(percent));
+            loadLogger.endWithSuccess();
+        } catch (error) {
+            loadLogger.endWithFailure();
+        }
     }
 
     async close() {

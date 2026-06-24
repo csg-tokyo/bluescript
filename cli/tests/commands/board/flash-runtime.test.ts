@@ -56,7 +56,7 @@ describe('board flash-runtime command', () => {
 
         // --- Assert ---
         expect(mockedInquirer.prompt).not.toHaveBeenCalled();
-        expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('idf.py build flash -p'), {cwd: expect.stringContaining('esp32')});
+        expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('build flash -p'), {cwd: expect.stringContaining('esp32')});
     });
 
     it('should show an error and return if no serial ports are found', async () => {
@@ -105,7 +105,21 @@ describe('board flash-runtime command', () => {
             await handleFlashRuntimeCommand('esp32', {});
 
             // --- Assert ---
-            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('idf.py build flash -p'), {cwd: expect.stringContaining('esp32')});
+            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('build flash'), {cwd: expect.stringContaining('esp32')});
+            expect(mockedLogger.error).not.toHaveBeenCalled();
+        });
+
+        it('should flash runtime to board with device name if specified', async () => {
+            // --- Arrange ---
+            setupGlobalEnvWithEsp32();
+            mockedSerialPort.list.mockResolvedValue(portList);
+            mockedInquirer.prompt.mockResolvedValue({port: '/tty/port1'});
+
+            // --- Act ---
+            await handleFlashRuntimeCommand('esp32', { deviceName: 'my-device' });
+
+            // --- Assert ---
+            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('my-device'), {cwd: expect.stringContaining('esp32')});
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
 

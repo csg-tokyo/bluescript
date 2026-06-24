@@ -33,7 +33,12 @@ static void gatts_profile_shell_event_handler(esp_gatts_cb_event_t event, esp_ga
 #define GATTS_DESCR_UUID_SHELL     0x3333
 #define GATTS_NUM_HANDLE_SHELL     4
 
-#define DEVICE_NAME            "BLUESCRIPT"
+#ifdef INPUT_DEVICE_NAME
+    #define DEVICE_NAME            INPUT_DEVICE_NAME
+#else
+    #define DEVICE_NAME            "BLUESCRIPT"
+#endif
+
 
 #define GATTS_CHAR_VAL_LEN_MAX 0x40
 #define MAX_MTU_SIZE  512

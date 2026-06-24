@@ -7,16 +7,17 @@ import { logger, runStep } from "../../core/logger";
 import { exec } from '../../core/shell';
 import chalk from "chalk";
 import { CommandHandler } from "../command";
+import { DEFAULT_DEVICE_NAME } from "../../config/project-config";
 
 
 const RUNTIME_ESP_PORT_DIR = (runtimeDir: string) => path.join(runtimeDir, 'ports/esp32');
 
 abstract class FlashRuntimeHandler extends CommandHandler {
     abstract isSetup(): boolean;
-    abstract flashRuntime(port: string, monitor: boolean): Promise<void>;
+    abstract flashRuntime(port: string, deviceName?: string): Promise<void>;
 
-    async flash(port: string) {
-        return runStep('Flashing...', () => this.flashRuntime(port, false));
+    async flash(port: string, deviceName?: string) {
+        return runStep('Flashing...', () => this.flashRuntime(port, deviceName));
     }
 }
 
@@ -27,7 +28,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
         return this.globalConfigHandler.isBoardSetup(this.boardName);
     }
     
-    async flashRuntime(port: string) {
+    async flashRuntime(port: string, deviceName?: string) {
         const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
         if (!runtimeDir) {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
@@ -38,8 +39,10 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
             throw new Error('An unexpected error occurred: cannot find board config.');
         }
 
+        deviceName = deviceName ?? DEFAULT_DEVICE_NAME;
+
         await exec(
-            `source ${boardConfig.exportFile} && idf.py build flash -p ${port}`,
+            `source ${boardConfig.exportFile} && idf.py -D DEVICE_NAME=${deviceName} build flash -p ${port}`,
             { cwd: RUNTIME_ESP_PORT_DIR(runtimeDir) }
         )
     }
@@ -55,7 +58,7 @@ function getFlashRuntimeHandler(board: string) {
     throw new Error(`Unsupported board name: ${board}`);
 }
 
-export async function handleFlashRuntimeCommand(board: string, options: { port?: string }) {
+export async function handleFlashRuntimeCommand(board: string, options: { port?: string, deviceName?: string }) {
     try {
         const flashRuntimeHandler = getFlashRuntimeHandler(board);
 
@@ -93,7 +96,7 @@ export async function handleFlashRuntimeCommand(board: string, options: { port?:
         logger.info(`Using port: ${selectedPort}`);
 
         // Flash runtime.
-        await flashRuntimeHandler.flash(selectedPort);
+        await flashRuntimeHandler.flash(selectedPort, options.deviceName);
 
         logger.br();
         logger.success(`Success to flash the BlueScript runtime to ${board}`);
@@ -112,5 +115,6 @@ export function registerFlashRuntimeCommand(program: Command) {
         .description('flash the BlueScript runtime to the board.')
         .argument('<board-name>', 'the name of the board to flash (e.g., esp32)') 
         .option('-p, --port <port>', 'serial port to flash to')
+        .option('-d, --device-name <device-name>', `device name to flash to, the default is '${DEFAULT_DEVICE_NAME}'`)
         .action(handleFlashRuntimeCommand);
 }

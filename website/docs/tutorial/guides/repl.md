@@ -14,7 +14,7 @@ The easiest way is the **Notebook**: a browser UI where you run code in cells. Y
 | :--- | :--- | :--- |
 | **Notebook** | `bscript project run --with-notebook` | You have a project and want to try code in cells (recommended) |
 | **Project REPL** | `bscript project run --with-repl` | Same as above, but you prefer the terminal |
-| **Global REPL** | `bscript repl -b esp32` or `bscript repl -b host` | No project yet—language syntax only |
+| **Global REPL** | `bscript repl -b esp32` or `bscript repl -b host` | No project yet—language syntax only (use `-d` to specify device name on ESP32) |
 | **Normal run** | `bscript project run` | You are writing the full app in `index.bs` |
 
 **Notebook vs REPL:** The Notebook supports multi-line cells (**Shift+Enter** to run) and shows output on the side. The REPL accepts **one line per Enter**.
@@ -106,5 +106,6 @@ A global Notebook (without a project) is planned for a future release.
 
 ## Good to know
 
+* **Device name:** Notebook and Project REPL connect using `deviceName` in `bsconfig.json`. Global REPL uses the `-d` flag instead. The name must match what was set during `bscript board flash-runtime`. See [bsconfig.json](../../reference/bsconfig.md#esp32-fields).
 * Code on the device is **lost after a reboot**—run the command again to re-upload.
 * Variables and functions from earlier cells or REPL lines **stay available** until you disconnect.

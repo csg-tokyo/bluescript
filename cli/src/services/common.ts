@@ -73,12 +73,12 @@ export abstract class Service<TEvents extends EventMap, K> extends EventEmitter<
         this.emit(event, ...payload);
     }
 
-    protected async send(event: string, payload: K[]): Promise<void> {
+    protected async send(event: string, payload: K[], onPacketSent?: (percent: number) => void): Promise<void> {
         await this.connection.send({
             service: this.serviceName,
             event,
             payload
-        });
+        }, onPacketSent);
     }
 }
 
@@ -91,6 +91,6 @@ export type ConnectionEvents<T> = {
 }
 
 export abstract class Connection<T> extends EventEmitter<ConnectionEvents<T>> {
-    abstract send(message: ConnectionMessage<T>): Promise<void>;
+    abstract send(message: ConnectionMessage<T>, onPacketSent?: (percent: number) => void): Promise<void>;
     abstract getService<K extends Service<EventMap, T>>(serviceName: string): K;
 }
