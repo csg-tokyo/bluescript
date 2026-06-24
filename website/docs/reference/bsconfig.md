@@ -32,7 +32,6 @@ These fields are shared across all supported boards.
 | `vmVersion` | No | CLI version | BlueScript runtime version this project targets. |
 | `srcDir` | No | `"."` | Directory containing BlueScript (`.bs`) and C (`.c`) source files, relative to the project root. |
 | `entryFile` | No | `"./index.bs"` | Entry BlueScript file executed by `bscript project run`, relative to the project root. |
-| `deviceName` | No | `"BLUESCRIPT"` | Bluetooth device name used when scanning for hardware. **ESP32 only** — ignored for `host` projects. |
 | `dependencies` | No | `{}` | Installed package dependencies. Usually managed by `bscript project install`. |
 
 ### `srcDir` and `entryFile`
@@ -72,22 +71,26 @@ Use `bscript project install` to add packages instead of editing this field by h
 
 ## ESP32 fields
 
-When `boardName` is `"esp32"`, the following additional field is available. These fields do not apply to `host` projects.
+When `boardName` is `"esp32"`, the following additional fields are available. These fields do not apply to `host` projects.
 
 | Field | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
+| `deviceName` | No | `"BLUESCRIPT"` | Bluetooth device name the CLI looks for when connecting over BLE. Used by `bscript project run` (including `--with-repl` and `--with-notebook`). Must match the name set during `bscript board flash-runtime` (see `-d` / `--device-name` in the [CLI reference](./cli.md#bscript-board-flash-runtime)). |
 | `espIdfComponents` | No | `[]` | ESP-IDF component names to link when compiling Inline C code. |
 
 ```json
 {
   "boardName": "esp32",
+  "deviceName": "BLUESCRIPT",
   "espIdfComponents": [
     "esp_driver_gpio"
   ]
 }
 ```
 
-See the [Inline C tutorial](../tutorial/guides/inline-c.md) for usage examples.
+If you flash the runtime with a custom name (e.g. `bscript board flash-runtime esp32 -d my-device`), set `deviceName` in `bsconfig.json` to the same value. This is useful when working with multiple ESP32 boards.
+
+See the [Inline C tutorial](../tutorial/guides/inline-c.md) for `espIdfComponents` usage examples.
 
 ## Host example
 

@@ -115,9 +115,11 @@ bscript project run [options]
 ```
 
 When you run this command on an **ESP32** project:
-1.  The CLI scans for available BlueScript devices over Bluetooth.
+1.  The CLI scans for a BlueScript device over Bluetooth whose name matches `deviceName` in `bsconfig.json` (default: `"BLUESCRIPT"`).
 2.  The project is compiled into native code on your host machine.
-3.  The code is transferred and executed immediately.
+3.  The code is transferred to the connected device and executed immediately.
+
+The `deviceName` value must match the name set when you ran `bscript board flash-runtime`. See [bsconfig.json](./bsconfig.md#esp32-fields).
 
 When you run this command on a **host** project, the CLI compiles the project and runs it in a local runtime process on your development machine. No Bluetooth connection is required.
 
@@ -169,10 +171,14 @@ bscript board flash-runtime <board-name> [options]
 | Option | Alias | Description |
 | :--- | :--- | :--- |
 | `--port` | `-p` | Specify the serial port connected to the device (e.g., `COM3`, `/dev/ttyUSB0`). If omitted, the CLI will list available ports for selection. |
+| `--device-name` | `-d` | Bluetooth device name advertised by the runtime after flashing (default: `"BLUESCRIPT"`). Must match `deviceName` in your project's `bsconfig.json` when connecting wirelessly. |
 
 **Example:**
 ```bash
 bscript board flash-runtime esp32 --port /dev/ttyUSB0
+
+# Flash with a custom Bluetooth device name
+bscript board flash-runtime esp32 -d my-device
 ```
 
 ---
@@ -242,10 +248,19 @@ bscript board update
 Starts a **global** REPL session with the target device (no project required).
 
 ```bash
-bscript repl --board <board-name>
+bscript repl --board <board-name> [options]
 ```
 
 This mode is for language syntax experiments only. Hardware libraries installed via `bscript project install` are not available. For GPIO and other drivers, use `bscript project run --with-repl` or `--with-notebook` instead. See the [REPL & Notebook tutorial](../tutorial/guides/repl.md).
+
+**Example:**
+```bash
+# Connect to the default device name
+bscript repl -b esp32
+
+# Connect to a custom device name
+bscript repl -b esp32 -d my-device
+```
 
 
 **Options:**
@@ -253,3 +268,4 @@ This mode is for language syntax experiments only. Hardware libraries installed 
 | Option | Alias | Description |
 | :--- | :--- | :--- |
 | `--board` | `-b` | Specify the target board (`esp32` or `host`). |
+| `--device-name` | `-d` | Bluetooth device name to connect to (default: `"BLUESCRIPT"`). **ESP32 only** — must match the name set during `bscript board flash-runtime`. Ignored for `host`. |
