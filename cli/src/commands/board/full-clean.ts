@@ -1,9 +1,8 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
 import { logger } from "../../core/logger";
-import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";
-import { GLOBAL_SETTINGS } from "../../config/constants";
+import { BaseBoardEnv } from "../../platforms/board-env";
 
 
 class FullcleanHandler extends CommandHandler {
@@ -12,9 +11,8 @@ class FullcleanHandler extends CommandHandler {
     }
 
     fullclean() {
-        if (fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_DIR)) {
-            fs.removeDir(GLOBAL_SETTINGS.BLUESCRIPT_DIR);
-        }
+        const env = new BaseBoardEnv();
+        env.removeBlueScriptDir();
     }
 }
 

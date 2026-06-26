@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
 import * as path from 'path';
+import * as os from 'os';
 import { SerialPort } from 'serialport'
 import { BoardName } from "../../config/board-utils";
 import { logger, runStep } from "../../core/logger";
@@ -41,10 +42,18 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
 
         deviceName = deviceName ?? DEFAULT_DEVICE_NAME;
 
-        await exec(
-            `source ${boardConfig.exportFile} && idf.py -D DEVICE_NAME=${deviceName} build flash -p ${port}`,
-            { cwd: RUNTIME_ESP_PORT_DIR(runtimeDir) }
+        await this.runIdfPy(
+            boardConfig.exportFile,
+            ['-D', `DEVICE_NAME=${deviceName}`, 'build', 'flash', '-p', port],
+            RUNTIME_ESP_PORT_DIR(runtimeDir)
         )
+    }
+
+    private async runIdfPy(exportFile: string, args: string[], cwd: string) {
+        const osType = os.platform();
+        const preCommand = osType !== 'win32' ? exportFile : `source ${exportFile}`;
+
+        await exec(`${preCommand} && idf.py ${args.join(' ')}`,{ cwd });
     }
 }
 
