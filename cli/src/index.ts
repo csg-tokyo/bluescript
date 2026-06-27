@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { logger } from './core/logger';
 import packageJson from '../package.json';
 
-import { registerSetupCommand } from './commands/board/setup';
+import { registerSetupCommand } from './commands/board/setup/index';
 import { registerRemoveCommand } from './commands/board/remove';
 import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
 import { registerListCommand } from './commands/board/list';

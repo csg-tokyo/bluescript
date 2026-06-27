@@ -12,7 +12,7 @@ static void comm_send(host_protocol_t protocol, char* payload) {
     snprintf((char*)(line + PROTO_SIZE), PAYLOAD_LEN_SIZE, "%04d", (int)strlen(payload));
     line[HEADER_SIZE - 1] = ' ';
     strcpy((char*)(line + HEADER_SIZE), payload);
-    fprintf(stdout, line);
+    fprintf(stdout, "%s", line);
     fflush(stdout);
 }
 
@@ -25,13 +25,13 @@ void bs_comm_send_error(char* message) {
 }
 
 void bs_comm_send_exectime(float time) {
-    char* timestr[16];
+    char timestr[16];
     snprintf(timestr, sizeof(timestr), "%.4f", time);
     comm_send(H_PROTOCOL_EXECTIME, timestr);
 }
 
 void bs_comm_send_loadtime(float time) {
-    char* timestr[16];
+    char timestr[16];
     snprintf(timestr, sizeof(timestr), "%.2f", time);
     comm_send(H_PROTOCOL_LOADTIME, timestr);
 }
@@ -40,13 +40,13 @@ static void parse_line(char* line, host_protocol_t* protocol, char* payload) {
     char protocol_char[PROTO_SIZE];
     protocol_char[0] = line[0];
     protocol_char[1] = line[1];
-    protocol_char[2] = NULL;
+    protocol_char[2] = '\0';
     char payload_len_char[PAYLOAD_LEN_SIZE];
     payload_len_char[0] = line[PROTO_SIZE + 0];
     payload_len_char[1] = line[PROTO_SIZE + 1];
     payload_len_char[2] = line[PROTO_SIZE + 2];
     payload_len_char[3] = line[PROTO_SIZE + 3];
-    payload_len_char[4] = NULL;
+    payload_len_char[4] = '\0';
     *protocol = atoi(protocol_char);
     int payload_len = atoi(payload_len_char);
     for (int i = 0; i < payload_len; i++) {
@@ -77,7 +77,7 @@ char* bs_comm_wait_receive(void (*on_load)(char* filename), void (*on_call)(char
     if (res == NULL)
         return NULL;
 
-    int protocol;
+    host_protocol_t protocol;
     char payload[MAX_PAYLOAD_SIZE] = {0};
     parse_line(line, &protocol, payload);
 

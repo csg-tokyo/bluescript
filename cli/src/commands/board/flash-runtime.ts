@@ -51,7 +51,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
 
     private async runIdfPy(exportFile: string, args: string[], cwd: string) {
         const osType = os.platform();
-        const preCommand = osType !== 'win32' ? exportFile : `source ${exportFile}`;
+        const preCommand = osType === 'win32' ? exportFile : `source ${exportFile}`;
 
         await exec(`${preCommand} && idf.py ${args.join(' ')}`,{ cwd });
     }

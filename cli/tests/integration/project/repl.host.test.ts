@@ -8,7 +8,6 @@ import * as path from 'path';
 import * as fs from '../../../src/core/fs';
 import { handleReplCommand } from '../../../src/commands/repl';
 import { logger } from '../../../src/core/logger';
-import { buildHostRuntime } from '../../../src/platforms/runtime/host-board-runtime';
 import {
     deleteGlobalEnv,
     setupGlobalEnvWithHostIntegration,
@@ -23,6 +22,7 @@ import {
     waitFor,
     waitForStdoutContains,
 } from '../host-run-helper';
+import { CommonBoardEnv, createBoardEnv } from '../../../src/platforms/board-env';
 
 const TEMP_DIR = path.join(__dirname, '../../../temp-files/integration-repl');
 const SHELL_PATH = path.join(HOST_INTEGRATION_BUILD_DIR, 'shell');
@@ -60,7 +60,10 @@ describeHost('repl command (host integration)', () => {
         fs.makeDir(TEMP_DIR);
 
         if (!fs.exists(SHELL_PATH) || !fs.exists(RUNTIME_SO_PATH)) {
-            await buildHostRuntime(HOST_INTEGRATION_RUNTIME_DIR, HOST_INTEGRATION_BUILD_DIR);
+            jest.spyOn(CommonBoardEnv.prototype, 'runtimeDir', 'get')
+                .mockReturnValue(HOST_INTEGRATION_RUNTIME_DIR);
+            const hostEnv = createBoardEnv('host');
+            await hostEnv.buildHostRuntime();
         }
     });
 

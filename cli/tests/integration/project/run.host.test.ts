@@ -36,10 +36,10 @@ describeHost('project run command (host integration)', () => {
     beforeAll(async () => {
         spyGlobalSettings('run-integration');
         fs.makeDir(TEMP_DIR);
-        jest.spyOn(CommonBoardEnv.prototype, 'runtimeDir', 'get')
-                .mockReturnValue(RUNTIME_DIR);
 
         if (!fs.exists(SHELL_PATH) || !fs.exists(RUNTIME_SO_PATH)) {
+            jest.spyOn(CommonBoardEnv.prototype, 'runtimeDir', 'get')
+                .mockReturnValue(RUNTIME_DIR);
             const hostEnv = createBoardEnv('host');
             await hostEnv.buildHostRuntime();
         }

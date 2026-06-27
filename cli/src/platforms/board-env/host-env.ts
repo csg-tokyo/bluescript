@@ -33,7 +33,7 @@ export class HostDarwinEnv extends HostEnv {
     get shellFile() { return path.join(this.buildDir, 'shell'); }
 
     async buildHostRuntime() {
-        console.log(this.runtimeDir);
+        fs.makeDir(this.buildDir);
         try {
             await exec(
                 `cc -DLINUX64 -O2 -shared -fPIC -o "${this.runtimeSoFile}" "${this.runtimeCFile}" "${this.builtinModuleCFile}" "${this.commCFile}"`,

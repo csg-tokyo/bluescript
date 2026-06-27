@@ -23,8 +23,7 @@ jest.mock('../src/core/logger', () => {
             success: jest.fn(),
             log: jest.fn(),
             br: jest.fn(),
-            // showError: jest.fn()
-            showError: (message: string) => console.log(message),
+            showError: jest.fn()
         },
     }
 });
