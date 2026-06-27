@@ -2,46 +2,45 @@ import * as path from 'path';
 import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from "../../config/constants";
 import { exec } from '../../core/shell';
-import { BaseBoardEnv } from "./base-env";
+import { CommonBoardEnv } from './common-env';
 
-
-const ESP_ROOT_DIR = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'esp');
-const IDF_GIT_REPO = 'https://github.com/espressif/esp-idf.git';
-const IDF_VERSION = 'v5.4';
-const IDF_DIR = path.join(ESP_ROOT_DIR, 'esp-idf');
-const IDF_EXPORT_SH_FILE = path.join(IDF_DIR, 'export.sh');
-const IDF_INSTALL_SH_FILE = path.join(IDF_DIR, 'install.sh');
-const IDF_TOOLS_PY_FILE = path.join(IDF_DIR, 'tools/idf_tools.py');
-const XTENSA_DIR_NAME = 'xtensa-esp-elf/';
+const XTENSA_TOOLCHAIN_DIR = 'xtensa-esp-elf';
 const XTENSA_GCC_NAME = 'xtensa-esp32-elf-gcc';
 
-
-export abstract class Esp32Env extends BaseBoardEnv {
-    get espRootDir() { return ESP_ROOT_DIR; }
-    get idfVersion() { return IDF_VERSION; }
-    get idfGitRepo() { return IDF_GIT_REPO; }
+export abstract class Esp32Env extends CommonBoardEnv {
+    get espRootDir() { return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'esp'); }
+    get idfDir() { return path.join(this.espRootDir, 'esp-idf'); }
+    get idfExportShFile() { return path.join(this.idfDir, 'export.sh'); }
+    get idfInstallShFile() { return path.join(this.idfDir, 'install.sh'); }
+    get idfExportBatFile() { return path.join(this.idfDir, 'export.bat'); }
+    get idfInstallBatFile() { return path.join(this.idfDir, 'install.bat'); }
+    get idfToolsPyFile() { return path.join(this.idfDir, 'tools/idf_tools.py'); }
+    get idfVersion() { return 'v5.4'; }
+    get idfGitRepo() { return 'https://github.com/espressif/esp-idf.git'; }
     abstract get idfExportFile(): string;
 
     async cloneEspIdf() {
         await exec(
-            `git clone --depth 1 -b ${IDF_VERSION} --recursive ${IDF_GIT_REPO}`, 
-            { cwd: ESP_ROOT_DIR }
+            `git clone --depth 1 -b ${this.idfVersion} --recursive ${this.idfGitRepo}`,
+            { cwd: this.espRootDir }
         );
     }
 
     removeBoardRoot() {
-        if (fs.exists(ESP_ROOT_DIR)) {
-            fs.removeDir(ESP_ROOT_DIR);
-        }
+        fs.removeDir(this.espRootDir);
     }
 
     refreshBoardRoot() {
         this.removeBoardRoot();
-        fs.makeDir(ESP_ROOT_DIR);
+        fs.makeDir(this.espRootDir);
     }
 
     abstract runEspIdfInstallScript(): Promise<void>;
     abstract getXtensaGccDir(): Promise<string>;
+
+    protected get xtensaGccFileName(): string {
+        return XTENSA_GCC_NAME;
+    }
 
     protected parseKeyValueExport(stdout: string): Map<string, string> {
         const env = new Map<string, string>();
@@ -80,30 +79,50 @@ export abstract class Esp32Env extends BaseBoardEnv {
     }
 
     protected findXtensaGccDirFromPathEntries(entries: string[]): string {
-        const xtensaDirPattern = new RegExp(XTENSA_DIR_NAME);
         for (const entry of entries) {
-            if (xtensaDirPattern.test(entry) && fs.exists(path.join(entry, XTENSA_GCC_NAME))) {
+            if (entry.includes(XTENSA_TOOLCHAIN_DIR) && fs.exists(path.join(entry, this.xtensaGccFileName))) {
                 return entry;
             }
         }
 
-        throw new Error(`${XTENSA_DIR_NAME} not found in exported PATH`);
+        throw new Error(`${XTENSA_TOOLCHAIN_DIR} not found in exported PATH`);
     }
 }
 
 export class Esp32DarwinEnv extends Esp32Env {
-    get idfExportFile() { return IDF_EXPORT_SH_FILE; }
+    get idfExportFile() { return this.idfExportShFile; }
 
     async runEspIdfInstallScript() {
-        await exec(IDF_INSTALL_SH_FILE);
+        await exec(this.idfInstallShFile);
     }
 
     async getXtensaGccDir() {
         try {
-            const stdout = await exec(`${IDF_TOOLS_PY_FILE} export --format key-value`);
+            const stdout = await exec(`${this.idfToolsPyFile} export --format key-value`);
             return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ':');
         } catch (error) {
-            throw new Error(`Failed to find ${XTENSA_DIR_NAME}.`, { cause: error });
+            throw new Error(`Failed to find ${XTENSA_TOOLCHAIN_DIR}.`, { cause: error });
+        }
+    }
+}
+
+export class Esp32WindowsEnv extends Esp32Env {
+    get idfExportFile() { return this.idfExportBatFile; }
+
+    protected get xtensaGccFileName(): string {
+        return `${XTENSA_GCC_NAME}.exe`;
+    }
+
+    async runEspIdfInstallScript() {
+        await exec(this.idfInstallBatFile);
+    }
+
+    async getXtensaGccDir() {
+        try {
+            const stdout = await exec(`${this.idfToolsPyFile} export --format key-value`);
+            return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ';');
+        } catch (error) {
+            throw new Error(`Failed to find ${XTENSA_TOOLCHAIN_DIR}.`, { cause: error });
         }
     }
 }

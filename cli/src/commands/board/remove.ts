@@ -3,12 +3,12 @@ import inquirer from 'inquirer';
 import { BoardName, isValidBoard } from "../../config/board-utils";
 import { logger, runStep } from "../../core/logger";
 import { CommandHandler } from "../command";
-import { BaseBoardEnv, createBoardEnv } from "../../platforms/board-env";
+import { CommonBoardEnv, createBoardEnv } from "../../platforms/board-env";
 
 
 class RemoveHandler extends CommandHandler {
     boardName: BoardName;
-    boardEnv: BaseBoardEnv;
+    boardEnv: CommonBoardEnv;
 
     constructor(boardName: BoardName) {
         super();
@@ -18,6 +18,7 @@ class RemoveHandler extends CommandHandler {
 
     async remove() {
         await runStep('Removing...', async () => this.boardEnv.removeBoardRoot());
+        this.globalConfigHandler.removeBoardConfig(this.boardName);
         this.globalConfigHandler.save();
     }
     

@@ -4,8 +4,7 @@ import { CommandHandler } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";
 import * as fs from '../../core/fs';
 import * as path from 'path';
-import { buildHostRuntime } from "../../platforms/runtime/host-board-runtime";
-import { BaseBoardEnv, createBoardEnv, Esp32Env } from "../../platforms/board-env";
+import { CommonBoardEnv, createBoardEnv, Esp32Env } from "../../platforms/board-env";
 
 
 class UpdateHandler extends CommandHandler {
@@ -61,7 +60,7 @@ class UpdateHandler extends CommandHandler {
 
     private updateEsp32Step() {
         return runStep('Updating the environment for esp32...', async () => {
-            if (this.globalConfigHandler.isBoardSetup('esp32')) {
+            if (!this.globalConfigHandler.isBoardSetup('esp32')) {
                 return skip('not setup');
             }
             const esp32Config = this.globalConfigHandler.getBoardConfig('esp32')!;
@@ -75,6 +74,9 @@ class UpdateHandler extends CommandHandler {
 
     private updateHostStep() {
         return runStep('Updating the environment for host...', async () => {
+            if (!this.globalConfigHandler.isBoardSetup('host')) {
+                return skip('not setup');
+            }
             const globalConfig = this.globalConfigHandler.getConfig();
             if (globalConfig.runtimeDir === undefined || globalConfig.version === GLOBAL_SETTINGS.VM_VERSION) {
                 return skip('not needed');
@@ -84,11 +86,11 @@ class UpdateHandler extends CommandHandler {
     }
 
     private async updateRuntime() {
-        const env = new BaseBoardEnv();
+        const env = new CommonBoardEnv();
         this.existingRuntimeDir = env.runtimeDir;
         fs.moveDir(env.runtimeDir, this.tmpRuntimeDir);
         
-        env.downloadBlueScriptRuntime();
+        await env.downloadBlueScriptRuntime();
         this.globalConfigHandler.setRuntimeDir(env.runtimeDir);
     }
 
@@ -107,6 +109,7 @@ class UpdateHandler extends CommandHandler {
         this.globalConfigHandler.updateBoardConfig('esp32', {
             idfVersion: esp32Env.idfVersion,
             rootDir: esp32Env.espRootDir,
+            exportFile: esp32Env.idfExportFile,
             xtensaGccDir: await esp32Env.getXtensaGccDir(),
         });
     }

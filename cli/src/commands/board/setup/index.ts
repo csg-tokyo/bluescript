@@ -32,6 +32,7 @@ export async function handleSetupCommand(board: string) {
             logger.warn(`The setup for ${board} has already been completed.`);
             return;
         }
+        setupHandler.loadSetupSteps();
 
         // Ask user if it's ok to proceed with setup.
         const setupPlan = setupHandler.getSetupPlan();

@@ -5,7 +5,7 @@ import { HostDarwinEnv } from "../../../platforms/board-env/host-env";
 
 
 export class HostDarwinSetupHandler extends SetupHandler {
-    boardName: BoardName = "esp32";
+    boardName: BoardName = 'host';
     boardEnv: HostDarwinEnv;
 
     constructor() {
@@ -13,8 +13,7 @@ export class HostDarwinSetupHandler extends SetupHandler {
         this.boardEnv = new HostDarwinEnv();
     }
 
-    protected loadSetupSteps(): void {
-        super.loadSetupSteps();
+    loadBoardSetupSteps(): void {
         this.setupSteps.push({
             description: "Verify that cc and make are installed.",
             actionMessage: "Verifying that cc and make are installed...",
@@ -25,6 +24,12 @@ export class HostDarwinSetupHandler extends SetupHandler {
             actionMessage: "Building host runtime...",
             action: this.buildHostRuntimeStep.bind(this),
         });
+    }
+
+    async setBoardConfig() {
+        this.globalConfigHandler.updateBoardConfig('host', {
+            buildDir: this.boardEnv.buildDir
+        })
     }
 
     private async verifyPrerequisitsInstalledStep() {

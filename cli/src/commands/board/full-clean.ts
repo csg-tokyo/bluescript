@@ -2,7 +2,7 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import { logger } from "../../core/logger";
 import { CommandHandler } from "../command";
-import { BaseBoardEnv } from "../../platforms/board-env";
+import { CommonBoardEnv } from "../../platforms/board-env";
 
 
 class FullcleanHandler extends CommandHandler {
@@ -11,7 +11,7 @@ class FullcleanHandler extends CommandHandler {
     }
 
     fullclean() {
-        const env = new BaseBoardEnv();
+        const env = new CommonBoardEnv();
         env.removeBlueScriptDir();
     }
 }

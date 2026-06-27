@@ -1,13 +1,10 @@
 import * as path from 'path';
 import * as fs from '../../core/fs';
-import { GLOBAL_SETTINGS } from "../../config/constants";
+import { GLOBAL_SETTINGS } from '../../config/constants';
 import { exec } from '../../core/shell';
-import { BaseBoardEnv } from "./base-env";
+import { CommonBoardEnv } from './common-env';
 
-
-const HOST_ROOT_DIR = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'host');
-
-export abstract class HostEnv extends BaseBoardEnv {
+export abstract class HostEnv extends CommonBoardEnv {
     get hostRootDir() { return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'host'); }
     get buildDir() { return path.join(this.runtimeDir, 'ports/host/build'); }
     get builtinModuleCFile() { return path.join(this.runtimeDir, 'ports/host/std-module.c'); }
@@ -18,14 +15,16 @@ export abstract class HostEnv extends BaseBoardEnv {
     abstract buildHostRuntime(): Promise<void>;
 
     removeBoardRoot() {
-        if (fs.exists(HOST_ROOT_DIR)) {
-            fs.removeDir(HOST_ROOT_DIR);
-        }
+        fs.removeDir(this.hostRootDir);
     }
 
     refreshBoardRoot() {
         this.removeBoardRoot();
-        fs.makeDir(HOST_ROOT_DIR);
+        fs.makeDir(this.hostRootDir);
+    }
+
+    removeBuildDir() {
+        fs.removeDir(this.buildDir);
     }
 }
 
@@ -34,6 +33,7 @@ export class HostDarwinEnv extends HostEnv {
     get shellFile() { return path.join(this.buildDir, 'shell'); }
 
     async buildHostRuntime() {
+        console.log(this.runtimeDir);
         try {
             await exec(
                 `cc -DLINUX64 -O2 -shared -fPIC -o "${this.runtimeSoFile}" "${this.runtimeCFile}" "${this.builtinModuleCFile}" "${this.commCFile}"`,

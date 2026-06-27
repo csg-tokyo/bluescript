@@ -1,8 +1,9 @@
 import * as os from 'os';
-import { Esp32Env, Esp32DarwinEnv } from './esp32-env';
-import { BaseBoardEnv } from './base-env';
+import { Esp32Env, Esp32DarwinEnv, Esp32WindowsEnv } from './esp32-env';
+import { CommonBoardEnv } from './common-env';
 import { BoardName } from '../../config/board-utils';
 import { HostEnv, HostDarwinEnv } from './host-env';
+
 
 type BoardEnvMap = {
     esp32: Esp32Env;
@@ -15,6 +16,8 @@ export function createBoardEnv(board: BoardName): BoardEnvMap[BoardName] {
     if (board === 'esp32') {
         if (osType === 'darwin')
             return new Esp32DarwinEnv();
+        if (osType === 'win32')
+            return new Esp32WindowsEnv();
         throw new Error(`Unsupported OS type: ${osType}.`);
     }
     if (board === 'host') {
@@ -25,4 +28,11 @@ export function createBoardEnv(board: BoardName): BoardEnvMap[BoardName] {
     throw new Error(`Unsupported board name: ${board}`);
 }
 
-export { BaseBoardEnv, Esp32Env, Esp32DarwinEnv, HostEnv, HostDarwinEnv };
+export {
+    CommonBoardEnv,
+    Esp32Env,
+    Esp32DarwinEnv,
+    Esp32WindowsEnv,
+    HostEnv,
+    HostDarwinEnv,
+};

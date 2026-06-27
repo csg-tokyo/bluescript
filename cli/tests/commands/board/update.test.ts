@@ -1,8 +1,7 @@
 import { handleUpdateCommand } from '../../../src/commands/board/update';
-import { deleteGlobalEnv, DUMMY_ESP_IDF_VERSION, getGlobalConfig, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, DUMMY_VM_VERSION, spyGlobalSettings, DUMMY_OLD_VM_VERSION, DUMMY_OLD_ESP_IDF_VERSION } from '../global-env-helper';
+import { deleteGlobalEnv, DUMMY_ESP_IDF_VERSION, getGlobalConfig, getTestEspRootDir, getTestRuntimeDir, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, DUMMY_VM_VERSION, spyGlobalSettings, DUMMY_OLD_VM_VERSION, DUMMY_OLD_ESP_IDF_VERSION, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
 import { mockedDownloadAndUnzip, mockedExec, mockProcessExit } from '../mock-helpers';
 import * as fs from '../../../src/core/fs';
-import { GLOBAL_SETTINGS } from '../../../src/config/constants';
 
 
 describe('board update command', () => {
@@ -19,8 +18,8 @@ describe('board update command', () => {
         // --- Arrange ---
         setupGlobalEnvWithEsp32(true, true);
         mockedExec.mockImplementation((command: string) => {
-            if (command.endsWith('which xtensa-esp32-elf-gcc')) {
-                return 'xtensa-esp-elf/bin';
+            if (command.includes('idf_tools.py export --format key-value')) {
+                return mockXtensaGccFromIdfToolsExport();
             }
             return '';
         });
@@ -65,8 +64,8 @@ describe('board update command', () => {
         const exitSpy = mockProcessExit();
         setupGlobalEnvWithEsp32(true, true);
         mockedExec.mockImplementation((command: string) => {
-            if (command.endsWith('which xtensa-esp32-elf-gcc')) {
-                return 'xtensa-esp-elf/bin';
+            if (command.includes('idf_tools.py export --format key-value')) {
+                return mockXtensaGccFromIdfToolsExport();
             }
             return '';
         });
@@ -81,7 +80,7 @@ describe('board update command', () => {
         expect(mockedDownloadAndUnzip).toHaveBeenCalledTimes(1);
         expect(mockedExec).not.toHaveBeenCalledWith(expect.stringContaining('git clone'),expect.any(Object));
         expect(mockedExec).not.toHaveBeenCalledWith(expect.stringContaining('install'));
-        expect(fs.exists(GLOBAL_SETTINGS.RUNTIME_DIR)).toBe(true);
+        expect(fs.exists(getTestRuntimeDir())).toBe(true);
         expect(getGlobalConfig().version).toMatch(DUMMY_OLD_VM_VERSION);
 
         // --- Clean up ---
@@ -106,8 +105,8 @@ describe('board update command', () => {
         expect(mockedDownloadAndUnzip).toHaveBeenCalledTimes(1);
         expect(mockedExec).not.toHaveBeenCalledWith(expect.stringContaining('git clone'),expect.any(Object));
         expect(mockedExec).not.toHaveBeenCalledWith(expect.stringContaining('install'));
-        expect(fs.exists(GLOBAL_SETTINGS.RUNTIME_DIR)).toBe(true);
-        expect(fs.exists(GLOBAL_SETTINGS.ESP_ROOT_DIR)).toBe(true);
+        expect(fs.exists(getTestRuntimeDir())).toBe(true);
+        expect(fs.exists(getTestEspRootDir())).toBe(true);
         expect(getGlobalConfig().version).toMatch(DUMMY_OLD_VM_VERSION);
         expect(getGlobalConfig().boards.esp32.idfVersion).toMatch(DUMMY_OLD_ESP_IDF_VERSION);
 

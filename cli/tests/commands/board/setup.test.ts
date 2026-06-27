@@ -7,15 +7,14 @@ import {
     mockedLogger,
     mockProcessExit,
 } from '../mock-helpers';
-import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings } from '../global-env-helper';
+import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings, getTestRuntimeDir, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
+import { HostDarwinEnv } from '../../../src/platforms/board-env/host-env';
+import * as path from 'path';
 
-jest.mock('../../../src/platforms/runtime/host-board-runtime', () => ({
-    buildHostRuntime: jest.fn().mockResolvedValue('/mock/host/build'),
-    getHostBuildDir: jest.fn(),
-}));
 
-import { buildHostRuntime } from '../../../src/platforms/runtime/host-board-runtime';
-const mockedBuildHostRuntime = buildHostRuntime as jest.Mock;
+const mockedBuildHostRuntime = jest
+    .spyOn(HostDarwinEnv.prototype, 'buildHostRuntime')
+    .mockResolvedValue();
 
 jest.mock('os', () => ({
     ...jest.requireActual('os'),
@@ -29,6 +28,7 @@ mockedOs.platform.mockReturnValue('darwin');
 describe('board setup command', () => {
     beforeAll(() => {
         spyGlobalSettings('setup');
+        jest.spyOn(HostDarwinEnv.prototype, 'buildHostRuntime').mockResolvedValue();
     })
 
     afterEach(() => {
@@ -109,16 +109,17 @@ describe('board setup command', () => {
                     if (command.includes('brew') || command.includes('git')) {
                         return '';
                     }
-                    if (command.includes('xtensa-esp32-elf-gcc')) {
-                        return '/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc';
-                    }
                     throw new Error('not found');
                 }
+                if (command.includes('idf_tools.py export --format key-value')) {
+                    return mockXtensaGccFromIdfToolsExport();
+                }
                 if (command.includes('python --version')) {
-                    return 'Python 2.7.18';
+                    return 'Python 3.7.18';
                 }
                 return '';
             });
+            setupEmpyGlobalEnv();
 
             // --- Act ---
             await handleSetupCommand('esp32');
@@ -133,23 +134,36 @@ describe('board setup command', () => {
             // 3. Install required packages via Homebrew
             expect(mockedExec).toHaveBeenCalledWith('brew install cmake ninja dfu-util ccache');
             
-            // 4. Instaall Python 3 if not present
-            expect(mockedExec).toHaveBeenCalledWith('brew install python3');
-            
-            // 5. Clone ESP-IDF and run install script
+            // 4. Clone ESP-IDF and run install script
             expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('git clone'), expect.any(Object));
             expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('install.sh'));
 
-            // 6. Update and save config
+            // 5. Update and save config
             expect(Object.keys(getGlobalConfig().boards)).toContain('esp32');
 
-            // 7. No errors logged
+            // 6. No errors logged
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
 
         it('should skip downloading runtime if it exist', async () => {
             // --- Arrange ---
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             setupDefaultGlobalEnv();
+            mockedExec.mockImplementation(async (command: string) => {
+                if (command.startsWith('which')) {
+                    if (command.includes('brew') || command.includes('git')) {
+                        return '';
+                    }
+                    throw new Error('not found');
+                }
+                if (command.includes('idf_tools.py export --format key-value')) {
+                    return mockXtensaGccFromIdfToolsExport();
+                }
+                if (command.includes('python --version')) {
+                    return 'Python 3.7.18';
+                }
+                return '';
+            });
 
             // --- Act ---
             await handleSetupCommand('esp32');
@@ -164,12 +178,41 @@ describe('board setup command', () => {
         it('shold skip install required packages if all packages are installed', async () => {
             // --- Arrange ---
             setupEmpyGlobalEnv();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             mockedExec.mockImplementation(async (command: string) => {
                 if (command.startsWith('which')) {
                     if (command.includes('brew') || command.includes('git')) {
                         return '';
                     }
                     if (command.includes('cmake') || command.includes('ninja') || command.includes('dfu-util') || command.includes('ccache')) {
+                        return '';
+                    }
+                    throw new Error('not found');
+                }
+                if (command.includes('idf_tools.py export --format key-value')) {
+                    return mockXtensaGccFromIdfToolsExport();
+                }
+                if (command.includes('python --version')) {
+                    return 'Python 3.7.18';
+                }
+                return '';
+            });
+
+            // --- Act ---
+            await handleSetupCommand('esp32');
+
+            // --- Assert ---
+            expect(mockedExec).not.toHaveBeenCalledWith(expect.stringContaining('brew install cmake'));
+        });
+
+        it('shold stop if python3 is not installed', async () => {
+            // --- Arrange ---
+            setupEmpyGlobalEnv();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
+            const exitSpy = mockProcessExit();
+            mockedExec.mockImplementation(async (command: string) => {
+                if (command.startsWith('which')) {
+                    if (command.includes('brew') || command.includes('git')) {
                         return '';
                     }
                     throw new Error('not found');
@@ -184,35 +227,15 @@ describe('board setup command', () => {
             await handleSetupCommand('esp32');
 
             // --- Assert ---
-            expect(mockedExec).not.toHaveBeenCalledWith(expect.stringContaining('brew install cmake'));
-        });
-
-        it('shold skip install python3 if python3 is already installed', async () => {
-            // --- Arrange ---
-            setupEmpyGlobalEnv();
-            mockedExec.mockImplementation(async (command: string) => {
-                if (command.startsWith('which')) {
-                    if (command.includes('brew') || command.includes('git')) {
-                        return '';
-                    }
-                    throw new Error('not found');
-                }
-                if (command.includes('python --version')) {
-                    return 'Python 3.7.18';
-                }
-                return '';
-            });
-
-            // --- Act ---
-            await handleSetupCommand('esp32');
-
-            // --- Assert ---
-            expect(mockedExec).not.toHaveBeenCalledWith('brew install python3');
+            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Cannot find python3. Please install Python3 and try again.'));
+            expect(process.exit).toHaveBeenCalledWith(1);
+            exitSpy.mockRestore();
         })
 
         it('should warn and exit if setup is already completed', async () => {
             // --- Arrange ---
             setupGlobalEnvWithEsp32();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
 
             // --- Act ---
             await handleSetupCommand('esp32');
@@ -227,6 +250,7 @@ describe('board setup command', () => {
         it('should exit with an error for an unsupported OS', async () => {
             // --- Arrange ---
             const exitSpy = mockProcessExit();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             mockedOs.platform.mockReturnValue('linux');
             setupGlobalEnvWithEsp32()
 
@@ -235,7 +259,7 @@ describe('board setup command', () => {
 
             // --- Assert ---
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
-            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS.'));
+            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS type: linux.'));
             expect(process.exit).toHaveBeenCalledWith(1);
             exitSpy.mockRestore();
         });
@@ -261,7 +285,7 @@ describe('board setup command', () => {
             expect(mockedInquirer.prompt).toHaveBeenCalledTimes(1);
             expect(mockedDownloadAndUnzip).toHaveBeenCalledTimes(1);
             expect(mockedBuildHostRuntime).toHaveBeenCalledTimes(1);
-            expect(getGlobalConfig().boards.host).toEqual({ buildDir: '/mock/host/build' });
+            expect(getGlobalConfig().boards.host).toEqual({ buildDir: path.join(getTestRuntimeDir(), 'ports/host/build') });
             expect(mockedLogger.info).toHaveBeenCalledWith(expect.stringContaining('bscript project create'));
             expect(mockedLogger.info).not.toHaveBeenCalledWith(expect.stringContaining('flash-runtime'));
             expect(mockedLogger.error).not.toHaveBeenCalled();
@@ -290,6 +314,7 @@ describe('board setup command', () => {
 
         it('should warn and exit if setup is already completed', async () => {
             setupGlobalEnvWithHost();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
 
             await handleSetupCommand('host');
 

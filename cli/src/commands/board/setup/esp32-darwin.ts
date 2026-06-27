@@ -14,8 +14,7 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
         this.boardEnv = new Esp32DarwinEnv();
     }
 
-    protected loadSetupSteps(): void {
-        super.loadSetupSteps();
+    loadBoardSetupSteps(): void {
         this.setupSteps.push({
             description: "Verify that git, python3 and brew are installed.",
             actionMessage: "Verifying that git, python3 and brew are installed...",
@@ -35,6 +34,15 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
             description: "Run ESP-IDF install script.",
             actionMessage: "Running ESP-IDF install script...",
             action: this.runEspIdfInstallScriptStep.bind(this),
+        });
+    }
+
+    async setBoardConfig() {
+        this.globalConfigHandler.updateBoardConfig(this.boardName, {
+            idfVersion: this.boardEnv.idfVersion,
+            rootDir: this.boardEnv.espRootDir,
+            exportFile: this.boardEnv.idfExportFile,
+            xtensaGccDir: await this.boardEnv.getXtensaGccDir(),
         });
     }
 

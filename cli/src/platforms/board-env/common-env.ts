@@ -1,14 +1,17 @@
 import * as path from 'path';
 import * as fs from '../../core/fs';
-import { GLOBAL_SETTINGS } from "../../config/constants";
+import { GLOBAL_SETTINGS } from '../../config/constants';
 
 
-const RUNTIME_ZIP_URL = `https://github.com/csg-tokyo/bluescript/releases/download/v${GLOBAL_SETTINGS.VM_VERSION}/release-microcontroller-v${GLOBAL_SETTINGS.VM_VERSION}.zip`;
-const RUNTIME_DIR = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'microcontroller');
-    
-export class BaseBoardEnv {
-    get runtimeZipUrl() { return RUNTIME_ZIP_URL; }
-    get runtimeDir() { return RUNTIME_DIR; }
+export class CommonBoardEnv {
+    get runtimeDir() {
+        return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'microcontroller');
+    }
+
+    get runtimeZipUrl() {
+        const v = GLOBAL_SETTINGS.VM_VERSION;
+        return `https://github.com/csg-tokyo/bluescript/releases/download/v${v}/release-microcontroller-v${v}.zip`;
+    }
 
     ensureBlueScriptDir() {
         if (!fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_DIR)) {
@@ -27,10 +30,10 @@ export class BaseBoardEnv {
     refreshBoardRoot() {}
 
     async downloadBlueScriptRuntime() {
-        if (fs.exists(RUNTIME_DIR)) {
-            fs.removeDir(RUNTIME_DIR);
+        if (fs.exists(this.runtimeDir)) {
+            fs.removeDir(this.runtimeDir);
         }
-        await fs.downloadAndUnzip(RUNTIME_ZIP_URL, GLOBAL_SETTINGS.BLUESCRIPT_DIR);
+        await fs.downloadAndUnzip(this.runtimeZipUrl, GLOBAL_SETTINGS.BLUESCRIPT_DIR);
     }
 
     needUpdate(): boolean {

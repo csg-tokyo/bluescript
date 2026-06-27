@@ -7,7 +7,7 @@ import * as path from 'path';
 import { cwd } from '../../../src/core/shell';
 import * as fs from '../../../src/core/fs';
 import { handleRunCommand } from '../../../src/commands/project/run';
-import { buildHostRuntime } from '../../../src/platforms/runtime/host-board-runtime';
+import { CommonBoardEnv } from '../../../src/platforms/board-env/common-env';
 import {
     deleteGlobalEnv,
     setupGlobalEnvWithHostIntegration,
@@ -19,6 +19,7 @@ import {
     mockProcessExit,
     removeDirIfExists,
 } from '../host-run-helper';
+import { createBoardEnv } from '../../../src/platforms/board-env';
 
 const mockedCwd = cwd as jest.Mock;
 
@@ -35,9 +36,12 @@ describeHost('project run command (host integration)', () => {
     beforeAll(async () => {
         spyGlobalSettings('run-integration');
         fs.makeDir(TEMP_DIR);
+        jest.spyOn(CommonBoardEnv.prototype, 'runtimeDir', 'get')
+                .mockReturnValue(RUNTIME_DIR);
 
         if (!fs.exists(SHELL_PATH) || !fs.exists(RUNTIME_SO_PATH)) {
-            await buildHostRuntime(RUNTIME_DIR, BUILD_DIR);
+            const hostEnv = createBoardEnv('host');
+            await hostEnv.buildHostRuntime();
         }
     });
 
