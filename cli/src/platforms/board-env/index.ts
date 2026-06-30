@@ -1,6 +1,6 @@
 import * as os from 'os';
 import { Esp32Env, Esp32DarwinEnv, Esp32WindowsEnv } from './esp32-env';
-import { CommonBoardEnv } from './common-env';
+import { CommonBoardEnv, BoardEnv } from './common-env';
 import { BoardName } from '../../config/board-utils';
 import { HostEnv, HostDarwinEnv } from './host-env';
 
@@ -30,6 +30,7 @@ export function createBoardEnv(board: BoardName): BoardEnvMap[BoardName] {
 
 export {
     CommonBoardEnv,
+    BoardEnv,
     Esp32Env,
     Esp32DarwinEnv,
     Esp32WindowsEnv,

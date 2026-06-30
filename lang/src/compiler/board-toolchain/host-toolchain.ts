@@ -1,16 +1,17 @@
 import * as path from "path";
 import * as fs from "fs";
-import { BoardToolchain, SharedObject } from "./board-toolchain";
-import { Package, ProjectForHost } from "../project";
-import { generateMakefile, hostMakefilePreset } from "./tools/makefile";
+import { BoardToolchain, SharedLibrary } from "./board-toolchain";
+import { Project } from "../project";
+import { Package, PackageForHostUnix } from "../package";
+import { generateMakefile, hostUnixMakefilePrest } from "./tools/makefile2";
 import { executeCommand, getErrorMessage } from "../utils";
 
 
-export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObject> {
-    private runtimeDir: string;
-    private compileId: number = 0;
-    private compiledPackages = new Set<string>();
-    private generatedSoFiles: string[] = [];
+export abstract class HostToolchain<P extends Package> implements BoardToolchain<P, SharedLibrary> {
+    protected runtimeDir: string;
+    protected compileId: number = 0;
+    protected compiledPackages = new Set<string>();
+    protected generatedSharedLibs: string[] = [];
 
     constructor(runtimeDir: string) {
         this.runtimeDir = runtimeDir;
@@ -28,51 +29,55 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
     get executableShell() { return path.join(this.runtimeBuildDir, 'shell'); }
     get runtimeSo() { return path.join(this.runtimeBuildDir, 'c-runtime.so'); }
 
-    async compileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObject> {
+    async compileAndLink(project: Project<P>, entryPoints: string[]): Promise<SharedLibrary> {
         const archiveFiles: string[] = [];
         for (const pkg of project.usedDependencies) {
-            archiveFiles.push(await this.compilePackage(project, pkg));
+            archiveFiles.push(await this.compilePackage(pkg));
             this.compiledPackages.add(pkg.name);
         }
-        archiveFiles.push(await this.compilePackage(project, project.mainPackage));
-        const soFile = project.soFile();
-        await this.link(archiveFiles, entryPoints, soFile);
-        this.generatedSoFiles.push(soFile);
+        archiveFiles.push(await this.compilePackage(project.mainPackage));
+        const sharedLib = await this.link(project, archiveFiles, entryPoints);
+        this.generatedSharedLibs.push(sharedLib);
         return {
-            soFile,
+            filePath: sharedLib,
             entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
         }
     }
 
-    async additionalCompileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObject> {
+    async additionalCompileAndLink(project: Project<P>, entryPoints: string[]): Promise<SharedLibrary> {
         const archiveFiles: string[] = [];
         for (const pkg of project.usedDependencies) {
             if (!this.compiledPackages.has(pkg.name)) {
-                archiveFiles.push(await this.compilePackage(project, pkg));
+                archiveFiles.push(await this.compilePackage(pkg));
                 this.compiledPackages.add(pkg.name);
             }
         }
-        archiveFiles.push(await this.compilePackage(project, project.mainPackage));
-        const soFile = project.soFile(this.compileId++);
-        await this.link(archiveFiles, entryPoints, soFile);
-        this.generatedSoFiles.push(soFile);
+        archiveFiles.push(await this.compilePackage(project.mainPackage));
+        const sharedLib = await this.link(project, archiveFiles, entryPoints);
+        this.generatedSharedLibs.push(sharedLib);
         return {
-            soFile,
+            filePath: sharedLib,
             entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
         }
     }
 
-    private async compilePackage(project: ProjectForHost, pkg: Package): Promise<string> {
+    abstract compilePackage(pkg: P): Promise<string>;
+    abstract link(project: Project<P>, archiveFiles: string[], entryPoints: string[]): Promise<string>;
+}
+
+export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
+    async compilePackage(pkg: PackageForHostUnix): Promise<string> {
         try {
-            const archiveFile = project.archiveFile(pkg);
+            const archiveFile = pkg.archiveFile;
 
             // Remove old archive file.
             if (fs.existsSync(archiveFile)) {
                 fs.rmSync(archiveFile, { force: true });
             }
 
-            const makefile = generateMakefile(hostMakefilePreset(pkg, archiveFile));
-            project.writeMakefile(pkg, makefile);
+            pkg.copyNativeFilesToDist();
+            const makefile = generateMakefile(hostUnixMakefilePrest(pkg));
+            pkg.writeMakefile(makefile);
             await executeCommand('make', [], pkg.resolvedDistDir);
             return archiveFile;
         } catch (error) {
@@ -80,25 +85,23 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
         }
     }
 
-    private linkerSymbolName(sym: string): string {
-        return process.platform === 'darwin' ? `_${sym}` : sym;
-    }
-
-    private async link(archiveFiles: string[], entryPoints: string[], outputFile: string): Promise<void> {
+    async link(project: Project<PackageForHostUnix>, archiveFiles: string[], entryPoints: string[]): Promise<string> {
         try {
             const keepEntrySymbols = entryPoints.map(
-                (sym) => `-Wl,-u,${this.linkerSymbolName(sym)}`,
+                (sym) => `-Wl,-u,_${sym}`,
             );
+            const outputFile = project.mainPackage.soFile(this.compileId++);
             const args = [
                 '-shared', '-fPIC', 
                 '-o', outputFile, 
                 ...archiveFiles, 
-                ...this.generatedSoFiles, 
+                ...this.generatedSharedLibs, 
                 this.runtimeSo, 
                 '-lm', '-ldl',
                 ...keepEntrySymbols,
             ];
             await executeCommand('cc', args);
+            return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});
         }

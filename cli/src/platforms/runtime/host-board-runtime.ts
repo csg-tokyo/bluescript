@@ -1,6 +1,5 @@
 import * as path from 'path';
-import { exec } from '../../core/shell';
-import { SharedObject } from "@bscript/lang";
+import { SharedLibrary } from "@bscript/lang";
 import { ProgramOutput } from "../../core/logger/program-output";
 import { BoardRuntime } from "./board-runtime";
 import { CompileContext } from "../compiler/compiler-adapter";
@@ -8,7 +7,7 @@ import { HostBoardConfig } from "../../config/global-config";
 import { HostService, ProcessConnection } from '../../services/process';
 
 
-export class HostBoardRuntime implements BoardRuntime<SharedObject> {
+export class HostBoardRuntime implements BoardRuntime<SharedLibrary> {
     private programOutput: ProgramOutput;
     private shellProcess: ProcessConnection;
     private hostService: HostService;
@@ -46,11 +45,11 @@ export class HostBoardRuntime implements BoardRuntime<SharedObject> {
         return {};
     }
 
-    async load(output: SharedObject): Promise<number> {
-        return this.hostService.load(output.soFile);
+    async load(output: SharedLibrary): Promise<number> {
+        return this.hostService.load(output.filePath);
     }
 
-    async execute(output: SharedObject): Promise<number> {
+    async execute(output: SharedLibrary): Promise<number> {
         let exectime = 0;
         for (const entry of output.entryNames) {
             exectime += await this.hostService.execute(entry.name);

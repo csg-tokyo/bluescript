@@ -2,12 +2,12 @@ import * as path from 'path';
 import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from "../../config/constants";
 import { exec } from '../../core/shell';
-import { CommonBoardEnv } from './common-env';
+import { BoardEnv } from './common-env';
 
 const XTENSA_TOOLCHAIN_DIR = 'xtensa-esp-elf';
 const XTENSA_GCC_NAME = 'xtensa-esp32-elf-gcc';
 
-export abstract class Esp32Env extends CommonBoardEnv {
+export abstract class Esp32Env extends BoardEnv {
     get espRootDir() { return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'esp'); }
     get idfDir() { return path.join(this.espRootDir, 'esp-idf'); }
     get idfExportShFile() { return path.join(this.idfDir, 'export.sh'); }

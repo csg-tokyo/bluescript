@@ -2,9 +2,9 @@ import * as path from 'path';
 import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from '../../config/constants';
 import { exec } from '../../core/shell';
-import { CommonBoardEnv } from './common-env';
+import { BoardEnv } from './common-env';
 
-export abstract class HostEnv extends CommonBoardEnv {
+export abstract class HostEnv extends BoardEnv {
     get hostRootDir() { return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'host'); }
     get buildDir() { return path.join(this.runtimeDir, 'ports/host/build'); }
     get builtinModuleCFile() { return path.join(this.runtimeDir, 'ports/host/std-module.c'); }

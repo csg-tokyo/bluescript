@@ -3,12 +3,12 @@ import inquirer from 'inquirer';
 import { BoardName, isValidBoard } from "../../config/board-utils";
 import { logger, runStep } from "../../core/logger";
 import { CommandHandler } from "../command";
-import { CommonBoardEnv, createBoardEnv } from "../../platforms/board-env";
+import { BoardEnv, createBoardEnv } from "../../platforms/board-env";
 
 
 class RemoveHandler extends CommandHandler {
     boardName: BoardName;
-    boardEnv: CommonBoardEnv;
+    boardEnv: BoardEnv;
 
     constructor(boardName: BoardName) {
         super();

@@ -2,8 +2,8 @@ import { GlobalConfigHandler } from "../../config/global-config";
 import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { BoardName } from "../../config/board-utils";
 import {
-    CompilerSession, SharedObject,
-    HostToolchain, ProjectForHost, Package
+    CompilerSession, SharedLibrary,
+    HostUnixToolchain, Project, PackageForHostUnix
 } from "@bscript/lang";
 import { CompilerAdapter, CompileContext } from "./compiler-adapter";
 import * as path from 'path';
@@ -11,7 +11,7 @@ import * as path from 'path';
 
 export class HostCompilerAdapter implements CompilerAdapter {
     readonly boardName: BoardName = 'host';
-    private compiler?: CompilerSession<ProjectForHost, SharedObject>;
+    private compiler?: CompilerSession<PackageForHostUnix, SharedLibrary>;
 
     constructor(
         private globalConfigHandler: GlobalConfigHandler,
@@ -22,21 +22,21 @@ export class HostCompilerAdapter implements CompilerAdapter {
         }
     }
 
-    async buildForCheck(): Promise<SharedObject> {
+    async buildForCheck(): Promise<SharedLibrary> {
         return this.buildProject();
     }
 
-    async buildProject(_context?: CompileContext): Promise<SharedObject> {
-        const project = ProjectForHost.load(
+    async buildProject(_context?: CompileContext): Promise<SharedLibrary> {
+        const project = Project.load<PackageForHostUnix>(
             this.projectConfigHandler.getConfig().projectName,
             createHostPackageReader(this.boardName, this.projectConfigHandler),
         );
-        const toolchain = new HostToolchain(this.getRuntimeDir());
+        const toolchain = new HostUnixToolchain(this.getRuntimeDir());
         this.compiler = new CompilerSession(toolchain);
         return this.compiler.buildProject(project);
     }
 
-    async compileFragment(src: string): Promise<SharedObject> {
+    async compileFragment(src: string): Promise<SharedLibrary> {
         if (!this.compiler) {
             throw new Error("Cannot compile fragment before building the project.");
         }
@@ -56,7 +56,7 @@ export class HostCompilerAdapter implements CompilerAdapter {
 export function createHostPackageReader(
     _boardName: BoardName,
     projectConfigHandler: ProjectConfigHandler,
-): (name: string) => Package {
+): (name: string) => PackageForHostUnix {
     return (name: string) => {
         const mainRoot = projectConfigHandler.root;
         const subPackageRoot = path.join(mainRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, name);
@@ -66,7 +66,7 @@ export function createHostPackageReader(
             const configHandler = isMain
                 ? projectConfigHandler.asBoard('host')
                 : ProjectConfigHandler.load(root).asBoard('host');
-            return new Package(
+            return new PackageForHostUnix(
                 name,
                 {
                     rootDir: root,

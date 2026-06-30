@@ -3,7 +3,7 @@ import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from '../../config/constants';
 
 
-export class CommonBoardEnv {
+export abstract class BoardEnv {
     get runtimeDir() {
         return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'microcontroller');
     }
@@ -25,9 +25,9 @@ export class CommonBoardEnv {
         }
     }
 
-    removeBoardRoot() {}
+    abstract removeBoardRoot():  void;
 
-    refreshBoardRoot() {}
+    abstract refreshBoardRoot(): void;
 
     async downloadBlueScriptRuntime() {
         if (fs.exists(this.runtimeDir)) {
@@ -45,4 +45,9 @@ export class CommonBoardEnv {
         const existingVersion = configFile.version;
         return currentVersion !== existingVersion;
     }
+}
+
+export class CommonBoardEnv extends BoardEnv {
+    removeBoardRoot(): void {}
+    refreshBoardRoot(): void {}
 }

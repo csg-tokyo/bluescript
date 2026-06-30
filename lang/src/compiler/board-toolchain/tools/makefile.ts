@@ -1,4 +1,4 @@
-import { Package } from "../../project";
+import { Package } from "../../package";
 
 
 type MakefileConfig = {

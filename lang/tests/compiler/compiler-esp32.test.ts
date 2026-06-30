@@ -2,7 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getEsp32CompilerConfig, Esp32CompilerTestEnv } from './test-utils';
 import { CompilerSession } from '../../src/compiler/compiler-session';
-import { ProjectForEsp32 } from '../../src/compiler/project';
+import { Project } from '../../src/compiler/project';
+import { PackageForEsp32 } from '../../src/compiler/package';
 import { Esp32Toolchain } from '../../src/compiler/board-toolchain/esp32-toolchain';
 import { MemoryImage } from '../../src/compiler/board-toolchain/board-toolchain';
 
@@ -15,12 +16,12 @@ const memoryLayout = {
 const compilerConfig = getEsp32CompilerConfig();
 
 const compile = async (testEnv: Esp32CompilerTestEnv) => {
-    const project = ProjectForEsp32.load(
+    const project = Project.load<PackageForEsp32>(
         testEnv.mainPackageName,
         testEnv.getPackageReader()
     );
     const toolchain = new Esp32Toolchain(compilerConfig, memoryLayout);
-    const session = new CompilerSession<ProjectForEsp32, MemoryImage>(toolchain);
+    const session = new CompilerSession<PackageForEsp32, MemoryImage>(toolchain);
     await session.buildProject(project);
     return session;
 }

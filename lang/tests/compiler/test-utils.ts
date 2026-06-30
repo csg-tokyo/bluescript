@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 import { Esp32ToolchainConfig } from "../../src/compiler/board-toolchain/esp32-toolchain";
-import { Package, PackageForEsp32 } from "../../src/compiler/project";
+import { Package, PackageForEsp32, PackageForHostUnix } from "../../src/compiler/package";
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -110,9 +110,10 @@ export class Esp32CompilerTestEnv extends CompilerTestEnv<PackageForEsp32> {
     }
 }
 
-export class HostCompilerTestEnv extends CompilerTestEnv<Package> {
+
+export class HostUnixCompilerTestEnv extends CompilerTestEnv<PackageForHostUnix> {
     public createMainPackage(dependencies: string[] = [], srcDir: string = ".", entryFile?: string): void {
-        const pkg = new Package(
+        const pkg = new PackageForHostUnix(
             this.mainPackageName,
             {
                 rootDir: this.root,
@@ -130,7 +131,7 @@ export class HostCompilerTestEnv extends CompilerTestEnv<Package> {
     public createSubPackage(name: string, dependencies: string[] = [], srcDir: string = ".", entryFile?: string): void {
         const root = path.join(this.root, 'packages', name);
         fs.mkdirSync(root, {recursive: true});
-        const pkg = new Package(
+        const pkg = new PackageForHostUnix(
             name,
             {
                 rootDir: root,
@@ -145,8 +146,12 @@ export class HostCompilerTestEnv extends CompilerTestEnv<Package> {
         this.addPackage(pkg);
     }
 
-    public resultSharedObjectExists() {
-        const soPath = path.join(this.root, `dist/build/${this.mainPackageName}.so`);
-        return fs.existsSync(soPath);
+    public resultSharedLibraryExists() {
+        const buildDir = path.join(this.root, 'dist/build/');
+        const pattern = new RegExp(`^${this.mainPackageName}\\d+\\.so$`);
+        for (const name of fs.readdirSync(buildDir)) {
+            if(pattern.test(name) ) { return true; }
+        }
+        return false;
     }
 }

@@ -25,7 +25,11 @@ static float get_time_ms() {
 
 static void load(char* filename) {
     float start_time = get_time_ms();
+#ifndef WIN_MINGW
     file_handle = dlopen(filename, RTLD_NOW | RTLD_GLOBAL);
+#else
+    file_handle = dlopen(filename, RTLD_NOW | RTLD_GLOBAL);
+#endif
     bs_comm_send_loadtime(get_time_ms() - start_time);
 }
 
