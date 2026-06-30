@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 import { Esp32ToolchainConfig } from "../../src/compiler/board-toolchain/esp32-toolchain";
-import { Package, PackageForEsp32, PackageForHostUnix } from "../../src/compiler/package";
+import { Package, PackageForEsp32, PackageForHostUnix, PackageForHostWindows } from "../../src/compiler/package";
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -132,6 +132,51 @@ export class HostUnixCompilerTestEnv extends CompilerTestEnv<PackageForHostUnix>
         const root = path.join(this.root, 'packages', name);
         fs.mkdirSync(root, {recursive: true});
         const pkg = new PackageForHostUnix(
+            name,
+            {
+                rootDir: root,
+                entry: entryFile ?? path.join(srcDir, 'index.bs'),
+                sourceDir: srcDir,
+                distDir: "./dist",
+                buildDir: "./dist/build",
+                packageDir: "./packages",
+            },
+            dependencies,
+        )
+        this.addPackage(pkg);
+    }
+
+    public resultSharedLibraryExists() {
+        const buildDir = path.join(this.root, 'dist/build/');
+        const pattern = new RegExp(`^${this.mainPackageName}\\d+\\.so$`);
+        for (const name of fs.readdirSync(buildDir)) {
+            if(pattern.test(name) ) { return true; }
+        }
+        return false;
+    }
+}
+
+export class HostWindowsCompilerTestEnv extends CompilerTestEnv<PackageForHostWindows> {
+    public createMainPackage(dependencies: string[] = [], srcDir: string = ".", entryFile?: string): void {
+        const pkg = new PackageForHostWindows(
+            this.mainPackageName,
+            {
+                rootDir: this.root,
+                entry: entryFile ?? path.join(srcDir, 'index.bs'),
+                sourceDir: srcDir,
+                distDir: "./dist",
+                buildDir: "./dist/build",
+                packageDir: "./packages",
+            },
+            dependencies,
+        );
+        this.addPackage(pkg);
+    }
+
+    public createSubPackage(name: string, dependencies: string[] = [], srcDir: string = ".", entryFile?: string): void {
+        const root = path.join(this.root, 'packages', name);
+        fs.mkdirSync(root, {recursive: true});
+        const pkg = new PackageForHostWindows(
             name,
             {
                 rootDir: root,

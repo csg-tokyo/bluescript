@@ -38,6 +38,29 @@ void print_message(value_t m) {
 }
 
 
+static float get_time_ms() {
+#ifndef _WIN32
+    static struct timespec ts0 = { 0, -1 };
+    struct timespec ts;
+    if (ts0.tv_nsec < 0)
+        clock_gettime(CLOCK_REALTIME, &ts0);
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (float)(ts.tv_sec - ts0.tv_sec) * 1000.0 + (float)(ts.tv_nsec - ts0.tv_nsec) / 1000000.0;
+#else
+    static LARGE_INTEGER freq = { 0 };
+    static LARGE_INTEGER start = { 0 };
+    LARGE_INTEGER now;
+    if (freq.QuadPart == 0) {
+        QueryPerformanceFrequency(&freq);
+        QueryPerformanceCounter(&start);
+    }
+    QueryPerformanceCounter(&now);
+    return (float)(now.QuadPart - start.QuadPart) * 1000.0f / (float)freq.QuadPart;
+#endif
+}
+
+
 extern struct func_body _print;
 void mth_0_Console(value_t self, value_t _message);
 void mth_1_Console(value_t self, value_t _message);
@@ -97,14 +120,7 @@ float mth_0_Time(value_t self) {
   func_rootset.values[0] = self;
   {
     int32_t _t = 0;
-    
-        static struct timespec ts0 = { 0, -1 };
-        struct timespec ts;
-        if (ts0.tv_nsec < 0)
-            clock_gettime(CLOCK_REALTIME, &ts0);
-
-        clock_gettime(CLOCK_REALTIME, &ts);
-        _t = (int32_t)((ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000);
+        _t = get_time_ms();
         ;
     { float ret_value_ = (_t); DELETE_ROOT_SET(func_rootset); return ret_value_; }
   }

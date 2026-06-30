@@ -197,3 +197,12 @@ export class PackageForHostUnix extends Package {
     }
 }
 
+export class PackageForHostWindows extends Package {
+    dllFile(id?: number): AbsolutePath {
+        return path.join(
+            this.resolvedBuildDir, 
+            `${this.name}${id ?? ''}.dll`
+        ); 
+    }
+}
+

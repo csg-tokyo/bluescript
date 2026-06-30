@@ -1,4 +1,4 @@
-import { PackageForEsp32, PackageForHostUnix } from "../../package"
+import { PackageForEsp32, PackageForHostUnix, PackageForHostWindows } from "../../package"
 
 type MakefileConfig = {
     outputFile: string,
@@ -49,6 +49,23 @@ export function hostUnixMakefilePrest(pkg: PackageForHostUnix) {
             ar: `ar`
         }
     }
+}
+
+export function hostWindowsMakefilePreset(pkg: PackageForHostWindows, toolchainPrefix?: string): MakefileConfig {
+    const toMakePath = (p: string) => p.replace(/\\/g, '/');
+    return {
+        outputFile: toMakePath(pkg.archiveFile),
+        objectFiles: pkg.objectFiles.map(toMakePath),
+        headerFilesInDist: pkg.headerFilesInDist.map(toMakePath),
+        includeDirs: [toMakePath(pkg.resolvedDistDir)],
+        compileFlags: ['-O2', '-w', '-DLINUX64', '-DWIN64'],
+        distDir: toMakePath(pkg.resolvedDistDir),
+        buildDir: toMakePath(pkg.resolvedBuildDir),
+        toolchain: {
+            cc: toolchainPrefix ? `${toMakePath(toolchainPrefix)}/gcc` : 'gcc',
+            ar: toolchainPrefix ? `${toMakePath(toolchainPrefix)}/ar` : 'ar',
+        },
+    };
 }
 
 export function generateMakefile(config: MakefileConfig) {

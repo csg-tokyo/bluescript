@@ -2,8 +2,8 @@ import * as path from "path";
 import * as fs from "fs";
 import { BoardToolchain, SharedLibrary } from "./board-toolchain";
 import { Project } from "../project";
-import { Package, PackageForHostUnix } from "../package";
-import { generateMakefile, hostUnixMakefilePrest } from "./tools/makefile";
+import { Package, PackageForHostUnix, PackageForHostWindows } from "../package";
+import { generateMakefile, hostUnixMakefilePrest, hostWindowsMakefilePreset } from "./tools/makefile";
 import { executeCommand, getErrorMessage } from "../utils";
 
 
@@ -26,8 +26,6 @@ export abstract class HostToolchain<P extends Package> implements BoardToolchain
     get cRuntimeH() { return path.join(this.runtimeDir, 'core/include/c-runtime.h'); }
     get builtinModulePath() { return path.join(this.runtimeDir, 'ports/host/std-module.bs'); }
     get runtimeBuildDir() { return path.join(this.runtimeDir, 'ports/host/build'); }
-    get executableShell() { return path.join(this.runtimeBuildDir, 'shell'); }
-    get runtimeSo() { return path.join(this.runtimeBuildDir, 'c-runtime.so'); }
 
     async compileAndLink(project: Project<P>, entryPoints: string[]): Promise<SharedLibrary> {
         const archiveFiles: string[] = [];
@@ -66,6 +64,8 @@ export abstract class HostToolchain<P extends Package> implements BoardToolchain
 }
 
 export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
+    get runtimeSo() { return path.join(this.runtimeBuildDir, 'c-runtime.so'); }
+
     async compilePackage(pkg: PackageForHostUnix): Promise<string> {
         try {
             const archiveFile = pkg.archiveFile;
@@ -104,6 +104,69 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
             return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});
+        }
+    }
+}
+
+export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
+    private readonly toolchainPrefix?: string;
+
+    constructor(runtimeDir: string, toolchainPrefix?: string) {
+        super(runtimeDir);
+        this.toolchainPrefix = toolchainPrefix;
+    }
+
+    get runtimeDll(): string {
+        return path.join(this.runtimeBuildDir, 'c-runtime.dll');
+    }
+    
+    async compilePackage(pkg: PackageForHostWindows): Promise<string> {
+        try {
+            const archiveFile = pkg.archiveFile;
+            if (fs.existsSync(archiveFile)) {
+                fs.rmSync(archiveFile, { force: true });
+            }
+            pkg.copyNativeFilesToDist();
+            const makefile = generateMakefile(
+                hostWindowsMakefilePreset(pkg, this.toolchainPrefix),
+            );
+            pkg.writeMakefile(makefile);
+            await executeCommand('mingw32-make', [], pkg.resolvedDistDir);
+            return archiveFile;
+        } catch (error) {
+            throw new Error(
+                `Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`,
+                { cause: error },
+            );
+        }
+    }
+
+    async link(
+        project: Project<PackageForHostWindows>,
+        archiveFiles: string[],
+        entryPoints: string[],
+    ): Promise<string> {
+        try {
+            const keepEntrySymbols = entryPoints.map(
+                (sym) => `-Wl,-u,${sym}`,
+            );
+            const outputFile = project.mainPackage.dllFile(this.compileId++);
+            const args = [
+                '-shared',
+                '-o', outputFile,
+                ...archiveFiles,
+                ...this.generatedSharedLibs,
+                this.runtimeDll,
+                '-lm',
+                ...keepEntrySymbols,
+            ];
+            const linker = this.toolchainPrefix
+                ? path.join(this.toolchainPrefix, 'gcc')
+                : 'gcc';
+            await executeCommand(linker, args);
+            return outputFile;
+        } catch (error) {
+            throw new Error(`Failed to link: ${getErrorMessage(error)}`, { cause: error });
         }
     }
 }

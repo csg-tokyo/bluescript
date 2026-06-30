@@ -41,6 +41,28 @@ void print_message(value_t m) {
         send_message("<class %s>\n", cls->name);
     }
 }
+
+static float get_time_ms() {
+#ifndef _WIN32
+    static struct timespec ts0 = { 0, -1 };
+    struct timespec ts;
+    if (ts0.tv_nsec < 0)
+        clock_gettime(CLOCK_REALTIME, &ts0);
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (float)(ts.tv_sec - ts0.tv_sec) * 1000.0 + (float)(ts.tv_nsec - ts0.tv_nsec) / 1000000.0;
+#else
+    static LARGE_INTEGER freq = { 0 };
+    static LARGE_INTEGER start = { 0 };
+    LARGE_INTEGER now;
+    if (freq.QuadPart == 0) {
+        QueryPerformanceFrequency(&freq);
+        QueryPerformanceCounter(&start);
+    }
+    QueryPerformanceCounter(&now);
+    return (float)(now.QuadPart - start.QuadPart) * 1000.0f / (float)freq.QuadPart;
+#endif
+}
 `
 
 function print(message: any) {
@@ -61,15 +83,7 @@ class Console {
 class Time {
     now(): float {
         let t: integer = 0
-        code`
-        static struct timespec ts0 = { 0, -1 };
-        struct timespec ts;
-        if (ts0.tv_nsec < 0)
-            clock_gettime(CLOCK_REALTIME, &ts0);
-
-        clock_gettime(CLOCK_REALTIME, &ts);
-        ${t} = (int32_t)((ts.tv_sec - ts0.tv_sec) * 1000 + (ts.tv_nsec - ts0.tv_nsec) / 1000000);
-        `
+        code`${t} = get_time_ms();`
         return t
     }
 }
