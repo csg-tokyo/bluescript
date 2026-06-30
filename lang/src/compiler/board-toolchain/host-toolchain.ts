@@ -3,7 +3,7 @@ import * as fs from "fs";
 import { BoardToolchain, SharedLibrary } from "./board-toolchain";
 import { Project } from "../project";
 import { Package, PackageForHostUnix } from "../package";
-import { generateMakefile, hostUnixMakefilePrest } from "./tools/makefile2";
+import { generateMakefile, hostUnixMakefilePrest } from "./tools/makefile";
 import { executeCommand, getErrorMessage } from "../utils";
 
 

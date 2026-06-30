@@ -4,7 +4,7 @@ import { PackageForEsp32 } from "../package";
 import { Project } from "../project";
 import { BoardToolchain, MemoryImage, MemoryLayout, ShadowMemory } from "./board-toolchain";
 import { executeCommand, getErrorMessage } from "../utils";
-import { generateMakefile, esp32MakefilePreset } from "./tools/makefile2";
+import { generateMakefile, esp32MakefilePreset } from "./tools/makefile";
 import { ElfReader } from "./tools/elf-reader";
 import generateLinkerScript from "./tools/linker-script";
 
