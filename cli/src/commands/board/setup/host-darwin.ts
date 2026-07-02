@@ -28,7 +28,11 @@ export class HostDarwinSetupHandler extends SetupHandler {
 
     async setBoardConfig() {
         this.globalConfigHandler.updateBoardConfig('host', {
-            buildDir: this.boardEnv.buildDir
+            rootDir: this.boardEnv.hostRootDir,
+            shellFile: this.boardEnv.shellFile,
+            gccCommand: 'cc',
+            makeCommand: 'make',
+            arCommand: 'ar'
         })
     }
 

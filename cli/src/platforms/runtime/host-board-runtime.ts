@@ -62,6 +62,6 @@ export class HostBoardRuntime implements BoardRuntime<SharedLibrary> {
     }
 
     private getShellPath(): string {
-        return path.join(this.boardConfig.buildDir, 'shell');
+        return path.join(this.boardConfig.shellFile);
     }
 }

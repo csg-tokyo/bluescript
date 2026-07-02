@@ -12,7 +12,11 @@ const esp32BoardSchema = z.object({
 });
 
 const hostBoardSchema = z.object({
-    buildDir: z.string(),
+    rootDir: z.string(),
+    shellFile: z.string(),
+    gccCommand: z.string(),
+    makeCommand: z.string(),
+    arCommand: z.string()
 });
 
 const boardConfigSchema = z.object({

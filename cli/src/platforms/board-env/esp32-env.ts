@@ -10,10 +10,6 @@ const XTENSA_GCC_NAME = 'xtensa-esp32-elf-gcc';
 export abstract class Esp32Env extends BoardEnv {
     get espRootDir() { return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'esp'); }
     get idfDir() { return path.join(this.espRootDir, 'esp-idf'); }
-    get idfExportShFile() { return path.join(this.idfDir, 'export.sh'); }
-    get idfInstallShFile() { return path.join(this.idfDir, 'install.sh'); }
-    get idfExportBatFile() { return path.join(this.idfDir, 'export.bat'); }
-    get idfInstallBatFile() { return path.join(this.idfDir, 'install.bat'); }
     get idfToolsPyFile() { return path.join(this.idfDir, 'tools/idf_tools.py'); }
     get idfVersion() { return 'v5.4'; }
     get idfGitRepo() { return 'https://github.com/espressif/esp-idf.git'; }
@@ -90,6 +86,9 @@ export abstract class Esp32Env extends BoardEnv {
 }
 
 export class Esp32DarwinEnv extends Esp32Env {
+    get idfExportShFile() { return path.join(this.idfDir, 'export.sh'); }
+    get idfInstallShFile() { return path.join(this.idfDir, 'install.sh'); }
+
     get idfExportFile() { return this.idfExportShFile; }
 
     async runEspIdfInstallScript() {
@@ -107,6 +106,8 @@ export class Esp32DarwinEnv extends Esp32Env {
 }
 
 export class Esp32WindowsEnv extends Esp32Env {
+    get idfExportBatFile() { return path.join(this.idfDir, 'export.bat'); }
+    get idfInstallBatFile() { return path.join(this.idfDir, 'install.bat'); }
     get idfExportFile() { return this.idfExportBatFile; }
 
     protected get xtensaGccFileName(): string {

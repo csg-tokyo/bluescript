@@ -6,6 +6,8 @@ import chalk from "chalk";
 import { SetupHandler } from "./base";
 import { Esp32DarwinSetupHandler } from "./esp32-darwin";
 import { HostDarwinSetupHandler } from "./host-darwin";
+import { Esp32WindowsSetupHandler } from "./esp32-windows";
+import { HostWindowsSetupHandler } from "./host-windows";
 
 
 function getSetupHandler(board: string): SetupHandler {
@@ -13,11 +15,15 @@ function getSetupHandler(board: string): SetupHandler {
     if (board === 'esp32') {
         if (osType === 'darwin')
             return new Esp32DarwinSetupHandler();
+        if (osType === 'win32')
+            return new Esp32WindowsSetupHandler();
         throw new Error(`Unsupported OS type: ${osType}.`);
     }
     if (board === 'host') {
         if (osType === 'darwin')
             return new HostDarwinSetupHandler();
+        if (osType === 'win32')
+            return new HostWindowsSetupHandler();
         throw new Error(`Unsupported OS type: ${osType}.`);
     }
     throw new Error(`Unsupported board name: ${board}`);

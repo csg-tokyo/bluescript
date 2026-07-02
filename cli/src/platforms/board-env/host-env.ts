@@ -49,3 +49,24 @@ export class HostDarwinEnv extends HostEnv {
         
     }
 }
+
+export class HostWindowsEnv extends HostEnv {
+    get runtimeDllFile() { return path.join(this.buildDir, 'c-runtime.dll'); }
+    get shellFile() { return path.join(this.buildDir, 'shell.exe'); }
+
+    async buildHostRuntime() {
+        fs.makeDir(this.buildDir);
+        try {
+            await exec(
+                `gcc -DLINUX64 -O2 -shared -o "${this.runtimeDllFile}" "${this.runtimeCFile}" "${this.builtinModuleCFile}" "${this.commCFile}"`,
+                { silent: true },
+            );
+            await exec(
+                `gcc -DLINUX64 -O2 -o "${this.shellFile}" "${this.shellCFile}" "${this.runtimeDllFile}" -lm`,
+                { silent: true },
+            );
+        } catch (error) {
+            throw new Error('Failed to compile host runtime.', { cause: error });
+        }
+    }
+}
