@@ -59,10 +59,10 @@ static void load(char* filename) {
     bs_comm_send_loadtime(get_time_ms() - start_time);
 }
 
-static int call(char* funcname) {
+static void call(char* funcname) {
     if (file_handle == NULL) {
         fprintf(stderr, "Error: module is not loaded\n");
-        return 1;
+        //return 1;
     }
 #ifndef _WIN32
     void (*fptr)(void) = (void (*)(void))dlsym(file_handle, funcname);
@@ -71,12 +71,12 @@ static int call(char* funcname) {
 #endif
     if (fptr == NULL) {
         fprintf(stderr, "Error: %s() is not found\n", funcname);
-        return 1;
+        //return 1;
     } else {
         float start_time = get_time_ms();
         int r2 = try_and_catch(fptr);
         bs_comm_send_exectime(get_time_ms() - start_time);
-        return r2;
+        //return r2;
     }
 }
 

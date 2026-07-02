@@ -91,14 +91,14 @@ all: $(TARGET)
 
 $(TARGET): $(OBJECTS) | $(DIST_HEADERS)
 \t@echo "Archiving library: $@"
-\t@mkdir -p $(@D)
+\t@mkdir -p "$(@D)"
 \t$(AR) rcs $@ $^
 
 vpath %.c $(DIST_DIR)
 
 $(BUILD_DIR)/%.o: $(DIST_DIR)/%.c
 \t@echo "Compiling: $< -> $@"
-\t@mkdir -p $(@D)
+\t@mkdir -p "$(@D)"
 \t$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 -include $(wildcard $(BUILD_DIR)/*.d);

@@ -121,6 +121,10 @@ export class Package {
         fs.writeFileSync(filePath, data);
         return filePath;
     }
+    
+    createBuildDir() {
+        fs.mkdirSync(this.resolvedBuildDir, { recursive: true });
+    }
 
     protected walkFiles(dir: string, handler: (name: string, fullPath: string) => void, ignorDirs?: string[]) {
         for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -136,7 +140,7 @@ export class Package {
         }
     }
 
-    private toObjectFile(cFileInDist: AbsolutePath): AbsolutePath {
+    protected toObjectFile(cFileInDist: AbsolutePath): AbsolutePath {
         const source = cFileInDist;
         const dist = this.resolvedDistDir;
         const prefix = dist.endsWith("/") ? dist : dist + "/";
@@ -198,6 +202,26 @@ export class PackageForHostUnix extends Package {
 }
 
 export class PackageForHostWindows extends Package {
+    protected replacePrefix(fromDir: AbsolutePath, toDir: AbsolutePath, filePath: AbsolutePath): string {
+        if (filePath === fromDir) return toDir;
+        const prefix = filePath.endsWith("\\") ? fromDir : fromDir + "\\";
+        if (!filePath.startsWith(prefix)) {
+            throw new Error(`Path ${filePath} is not under ${fromDir}`);
+        }
+        return toDir + "/" + filePath.slice(prefix.length);
+    }
+
+    protected toObjectFile(cFileInDist: AbsolutePath): AbsolutePath {
+        const source = cFileInDist;
+        const dist = this.resolvedDistDir;
+        const prefix = dist.endsWith("\\") ? dist : dist + "\\";
+        if (!source.startsWith(prefix) || !source.endsWith(".c")) {
+            throw new Error(`Invalid dist source: ${source}`);
+        }
+        const relative = source.slice(prefix.length, -2); // remove ".c"
+        return path.join(this.resolvedBuildDir, `${relative}.o`);
+    }
+
     dllFile(id?: number): AbsolutePath {
         return path.join(
             this.resolvedBuildDir, 

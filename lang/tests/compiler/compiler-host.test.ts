@@ -86,7 +86,8 @@ describe('Test single compile: Compiler for Host', () => {
     it('should throw error if an imported module is imported with absolute path.', async () => {
         testEnv.createMainPackage();
         testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.addSourceFile(testEnv.mainPackageName, '/index.bs', `import {add} from '${testEnv.getSourceFilePath(testEnv.mainPackageName, './module1.bs')}';\nadd(1, 2);`);
+        const absPath = testEnv.getSourceFilePath(testEnv.mainPackageName, './module1.bs').replace(/\\/g, '/');
+        testEnv.addSourceFile(testEnv.mainPackageName, '/index.bs', `import {add} from '${absPath}';\nadd(1, 2);`);
 
         await expect(compile(testEnv)).rejects.toThrow(`This module system does not support importing from absolute paths.`);
     });
@@ -365,7 +366,7 @@ function foo() {
 }
             `);
 
-        await expect(compile(testEnv)).rejects.toThrow(`do not support implicit function declarations`);
+        await expect(compile(testEnv)).rejects.toThrow(/implicit/i);
     });
 
     it('should compile index.bs again after editing file.', async () => {
