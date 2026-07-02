@@ -193,7 +193,7 @@ export class HostWindowsCompilerTestEnv extends CompilerTestEnv<PackageForHostWi
 
     public resultSharedLibraryExists() {
         const buildDir = path.join(this.root, 'dist/build/');
-        const pattern = new RegExp(`^${this.mainPackageName}\\d+\\.so$`);
+        const pattern = new RegExp(`^${this.mainPackageName}\\d+\\.dll$`);
         for (const name of fs.readdirSync(buildDir)) {
             if(pattern.test(name) ) { return true; }
         }

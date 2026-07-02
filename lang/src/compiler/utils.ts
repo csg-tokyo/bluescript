@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 
 export function executeCommand(command: string, args: string[], cwd?: string, showStdout = false, showStderr = false): Promise<void> {
   return new Promise((resolve, reject) => {
-    const executeProcess = spawn(command, args, { shell: false, cwd }); 
+    const executeProcess = spawn(command, args, { shell: true, cwd }); 
 
     let stdout = '';
     let stderr = '';

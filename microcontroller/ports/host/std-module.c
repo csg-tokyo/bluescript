@@ -1,10 +1,15 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <time.h>
 #include <stdarg.h>
 #include "../../core/include/c-runtime.h"
 #include "./comm.h"
+#ifndef _WIN32
+#include <dlfcn.h>
+#include <time.h>
+#else
+#include <windows.h>
+#endif
 
 void send_message(const char* format, ...) {
   static char message[MAX_LINE_SIZE];

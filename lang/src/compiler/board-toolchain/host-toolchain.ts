@@ -127,10 +127,12 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 fs.rmSync(archiveFile, { force: true });
             }
             pkg.copyNativeFilesToDist();
+            pkg.createBuildDir();
             const makefile = generateMakefile(
                 hostWindowsMakefilePreset(pkg, this.toolchainPrefix),
             );
             pkg.writeMakefile(makefile);
+            
             await executeCommand('mingw32-make', [], pkg.resolvedDistDir);
             return archiveFile;
         } catch (error) {
