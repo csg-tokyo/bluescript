@@ -36,7 +36,7 @@ describe('Test single compile: Compiler for ESP32', () => {
     });
 
     afterAll(() => {
-        testEnv.delete();
+        // testEnv.delete();
     });
 
 
@@ -99,7 +99,8 @@ describe('Test single compile: Compiler for ESP32', () => {
     it('should throw error if an imported module is imported with absolute path.', async () => {
         testEnv.createMainPackage();
         testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.addSourceFile(testEnv.mainPackageName, '/index.bs', `import {add} from '${testEnv.getSourceFilePath(testEnv.mainPackageName, './module1.bs')}';\nadd(1, 2);`);
+        const absPath = testEnv.getSourceFilePath(testEnv.mainPackageName, './module1.bs').replace(/\\/g, '/');
+        testEnv.addSourceFile(testEnv.mainPackageName, '/index.bs', `import {add} from '${absPath}';\nadd(1, 2);`);
 
         await expect(compile(testEnv)).rejects.toThrow(`This module system does not support importing from absolute paths.`);
     });

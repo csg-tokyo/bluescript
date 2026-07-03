@@ -14,23 +14,27 @@ type MakefileConfig = {
     }
 }
 
-export function esp32MakefilePreset(pkg: PackageForEsp32, includeDirs: string[], toolchainDir: string): MakefileConfig {
+function toMakePath(p: string) {
+    return p.replace(/\\/g, '/');
+};
+
+export function esp32MakefilePreset(pkg: PackageForEsp32, includeDirs: string[], toolchain: {gcc: string, ar: string}): MakefileConfig {
     return {
-        outputFile: pkg.archiveFile,
-        objectFiles: pkg.objectFiles,
-        headerFilesInDist: pkg.headerFilesInDist,
-        includeDirs: [pkg.distDir, ...includeDirs],
+        outputFile: toMakePath(pkg.archiveFile),
+        objectFiles: pkg.objectFiles.map(toMakePath),
+        headerFilesInDist: pkg.headerFilesInDist.map(toMakePath),
+        includeDirs: [pkg.resolvedBuildDir, ...includeDirs].map(toMakePath),
         compileFlags: [
             '-O2', '-w', '-fno-common',
             '-ffunction-sections', '-fdata-sections',
             '-mtext-section-literals', '-mlongcalls',
             '-fno-zero-initialized-in-bss',
         ],
-        distDir: pkg.resolvedDistDir,
-        buildDir: pkg.resolvedBuildDir,
+        distDir: toMakePath(pkg.resolvedDistDir),
+        buildDir: toMakePath(pkg.resolvedBuildDir),
         toolchain: {
-            cc: `${toolchainDir}/xtensa-esp32-elf-gcc`,
-            ar: `${toolchainDir}/xtensa-esp32-elf-ar`
+            cc: toMakePath(toolchain.gcc),
+            ar: toMakePath(toolchain.ar)
         }
     }
 }
@@ -52,7 +56,6 @@ export function hostUnixMakefilePrest(pkg: PackageForHostUnix) {
 }
 
 export function hostWindowsMakefilePreset(pkg: PackageForHostWindows, toolchainPrefix?: string): MakefileConfig {
-    const toMakePath = (p: string) => p.replace(/\\/g, '/');
     return {
         outputFile: toMakePath(pkg.archiveFile),
         objectFiles: pkg.objectFiles.map(toMakePath),

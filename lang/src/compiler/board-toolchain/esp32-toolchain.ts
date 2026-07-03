@@ -11,7 +11,12 @@ import generateLinkerScript from "./tools/linker-script";
 
 export type Esp32ToolchainConfig = {
     runtimeDir: string,
-    compilerToolchainDir: string,
+    compilerToolchain: {
+        gcc: string,
+        ar: string,
+        ld: string,
+        make: string
+    },
     espDir: string
 }
 
@@ -32,7 +37,8 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32, MemoryIma
     get runtimeElf() { return path.join(this.config.runtimeDir, 'ports/esp32/build/bluescript.elf'); }
     get cRuntimeH() { return path.join(this.config.runtimeDir, 'core/include/c-runtime.h'); }
     get builtinModulePath() { return path.join(this.config.runtimeDir, 'ports/esp32/std-module.bs'); }
-    get ld() { return path.join(this.config.compilerToolchainDir, 'xtensa-esp32-elf-ld'); } 
+    get ld() { return this.config.compilerToolchain.ld; }
+    get make() { return this.config.compilerToolchain.make; }
 
     constructor(config: Esp32ToolchainConfig, memoryLayout: MemoryLayout) {
         this.memory = new ShadowMemory(memoryLayout);
@@ -80,10 +86,10 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32, MemoryIma
 
             pkg.copyNativeFilesToDist();
             const makefile = generateMakefile(esp32MakefilePreset(
-                pkg, includeDirs, this.config.compilerToolchainDir
+                pkg, includeDirs, this.config.compilerToolchain
             ))
             pkg.writeMakefile(makefile);
-            await executeCommand('make', [], pkg.resolvedDistDir);
+            await executeCommand(this.make, [], pkg.resolvedDistDir);
         } catch (error) {
             throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
         }

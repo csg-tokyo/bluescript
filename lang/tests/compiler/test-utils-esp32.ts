@@ -17,7 +17,16 @@ export function getEsp32ToolchainConfig(): Esp32ToolchainConfig {
         const idfToolsPy = path.join(espDir, 'esp-idf', 'tools', 'idf_tools.py');
         const stdout = runIdfToolsExport(idfToolsPy);
         const compilerToolchainDir = findXtensaGccDirFromIdfExport(stdout, ':', XTENSA_GCC_NAME);
-        return { runtimeDir, compilerToolchainDir, espDir };
+        return { 
+            runtimeDir, 
+            compilerToolchain: {
+                gcc: path.join(compilerToolchainDir, 'xtensa-esp32-elf-gcc'),
+                ar: path.join(compilerToolchainDir, 'xtensa-esp32-elf-ar'),
+                ld: path.join(compilerToolchainDir, 'xtensa-esp32-elf-ld'),
+                make: 'make'
+            }, 
+            espDir 
+        };
     } else if (osType === 'win32') {
         const espDir = path.join(os.homedir(), 'esp');
         const idfToolsPy = path.join(espDir, 'esp-idf', 'tools', 'idf_tools.py');
@@ -27,10 +36,15 @@ export function getEsp32ToolchainConfig(): Esp32ToolchainConfig {
             ';',
             `${XTENSA_GCC_NAME}.exe`,
         );
-        return {
-            runtimeDir,
-            compilerToolchainDir,
-            espDir,
+        return { 
+            runtimeDir, 
+            compilerToolchain: {
+                gcc: path.join(compilerToolchainDir, 'xtensa-esp32-elf-gcc.exe'),
+                ar: path.join(compilerToolchainDir, 'xtensa-esp32-elf-ar.exe'),
+                ld: path.join(compilerToolchainDir, 'xtensa-esp32-elf-ld.exe'),
+                make: 'mingw32-make'
+            }, 
+            espDir 
         };
     } else {
         throw new Error('Unsupported OS.');
