@@ -1,21 +1,9 @@
-import { execSync } from "child_process";
-import { Esp32ToolchainConfig } from "../../src/compiler/board-toolchain/esp32-toolchain";
 import { Package, PackageForEsp32, PackageForHostUnix, PackageForHostWindows } from "../../src/compiler/package";
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 
 export const runtimeDir = path.resolve(__dirname, '../../../microcontroller');
 
-export function getEsp32CompilerConfig(): Esp32ToolchainConfig {
-    const gccPath = execSync('source ~/esp/esp-idf/export.sh &> /dev/null && which xtensa-esp32-elf-gcc').toString();
-    const espDir = path.join(os.homedir(), 'esp');
-    return {
-        runtimeDir: runtimeDir,
-        compilerToolchainDir: path.resolve(gccPath, '../'),
-        espDir
-    }
-}
 
 class CompilerTestEnv<P extends Package = Package> {
     readonly root: string;

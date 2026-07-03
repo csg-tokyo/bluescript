@@ -127,7 +127,6 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 fs.rmSync(archiveFile, { force: true });
             }
             pkg.copyNativeFilesToDist();
-            pkg.createBuildDir();
             const makefile = generateMakefile(
                 hostWindowsMakefilePreset(pkg, this.toolchainPrefix),
             );
