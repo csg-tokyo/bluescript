@@ -7,8 +7,8 @@ import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protoc
 
 
 const MTU = 495;
-const SERVICE_UUID = '00ff';
-const CHARACTERISTIC_UUID = 'ff01';
+const SERVICE_UUID = 'b500';
+const CHARACTERISTIC_UUID = 'b501';
 
 
 export type DeviceServiceEvents = {
