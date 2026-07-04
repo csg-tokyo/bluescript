@@ -17,7 +17,7 @@ export function exec(command: string, options?: {cwd?: string, silent?: boolean}
     }
 
     return new Promise((resolve, reject) => {
-        const executeProcess = spawn(command, {shell: true, cwd});
+        const executeProcess = spawn(command, {shell: false, cwd});
         let stdout = '';
         let stderr = '';
 
