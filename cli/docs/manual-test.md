@@ -49,8 +49,8 @@ Host integration tests live in `cli/tests/integration/`. They spawn the real hos
 
 | Requirement | Detail |
 | :--- | :--- |
-| OS | macOS only (tests are skipped on other platforms) |
-| Toolchain | `cc` (builds `microcontroller/ports/host/build/` on first run if missing) |
+| OS | macOS or Windows (tests are skipped on Linux and other platforms) |
+| Toolchain | macOS: `cc`; Windows: MinGW-w64 (`gcc`, `mingw32-make`). Builds `microcontroller/ports/host/build/` on first run if missing. |
 | Repo layout | Run from `cli/` with the `microcontroller/` tree at the repository root |
 
 ```bash
@@ -734,9 +734,9 @@ For failures, include the item ID (e.g. `MT-PROJ-RUN-03`) in Notes or link to an
 
 ## Coverage map: automated vs manual
 
-Jest **unit** tests in `cli/tests/` mock filesystem, network, and device I/O. **Integration** tests in `cli/tests/integration/` use real host runtime processes on macOS. Use this table to avoid re-testing automated behavior manually while ensuring gaps are covered.
+Jest **unit** tests in `cli/tests/` mock filesystem, network, and device I/O. **Integration** tests in `cli/tests/integration/` use real host runtime processes on macOS or Windows. Use this table to avoid re-testing automated behavior manually while ensuring gaps are covered.
 
-| Area | Unit tests | Integration tests (host, macOS) | Manual testing still needed |
+| Area | Unit tests | Integration tests (host, macOS/Windows) | Manual testing still needed |
 | :--- | :--- | :--- | :--- |
 | `board setup` | Handler logic, macOS paths, skip-if-done | — | Real download, ESP-IDF install, host runtime build |
 | `board flash-runtime` | ESP32 handler, host rejection, port prompt mocked, `deviceName` passed to build | — | Actual USB flash on hardware; BLE advertised name after flash |

@@ -1,7 +1,13 @@
+import * as os from 'os';
 import * as path from 'path';
 import * as fs from '../../src/core/fs';
 import { ProjectConfigHandler } from '../../src/config/project-config';
 import { PROJECT_DEFAULT_PATHS } from '../../src/config/project-config';
+import { BoardEnv, createBoardEnv } from '../../src/platforms/board-env';
+import { isPackageInstalledOnWindows } from '../../src/commands/board/setup/utils';
+
+const isHostPlatform = os.platform() === 'darwin' || os.platform() === 'win32';
+export const describeHostIntegration = isHostPlatform ? describe : describe.skip;
 
 export type HostPackageSpec = {
     name: string;
@@ -129,3 +135,27 @@ export const HOST_INTEGRATION_RUNTIME_DIR =
     path.resolve(__dirname, '../../../microcontroller');
 export const HOST_INTEGRATION_BUILD_DIR =
     path.join(HOST_INTEGRATION_RUNTIME_DIR, 'ports/host/build');
+
+export async function assertHostIntegrationPrerequisites(): Promise<void> {
+    if (process.platform !== 'win32') {
+        return;
+    }
+    if (!await isPackageInstalledOnWindows('gcc')) {
+        throw new Error(
+            'MinGW-w64 gcc is required for host integration tests on Windows.',
+        );
+    }
+    if (!await isPackageInstalledOnWindows('mingw32-make')) {
+        throw new Error(
+            'mingw32-make is required for host integration tests on Windows.',
+        );
+    }
+}
+
+export async function ensureHostRuntimeBuilt(): Promise<void> {
+    await assertHostIntegrationPrerequisites();
+    jest.spyOn(BoardEnv.prototype, 'runtimeDir', 'get')
+        .mockReturnValue(HOST_INTEGRATION_RUNTIME_DIR);
+    const hostEnv = createBoardEnv('host');
+    await hostEnv.buildHostRuntime();
+}

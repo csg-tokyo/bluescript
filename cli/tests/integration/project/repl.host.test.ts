@@ -15,6 +15,8 @@ import {
 } from '../../commands/global-env-helper';
 import {
     captureOutput,
+    describeHostIntegration,
+    ensureHostRuntimeBuilt,
     HOST_INTEGRATION_BUILD_DIR,
     HOST_INTEGRATION_RUNTIME_DIR,
     mockProcessExit,
@@ -22,13 +24,8 @@ import {
     waitFor,
     waitForStdoutContains,
 } from '../host-run-helper';
-import { BoardEnv, createBoardEnv } from '../../../src/platforms/board-env';
 
 const TEMP_DIR = path.join(__dirname, '../../../temp-files/integration-repl');
-const SHELL_PATH = path.join(HOST_INTEGRATION_BUILD_DIR, 'shell');
-const RUNTIME_SO_PATH = path.join(HOST_INTEGRATION_BUILD_DIR, 'c-runtime.so');
-
-const describeHost = process.platform === 'darwin' ? describe : describe.skip;
 
 let replLineHandler: ((line: string) => void) | undefined;
 let replCloseHandler: (() => void) | undefined;
@@ -52,17 +49,13 @@ function createMockReadline(): readline.Interface {
     } as unknown as readline.Interface;
 }
 
-describeHost('repl command (host integration)', () => {
+describeHostIntegration('repl command (host integration)', () => {
     jest.setTimeout(30000);
 
     beforeAll(async () => {
         spyGlobalSettings('repl-integration');
         fs.makeDir(TEMP_DIR);
-
-        jest.spyOn(BoardEnv.prototype, 'runtimeDir', 'get')
-            .mockReturnValue(HOST_INTEGRATION_RUNTIME_DIR);
-        const hostEnv = createBoardEnv('host');
-        await hostEnv.buildHostRuntime();
+        await ensureHostRuntimeBuilt();
     });
 
     beforeEach(() => {

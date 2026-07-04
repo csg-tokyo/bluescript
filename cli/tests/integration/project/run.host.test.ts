@@ -7,7 +7,6 @@ import * as path from 'path';
 import { cwd } from '../../../src/core/shell';
 import * as fs from '../../../src/core/fs';
 import { handleRunCommand } from '../../../src/commands/project/run';
-import { BoardEnv } from '../../../src/platforms/board-env/common-env';
 import {
     deleteGlobalEnv,
     setupGlobalEnvWithHostIntegration,
@@ -16,34 +15,32 @@ import {
 import {
     captureStdout,
     createHostProject,
+    describeHostIntegration,
+    ensureHostRuntimeBuilt,
+    HOST_INTEGRATION_BUILD_DIR,
+    HOST_INTEGRATION_RUNTIME_DIR,
     mockProcessExit,
     removeDirIfExists,
 } from '../host-run-helper';
-import { createBoardEnv } from '../../../src/platforms/board-env';
 
 const mockedCwd = cwd as jest.Mock;
 
 const TEMP_DIR = path.join(__dirname, '../../../temp-files/integration');
-const RUNTIME_DIR = path.resolve(__dirname, '../../../../microcontroller');
-const BUILD_DIR = path.join(RUNTIME_DIR, 'ports/host/build');
 const PROJECT_ROOT = path.join(TEMP_DIR, 'run-project');
 
-const describeHost = process.platform === 'darwin' ? describe : describe.skip;
-
-describeHost('project run command (host integration)', () => {
+describeHostIntegration('project run command (host integration)', () => {
     beforeAll(async () => {
         spyGlobalSettings('run-integration');
         fs.makeDir(TEMP_DIR);
-
-        jest.spyOn(BoardEnv.prototype, 'runtimeDir', 'get')
-            .mockReturnValue(RUNTIME_DIR);
-        const hostEnv = createBoardEnv('host');
-        await hostEnv.buildHostRuntime();
+        await ensureHostRuntimeBuilt();
     });
 
     beforeEach(() => {
         deleteGlobalEnv();
-        setupGlobalEnvWithHostIntegration(RUNTIME_DIR, BUILD_DIR);
+        setupGlobalEnvWithHostIntegration(
+            HOST_INTEGRATION_RUNTIME_DIR,
+            HOST_INTEGRATION_BUILD_DIR,
+        );
         removeDirIfExists(PROJECT_ROOT);
         fs.makeDir(PROJECT_ROOT);
         mockedCwd.mockReturnValue(PROJECT_ROOT);
@@ -60,7 +57,7 @@ describeHost('project run command (host integration)', () => {
 
         createHostProject(PROJECT_ROOT, {
             'src/index.bs': 'console.log("hello from run");',
-        }, RUNTIME_DIR);
+        }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
@@ -81,7 +78,7 @@ console.log("built-in");
 print("via print");
 console.log(time.now());
             `.trim(),
-        }, RUNTIME_DIR);
+        }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
@@ -105,7 +102,7 @@ function greet(): void {
 }
 greet();
             `.trim(),
-        }, RUNTIME_DIR);
+        }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
@@ -130,7 +127,7 @@ export function add(a: integer, b: integer): integer {
 import { add } from "./math-utils";
 console.log(add(10, 20));
             `.trim(),
-        }, RUNTIME_DIR);
+        }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
@@ -150,7 +147,7 @@ console.log(add(10, 20));
 import { mul } from "math-lib";
 console.log(mul(3, 4));
             `.trim(),
-        }, RUNTIME_DIR, 'test-run', [{
+        }, HOST_INTEGRATION_RUNTIME_DIR, 'test-run', [{
             name: 'math-lib',
             sources: {
                 'src/index.bs': `
@@ -186,7 +183,7 @@ function pow(x: float, y: float): float {
 
 console.log(pow(2.0, 3.0));
             `.trim(),
-        }, RUNTIME_DIR);
+        }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
@@ -214,7 +211,7 @@ function main(): void {
 
 main();
             `.trim(),
-        }, RUNTIME_DIR);
+        }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
@@ -243,7 +240,7 @@ function main(): void {
 
 main();
             `.trim(),
-        }, RUNTIME_DIR);
+        }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
@@ -259,7 +256,7 @@ main();
 
         createHostProject(PROJECT_ROOT, {
             'src/index.bs': 'this is not valid bluescript',
-        }, RUNTIME_DIR);
+        }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
