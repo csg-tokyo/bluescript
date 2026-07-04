@@ -65,6 +65,7 @@ export abstract class Esp32Env extends BoardEnv {
     }
 
     protected resolveXtensaGccDirFromExport(stdout: string, pathLabel: string, pathSeparator: string): string {
+        console.log(stdout)
         const env = this.parseKeyValueExport(stdout);
 
         const pathValue = env.get(pathLabel);
@@ -121,7 +122,7 @@ export class Esp32WindowsEnv extends Esp32Env {
 
     async getXtensaGccDir() {
         try {
-            const stdout = await exec(`${this.idfToolsPyFile} export --format key-value`);
+            const stdout = await exec(`python ${this.idfToolsPyFile} export --format key-value`);
             return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ';');
         } catch (error) {
             throw new Error(`Failed to find ${XTENSA_TOOLCHAIN_DIR}.`, { cause: error });
