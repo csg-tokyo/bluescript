@@ -7,8 +7,8 @@ import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protoc
 
 
 const MTU = 495;
-const SERVICE_UUID = '00ff';
-const CHARACTERISTIC_UUID = 'ff01';
+const SERVICE_UUID = 'b500';
+const CHARACTERISTIC_UUID = 'b501';
 
 
 export type DeviceServiceEvents = {
@@ -180,7 +180,9 @@ export class BleConnection extends Connection<Buffer> {
             };
             noble.on('discover', this.discoverHandler);
         });
+        console.log("foo")
         await noble.stopScanningAsync();
+        console.log("foo2")
         this.peripheral = peripheral;
         this.peripheral.on('disconnect', (event) => {
             this.emit('disconnected', event);
@@ -192,7 +194,20 @@ export class BleConnection extends Connection<Buffer> {
             this.status = 'connected';
             this.emit('connected');
         });
+        console.log("Foo3")
         await peripheral.connectAsync();
+        console.log("foo4")
+        const result1 = await peripheral.discoverServicesAsync();
+        console.log("foo41")
+        console.log(result1)
+        const service = result1.find(s => s.uuid === 'ff');
+        console.log('service', service)
+        const ch1 = await service?.discoverCharacteristicsAsync();
+        console.log("foo412")
+        console.log(ch1)
+        const result = await peripheral.discoverAllServicesAndCharacteristicsAsync();
+        console.log("foo42")
+        console.log(result)
 
         const services = await peripheral.discoverServicesAsync();
         console.log(services)
@@ -205,16 +220,20 @@ export class BleConnection extends Connection<Buffer> {
             [SERVICE_UUID],
             [CHARACTERISTIC_UUID]
         );
+        console.log("foo5")
         if (characteristics.length === 0) {
             throw new Error('Target characteristic not found.');
         }
+        console.log("foo6")
         this.characteristic = characteristics[0];
         this.characteristic.on('data', (data, isNotification) => {
             if (isNotification) {
                 this.emit('receiveData', data);
             }
         })
+        console.log("foo7")
         await this.characteristic.subscribeAsync();
+        console.log("foo8")
     }
 
     private async waitForPoweredOn(): Promise<void> {
