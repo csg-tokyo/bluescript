@@ -44,6 +44,9 @@ static void load(char* filename) {
     float start_time = get_time_ms();
 #ifndef _WIN32
     file_handle = dlopen(filename, RTLD_NOW | RTLD_GLOBAL);
+    if (file_handle == NULL) {
+        fprintf(stderr, "Error: failed to load %s\n", filename);
+    }
 #else
     file_handle = (void*)LoadLibraryA(filename);
     if (file_handle == NULL) {

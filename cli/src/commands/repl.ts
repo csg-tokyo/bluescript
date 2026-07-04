@@ -25,7 +25,9 @@ function defaultReplReadlineFactory(): readline.Interface {
 
 class ReplHandler extends CommandHandler {
     static readonly TEMP_PROJECT_NAME = 'temp';
-    static readonly tempProjectDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, this.TEMP_PROJECT_NAME);
+    static get tempProjectDir(): string {
+        return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, ReplHandler.TEMP_PROJECT_NAME);
+    }
 
     private projectConfigHandler: ProjectConfigHandler;
     private platform: ReturnType<typeof createPlatformSession>;
@@ -68,10 +70,10 @@ class ReplHandler extends CommandHandler {
 
         this.createTempProject();
         await this.runRepl();
-        this.deleteTempProject();
         this.rl.close();
 
         await runStep('Disconnecting...', () => this.platform.runtime.disconnect());
+        this.deleteTempProject();
         process.exit(0);
     }
 

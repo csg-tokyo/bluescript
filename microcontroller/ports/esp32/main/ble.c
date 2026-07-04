@@ -461,6 +461,7 @@ void bs_ble_init(void)
         ESP_LOGE(GATTS_TAG, "%s enable bluetooth failed\n", __func__);
         return;
     }
+    puts(DEVICE_NAME);
 
     ret = esp_ble_gatts_register_callback(gatts_event_handler);
     if (ret){

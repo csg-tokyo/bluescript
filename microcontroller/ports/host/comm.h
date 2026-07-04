@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define MAX_PAYLOAD_SIZE 128
+#define MAX_PAYLOAD_SIZE 256
 #define PROTO_SIZE       3
 #define PAYLOAD_LEN_SIZE 5
 #define HEADER_SIZE      PROTO_SIZE + PAYLOAD_LEN_SIZE

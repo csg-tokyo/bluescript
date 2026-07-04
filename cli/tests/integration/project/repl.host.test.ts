@@ -17,18 +17,22 @@ import {
     captureOutput,
     describeHostIntegration,
     ensureHostRuntimeBuilt,
+    expectExitCode,
     HOST_INTEGRATION_BUILD_DIR,
     HOST_INTEGRATION_RUNTIME_DIR,
     mockProcessExit,
     removeDirIfExists,
+    removeChildDirsWithPrefix,
     waitFor,
     waitForStdoutContains,
 } from '../host-run-helper';
 
 const TEMP_DIR = path.join(__dirname, '../../../temp-files/integration-repl');
+const GLOBAL_TEMP_DIR = path.join(__dirname, '../../../temp-files');
 
 let replLineHandler: ((line: string) => void) | undefined;
 let replCloseHandler: (() => void) | undefined;
+let replTestCounter = 0;
 
 function createMockReadline(): readline.Interface {
     return {
@@ -53,13 +57,13 @@ describeHostIntegration('repl command (host integration)', () => {
     jest.setTimeout(30000);
 
     beforeAll(async () => {
-        spyGlobalSettings('repl-integration');
         fs.makeDir(TEMP_DIR);
         await ensureHostRuntimeBuilt();
     });
 
     beforeEach(() => {
         jest.clearAllMocks();
+        spyGlobalSettings(`repl-integration-${++replTestCounter}`);
         deleteGlobalEnv();
         setupGlobalEnvWithHostIntegration(
             HOST_INTEGRATION_RUNTIME_DIR,
@@ -69,9 +73,10 @@ describeHostIntegration('repl command (host integration)', () => {
         replCloseHandler = undefined;
     });
 
-    afterAll(() => {
+    afterAll(async () => {
         deleteGlobalEnv();
-        removeDirIfExists(TEMP_DIR);
+        await removeDirIfExists(TEMP_DIR);
+        await removeChildDirsWithPrefix(GLOBAL_TEMP_DIR, '.bluescript-repl-integration-');
     });
 
     async function sendReplLine(
@@ -115,7 +120,7 @@ describeHostIntegration('repl command (host integration)', () => {
         await closeRepl();
         await replPromise;
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, output);
         expect(output.text()).toContain('repl entry');
 
         output.restore();
@@ -130,7 +135,7 @@ describeHostIntegration('repl command (host integration)', () => {
         await closeRepl();
         await replPromise;
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, output);
         expect(output.text()).toContain('init');
         expect(output.text()).toContain('via print');
 
@@ -146,7 +151,7 @@ describeHostIntegration('repl command (host integration)', () => {
         await closeRepl();
         await replPromise;
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, output);
 
         output.restore();
         exitSpy.mockRestore();
@@ -164,7 +169,7 @@ describeHostIntegration('repl command (host integration)', () => {
         await closeRepl();
         await replPromise;
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, output);
 
         output.restore();
         exitSpy.mockRestore();
@@ -184,7 +189,7 @@ describeHostIntegration('repl command (host integration)', () => {
         await closeRepl();
         await replPromise;
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, output);
         expect(output.text()).toContain('after error');
 
         output.restore();

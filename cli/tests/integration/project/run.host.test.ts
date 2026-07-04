@@ -17,6 +17,7 @@ import {
     createHostProject,
     describeHostIntegration,
     ensureHostRuntimeBuilt,
+    expectExitCode,
     HOST_INTEGRATION_BUILD_DIR,
     HOST_INTEGRATION_RUNTIME_DIR,
     mockProcessExit,
@@ -26,7 +27,9 @@ import {
 const mockedCwd = cwd as jest.Mock;
 
 const TEMP_DIR = path.join(__dirname, '../../../temp-files/integration');
-const PROJECT_ROOT = path.join(TEMP_DIR, 'run-project');
+
+let currentProjectRoot: string;
+let testCounter = 0;
 
 describeHostIntegration('project run command (host integration)', () => {
     beforeAll(async () => {
@@ -41,27 +44,27 @@ describeHostIntegration('project run command (host integration)', () => {
             HOST_INTEGRATION_RUNTIME_DIR,
             HOST_INTEGRATION_BUILD_DIR,
         );
-        removeDirIfExists(PROJECT_ROOT);
-        fs.makeDir(PROJECT_ROOT);
-        mockedCwd.mockReturnValue(PROJECT_ROOT);
+        currentProjectRoot = path.join(TEMP_DIR, `run-project-${++testCounter}`);
+        fs.makeDir(currentProjectRoot);
+        mockedCwd.mockReturnValue(currentProjectRoot);
     });
 
-    afterAll(() => {
+    afterAll(async () => {
         deleteGlobalEnv();
-        removeDirIfExists(TEMP_DIR);
+        await removeDirIfExists(TEMP_DIR);
     });
 
     it('runs a program and prints output', async () => {
         const exitSpy = mockProcessExit();
         const stdout = captureStdout();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/index.bs': 'console.log("hello from run");',
         }, HOST_INTEGRATION_RUNTIME_DIR);
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, stdout);
         expect(stdout.text()).toContain('hello from run');
 
         stdout.restore();
@@ -72,7 +75,7 @@ describeHostIntegration('project run command (host integration)', () => {
         const exitSpy = mockProcessExit();
         const stdout = captureStdout();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/index.bs': `
 console.log("built-in");
 print("via print");
@@ -82,7 +85,7 @@ console.log(time.now());
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, stdout);
         expect(stdout.text()).toContain('built-in');
         expect(stdout.text()).toContain('via print');
 
@@ -94,7 +97,7 @@ console.log(time.now());
         const exitSpy = mockProcessExit();
         const stdout = captureStdout();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/index.bs': `
 const message = "hello";
 function greet(): void {
@@ -106,7 +109,7 @@ greet();
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, stdout);
         expect(stdout.text()).toContain('hello');
 
         stdout.restore();
@@ -117,7 +120,7 @@ greet();
         const exitSpy = mockProcessExit();
         const stdout = captureStdout();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/math-utils.bs': `
 export function add(a: integer, b: integer): integer {
     return a + b;
@@ -131,7 +134,7 @@ console.log(add(10, 20));
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, stdout);
         expect(stdout.text()).toContain('30');
 
         stdout.restore();
@@ -142,7 +145,7 @@ console.log(add(10, 20));
         const exitSpy = mockProcessExit();
         const stdout = captureStdout();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/index.bs': `
 import { mul } from "math-lib";
 console.log(mul(3, 4));
@@ -160,7 +163,7 @@ export function mul(a: integer, b: integer): integer {
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, stdout);
         expect(stdout.text()).toContain('12');
 
         stdout.restore();
@@ -171,7 +174,7 @@ export function mul(a: integer, b: integer): integer {
         const exitSpy = mockProcessExit();
         const stdout = captureStdout();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/index.bs': `
 code\`#include <math.h>\`
 
@@ -187,7 +190,7 @@ console.log(pow(2.0, 3.0));
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, stdout);
         expect(stdout.text()).toMatch(/8(\.0+)?/);
 
         stdout.restore();
@@ -198,7 +201,7 @@ console.log(pow(2.0, 3.0));
         const exitSpy = mockProcessExit();
         const stdout = captureStdout();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/add.c': 'int add(int a, int b) { return a + b; }',
             'src/index.bs': `
 code\`#include "./add.c"\`
@@ -215,7 +218,7 @@ main();
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, stdout);
         expect(stdout.text()).toContain('30');
 
         stdout.restore();
@@ -226,7 +229,7 @@ main();
         const exitSpy = mockProcessExit();
         const stdout = captureStdout();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/add.h': 'int add(int a, int b);',
             'src/add.c': '#include "add.h"\nint add(int a, int b) { return a + b; }',
             'src/index.bs': `
@@ -244,7 +247,7 @@ main();
 
         await handleRunCommand({ withRepl: false, withNotebook: false });
 
-        expect(exitSpy).toHaveBeenCalledWith(0);
+        expectExitCode(exitSpy, 0, stdout);
         expect(stdout.text()).toContain('11');
 
         stdout.restore();
@@ -254,7 +257,7 @@ main();
     it('exits with an error when compilation fails', async () => {
         const exitSpy = mockProcessExit();
 
-        createHostProject(PROJECT_ROOT, {
+        createHostProject(currentProjectRoot, {
             'src/index.bs': 'this is not valid bluescript',
         }, HOST_INTEGRATION_RUNTIME_DIR);
 

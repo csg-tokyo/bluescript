@@ -10,7 +10,15 @@ export enum HostProtocol {
     Max
 }
 
+export const HOST_MAX_PAYLOAD_SIZE = 256;
+
 export function hostProtocolBuilder(protocol: HostProtocol, payload: string) {
+    if (payload.length > HOST_MAX_PAYLOAD_SIZE) {
+        throw new Error(
+            `Host protocol payload exceeds ${HOST_MAX_PAYLOAD_SIZE} bytes ` +
+            `(got ${payload.length}): ${payload}`,
+        );
+    }
     const protocolStr = String(protocol).padStart(2, '0');
     const payloadLen = String(payload.length).padStart(4, '0');
     return `${protocolStr} ${payloadLen} ${payload}\n`;

@@ -194,6 +194,13 @@ export class BleConnection extends Connection<Buffer> {
         });
         await peripheral.connectAsync();
 
+        const services = await peripheral.discoverServicesAsync();
+        console.log(services)
+        const serviceff = services.find(s => s.uuid === SERVICE_UUID);
+        // console.log(serviceff);
+        const ch = await serviceff?.discoverCharacteristicsAsync();
+        console.log(ch);
+
         const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(
             [SERVICE_UUID],
             [CHARACTERISTIC_UUID]
