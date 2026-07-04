@@ -1,7 +1,8 @@
 import * as path from "path";
+import * as os from "os";
 import * as fs from '../../src/core/fs';
 import { GLOBAL_SETTINGS } from "../../src/config/constants";
-import { CommonBoardEnv, Esp32DarwinEnv } from "../../src/platforms/board-env";
+import { CommonBoardEnv, Esp32DarwinEnv, HostDarwinEnv } from "../../src/platforms/board-env";
 
 const TEMP_DIR = path.join(__dirname, '../../temp-files');
 const DUMMY_BLUESCRIPT_DIR = (suffix: string) => path.join(TEMP_DIR, `.bluescript-${suffix}`);
@@ -60,8 +61,10 @@ export function setupGlobalEnvWithHost(isOldVersion = false, buildDir?: string) 
         runtimeDir: getTestRuntimeDir(),
         boards: {
             host: {
-                buildDir: resolvedBuildDir,
-            },
+                rootDir: path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'host'),
+                shellFile: path.join(resolvedBuildDir, 'shell'),
+                toolchain: { gcc: 'cc', ar: 'ar', make: 'make' },
+            }
         },
     });
     fs.makeDir(resolvedBuildDir);
@@ -69,12 +72,19 @@ export function setupGlobalEnvWithHost(isOldVersion = false, buildDir?: string) 
 }
 
 export function setupGlobalEnvWithHostIntegration(runtimeDir: string, buildDir: string) {
+    const osType = os.platform();
+    const shellFileName = osType === 'win32' ? 'shell.exe' : 'shell';
+    const toolchain = osType === 'win32' 
+        ? { gcc: 'gcc', ar: 'ar', make: 'mingw32-make' } 
+        : { gcc: 'cc', ar: 'ar', make: 'make' };
     setupGlobalEnv({
         version: DUMMY_VM_VERSION,
         runtimeDir,
         boards: {
             host: {
-                buildDir,
+                rootDir: path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'host'),
+                shellFile: path.join(buildDir, shellFileName),
+                toolchain,
             },
         },
     });
@@ -89,7 +99,12 @@ export function setupGlobalEnvWithEsp32(isOldVersion = false, isEspIdfOldVersion
                 idfVersion: isEspIdfOldVersion ? DUMMY_OLD_ESP_IDF_VERSION : DUMMY_ESP_IDF_VERSION,
                 rootDir: getTestEspRootDir(),
                 exportFile: getTestEspIdfExportFile(),
-                xtensaGccDir: "/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin"
+                toolchain: {
+                    gcc: '/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc',
+                    ar: '/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-ar',
+                    ld: '/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-ld',
+                    make: 'make',
+                },
             }
         }
     });

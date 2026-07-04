@@ -22,7 +22,7 @@ import {
     waitFor,
     waitForStdoutContains,
 } from '../host-run-helper';
-import { CommonBoardEnv, createBoardEnv } from '../../../src/platforms/board-env';
+import { BoardEnv, createBoardEnv } from '../../../src/platforms/board-env';
 
 const TEMP_DIR = path.join(__dirname, '../../../temp-files/integration-repl');
 const SHELL_PATH = path.join(HOST_INTEGRATION_BUILD_DIR, 'shell');
@@ -59,12 +59,10 @@ describeHost('repl command (host integration)', () => {
         spyGlobalSettings('repl-integration');
         fs.makeDir(TEMP_DIR);
 
-        if (!fs.exists(SHELL_PATH) || !fs.exists(RUNTIME_SO_PATH)) {
-            jest.spyOn(CommonBoardEnv.prototype, 'runtimeDir', 'get')
-                .mockReturnValue(HOST_INTEGRATION_RUNTIME_DIR);
-            const hostEnv = createBoardEnv('host');
-            await hostEnv.buildHostRuntime();
-        }
+        jest.spyOn(BoardEnv.prototype, 'runtimeDir', 'get')
+            .mockReturnValue(HOST_INTEGRATION_RUNTIME_DIR);
+        const hostEnv = createBoardEnv('host');
+        await hostEnv.buildHostRuntime();
     });
 
     beforeEach(() => {

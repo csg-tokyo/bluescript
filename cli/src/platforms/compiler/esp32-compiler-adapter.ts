@@ -65,13 +65,14 @@ export class Esp32CompilerAdapter implements CompilerAdapter {
         }
         return {
             runtimeDir,
-            compilerToolchainDir: this.boardConfig.xtensaGccDir,
+            compilerToolchain: this.boardConfig.toolchain,
             espDir: this.boardConfig.rootDir,
         };
     }
 }
 
-export function createEsp32PackageReader(
+
+function createEsp32PackageReader(
     _boardName: BoardName,
     projectConfigHandler: ProjectConfigHandler,
 ): (name: string) => PackageForEsp32 {

@@ -1,8 +1,10 @@
 import { SetupHandler } from "./base";
 import { exec } from '../../../core/shell';
 import { skip } from "../../../core/logger";
+import * as path from 'path';
 import { BoardName } from "../../../config/board-utils";
 import { Esp32DarwinEnv } from "../../../platforms/board-env/esp32-env";
+import { isPackageInstalledOnUnix, isPythonVersionGreaterThan3 } from "./utils";
 
 
 export class Esp32DarwinSetupHandler extends SetupHandler {
@@ -38,32 +40,38 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
     }
 
     async setBoardConfig() {
+        const xtensaGccDir = await this.boardEnv.getXtensaGccDir();
         this.globalConfigHandler.updateBoardConfig(this.boardName, {
             idfVersion: this.boardEnv.idfVersion,
             rootDir: this.boardEnv.espRootDir,
             exportFile: this.boardEnv.idfExportFile,
-            xtensaGccDir: await this.boardEnv.getXtensaGccDir(),
+            toolchain: {
+                gcc: path.join(xtensaGccDir, this.boardEnv.xtensaGccFileName),
+                ar: path.join(xtensaGccDir, this.boardEnv.xtensaArFileName),
+                ld: path.join(xtensaGccDir, this.boardEnv.xtensaLdFileName),
+                make: 'make'
+            },
         });
     }
 
     private async verifyPrerequisitsInstalledStep() {
-        if (!await this.isPackageInstalled("git")) {
+        if (!await isPackageInstalledOnUnix("git")) {
             throw new Error("Cannot find git command. Please install git and try again.");
         }
-        if (!await this.isPackageInstalled("brew")) {
+        if (!await isPackageInstalledOnUnix("brew")) {
             throw new Error("Cannot find brew command. Please install Homebrew and try again.");
         }
-        if (!(await this.isPythonVersionGreaterThan3()) && !(await this.isPackageInstalled('python3'))) {
+        if (!(await isPythonVersionGreaterThan3()) && !(await isPackageInstalledOnUnix('python3'))) {
             throw new Error("Cannot find python3. Please install Python3 and try again.");
         }
     }
 
     private async installRequiredPackagesStep() {
         let packages: string[] = [];
-        if (!(await this.isPackageInstalled('cmake'))) { packages.push('cmake'); }
-        if (!(await this.isPackageInstalled('ninja'))) { packages.push('ninja'); }
-        if (!(await this.isPackageInstalled('dfu-util'))) { packages.push('dfu-util'); }
-        if (!(await this.isPackageInstalled('ccache'))) { packages.push('ccache'); }
+        if (!(await isPackageInstalledOnUnix('cmake'))) { packages.push('cmake'); }
+        if (!(await isPackageInstalledOnUnix('ninja'))) { packages.push('ninja'); }
+        if (!(await isPackageInstalledOnUnix('dfu-util'))) { packages.push('dfu-util'); }
+        if (!(await isPackageInstalledOnUnix('ccache'))) { packages.push('ccache'); }
         if (packages.length === 0) {
             return skip('already installed.');
         }
@@ -76,23 +84,5 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
 
     private async runEspIdfInstallScriptStep() {
         await this.boardEnv.runEspIdfInstallScript();
-    }
-
-    private async isPackageInstalled(name: string) {
-        try {
-            await exec(`which ${name}`, { silent: true });
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    private async isPythonVersionGreaterThan3() {
-        try {
-            const result = await exec(`python --version`, { silent: true });
-            return result.startsWith('Python 3.');
-        } catch (error) {
-            return false;
-        }
     }
 }

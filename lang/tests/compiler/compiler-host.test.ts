@@ -15,7 +15,7 @@ describe('Test single compile: Compiler for Host', () => {
     });
 
     afterAll(() => {
-        // testEnv.delete();
+        testEnv.delete();
     });
 
 

@@ -1,7 +1,7 @@
 import { SetupHandler } from "./base";
-import { exec } from '../../../core/shell';
 import { BoardName } from "../../../config/board-utils";
 import { HostDarwinEnv } from "../../../platforms/board-env/host-env";
+import { isPackageInstalledOnUnix } from "./utils";
 
 
 export class HostDarwinSetupHandler extends SetupHandler {
@@ -30,31 +30,24 @@ export class HostDarwinSetupHandler extends SetupHandler {
         this.globalConfigHandler.updateBoardConfig('host', {
             rootDir: this.boardEnv.hostRootDir,
             shellFile: this.boardEnv.shellFile,
-            gccCommand: 'cc',
-            makeCommand: 'make',
-            arCommand: 'ar'
+            toolchain: {
+                gcc: 'cc',
+                ar: 'ar',
+                make: 'make'
+            },
         })
     }
 
     private async verifyPrerequisitsInstalledStep() {
-        if (!await this.isPackageInstalled("cc")) {
+        if (!await isPackageInstalledOnUnix("cc")) {
             throw new Error("Cannot find cc command. Please install cc and try again.");
         }
-        if (!await this.isPackageInstalled("make")) {
+        if (!await isPackageInstalledOnUnix("make")) {
             throw new Error("Cannot find make command. Please install make and try again.");
         }
     }
 
     private async buildHostRuntimeStep() {
         await this.boardEnv.buildHostRuntime();
-    }
-
-    private async isPackageInstalled(name: string) {
-        try {
-            await exec(`which ${name}`, { silent: true });
-            return true;
-        } catch (error) {
-            return false;
-        }
     }
 }

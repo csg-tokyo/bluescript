@@ -39,7 +39,7 @@ export function esp32MakefilePreset(pkg: PackageForEsp32, includeDirs: string[],
     }
 }
 
-export function hostUnixMakefilePrest(pkg: PackageForHostUnix) {
+export function hostUnixMakefilePrest(pkg: PackageForHostUnix, toolchain: {gcc: string, ar: string}) {
     return {
         outputFile: pkg.archiveFile,
         objectFiles: pkg.objectFiles,
@@ -49,24 +49,24 @@ export function hostUnixMakefilePrest(pkg: PackageForHostUnix) {
         distDir: pkg.resolvedDistDir,
         buildDir: pkg.resolvedBuildDir,
         toolchain: {
-            cc: `cc`,
-            ar: `ar`
+            cc: toolchain.gcc,
+            ar: toolchain.ar
         }
     }
 }
 
-export function hostWindowsMakefilePreset(pkg: PackageForHostWindows, toolchainPrefix?: string): MakefileConfig {
+export function hostWindowsMakefilePreset(pkg: PackageForHostWindows, toolchain: {gcc: string, ar: string}): MakefileConfig {
     return {
         outputFile: toMakePath(pkg.archiveFile),
         objectFiles: pkg.objectFiles.map(toMakePath),
         headerFilesInDist: pkg.headerFilesInDist.map(toMakePath),
         includeDirs: [toMakePath(pkg.resolvedDistDir)],
-        compileFlags: ['-O2', '-w', '-DLINUX64', '-DWIN64'],
+        compileFlags: ['-O2', '-w', '-DLINUX64'],
         distDir: toMakePath(pkg.resolvedDistDir),
         buildDir: toMakePath(pkg.resolvedBuildDir),
         toolchain: {
-            cc: toolchainPrefix ? `${toMakePath(toolchainPrefix)}/gcc` : 'gcc',
-            ar: toolchainPrefix ? `${toMakePath(toolchainPrefix)}/ar` : 'ar',
+            cc: toolchain.gcc,
+            ar: toolchain.ar
         },
     };
 }

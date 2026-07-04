@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from 'os';
 import { Project } from "../../src/compiler/project";
 import { PackageForHostUnix, PackageForHostWindows } from "../../src/compiler/package";
-import { HostUnixToolchain, HostWindowsToolchain } from "../../src/compiler/board-toolchain/host-toolchain";
+import { HostToolchainConfig, HostUnixToolchain, HostWindowsToolchain } from "../../src/compiler/board-toolchain/host-toolchain";
 import { HostUnixCompilerTestEnv, HostWindowsCompilerTestEnv, runtimeDir } from "./test-env";
 import { SharedLibrary } from "../../src/compiler/board-toolchain/board-toolchain";
 import { CompilerSession } from "../../src/compiler/compiler-session";
@@ -41,12 +41,12 @@ const buildRuntimeUnix = async () => {
 const buildRuntimeWindows = async () => {
     fs.mkdirSync(runtimeBuildDir, { recursive: true });
     await executeCommand('gcc', [
-        '-DLINUX64', '-DWIN64', '-O2', '-shared',
+        '-DLINUX64', '-O2', '-shared',
         '-o', runtimeDll,
         runtimeC, builtinModuleC, commC,
     ]);
     await executeCommand('gcc', [
-        '-DLINUX64', '-DWIN64', '-O2',
+        '-DLINUX64', '-O2',
         '-o', executableShellWin,
         shellC, runtimeDll, '-lm',
     ]);
@@ -74,7 +74,15 @@ export const createTestEnv = () => {
 
 export const compile = async (testEnv: HostUnixCompilerTestEnv | HostWindowsCompilerTestEnv) => {
     if (os.platform() === 'darwin') {
-        let toolchain = new HostUnixToolchain(runtimeDir);
+        const compilerConfig: HostToolchainConfig = {
+            runtimeDir,
+            compilerToolchain: {
+                gcc: 'cc',
+                ar: 'ar',
+                make: 'make'
+            }
+        }
+        let toolchain = new HostUnixToolchain(compilerConfig);
         const project = Project.load<PackageForHostUnix>(
             testEnv.mainPackageName,
             testEnv.getPackageReader() as (name: string) => PackageForHostUnix
@@ -83,7 +91,15 @@ export const compile = async (testEnv: HostUnixCompilerTestEnv | HostWindowsComp
         await session.buildProject(project);
         return session;
     } else if (os.platform() === 'win32') {
-        let toolchain = new HostWindowsToolchain(runtimeDir);
+        const compilerConfig: HostToolchainConfig = {
+            runtimeDir,
+            compilerToolchain: {
+                gcc: 'gcc',
+                ar: 'ar',
+                make: 'mingw32-make'
+            }
+        }
+        let toolchain = new HostWindowsToolchain(compilerConfig);
         const project = Project.load<PackageForHostWindows>(
             testEnv.mainPackageName,
             testEnv.getPackageReader() as (name: string) => PackageForHostWindows

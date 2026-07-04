@@ -6,6 +6,8 @@ import { BoardEnv } from './common-env';
 
 const XTENSA_TOOLCHAIN_DIR = 'xtensa-esp-elf';
 const XTENSA_GCC_NAME = 'xtensa-esp32-elf-gcc';
+const XTENSA_AR_NAME = 'xtensa-esp32-elf-ar';
+const XTENSA_LD_NAME = 'xtensa-esp32-elf-ld';
 
 export abstract class Esp32Env extends BoardEnv {
     get espRootDir() { return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'esp'); }
@@ -14,6 +16,12 @@ export abstract class Esp32Env extends BoardEnv {
     get idfVersion() { return 'v5.4'; }
     get idfGitRepo() { return 'https://github.com/espressif/esp-idf.git'; }
     abstract get idfExportFile(): string;
+    abstract get xtensaGccFileName(): string;
+    abstract get xtensaArFileName(): string;
+    abstract get xtensaLdFileName(): string;
+
+    abstract runEspIdfInstallScript(): Promise<void>;
+    abstract getXtensaGccDir(): Promise<string>;
 
     async cloneEspIdf() {
         await exec(
@@ -29,13 +37,6 @@ export abstract class Esp32Env extends BoardEnv {
     refreshBoardRoot() {
         this.removeBoardRoot();
         fs.makeDir(this.espRootDir);
-    }
-
-    abstract runEspIdfInstallScript(): Promise<void>;
-    abstract getXtensaGccDir(): Promise<string>;
-
-    protected get xtensaGccFileName(): string {
-        return XTENSA_GCC_NAME;
     }
 
     protected parseKeyValueExport(stdout: string): Map<string, string> {
@@ -86,10 +87,11 @@ export abstract class Esp32Env extends BoardEnv {
 }
 
 export class Esp32DarwinEnv extends Esp32Env {
-    get idfExportShFile() { return path.join(this.idfDir, 'export.sh'); }
     get idfInstallShFile() { return path.join(this.idfDir, 'install.sh'); }
-
-    get idfExportFile() { return this.idfExportShFile; }
+    get idfExportFile() { return path.join(this.idfDir, 'export.sh'); }
+    get xtensaGccFileName() { return XTENSA_GCC_NAME; }
+    get xtensaArFileName() { return XTENSA_AR_NAME; }
+    get xtensaLdFileName() { return XTENSA_LD_NAME; }
 
     async runEspIdfInstallScript() {
         await exec(this.idfInstallShFile);
@@ -109,10 +111,9 @@ export class Esp32WindowsEnv extends Esp32Env {
     get idfExportBatFile() { return path.join(this.idfDir, 'export.bat'); }
     get idfInstallBatFile() { return path.join(this.idfDir, 'install.bat'); }
     get idfExportFile() { return this.idfExportBatFile; }
-
-    protected get xtensaGccFileName(): string {
-        return `${XTENSA_GCC_NAME}.exe`;
-    }
+    get xtensaGccFileName(): string { return `${XTENSA_GCC_NAME}.exe`; }
+    get xtensaArFileName(): string { return `${XTENSA_AR_NAME}.exe`; }
+    get xtensaLdFileName(): string { return `${XTENSA_LD_NAME}.exe`; }
 
     async runEspIdfInstallScript() {
         await exec(this.idfInstallBatFile);

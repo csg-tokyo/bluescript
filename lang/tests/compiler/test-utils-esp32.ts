@@ -7,6 +7,8 @@ import { Esp32ToolchainConfig } from "../../src/compiler/board-toolchain/esp32-t
 
 const XTENSA_TOOLCHAIN_DIR = 'xtensa-esp-elf';
 const XTENSA_GCC_NAME = 'xtensa-esp32-elf-gcc';
+const XTENSA_AR_NAME = 'xtensa-esp32-elf-ar';
+const XTENSA_LD_NAME = 'xtensa-esp32-elf-ld';
 
 export const runtimeDir = path.resolve(__dirname, '../../../microcontroller');
 
@@ -20,9 +22,9 @@ export function getEsp32ToolchainConfig(): Esp32ToolchainConfig {
         return { 
             runtimeDir, 
             compilerToolchain: {
-                gcc: path.join(compilerToolchainDir, 'xtensa-esp32-elf-gcc'),
-                ar: path.join(compilerToolchainDir, 'xtensa-esp32-elf-ar'),
-                ld: path.join(compilerToolchainDir, 'xtensa-esp32-elf-ld'),
+                gcc: path.join(compilerToolchainDir, XTENSA_GCC_NAME),
+                ar: path.join(compilerToolchainDir, XTENSA_AR_NAME),
+                ld: path.join(compilerToolchainDir, XTENSA_LD_NAME),
                 make: 'make'
             }, 
             espDir 
@@ -39,9 +41,9 @@ export function getEsp32ToolchainConfig(): Esp32ToolchainConfig {
         return { 
             runtimeDir, 
             compilerToolchain: {
-                gcc: path.join(compilerToolchainDir, 'xtensa-esp32-elf-gcc.exe'),
-                ar: path.join(compilerToolchainDir, 'xtensa-esp32-elf-ar.exe'),
-                ld: path.join(compilerToolchainDir, 'xtensa-esp32-elf-ld.exe'),
+                gcc: path.join(compilerToolchainDir, `${XTENSA_GCC_NAME}.exe`),
+                ar: path.join(compilerToolchainDir, `${XTENSA_AR_NAME}.exe`),
+                ld: path.join(compilerToolchainDir, `${XTENSA_LD_NAME}.exe`),
                 make: 'mingw32-make'
             }, 
             espDir 

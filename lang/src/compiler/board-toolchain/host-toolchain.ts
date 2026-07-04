@@ -6,15 +6,23 @@ import { Package, PackageForHostUnix, PackageForHostWindows } from "../package";
 import { generateMakefile, hostUnixMakefilePrest, hostWindowsMakefilePreset } from "./tools/makefile";
 import { executeCommand, getErrorMessage } from "../utils";
 
+export type HostToolchainConfig = {
+    runtimeDir: string,
+    compilerToolchain: {
+        gcc: string,
+        ar: string,
+        make: string
+    },
+}
 
 export abstract class HostToolchain<P extends Package> implements BoardToolchain<P, SharedLibrary> {
-    protected runtimeDir: string;
+    protected config: HostToolchainConfig;
     protected compileId: number = 0;
     protected compiledPackages = new Set<string>();
     protected generatedSharedLibs: string[] = [];
 
-    constructor(runtimeDir: string) {
-        this.runtimeDir = runtimeDir;
+    constructor(config: HostToolchainConfig) {
+        this.config = config;
     }
 
     get cProlog() {
@@ -23,9 +31,9 @@ export abstract class HostToolchain<P extends Package> implements BoardToolchain
 #include "${this.cRuntimeH}"
 `;
     }
-    get cRuntimeH() { return path.join(this.runtimeDir, 'core/include/c-runtime.h'); }
-    get builtinModulePath() { return path.join(this.runtimeDir, 'ports/host/std-module.bs'); }
-    get runtimeBuildDir() { return path.join(this.runtimeDir, 'ports/host/build'); }
+    get cRuntimeH() { return path.join(this.config.runtimeDir, 'core/include/c-runtime.h'); }
+    get builtinModulePath() { return path.join(this.config.runtimeDir, 'ports/host/std-module.bs'); }
+    get runtimeBuildDir() { return path.join(this.config.runtimeDir, 'ports/host/build'); }
 
     async compileAndLink(project: Project<P>, entryPoints: string[]): Promise<SharedLibrary> {
         const archiveFiles: string[] = [];
@@ -76,9 +84,9 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
             }
 
             pkg.copyNativeFilesToDist();
-            const makefile = generateMakefile(hostUnixMakefilePrest(pkg));
+            const makefile = generateMakefile(hostUnixMakefilePrest(pkg, this.config.compilerToolchain));
             pkg.writeMakefile(makefile);
-            await executeCommand('make', [], pkg.resolvedDistDir);
+            await executeCommand(this.config.compilerToolchain.make, [], pkg.resolvedDistDir);
             return archiveFile;
         } catch (error) {
             throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
@@ -100,7 +108,7 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
                 '-lm', '-ldl',
                 ...keepEntrySymbols,
             ];
-            await executeCommand('cc', args);
+            await executeCommand(this.config.compilerToolchain.gcc, args);
             return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});
@@ -109,13 +117,6 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
 }
 
 export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
-    private readonly toolchainPrefix?: string;
-
-    constructor(runtimeDir: string, toolchainPrefix?: string) {
-        super(runtimeDir);
-        this.toolchainPrefix = toolchainPrefix;
-    }
-
     get runtimeDll(): string {
         return path.join(this.runtimeBuildDir, 'c-runtime.dll');
     }
@@ -128,11 +129,11 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
             }
             pkg.copyNativeFilesToDist();
             const makefile = generateMakefile(
-                hostWindowsMakefilePreset(pkg, this.toolchainPrefix),
+                hostWindowsMakefilePreset(pkg, this.config.compilerToolchain),
             );
             pkg.writeMakefile(makefile);
             
-            await executeCommand('mingw32-make', [], pkg.resolvedDistDir);
+            await executeCommand(this.config.compilerToolchain.make, [], pkg.resolvedDistDir);
             return archiveFile;
         } catch (error) {
             throw new Error(
@@ -161,10 +162,7 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 '-lm',
                 ...keepEntrySymbols,
             ];
-            const linker = this.toolchainPrefix
-                ? path.join(this.toolchainPrefix, 'gcc')
-                : 'gcc';
-            await executeCommand(linker, args);
+            await executeCommand(this.config.compilerToolchain.gcc, args);
             return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, { cause: error });

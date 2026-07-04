@@ -44,7 +44,12 @@ describe('GlobalConfigHandler', () => {
             idfVersion: 'v5.4',
             rootDir: 'root/dir',
             exportFile: 'export.sh',
-            xtensaGccDir:'gcc',
+            toolchain: {
+                gcc: 'gcc',
+                ar: 'ar',
+                ld: 'ld',
+                make: 'make',
+            },
         }
         const handler = GlobalConfigHandler.load();
         handler.updateBoardConfig('esp32', boardConfig);

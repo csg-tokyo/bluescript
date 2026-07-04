@@ -8,15 +8,22 @@ const esp32BoardSchema = z.object({
     idfVersion: z.string(),
     rootDir: z.string(),
     exportFile: z.string(),
-    xtensaGccDir: z.string(),
+    toolchain: z.object({
+        gcc: z.string(),
+        ar: z.string(),
+        ld: z.string(),
+        make: z.string(),
+    }),
 });
 
 const hostBoardSchema = z.object({
     rootDir: z.string(),
     shellFile: z.string(),
-    gccCommand: z.string(),
-    makeCommand: z.string(),
-    arCommand: z.string()
+    toolchain: z.object({
+        gcc: z.string(),
+        ar: z.string(),
+        make: z.string(),
+    }),
 });
 
 const boardConfigSchema = z.object({

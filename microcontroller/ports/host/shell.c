@@ -43,14 +43,8 @@ static float get_time_ms() {
 static void load(char* filename) {
     float start_time = get_time_ms();
 #ifndef _WIN32
-    if (file_handle != NULL) {
-        dlclose(file_handle);
-    }
     file_handle = dlopen(filename, RTLD_NOW | RTLD_GLOBAL);
 #else
-    if (file_handle != NULL) {
-        FreeLibrary((HMODULE)file_handle);
-    }
     file_handle = (void*)LoadLibraryA(filename);
     if (file_handle == NULL) {
         fprintf(stderr, "Error: failed to load %s (error %lu)\n", filename, GetLastError());

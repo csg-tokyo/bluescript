@@ -36,7 +36,7 @@ describe('Test single compile: Compiler for ESP32', () => {
     });
 
     afterAll(() => {
-        // testEnv.delete();
+        testEnv.delete();
     });
 
 

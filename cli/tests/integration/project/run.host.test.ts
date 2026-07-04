@@ -7,7 +7,7 @@ import * as path from 'path';
 import { cwd } from '../../../src/core/shell';
 import * as fs from '../../../src/core/fs';
 import { handleRunCommand } from '../../../src/commands/project/run';
-import { CommonBoardEnv } from '../../../src/platforms/board-env/common-env';
+import { BoardEnv } from '../../../src/platforms/board-env/common-env';
 import {
     deleteGlobalEnv,
     setupGlobalEnvWithHostIntegration,
@@ -27,8 +27,6 @@ const TEMP_DIR = path.join(__dirname, '../../../temp-files/integration');
 const RUNTIME_DIR = path.resolve(__dirname, '../../../../microcontroller');
 const BUILD_DIR = path.join(RUNTIME_DIR, 'ports/host/build');
 const PROJECT_ROOT = path.join(TEMP_DIR, 'run-project');
-const SHELL_PATH = path.join(BUILD_DIR, 'shell');
-const RUNTIME_SO_PATH = path.join(BUILD_DIR, 'c-runtime.so');
 
 const describeHost = process.platform === 'darwin' ? describe : describe.skip;
 
@@ -37,12 +35,10 @@ describeHost('project run command (host integration)', () => {
         spyGlobalSettings('run-integration');
         fs.makeDir(TEMP_DIR);
 
-        if (!fs.exists(SHELL_PATH) || !fs.exists(RUNTIME_SO_PATH)) {
-            jest.spyOn(CommonBoardEnv.prototype, 'runtimeDir', 'get')
-                .mockReturnValue(RUNTIME_DIR);
-            const hostEnv = createBoardEnv('host');
-            await hostEnv.buildHostRuntime();
-        }
+        jest.spyOn(BoardEnv.prototype, 'runtimeDir', 'get')
+            .mockReturnValue(RUNTIME_DIR);
+        const hostEnv = createBoardEnv('host');
+        await hostEnv.buildHostRuntime();
     });
 
     beforeEach(() => {

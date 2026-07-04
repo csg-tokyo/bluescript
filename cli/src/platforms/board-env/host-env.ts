@@ -12,6 +12,7 @@ export abstract class HostEnv extends BoardEnv {
     get runtimeCFile() { return path.join(this.runtimeDir, 'core/src/c-runtime.c'); }
     get commCFile() { return path.join(this.runtimeDir, 'ports/host/comm.c'); }
 
+    abstract get shellFile(): string;
     abstract buildHostRuntime(): Promise<void>;
 
     removeBoardRoot() {
@@ -58,6 +59,7 @@ export class HostWindowsEnv extends HostEnv {
         fs.makeDir(this.buildDir);
         try {
             await exec(
+                // `gcc -DLINUX64 -O2 -shared -o "${this.runtimeDllFile}" "${this.runtimeCFile}" "${this.builtinModuleCFile}" "${this.commCFile}"`,
                 `gcc -DLINUX64 -O2 -shared -o "${this.runtimeDllFile}" "${this.runtimeCFile}" "${this.builtinModuleCFile}" "${this.commCFile}"`,
                 { silent: true },
             );
