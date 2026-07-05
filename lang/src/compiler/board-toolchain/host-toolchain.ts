@@ -44,6 +44,11 @@ export abstract class HostToolchain<P extends Package> implements BoardToolchain
         archiveFiles.push(await this.compilePackage(project.mainPackage));
         const sharedLib = await this.link(project, archiveFiles, entryPoints);
         this.generatedSharedLibs.push(sharedLib);
+        // Prevent the main package's generated C from being recompiled into the
+        // next (fragment) shared library. Otherwise each fragment statically
+        // redefines all prior globals, which breaks cross-fragment variable
+        // access on platforms without symbol interposition (e.g. Windows).
+        project.mainPackage.removeGeneratedCFiles();
         return {
             filePath: sharedLib,
             entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
@@ -56,11 +61,13 @@ export abstract class HostToolchain<P extends Package> implements BoardToolchain
             if (!this.compiledPackages.has(pkg.name)) {
                 archiveFiles.push(await this.compilePackage(pkg));
                 this.compiledPackages.add(pkg.name);
+                pkg.removeGeneratedCFiles();
             }
         }
         archiveFiles.push(await this.compilePackage(project.mainPackage));
         const sharedLib = await this.link(project, archiveFiles, entryPoints);
         this.generatedSharedLibs.push(sharedLib);
+        project.mainPackage.removeGeneratedCFiles();
         return {
             filePath: sharedLib,
             entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
@@ -165,10 +172,7 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 '-Wl,--enable-auto-import',
                 '-Wl,--enable-runtime-pseudo-reloc'
             ];
-            // TEMPORARY (diagnostic): print the exact linker invocation and
-            // surface gcc/ld stdout+stderr while debugging cross-DLL data sharing.
-            console.log('[bs][win-link]', this.config.compilerToolchain.gcc, args.join(' '));
-            await executeCommand(this.config.compilerToolchain.gcc, args, undefined, true, true);
+            await executeCommand(this.config.compilerToolchain.gcc, args);
             return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, { cause: error });

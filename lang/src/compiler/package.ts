@@ -122,6 +122,23 @@ export class Package {
         fs.writeFileSync(filePath, data);
         return filePath;
     }
+
+    // Removes the transpiler-generated C files (bs_*.c) from the dist dir.
+    // Used for incremental (REPL) builds so that each fragment is compiled into
+    // a shared library containing only its own object, referencing symbols of
+    // previous fragments from their shared libraries instead of statically
+    // redefining them. Native (user-provided) C files are left untouched.
+    removeGeneratedCFiles() {
+        if (!fs.existsSync(this.resolvedDistDir)) {
+            return;
+        }
+        const generatedCFilePattern = /^bs_.*\.c$/;
+        this.walkFiles(this.resolvedDistDir, (name, fullPath) => {
+            if (generatedCFilePattern.test(name)) {
+                fs.rmSync(fullPath, { force: true });
+            }
+        }, [this.resolvedBuildDir]);
+    }
     
     protected walkFiles(dir: string, handler: (name: string, fullPath: string) => void, ignorDirs?: string[]) {
         for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
