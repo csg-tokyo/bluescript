@@ -61,7 +61,7 @@ export function hostWindowsMakefilePreset(pkg: PackageForHostWindows, toolchain:
         objectFiles: pkg.objectFiles.map(toMakePath),
         headerFilesInDist: pkg.headerFilesInDist.map(toMakePath),
         includeDirs: [toMakePath(pkg.resolvedDistDir)],
-        compileFlags: ['-O2', '-w', '-DLINUX64'],
+        compileFlags: ['-O2', '-w', '-DLINUX64', '-fno-common'],
         distDir: toMakePath(pkg.resolvedDistDir),
         buildDir: toMakePath(pkg.resolvedBuildDir),
         toolchain: {

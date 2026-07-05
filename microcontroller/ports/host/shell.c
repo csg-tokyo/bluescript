@@ -11,6 +11,8 @@
 #include <time.h>
 #else
 #include <windows.h>
+#include <io.h>
+#include <fcntl.h>
 #endif
 
 
@@ -78,6 +80,11 @@ static void call(char* funcname) {
 }
 
 int main() {
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+
     gc_initialize();
     bluescript_main0_();
 

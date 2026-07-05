@@ -161,6 +161,9 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 this.runtimeDll,
                 '-lm',
                 ...keepEntrySymbols,
+                '-Wl,--export-all-symbols',
+                '-Wl,--enable-auto-import',
+                '-Wl,--enable-runtime-pseudo-reloc'
             ];
             await executeCommand(this.config.compilerToolchain.gcc, args);
             return outputFile;
