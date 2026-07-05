@@ -61,3 +61,26 @@ function getErrorMessage(command: string, code: number|null, stdout: string, std
     message += `> Stderr: ${stderr === '' ? 'N/A' : stderr}\n`;
     return message;
 }
+
+export function openUrl(url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        let cmd: string;
+        let args: string[];
+        if (process.platform === 'win32') {
+            cmd = 'cmd.exe';
+            args = ['/c', 'start', '', url];
+        } else if (process.platform === 'darwin') {
+            cmd = 'open';
+            args = [url];
+        } else {
+            cmd = 'xdg-open';
+            args = [url];
+        }
+        const child = spawn(cmd, args, { stdio: 'ignore', detached: true });
+        child.on('error', reject);
+        child.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`Failed to open URL (exit code ${code})`));
+        });
+    });
+}

@@ -7,7 +7,7 @@ import path from 'path';
 import { logger, ProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput, 
     runStep, LoadStepLogger } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
-import { cwd, exec } from "../../core/shell";
+import { cwd, openUrl } from "../../core/shell";
 import { CommandHandler } from "../command";
 import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
 import { CompileError, CompileOutput } from "@bscript/lang";
@@ -239,13 +239,9 @@ class RunWithNotebookHandler extends RunHandler {
 
     }
 
-    private openBrowser(port: number|string) {
+    private async openBrowser(port: number | string) {
         const url = `http://localhost:${port}`;
-        const startCommand =
-            process.platform === 'win32' ? 'start' :
-            process.platform === 'darwin' ? 'open' : 'xdg-open';
-
-        exec(`${startCommand} ${url}`, {silent: true});
+        await openUrl(url);
     }
 
     private startWebsocket() {
