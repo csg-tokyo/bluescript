@@ -57,18 +57,23 @@ export class HostProtocolParser {
     public parse(line: string): {parsed: HostParseResult[], remain: string} {
         // The format is [xx yyyy zz...]
         // xx is protocol, yyyy is payload length, zz... is payload 
+        console.log("line", line)
         const headerLength = 8;
         const parsed: HostParseResult[] = [];
         let remain: string = line;
         while (remain.length >= headerLength) {
             try {
                 const protocol = Number(remain.substring(0, 2));
+                console.log("protocol", protocol)
                 const payloadLength = Number(remain.substring(3, 7));
+                console.log("payloadLength", payloadLength)
                 if (remain.length < headerLength + payloadLength) {
                     return { parsed, remain };
                 }
                 const payload = remain.substring(headerLength, headerLength + payloadLength);
+                console.log("payload", payload)
                 remain = remain.substring(headerLength + payloadLength);
+                console.log("remain", remain, remain.length);
                 parsed.push(this.parsePayload(protocol, payload));
             } catch (error) {
                 throw new Error("Failed to parse message.", { cause: error });

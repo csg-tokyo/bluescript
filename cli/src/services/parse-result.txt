@@ -1,0 +1,48 @@
+bscript project run
+INFO: Connecting... OK
+INFO: Initializing OK
+INFO: Compiling... OK
+INFO: Loading...line 06 0007 1399.27
+protocol 6
+payloadLength 7
+payload 1399.27
+remain  0
+INFO: Loading... OK
+INFO: Start executing program. Type 'Ctrl-D' to exit.
+
+========================================================================== OUTPUT ==========================================================================
+line 03 0015 'Hello world!'
+05 0006 0.0142
+protocol 3
+payloadLength 15
+payload 'Hello world!'
+remain
+05 0006 0.0142 15
+protocol 0
+payloadLength 0
+payload
+remain  0.0142 7
+C:\Users\qiand\bluescript\cli\dist\services\host-protocol.js:59
+                throw new Error("Failed to parse message.", { cause: error });
+                ^
+
+Error: Failed to parse message.
+    at HostProtocolParser.parse (C:\Users\qiand\bluescript\cli\dist\services\host-protocol.js:59:23)
+    at HostMessageQueue.addChunk (C:\Users\qiand\bluescript\cli\dist\services\process.js:55:48)
+    ... 6 lines matching cause stack trace ...
+    at addChunk (node:internal/streams/readable:563:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:514:3) {
+  [cause]: Error: Failed to parse buffer. The protocol 0 is not parsable.
+      at HostProtocolParser.parsePayload (C:\Users\qiand\bluescript\cli\dist\services\host-protocol.js:66:19)
+      at HostProtocolParser.parse (C:\Users\qiand\bluescript\cli\dist\services\host-protocol.js:56:34)
+      at HostMessageQueue.addChunk (C:\Users\qiand\bluescript\cli\dist\services\process.js:55:48)
+      at C:\Users\qiand\bluescript\cli\dist\services\process.js:14:31
+      at C:\Users\qiand\bluescript\cli\dist\services\common.js:34:13
+      at Array.forEach (<anonymous>)
+      at ProcessConnection.emit (C:\Users\qiand\bluescript\cli\dist\services\common.js:33:27)
+      at Socket.<anonymous> (C:\Users\qiand\bluescript\cli\dist\services\process.js:114:18)
+      at Socket.emit (node:events:509:28)
+      at addChunk (node:internal/streams/readable:563:12)
+}
+
+Node.js v24.18.0
