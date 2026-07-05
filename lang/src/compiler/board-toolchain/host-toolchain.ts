@@ -173,6 +173,7 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 '-Wl,--enable-auto-import',
                 '-Wl,--enable-runtime-pseudo-reloc'
             ];
+            console.log('[bs][win-link]', this.config.compilerToolchain.gcc, args.join(' '))
             await executeCommand(this.config.compilerToolchain.gcc, args);
             this.generatedImportLibs.push(importLibFile);
             return outputFile;

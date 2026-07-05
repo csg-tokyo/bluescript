@@ -1,0 +1,147 @@
+link command
+
+[bs][win-link] gcc -shared -o C:\Users\qiand\.bluescript\temp\dist\build\temp1.dll -Wl,--out-implib,C:\Users\qiand\.bluescript\temp\dist\build\temp1.dll.a C:\Users\qiand\.bluescript\temp\dist\build\libtemp.a C:\Users\qiand\.bluescript\temp\dist\build\temp0.dll.a C:\Users\qiand\bluescript\microcontroller\ports\host\build\c-runtime.dll -lm -Wl,-u,bluescript_main2_ -Wl,--export-all-symbols -Wl,--enable-auto-import -Wl,--enable-runtime-pseudo-reloc
+
+objdump -x temp0.dll | findstr /i "Export _a"
+Entry 0 0000000000008000 00000075 Export Directory [.edata (or where ever we found it)]
+        00009180  <none>  00b6  _amsg_exit
+There is an export table in .edata at 0x196c8000
+The Export Tables (interpreted .edata section contents)
+Export Flags                    0
+        Export Address Table            00000003
+        Export Address Table            0000000000008028
+Export Address Table -- Ordinal Base 1
+        [   0] +base[   1] 00007030 Export RVA
+        [   1] +base[   2] 00001340 Export RVA
+        [   2] +base[   3] 00007020 Export RVA
+        [   0] +base[   1]  0000 _a
+ 10 .debug_aranges 00000050  00000003196cc000  00000003196cc000  00003000  2**0
+ 12 .debug_abbrev 000000ca  00000003196cf000  00000003196cf000  00004600  2**0
+[  4](sec  6)(fl 0x00)(ty    0)(scl   3) (nx 0) 0x0000000000000018 __proc_attached
+[ 12](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000280 .rdata$.refptr.__xi_a
+[ 16](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000260 .rdata$.refptr.__xc_a
+[ 23](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000220 .rdata$.refptr.__mingw_app_type
+[102](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 0) 0x0000000000000358 __xd_a
+[190](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 0) 0x0000000000000af0 ___w64_mingwthr_add_key_dtor
+[261](sec 13)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000000 .debug_abbrev
+[273](sec 11)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000000 .debug_aranges
+[289](sec 13)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000014 .debug_abbrev
+[291](sec 11)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000030 .debug_aranges
+[327](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 1) 0x00000000000011b0 __acrt_iob_func
+[603](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001a0 __imp_abort
+[604](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000378 __lib64_libkernel32_a_iname
+[610](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000014 _head_lib64_libmsvcrt_def_a
+[615](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000338 __xl_a
+[620](sec  6)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000030 _a
+[632](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000180 __imp__amsg_exit
+[646](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000220 .refptr.__mingw_app_type
+[658](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000280 .refptr.__xi_a
+[660](sec -1)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000001000 __section_alignment__
+[670](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003c0 __lib64_libmsvcrt_def_a_iname
+[674](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000000 _head_lib64_libkernel32_a
+[692](sec -1)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000200 __file_alignment__
+[703](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000328 __xi_a
+[707](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000318 __xc_a
+[711](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 0) 0x0000000000001358 _amsg_exit
+[726](sec  2)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000050 __imp___acrt_iob_func
+[736](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000260 .refptr.__xc_a
+[747](sec  6)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000070 __mingw_app_type
+
+C:\Users\qiand\.bluescript\temp\dist\build>nm temp0.dll | findstr /i "_a"
+00000003196cf014 N .debug_abbrev
+00000003196cf000 N .debug_abbrev
+00000003196cc030 N .debug_aranges
+00000003196cc000 N .debug_aranges
+00000003196c4220 r .rdata$.refptr.__mingw_app_type
+00000003196c4260 r .rdata$.refptr.__xc_a
+00000003196c4280 r .rdata$.refptr.__xi_a
+00000003196c4220 R .refptr.__mingw_app_type
+00000003196c4260 R .refptr.__xc_a
+00000003196c4280 R .refptr.__xi_a
+00000003196c1af0 T ___w64_mingwthr_add_key_dtor
+00000003196c21b0 T __acrt_iob_func
+0000000000000200 A __file_alignment__
+00000003196c3050 D __imp___acrt_iob_func
+00000003196c9180 I __imp__amsg_exit
+00000003196c91a0 I __imp_abort
+00000003196c9378 I __lib64_libkernel32_a_iname
+00000003196c93c0 I __lib64_libmsvcrt_def_a_iname
+00000003196c7070 B __mingw_app_type
+00000003196c7018 b __proc_attached
+0000000000001000 A __section_alignment__
+00000003196c4318 R __xc_a
+00000003196c4358 r __xd_a
+00000003196c4328 R __xi_a
+00000003196c4338 R __xl_a
+00000003196c7030 B _a
+00000003196c2358 T _amsg_exit
+00000003196c9000 I _head_lib64_libkernel32_a
+00000003196c9014 I _head_lib64_libmsvcrt_def_a
+
+C:\Users\qiand\.bluescript\temp\dist\build>objdump -x temp1.dll | findstr /i "temp0 _a __imp"
+        00009198  <none>  00b6  _amsg_exit
+        [   0] +base[   1]  0000 _a
+ 10 .debug_aranges 00000050  000000033e4ec000  000000033e4ec000  00003400  2**0
+ 12 .debug_abbrev 000000ca  000000033e4ef000  000000033e4ef000  00004a00  2**0
+[  4](sec  6)(fl 0x00)(ty    0)(scl   3) (nx 0) 0x0000000000000018 __proc_attached
+[ 12](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000290 .rdata$.refptr.__xi_a
+[ 16](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000270 .rdata$.refptr.__xc_a
+[ 23](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000230 .rdata$.refptr.__mingw_app_type
+[ 59](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x00000000000002b0 .rdata$.refptr._a
+[124](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 0) 0x0000000000000410 __xd_a
+[212](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 0) 0x0000000000000b50 ___w64_mingwthr_add_key_dtor
+[283](sec 13)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000000 .debug_abbrev
+[295](sec 11)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000000 .debug_aranges
+[311](sec 13)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000014 .debug_abbrev
+[313](sec 11)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000030 .debug_aranges
+[349](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 1) 0x0000000000001210 __acrt_iob_func
+[644](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001b8 __imp_abort
+[645](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003e4 __lib64_libkernel32_a_iname
+[646](sec  2)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000040 __imp__initterm_e
+[649](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001a8 __imp__lock
+[651](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000014 _head_lib64_libmsvcrt_def_a
+[652](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001c0 __imp_calloc
+[657](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003f0 __xl_a
+[663](sec  6)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000040 _a
+[669](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000140 __imp_DeleteCriticalSection
+[675](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000198 __imp__amsg_exit
+[682](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000208 __imp_gc_init_rootset
+[687](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000150 __imp_GetLastError
+[689](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001d0 __imp_free
+[690](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000230 .refptr.__mingw_app_type
+[694](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000210 __imp_gc_method_lookup
+[696](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000160 __imp_LeaveCriticalSection
+[703](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000290 .refptr.__xi_a
+[705](sec -1)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000001000 __section_alignment__
+[712](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001d8 __imp_memcpy
+[716](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x000000000000042c __lib64_libmsvcrt_def_a_iname
+[718](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000002b0 .refptr._a
+[721](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000000 _head_lib64_libkernel32_a
+[729](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000148 __imp_EnterCriticalSection
+[736](sec  2)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000068 __imp__register_onexit_function
+[740](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001e8 __imp_strlen
+[741](sec -1)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000200 __file_alignment__
+[742](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000158 __imp_InitializeCriticalSection
+[743](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001e0 __imp_realloc
+[745](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001f8 __imp_vfprintf
+[751](sec  2)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000070 __imp__initialize_onexit_table
+[752](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003e0 __xi_a
+[753](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000168 __imp_Sleep
+[756](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003d0 __xc_a
+[760](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 0) 0x00000000000013b8 _amsg_exit
+[761](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000170 __imp_TlsGetValue
+[762](sec  2)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000060 __imp__execute_onexit_table
+[763](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001c8 __imp_fprintf
+[765](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000178 __imp_VirtualProtect
+[766](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000220 __imp_global_rootset0
+[769](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000180 __imp_VirtualQuery
+[770](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001a0 __imp__initterm
+[772](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000190 __imp___iob_func
+[775](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001f0 __imp_strncmp
+[776](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000218 __imp_gc_root_set_head
+[777](sec  2)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000050 __imp___acrt_iob_func
+[786](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001b0 __imp__unlock
+[788](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000270 .refptr.__xc_a
+[792](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000220 __imp_global_rootset0
+[796](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000218 __imp_gc_root_set_head
+[801](sec  6)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000080 __mingw_app_type
