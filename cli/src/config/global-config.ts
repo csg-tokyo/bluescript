@@ -13,6 +13,7 @@ const esp32BoardSchema = z.object({
         ar: z.string(),
         ld: z.string(),
         make: z.string(),
+        python: z.string(),
     }),
 });
 

@@ -21,7 +21,7 @@ export abstract class Esp32Env extends BoardEnv {
     abstract get xtensaLdFileName(): string;
 
     abstract runEspIdfInstallScript(): Promise<void>;
-    abstract getXtensaGccDir(): Promise<string>;
+    abstract getXtensaGccDir(pythonCommand: string): Promise<string>;
 
     async cloneEspIdf() {
         await execWithLog(
@@ -98,10 +98,10 @@ export class Esp32DarwinEnv extends Esp32Env {
         await execShell(`bash ${JSON.stringify(this.idfInstallShFile)}`);
     }
 
-    async getXtensaGccDir() {
+    async getXtensaGccDir(pythonCommand: string) {
         try {
             const stdout = await simpleExec(
-                'python3',
+                pythonCommand,
                 [this.idfToolsPyFile, 'export', '--format', 'key-value'],
             );
             return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ':');
@@ -123,10 +123,10 @@ export class Esp32WindowsEnv extends Esp32Env {
         await execShell(this.idfInstallBatFile);
     }
 
-    async getXtensaGccDir() {
+    async getXtensaGccDir(pythonCommand: string) {
         try {
             const stdout = await simpleExec(
-                'python',
+                pythonCommand,
                 [this.idfToolsPyFile, 'export', '--format', 'key-value'],
             );
             return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ';');

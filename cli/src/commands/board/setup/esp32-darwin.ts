@@ -1,5 +1,5 @@
 import { SetupHandler } from "./base";
-import { execWithLog, simpleExec } from '../../../core/command-exec';
+import { execWithLog } from '../../../core/command-exec';
 import { skip } from "../../../core/logger";
 import * as path from 'path';
 import { BoardName } from "../../../config/board-utils";
@@ -10,6 +10,7 @@ import { isPackageInstalledOnUnix, isPythonVersionGreaterThan3 } from "./utils";
 export class Esp32DarwinSetupHandler extends SetupHandler {
     boardName: BoardName = "esp32";
     boardEnv: Esp32DarwinEnv;
+    pythonCommand?: string;
 
     constructor() {
         super();
@@ -18,7 +19,7 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
 
     loadBoardSetupSteps(): void {
         this.setupSteps.push({
-            description: "Verify that git, python3 and brew are installed.",
+            description: "Verify that git, python3, brew and make are installed.",
             actionMessage: "Verifying that git, python3 and brew are installed...",
             action: this.verifyPrerequisitsInstalledStep.bind(this),
         });
@@ -40,7 +41,7 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
     }
 
     async setBoardConfig() {
-        const xtensaGccDir = await this.boardEnv.getXtensaGccDir();
+        const xtensaGccDir = await this.boardEnv.getXtensaGccDir(this.pythonCommand!);
         this.globalConfigHandler.updateBoardConfig(this.boardName, {
             idfVersion: this.boardEnv.idfVersion,
             rootDir: this.boardEnv.espRootDir,
@@ -49,7 +50,8 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
                 gcc: path.join(xtensaGccDir, this.boardEnv.xtensaGccFileName),
                 ar: path.join(xtensaGccDir, this.boardEnv.xtensaArFileName),
                 ld: path.join(xtensaGccDir, this.boardEnv.xtensaLdFileName),
-                make: 'make'
+                make: 'make',
+                python: this.pythonCommand!
             },
         });
     }
@@ -61,8 +63,15 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
         if (!await isPackageInstalledOnUnix("brew")) {
             throw new Error("Cannot find brew command. Please install Homebrew and try again.");
         }
-        if (!(await isPythonVersionGreaterThan3()) && !(await isPackageInstalledOnUnix('python3'))) {
-            throw new Error("Cannot find python3. Please install Python3 and try again.");
+        if (await isPythonVersionGreaterThan3()) {
+            this.pythonCommand = 'python';
+        } else if (await isPackageInstalledOnUnix('python3')) {
+            this.pythonCommand = 'python3';
+        } else {
+            throw new Error("Cannot find Python3. Please install Python3 and try again.");
+        }
+        if (!await isPackageInstalledOnUnix("make")) {
+            throw new Error("Cannot find make command. Please install make and try again.");
         }
     }
 

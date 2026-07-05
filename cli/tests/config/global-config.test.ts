@@ -49,6 +49,7 @@ describe('GlobalConfigHandler', () => {
                 ar: 'ar',
                 ld: 'ld',
                 make: 'make',
+                python: 'python3',
             },
         }
         const handler = GlobalConfigHandler.load();

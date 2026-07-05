@@ -115,7 +115,7 @@ class UpdateHandler extends CommandHandler {
 
         await esp32Env.cloneEspIdf();
         await esp32Env.runEspIdfInstallScript();
-        const xtensaGccDir = await esp32Env.getXtensaGccDir();
+        const xtensaGccDir = await esp32Env.getXtensaGccDir(boardConfig.toolchain.python);
         this.globalConfigHandler.updateBoardConfig('esp32', {
             idfVersion: esp32Env.idfVersion,
             rootDir: esp32Env.espRootDir,
@@ -124,7 +124,8 @@ class UpdateHandler extends CommandHandler {
                 gcc: path.join(xtensaGccDir, esp32Env.xtensaGccFileName),
                 ar: path.join(xtensaGccDir, esp32Env.xtensaArFileName),
                 ld: path.join(xtensaGccDir, esp32Env.xtensaLdFileName),
-                make: boardConfig.toolchain.make
+                make: boardConfig.toolchain.make,
+                python: boardConfig.toolchain.python
             },
         });
     }

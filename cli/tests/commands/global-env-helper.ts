@@ -104,6 +104,7 @@ export function setupGlobalEnvWithEsp32(isOldVersion = false, isEspIdfOldVersion
                     ar: '/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-ar',
                     ld: '/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-ld',
                     make: 'make',
+                    python: 'python'
                 },
             }
         }
@@ -114,6 +115,10 @@ export function setupGlobalEnvWithEsp32(isOldVersion = false, isEspIdfOldVersion
 
 export function getEsp32IdfToolsExportPythonCommand(): string {
     return os.platform() === 'win32' ? 'python' : 'python3';
+}
+
+export function isEsp32IdfToolsExportPythonCommand(cmd: string): boolean {
+    return cmd === 'python' || cmd === 'python3';
 }
 
 export function mockXtensaGccFromIdfToolsExport(): string {

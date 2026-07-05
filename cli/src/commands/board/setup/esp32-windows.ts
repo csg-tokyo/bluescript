@@ -8,6 +8,7 @@ export class Esp32WindowsSetupHandler extends SetupHandler {
     boardName: BoardName = "esp32";
     boardEnv: Esp32WindowsEnv;
     makeCommand?: string;
+    pythonCommand?: string;
 
     constructor() {
         super();
@@ -33,7 +34,7 @@ export class Esp32WindowsSetupHandler extends SetupHandler {
     }
 
     async setBoardConfig() {
-        const xtensaGccDir = await this.boardEnv.getXtensaGccDir();
+        const xtensaGccDir = await this.boardEnv.getXtensaGccDir(this.pythonCommand!);
         this.globalConfigHandler.updateBoardConfig(this.boardName, {
             idfVersion: this.boardEnv.idfVersion,
             rootDir: this.boardEnv.espRootDir,
@@ -42,17 +43,25 @@ export class Esp32WindowsSetupHandler extends SetupHandler {
                 gcc: path.join(xtensaGccDir, this.boardEnv.xtensaGccFileName),
                 ar: path.join(xtensaGccDir, this.boardEnv.xtensaArFileName),
                 ld: path.join(xtensaGccDir, this.boardEnv.xtensaLdFileName),
-                make: this.makeCommand!
+                make: this.makeCommand!,
+                python: this.pythonCommand!
             },
         });
     }
 
     private async verifyPrerequisitsInstalledStep() {
+        // git command
         if (!await isPackageInstalledOnWindows("git")) {
             throw new Error("Cannot find git command. Please install git and try again.");
         }
-        if (!(await isPythonVersionGreaterThan3()) && !(await isPackageInstalledOnWindows('python3'))) {
-            throw new Error("Cannot find python3. Please install Python3 and try again.");
+
+        // python command
+        if (await isPythonVersionGreaterThan3()) {
+            this.pythonCommand = 'python';
+        } else if (await isPackageInstalledOnWindows('python3')) {
+            this.pythonCommand = 'python3';
+        } else {
+            throw new Error("Cannot find Python3. Please install Python3 and try again.");
         }
 
         // make command

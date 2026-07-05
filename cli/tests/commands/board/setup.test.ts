@@ -9,7 +9,7 @@ import {
     mockedLogger,
     mockProcessExit,
 } from '../mock-helpers';
-import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings, getTestRuntimeDir, getEsp32IdfToolsExportPythonCommand, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
+import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings, getTestRuntimeDir, isEsp32IdfToolsExportPythonCommand, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
 import { HostDarwinEnv } from '../../../src/platforms/board-env/host-env';
 import * as path from 'path';
 
@@ -38,7 +38,7 @@ function mockEsp32ShellCommands(options: {
             }
             throw new Error('not found');
         }
-        if (cmd === getEsp32IdfToolsExportPythonCommand() && args.some((arg: string) => arg.includes('export'))) {
+        if (isEsp32IdfToolsExportPythonCommand(cmd) && args.some((arg: string) => arg.includes('export'))) {
             return mockXtensaGccFromIdfToolsExport();
         }
         if (cmd === 'python' && args[1]?.includes('import sys')) {
@@ -148,7 +148,7 @@ describe('board setup command', () => {
             // --- Arrange ---
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             mockEsp32ShellCommands({
-                whichFound: ['brew', 'git'],
+                whichFound: ['brew', 'git', 'make'],
             });
             setupEmpyGlobalEnv();
 
@@ -188,7 +188,7 @@ describe('board setup command', () => {
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             setupDefaultGlobalEnv();
             mockEsp32ShellCommands({
-                whichFound: ['brew', 'git'],
+                whichFound: ['brew', 'git', 'make'],
             });
 
             // --- Act ---
@@ -210,7 +210,7 @@ describe('board setup command', () => {
             setupEmpyGlobalEnv();
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             mockEsp32ShellCommands({
-                whichFound: ['brew', 'git', 'cmake', 'ninja', 'dfu-util', 'ccache'],
+                whichFound: ['brew', 'git', 'cmake', 'ninja', 'dfu-util', 'ccache', 'make'],
             });
 
             // --- Act ---
@@ -226,7 +226,7 @@ describe('board setup command', () => {
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             const exitSpy = mockProcessExit();
             mockEsp32ShellCommands({
-                whichFound: ['brew', 'git'],
+                whichFound: ['brew', 'git', 'make'],
                 pythonMajor: '2',
             });
 
@@ -234,7 +234,7 @@ describe('board setup command', () => {
             await handleSetupCommand('esp32');
 
             // --- Assert ---
-            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Cannot find python3. Please install Python3 and try again.'));
+            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Cannot find Python3. Please install Python3 and try again.'));
             expect(process.exit).toHaveBeenCalledWith(1);
             exitSpy.mockRestore();
         })
