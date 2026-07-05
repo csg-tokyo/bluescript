@@ -117,6 +117,12 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
 }
 
 export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
+    // Import libraries (.dll.a) of previously generated fragment DLLs.
+    // On Windows, cross-DLL data symbols are only resolved reliably when the
+    // referencing DLL links against a proper import library rather than the
+    // DLL file itself, so keep these separate from generatedSharedLibs.
+    private generatedImportLibs: string[] = [];
+
     get runtimeDll(): string {
         return path.join(this.runtimeBuildDir, 'c-runtime.dll');
     }
@@ -153,11 +159,13 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 (sym) => `-Wl,-u,${sym}`,
             );
             const outputFile = project.mainPackage.dllFile(this.compileId++);
+            const importLibFile = `${outputFile}.a`;
             const args = [
                 '-shared',
                 '-o', outputFile,
+                `-Wl,--out-implib,${importLibFile}`,
                 ...archiveFiles,
-                ...this.generatedSharedLibs,
+                ...this.generatedImportLibs,
                 this.runtimeDll,
                 '-lm',
                 ...keepEntrySymbols,
@@ -166,6 +174,7 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 '-Wl,--enable-runtime-pseudo-reloc'
             ];
             await executeCommand(this.config.compilerToolchain.gcc, args);
+            this.generatedImportLibs.push(importLibFile);
             return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, { cause: error });
