@@ -22,7 +22,7 @@ export class Esp32WindowsSetupHandler extends SetupHandler {
         });
         this.setupSteps.push({
             description: `Clone ESP-IDF ${this.boardEnv.idfVersion} from ${this.boardEnv.idfGitRepo}.`,
-            actionMessage: `Cloning ESP-IDF ${this.boardEnv.idfVersion} from ${this.boardEnv.idfGitRepo}... It may take a while.`,
+            actionMessage: `Cloning ESP-IDF ${this.boardEnv.idfVersion}... It may take a while.`,
             action: this.cloneEspIdfStep.bind(this),
         });
         this.setupSteps.push({

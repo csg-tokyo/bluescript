@@ -16,7 +16,7 @@ export class HostWindowsSetupHandler extends SetupHandler {
 
     loadBoardSetupSteps(): void {
         this.setupSteps.push({
-            description: "Verify that MinGW is installed.", // write version
+            description: "Verify that MinGW is installed.",
             actionMessage: "Verifying that MinGW is installed...",
             action: this.verifyMingwIsInstalledStep.bind(this),
         });
@@ -41,7 +41,7 @@ export class HostWindowsSetupHandler extends SetupHandler {
 
     private async verifyMingwIsInstalledStep() {
         if (await isPackageInstalledOnWindows('gcc')) {
-            if (!await this.isMingwGccAvailable()) {
+            if (!(await this.isMingwGccAvailable())) {
                 throw new Error("gcc is not a MinGW compiler. Please install MinGW-w64 and add it to PATH.");
             }
         } else {
@@ -51,6 +51,7 @@ export class HostWindowsSetupHandler extends SetupHandler {
 
     private async isMingwGccAvailable(): Promise<boolean> {
         const machine = await this.getGccTargetMachine();
+        console.log(machine)
         return machine?.includes('mingw') ?? false;
     }
 

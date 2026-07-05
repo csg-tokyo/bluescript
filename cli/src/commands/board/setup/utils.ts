@@ -15,6 +15,7 @@ export async function isPackageInstalledOnWindows(name: string) {
         await exec(`where ${name}`, { silent: true });
         return true;
     } catch (error) {
+        console.log(error)
         return false;
     }
 }

@@ -24,7 +24,7 @@ export abstract class SetupHandler extends  CommandHandler {
     loadSetupSteps() {
         this.setupSteps.push({
             description: `Download BlueScript runtime from ${this.boardEnv.runtimeZipUrl}.`,
-            actionMessage: `Downloading BlueScript runtime from ${this.boardEnv.runtimeZipUrl}...`,
+            actionMessage: `Downloading BlueScript runtime...`,
             action: this.downloadBlueScriptRuntimeStep.bind(this)
         });
         this.loadBoardSetupSteps();
