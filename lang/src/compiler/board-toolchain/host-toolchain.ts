@@ -117,12 +117,6 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
 }
 
 export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
-    // Import libraries (.dll.a) of previously generated fragment DLLs.
-    // On Windows, cross-DLL data symbols are only resolved reliably when the
-    // referencing DLL links against a proper import library rather than the
-    // DLL file itself, so keep these separate from generatedSharedLibs.
-    private generatedImportLibs: string[] = [];
-
     get runtimeDll(): string {
         return path.join(this.runtimeBuildDir, 'c-runtime.dll');
     }
@@ -159,13 +153,11 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 (sym) => `-Wl,-u,${sym}`,
             );
             const outputFile = project.mainPackage.dllFile(this.compileId++);
-            const importLibFile = `${outputFile}.a`;
             const args = [
                 '-shared',
                 '-o', outputFile,
-                `-Wl,--out-implib,${importLibFile}`,
                 ...archiveFiles,
-                ...this.generatedImportLibs,
+                ...this.generatedSharedLibs,
                 this.runtimeDll,
                 '-lm',
                 ...keepEntrySymbols,
@@ -173,9 +165,10 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 '-Wl,--enable-auto-import',
                 '-Wl,--enable-runtime-pseudo-reloc'
             ];
-            console.log('[bs][win-link]', this.config.compilerToolchain.gcc, args.join(' '))
-            await executeCommand(this.config.compilerToolchain.gcc, args);
-            this.generatedImportLibs.push(importLibFile);
+            // TEMPORARY (diagnostic): print the exact linker invocation and
+            // surface gcc/ld stdout+stderr while debugging cross-DLL data sharing.
+            console.log('[bs][win-link]', this.config.compilerToolchain.gcc, args.join(' '));
+            await executeCommand(this.config.compilerToolchain.gcc, args, undefined, true, true);
             return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, { cause: error });
