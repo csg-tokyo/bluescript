@@ -1,5 +1,5 @@
-jest.mock('../../../src/core/shell', () => ({
-    ...jest.requireActual('../../../src/core/shell'),
+jest.mock('../../../src/core/command-exec', () => ({
+    ...jest.requireActual('../../../src/core/command-exec'),
     cwd: jest.fn(),
 }));
 

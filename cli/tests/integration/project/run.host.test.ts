@@ -1,10 +1,10 @@
-jest.mock('../../../src/core/shell', () => ({
-    ...jest.requireActual('../../../src/core/shell'),
+jest.mock('../../../src/core/command-exec', () => ({
+    ...jest.requireActual('../../../src/core/command-exec'),
     cwd: jest.fn(),
 }));
 
 import * as path from 'path';
-import { cwd } from '../../../src/core/shell';
+import { cwd } from '../../../src/core/command-exec';
 import * as fs from '../../../src/core/fs';
 import { handleRunCommand } from '../../../src/commands/project/run';
 import {

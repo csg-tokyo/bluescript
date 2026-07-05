@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from '../../config/constants';
-import { exec } from '../../core/shell';
+import { simpleExec } from '../../core/command-exec';
 import { BoardEnv } from './common-env';
 
 export abstract class HostEnv extends BoardEnv {
@@ -36,14 +36,17 @@ export class HostDarwinEnv extends HostEnv {
     async buildHostRuntime() {
         fs.makeDir(this.buildDir);
         try {
-            await exec(
-                `cc -DLINUX64 -O2 -shared -fPIC -o "${this.runtimeSoFile}" "${this.runtimeCFile}" "${this.builtinModuleCFile}" "${this.commCFile}"`,
-                { silent: true },
-            );
-            await exec(
-                `cc -DLINUX64 -O2 -o "${this.shellFile}" "${this.shellCFile}" "${this.runtimeSoFile}" -lm -ldl`,
-                { silent: true },
-            );
+            await simpleExec('cc', [
+                '-DLINUX64', '-O2', '-shared', '-fPIC',
+                '-o', this.runtimeSoFile,
+                this.runtimeCFile, this.builtinModuleCFile, this.commCFile,
+            ]);
+            await simpleExec('cc', [
+                '-DLINUX64', '-O2',
+                '-o', this.shellFile,
+                this.shellCFile, this.runtimeSoFile,
+                '-lm', '-ldl',
+            ]);
         } catch(error) {
             throw new Error('Failed to compile host runtime.', { cause: error });
         }
@@ -58,15 +61,17 @@ export class HostWindowsEnv extends HostEnv {
     async buildHostRuntime() {
         fs.makeDir(this.buildDir);
         try {
-            await exec(
-                // `gcc -DLINUX64 -O2 -shared -o "${this.runtimeDllFile}" "${this.runtimeCFile}" "${this.builtinModuleCFile}" "${this.commCFile}"`,
-                `gcc -DLINUX64 -O2 -shared -o "${this.runtimeDllFile}" "${this.runtimeCFile}" "${this.builtinModuleCFile}" "${this.commCFile}"`,
-                { silent: true },
-            );
-            await exec(
-                `gcc -DLINUX64 -O2 -o "${this.shellFile}" "${this.shellCFile}" "${this.runtimeDllFile}" -lm`,
-                { silent: true },
-            );
+            await simpleExec('gcc', [
+                '-DLINUX64', '-O2', '-shared',
+                '-o', this.runtimeDllFile,
+                this.runtimeCFile, this.builtinModuleCFile, this.commCFile,
+            ]);
+            await simpleExec('gcc', [
+                '-DLINUX64', '-O2',
+                '-o', this.shellFile,
+                this.shellCFile, this.runtimeDllFile,
+                '-lm',
+            ]);
         } catch (error) {
             throw new Error('Failed to compile host runtime.', { cause: error });
         }

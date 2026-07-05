@@ -1,30 +1,29 @@
-import { exec } from '../../../core/shell';
+import { simpleExec } from '../../../core/command-exec';
 
 
 export async function isPackageInstalledOnUnix(name: string) {
     try {
-        await exec(`which ${name}`, { silent: true });
+        await simpleExec('which', [name]);
         return true;
-    } catch (error) {
+    } catch {
         return false;
     }
 }
 
 export async function isPackageInstalledOnWindows(name: string) {
     try {
-        await exec(`where ${name}`, { silent: true });
+        await simpleExec('where.exe', [name]);
         return true;
-    } catch (error) {
-        console.log(error)
+    } catch {
         return false;
     }
 }
 
 export async function isPythonVersionGreaterThan3() {
     try {
-        const result = await exec(
-            `python -c "import sys; print(sys.version_info.major)"`,
-            { silent: true },
+        const result = await simpleExec(
+            'python',
+            ['-c', 'import sys; print(sys.version_info.major)'],
         );
         return result.trim() === '3';
     } catch {

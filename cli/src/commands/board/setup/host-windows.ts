@@ -1,5 +1,5 @@
 import { SetupHandler } from "./base";
-import { exec } from '../../../core/shell';
+import { simpleExec } from '../../../core/command-exec';
 import { BoardName } from "../../../config/board-utils";
 import { HostWindowsEnv } from "../../../platforms/board-env/host-env";
 import { isPackageInstalledOnWindows } from "./utils";
@@ -51,13 +51,12 @@ export class HostWindowsSetupHandler extends SetupHandler {
 
     private async isMingwGccAvailable(): Promise<boolean> {
         const machine = await this.getGccTargetMachine();
-        console.log(machine)
         return machine?.includes('mingw') ?? false;
     }
 
     private async getGccTargetMachine(): Promise<string | undefined> {
         try {
-            return (await exec('gcc -dumpmachine', { silent: true })).trim();
+            return (await simpleExec('gcc', ['-dumpmachine'])).trim();
         } catch {
             return undefined;
         }

@@ -5,7 +5,7 @@ import * as os from 'os';
 import { SerialPort } from 'serialport'
 import { BoardName } from "../../config/board-utils";
 import { logger, runStep } from "../../core/logger";
-import { exec } from '../../core/shell';
+import { execShell } from '../../core/command-exec';
 import chalk from "chalk";
 import { CommandHandler } from "../command";
 import { DEFAULT_DEVICE_NAME } from "../../config/project-config";
@@ -53,7 +53,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
         const osType = os.platform();
         const preCommand = osType === 'win32' ? `call ${exportFile}` : `source ${exportFile}`;
 
-        await exec(`${preCommand} && idf.py ${args.join(' ')}`,{ cwd });
+        await execShell(`${preCommand} && idf.py ${args.join(' ')}`, { cwd });
     }
 }
 

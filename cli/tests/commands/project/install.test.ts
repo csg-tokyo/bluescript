@@ -3,7 +3,7 @@ import * as fs from '../../../src/core/fs';
 import * as path from 'path';
 import {
     mockedCwd,
-    mockedExec,
+    mockedSimpleExec,
     mockedLogger,
     mockProcessExit,
 } from '../mock-helpers';
@@ -49,10 +49,11 @@ describe('install command', () => {
         // --- Arrange ---
         setupGlobalEnvWithEsp32();
         createDummyProject(projectRoot);
-        mockedExec.mockImplementation((command) => {
-            if (command.startsWith('git clone')) {
-                dummyGitClone(command, {});
+        mockedSimpleExec.mockImplementation((cmd, args) => {
+            if (cmd === 'git' && args[0] === 'clone') {
+                dummyGitClone(args, {});
             }
+            return Promise.resolve('');
         });
         
         // --- Act ---
@@ -68,16 +69,17 @@ describe('install command', () => {
         // --- Arrange ---
         setupGlobalEnvWithEsp32();
         createDummyProject(projectRoot);
-        mockedExec.mockImplementation((command) => {
-            if (command.startsWith('git clone')) {
-                if (command.includes('led')) {
-                    dummyGitClone(command, {
+        mockedSimpleExec.mockImplementation((cmd, args) => {
+            if (cmd === 'git' && args[0] === 'clone') {
+                if (args.some((arg: string) => arg.includes('led'))) {
+                    dummyGitClone(args, {
                         'pkg-gpio-esp32-project': 'https://github.com/bluescript-lang/pkg-gpio-esp32.git'
                     });
-                } else if (command.includes('gpio')) {
-                    dummyGitClone(command, {});
+                } else if (args.some((arg: string) => arg.includes('gpio'))) {
+                    dummyGitClone(args, {});
                 }
             }
+            return Promise.resolve('');
         });
         
         // --- Act ---
@@ -94,18 +96,19 @@ describe('install command', () => {
         // --- Arrange ---
         setupGlobalEnvWithEsp32();
         createDummyProject(projectRoot);
-        mockedExec.mockImplementation((command) => {
-            if (command.startsWith('git clone')) {
-                if (command.includes('led')) {
-                    dummyGitClone(command, {
+        mockedSimpleExec.mockImplementation((cmd, args) => {
+            if (cmd === 'git' && args[0] === 'clone') {
+                if (args.some((arg: string) => arg.includes('led'))) {
+                    dummyGitClone(args, {
                         'pkg-gpio-esp32-project': 'https://github.com/bluescript-lang/pkg-gpio-esp32.git'
                     });
-                } else if (command.includes('gpio')) {
-                    dummyGitClone(command, {
+                } else if (args.some((arg: string) => arg.includes('gpio'))) {
+                    dummyGitClone(args, {
                         'pkg-led-esp32-project': 'https://github.com/bluescript-lang/pkg-led-esp32.git'
                     });
                 }
             }
+            return Promise.resolve('');
         });
         
         // --- Act ---
@@ -124,18 +127,19 @@ describe('install command', () => {
             'pkg-led-esp32-project': 'https://github.com/bluescript-lang/pkg-led-esp32.git',
             'pkg-pwm-esp32-project': 'https://github.com/bluescript-lang/pkg-pwm-esp32.git#v1.0.0',
         });
-        mockedExec.mockImplementation((command) => {
-            if (command.startsWith('git clone')) {
-                if (command.includes('led')) {
-                    dummyGitClone(command, {
+        mockedSimpleExec.mockImplementation((cmd, args) => {
+            if (cmd === 'git' && args[0] === 'clone') {
+                if (args.some((arg: string) => arg.includes('led'))) {
+                    dummyGitClone(args, {
                         'pkg-gpio-esp32-project': 'https://github.com/bluescript-lang/pkg-gpio-esp32.git'
                     });
-                } else if (command.includes('gpio')) {
-                    dummyGitClone(command, {});
-                } else if (command.includes('pwm')) {
-                    dummyGitClone(command, {});
+                } else if (args.some((arg: string) => arg.includes('gpio'))) {
+                    dummyGitClone(args, {});
+                } else if (args.some((arg: string) => arg.includes('pwm'))) {
+                    dummyGitClone(args, {});
                 }
             }
+            return Promise.resolve('');
         });
         
         // --- Act ---
@@ -152,10 +156,11 @@ describe('install command', () => {
         const exitSpy = mockProcessExit();
         setupDefaultGlobalEnv();
         createDummyProject(projectRoot);
-        mockedExec.mockImplementation((command) => {
-            if (command.startsWith('git clone')) {
-                dummyGitClone(command, {});
+        mockedSimpleExec.mockImplementation((cmd, args) => {
+            if (cmd === 'git' && args[0] === 'clone') {
+                dummyGitClone(args, {});
             }
+            return Promise.resolve('');
         });
         
         // --- Act ---
@@ -172,22 +177,17 @@ describe('install command', () => {
 });
 
 
-function dummyGitClone(command: string, dependencies: {[name: string]: string}) {
-    const urlRegex = /(https?:\/\/\S+|git@\S+)/;
-    const match = command.match(urlRegex);
-
-    if (!match) {
+function dummyGitClone(args: string[], dependencies: {[name: string]: string}) {
+    const url = args.find((arg) => arg.startsWith('http') || arg.startsWith('git@'));
+    if (!url) {
         console.error("Could not find git url.");
         return null;
     }
 
-    const fullUrl = match[0];
+    const fullUrl = url;
     const cleanUrl = fullUrl.replace(/\.git$/, '');
     const repoName = cleanUrl.split('/').pop() || '';
-
-    const urlIndex = command.indexOf(fullUrl);
-    const textAfterUrl = command.substring(urlIndex + fullUrl.length).trim();
-    const targetDir = textAfterUrl.length > 0 ? textAfterUrl : repoName;
+    const targetDir = args[args.length - 1];
 
     fs.makeDir(targetDir);
     const bsConfig = {

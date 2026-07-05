@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from "../../config/constants";
-import { exec } from '../../core/shell';
+import { simpleExec, execShell, execWithLog } from '../../core/command-exec';
 import { BoardEnv } from './common-env';
 
 const XTENSA_TOOLCHAIN_DIR = 'xtensa-esp-elf';
@@ -24,9 +24,10 @@ export abstract class Esp32Env extends BoardEnv {
     abstract getXtensaGccDir(): Promise<string>;
 
     async cloneEspIdf() {
-        await exec(
-            `git clone --depth 1 -b ${this.idfVersion} --recursive ${this.idfGitRepo}`,
-            { cwd: this.espRootDir }
+        await execWithLog(
+            'git',
+            ['clone', '--depth', '1', '-b', this.idfVersion, '--recursive', this.idfGitRepo],
+            { cwd: this.espRootDir },
         );
     }
 
@@ -65,7 +66,6 @@ export abstract class Esp32Env extends BoardEnv {
     }
 
     protected resolveXtensaGccDirFromExport(stdout: string, pathLabel: string, pathSeparator: string): string {
-        console.log(stdout)
         const env = this.parseKeyValueExport(stdout);
 
         const pathValue = env.get(pathLabel);
@@ -95,12 +95,15 @@ export class Esp32DarwinEnv extends Esp32Env {
     get xtensaLdFileName() { return XTENSA_LD_NAME; }
 
     async runEspIdfInstallScript() {
-        await exec(this.idfInstallShFile);
+        await execShell(`bash ${JSON.stringify(this.idfInstallShFile)}`);
     }
 
     async getXtensaGccDir() {
         try {
-            const stdout = await exec(`${this.idfToolsPyFile} export --format key-value`);
+            const stdout = await simpleExec(
+                'python3',
+                [this.idfToolsPyFile, 'export', '--format', 'key-value'],
+            );
             return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ':');
         } catch (error) {
             throw new Error(`Failed to find ${XTENSA_TOOLCHAIN_DIR}.`, { cause: error });
@@ -117,12 +120,15 @@ export class Esp32WindowsEnv extends Esp32Env {
     get xtensaLdFileName(): string { return `${XTENSA_LD_NAME}.exe`; }
 
     async runEspIdfInstallScript() {
-        await exec(this.idfInstallBatFile);
+        await execShell(this.idfInstallBatFile);
     }
 
     async getXtensaGccDir() {
         try {
-            const stdout = await exec(`python ${this.idfToolsPyFile} export --format key-value`);
+            const stdout = await simpleExec(
+                'python',
+                [this.idfToolsPyFile, 'export', '--format', 'key-value'],
+            );
             return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ';');
         } catch (error) {
             throw new Error(`Failed to find ${XTENSA_TOOLCHAIN_DIR}.`, { cause: error });

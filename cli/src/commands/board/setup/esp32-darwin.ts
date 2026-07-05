@@ -1,5 +1,5 @@
 import { SetupHandler } from "./base";
-import { exec } from '../../../core/shell';
+import { execWithLog, simpleExec } from '../../../core/command-exec';
 import { skip } from "../../../core/logger";
 import * as path from 'path';
 import { BoardName } from "../../../config/board-utils";
@@ -75,7 +75,7 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
         if (packages.length === 0) {
             return skip('already installed.');
         }
-        await exec(`brew install ${packages.join(' ')}`);
+        await execWithLog('brew', ['install', ...packages]);
     }
 
     private async cloneEspIdfStep() {

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import * as path from 'path';
 import { logger } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
-import { cwd } from "../../core/shell";
+import { cwd } from "../../core/command-exec";
 import { BOARD_NAMES, BoardName, isValidBoard } from "../../config/board-utils";
 import * as fs from '../../core/fs';
 import { CommandHandler } from "../command";

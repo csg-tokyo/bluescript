@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { logger } from "../../core/logger";
 import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
-import { cwd } from "../../core/shell";
+import { cwd } from "../../core/command-exec";
 import * as fs from '../../core/fs';
 import * as path from 'path';
 import { CommandHandler } from "../command";

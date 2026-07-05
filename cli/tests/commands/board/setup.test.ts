@@ -2,7 +2,9 @@ import { handleSetupCommand } from '../../../src/commands/board/setup';
 import os from 'os';
 import {
     mockedDownloadAndUnzip,
-    mockedExec,
+    mockedSimpleExec,
+    mockedExecWithLog,
+    mockedExecShell,
     mockedInquirer,
     mockedLogger,
     mockProcessExit,
@@ -23,6 +25,50 @@ jest.mock('os', () => ({
 
 export const mockedOs = os as jest.Mocked<typeof os>;
 mockedOs.platform.mockReturnValue('darwin');
+
+function mockEsp32ShellCommands(options: {
+    whichFound?: string[];
+    pythonMajor?: string;
+    gitCloneFails?: boolean;
+}) {
+    mockedSimpleExec.mockImplementation(async (cmd, args) => {
+        if (cmd === 'which') {
+            if (options.whichFound?.includes(args[0])) {
+                return '';
+            }
+            throw new Error('not found');
+        }
+        if (cmd === 'python3' && args.some((arg: string) => arg.includes('export'))) {
+            return mockXtensaGccFromIdfToolsExport();
+        }
+        if (cmd === 'python' && args[1]?.includes('import sys')) {
+            return options.pythonMajor ?? '3';
+        }
+        return '';
+    });
+    mockedExecWithLog.mockImplementation(async (cmd, args) => {
+        if (cmd === 'git' && options.gitCloneFails) {
+            throw new Error('git command failed');
+        }
+        if (cmd === 'git' || cmd === 'brew') {
+            return '';
+        }
+        return '';
+    });
+    mockedExecShell.mockImplementation(async () => {});
+}
+
+function mockHostShellCommands(options: { ccMissing?: boolean }) {
+    mockedSimpleExec.mockImplementation(async (cmd, args) => {
+        if (cmd === 'which') {
+            if (options.ccMissing && args[0] === 'cc') {
+                throw new Error('not found');
+            }
+            return '';
+        }
+        return '';
+    });
+}
 
 
 describe('board setup command', () => {
@@ -62,7 +108,9 @@ describe('board setup command', () => {
         // --- Assert ---
         expect(mockedLogger.warn).toHaveBeenCalledWith('Setup cancelled by user.');
         // No further actions taken
-        expect(mockedExec).not.toHaveBeenCalled();
+        expect(mockedSimpleExec).not.toHaveBeenCalled();
+        expect(mockedExecWithLog).not.toHaveBeenCalled();
+        expect(mockedExecShell).not.toHaveBeenCalled();
     });
 
     it('should exit with an error for an unknown board name', async () => {
@@ -83,12 +131,7 @@ describe('board setup command', () => {
         // --- Arrange ---
         const exitSpy = mockProcessExit();
         mockedInquirer.prompt.mockResolvedValue({ proceed: true });
-        mockedExec.mockImplementation(async (command) => {
-            if (command.startsWith('git clone')) {
-                throw new Error('git command failed');;
-            }
-            return '';
-        });
+        mockEsp32ShellCommands({ gitCloneFails: true });
 
         // --- Act ---
         await handleSetupCommand('esp32');
@@ -104,20 +147,8 @@ describe('board setup command', () => {
         it('should perform a full setup if not already set up', async () => {
             // --- Arrange ---
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
-            mockedExec.mockImplementation(async (command: string) => {
-                if (command.startsWith('which')) {
-                    if (command.includes('brew') || command.includes('git')) {
-                        return '';
-                    }
-                    throw new Error('not found');
-                }
-                if (command.includes('idf_tools.py export --format key-value')) {
-                    return mockXtensaGccFromIdfToolsExport();
-                }
-                if (command.includes('python -c "import sys; print(sys.version_info.major)')) {
-                    return '3';
-                }
-                return '';
+            mockEsp32ShellCommands({
+                whichFound: ['brew', 'git'],
             });
             setupEmpyGlobalEnv();
 
@@ -132,11 +163,18 @@ describe('board setup command', () => {
             expect(mockedDownloadAndUnzip).toHaveBeenCalledTimes(1);
             
             // 3. Install required packages via Homebrew
-            expect(mockedExec).toHaveBeenCalledWith('brew install cmake ninja dfu-util ccache');
-            
+            expect(mockedExecWithLog).toHaveBeenCalledWith(
+                'brew',
+                ['install', 'cmake', 'ninja', 'dfu-util', 'ccache'],
+            );
+
             // 4. Clone ESP-IDF and run install script
-            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('git clone'), expect.any(Object));
-            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('install.sh'));
+            expect(mockedExecWithLog).toHaveBeenCalledWith(
+                'git',
+                expect.arrayContaining(['clone']),
+                expect.any(Object),
+            );
+            expect(mockedExecShell).toHaveBeenCalledWith(expect.stringContaining('install.sh'));
 
             // 5. Update and save config
             expect(Object.keys(getGlobalConfig().boards)).toContain('esp32');
@@ -149,20 +187,8 @@ describe('board setup command', () => {
             // --- Arrange ---
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             setupDefaultGlobalEnv();
-            mockedExec.mockImplementation(async (command: string) => {
-                if (command.startsWith('which')) {
-                    if (command.includes('brew') || command.includes('git')) {
-                        return '';
-                    }
-                    throw new Error('not found');
-                }
-                if (command.includes('idf_tools.py export --format key-value')) {
-                    return mockXtensaGccFromIdfToolsExport();
-                }
-                if (command.includes('python --version')) {
-                    return 'Python 3.7.18';
-                }
-                return '';
+            mockEsp32ShellCommands({
+                whichFound: ['brew', 'git'],
             });
 
             // --- Act ---
@@ -172,37 +198,26 @@ describe('board setup command', () => {
             // Confirm downloads are skipped
             expect(mockedDownloadAndUnzip).not.toHaveBeenCalled();
             // Confirm device setup proceeds
-            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('git clone'), expect.any(Object));
+            expect(mockedExecWithLog).toHaveBeenCalledWith(
+                'git',
+                expect.arrayContaining(['clone']),
+                expect.any(Object),
+            );
         });
 
         it('shold skip install required packages if all packages are installed', async () => {
             // --- Arrange ---
             setupEmpyGlobalEnv();
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
-            mockedExec.mockImplementation(async (command: string) => {
-                if (command.startsWith('which')) {
-                    if (command.includes('brew') || command.includes('git')) {
-                        return '';
-                    }
-                    if (command.includes('cmake') || command.includes('ninja') || command.includes('dfu-util') || command.includes('ccache')) {
-                        return '';
-                    }
-                    throw new Error('not found');
-                }
-                if (command.includes('idf_tools.py export --format key-value')) {
-                    return mockXtensaGccFromIdfToolsExport();
-                }
-                if (command.includes('python --version')) {
-                    return 'Python 3.7.18';
-                }
-                return '';
+            mockEsp32ShellCommands({
+                whichFound: ['brew', 'git', 'cmake', 'ninja', 'dfu-util', 'ccache'],
             });
 
             // --- Act ---
             await handleSetupCommand('esp32');
 
             // --- Assert ---
-            expect(mockedExec).not.toHaveBeenCalledWith(expect.stringContaining('brew install cmake'));
+            expect(mockedExecWithLog).not.toHaveBeenCalledWith('brew', ['install', 'cmake']);
         });
 
         it('shold stop if python3 is not installed', async () => {
@@ -210,17 +225,9 @@ describe('board setup command', () => {
             setupEmpyGlobalEnv();
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             const exitSpy = mockProcessExit();
-            mockedExec.mockImplementation(async (command: string) => {
-                if (command.startsWith('which')) {
-                    if (command.includes('brew') || command.includes('git')) {
-                        return '';
-                    }
-                    throw new Error('not found');
-                }
-                if (command.includes('python --version')) {
-                    return 'Python 2.7.18';
-                }
-                return '';
+            mockEsp32ShellCommands({
+                whichFound: ['brew', 'git'],
+                pythonMajor: '2',
             });
 
             // --- Act ---
@@ -244,7 +251,9 @@ describe('board setup command', () => {
             expect(mockedLogger.warn).toHaveBeenCalledWith('The setup for esp32 has already been completed.');
             // No further actions taken
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();
-            expect(mockedExec).not.toHaveBeenCalled();
+            expect(mockedSimpleExec).not.toHaveBeenCalled();
+        expect(mockedExecWithLog).not.toHaveBeenCalled();
+        expect(mockedExecShell).not.toHaveBeenCalled();
         });
 
         it('should exit with an error for an unsupported OS', async () => {
@@ -273,12 +282,7 @@ describe('board setup command', () => {
         it('should perform a full setup if not already set up', async () => {
             setupEmpyGlobalEnv();
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
-            mockedExec.mockImplementation(async (command: string) => {
-                if (command.startsWith('which')) {
-                    return '';
-                }
-                return '';
-            });
+            mockHostShellCommands({});
 
             await handleSetupCommand('host');
 
@@ -295,15 +299,7 @@ describe('board setup command', () => {
             setupEmpyGlobalEnv();
             const exitSpy = mockProcessExit();
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
-            mockedExec.mockImplementation(async (command: string) => {
-                if (command.includes('which cc')) {
-                    throw new Error('not found');
-                }
-                if (command.startsWith('which')) {
-                    return '';
-                }
-                return '';
-            });
+            mockHostShellCommands({ ccMissing: true });
 
             await handleSetupCommand('host');
 
