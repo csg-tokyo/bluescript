@@ -9,7 +9,7 @@ import {
     mockedLogger,
     mockProcessExit,
 } from '../mock-helpers';
-import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings, getTestRuntimeDir, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
+import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings, getTestRuntimeDir, getEsp32IdfToolsExportPythonCommand, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
 import { HostDarwinEnv } from '../../../src/platforms/board-env/host-env';
 import * as path from 'path';
 
@@ -38,7 +38,7 @@ function mockEsp32ShellCommands(options: {
             }
             throw new Error('not found');
         }
-        if (cmd === 'python3' && args.some((arg: string) => arg.includes('export'))) {
+        if (cmd === getEsp32IdfToolsExportPythonCommand() && args.some((arg: string) => arg.includes('export'))) {
             return mockXtensaGccFromIdfToolsExport();
         }
         if (cmd === 'python' && args[1]?.includes('import sys')) {

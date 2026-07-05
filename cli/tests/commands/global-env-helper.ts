@@ -112,14 +112,21 @@ export function setupGlobalEnvWithEsp32(isOldVersion = false, isEspIdfOldVersion
     fs.makeDir(getTestRuntimeDir());
 }
 
+export function getEsp32IdfToolsExportPythonCommand(): string {
+    return os.platform() === 'win32' ? 'python' : 'python3';
+}
+
 export function mockXtensaGccFromIdfToolsExport(): string {
+    const isWin = os.platform() === 'win32';
+    const gccName = isWin ? 'xtensa-esp32-elf-gcc.exe' : 'xtensa-esp32-elf-gcc';
+    const pathSep = isWin ? ';' : ':';
     const gccDir = path.join(
         GLOBAL_SETTINGS.BLUESCRIPT_DIR,
         '.espressif/tools/xtensa-esp-elf/bin',
     );
     fs.makeDir(gccDir);
-    fs.writeFile(path.join(gccDir, 'xtensa-esp32-elf-gcc'), '');
-    return `PATH=${gccDir}:/xtensa-esp-elf-gdb/bin`;
+    fs.writeFile(path.join(gccDir, gccName), '');
+    return `PATH=${gccDir}${pathSep}/xtensa-esp-elf-gdb/bin`;
 }
 
 export function getGlobalConfig(): any {

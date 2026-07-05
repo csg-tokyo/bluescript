@@ -1,12 +1,13 @@
 import { handleUpdateCommand } from '../../../src/commands/board/update';
-import { deleteGlobalEnv, DUMMY_ESP_IDF_VERSION, getGlobalConfig, getTestEspRootDir, getTestRuntimeDir, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, DUMMY_VM_VERSION, spyGlobalSettings, DUMMY_OLD_VM_VERSION, DUMMY_OLD_ESP_IDF_VERSION, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
+import { deleteGlobalEnv, DUMMY_ESP_IDF_VERSION, getGlobalConfig, getTestEspRootDir, getTestRuntimeDir, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, DUMMY_VM_VERSION, spyGlobalSettings, DUMMY_OLD_VM_VERSION, DUMMY_OLD_ESP_IDF_VERSION, getEsp32IdfToolsExportPythonCommand, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
 import { mockedDownloadAndUnzip, mockedSimpleExec, mockedExecWithLog, mockedExecShell, mockProcessExit } from '../mock-helpers';
 import * as fs from '../../../src/core/fs';
 
 
 function mockUpdateShellCommands(options: { gitCloneFails?: boolean }) {
+    const pythonCmd = getEsp32IdfToolsExportPythonCommand();
     mockedSimpleExec.mockImplementation(async (cmd, args) => {
-        if (cmd === 'python3' && args.some((arg: string) => arg.includes('export'))) {
+        if (cmd === pythonCmd && args.some((arg: string) => arg.includes('export'))) {
             return mockXtensaGccFromIdfToolsExport();
         }
         return '';
