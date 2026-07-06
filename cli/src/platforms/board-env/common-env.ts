@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from '../../config/constants';
+import { simpleExec } from '../../core/command-exec';
 
 
 export abstract class BoardEnv {
@@ -26,8 +27,12 @@ export abstract class BoardEnv {
     }
 
     abstract removeBoardRoot():  void;
-
     abstract refreshBoardRoot(): void;
+    abstract isPackageInstalled(name: string): Promise<boolean>;
+    
+    isPythonVersionGreaterThan3(): Promise<boolean> {
+        return isPythonVersionGreaterThan3();
+    };
 
     async downloadBlueScriptRuntime() {
         if (fs.exists(this.runtimeDir)) {
@@ -50,4 +55,41 @@ export abstract class BoardEnv {
 export class CommonBoardEnv extends BoardEnv {
     removeBoardRoot(): void {}
     refreshBoardRoot(): void {}
+    async isPackageInstalled(name: string): Promise<boolean> {
+        return false;
+    }
+    async isPythonVersionGreaterThan3(): Promise<boolean> {
+        return false;
+    }
 }
+
+export async function isPackageInstalledOnUnix(name: string) {
+    try {
+        await simpleExec('which', [name]);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function isPackageInstalledOnWindows(name: string) {
+    try {
+        await simpleExec('where.exe', [name]);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function isPythonVersionGreaterThan3() {
+    try {
+        const result = await simpleExec(
+            'python',
+            ['-c', 'import sys; print(sys.version_info.major)'],
+        );
+        return result.trim() === '3';
+    } catch {
+        return false;
+    }
+}
+

@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as readline from 'readline';
 import chalk from "chalk";
 import * as fs from '../core/fs';
-import { CommandHandler } from "./command";
+import { CommandHandlerWithUpdateCheck } from "./command";
 import { GLOBAL_SETTINGS } from "../config/constants";
 import { CompileContext, createPlatformSession } from "../platforms";
 import { BoardName } from "../config/board-utils";
@@ -23,7 +23,7 @@ function defaultReplReadlineFactory(): readline.Interface {
     });
 }
 
-class ReplHandler extends CommandHandler {
+class ReplHandler extends CommandHandlerWithUpdateCheck {
     static readonly TEMP_PROJECT_NAME = 'temp';
     static get tempProjectDir(): string {
         return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, ReplHandler.TEMP_PROJECT_NAME);

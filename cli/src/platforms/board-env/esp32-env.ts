@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from "../../config/constants";
 import { simpleExec, execShell, execWithLog } from '../../core/command-exec';
-import { BoardEnv } from './common-env';
+import { BoardEnv, isPackageInstalledOnUnix, isPackageInstalledOnWindows } from './common-env';
 
 const XTENSA_TOOLCHAIN_DIR = 'xtensa-esp-elf';
 const XTENSA_GCC_NAME = 'xtensa-esp32-elf-gcc';
@@ -22,6 +22,7 @@ export abstract class Esp32Env extends BoardEnv {
 
     abstract runEspIdfInstallScript(): Promise<void>;
     abstract getXtensaGccDir(pythonCommand: string): Promise<string>;
+    abstract getMakeCommand(): Promise<string>;
 
     async cloneEspIdf() {
         await execWithLog(
@@ -85,6 +86,16 @@ export abstract class Esp32Env extends BoardEnv {
 
         throw new Error(`${XTENSA_TOOLCHAIN_DIR} not found in exported PATH`);
     }
+
+    async getPythonCommand(): Promise<string> {
+        if (await this.isPythonVersionGreaterThan3()) {
+            return 'python';
+        } else if (await this.isPackageInstalled('python3')) {
+            return 'python3';
+        } else {
+            throw new Error("Cannot find Python3. Please install Python3 and try again.");
+        }
+    }
 }
 
 export class Esp32DarwinEnv extends Esp32Env {
@@ -107,6 +118,18 @@ export class Esp32DarwinEnv extends Esp32Env {
             return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ':');
         } catch (error) {
             throw new Error(`Failed to find ${XTENSA_TOOLCHAIN_DIR}.`, { cause: error });
+        }
+    }
+
+    isPackageInstalled(name: string): Promise<boolean> {
+        return isPackageInstalledOnUnix(name);
+    }
+
+    async getMakeCommand(): Promise<string> {
+        if (await this.isPackageInstalled('make')) {
+            return 'make';
+        } else {
+            throw new Error('Cannot find make command. Please install make.');
         }
     }
 }
@@ -132,6 +155,20 @@ export class Esp32WindowsEnv extends Esp32Env {
             return super.resolveXtensaGccDirFromExport(stdout, 'PATH', ';');
         } catch (error) {
             throw new Error(`Failed to find ${XTENSA_TOOLCHAIN_DIR}.`, { cause: error });
+        }
+    }
+
+    isPackageInstalled(name: string): Promise<boolean> {
+        return isPackageInstalledOnWindows(name);
+    }
+
+    async getMakeCommand(): Promise<string> {
+        if (await this.isPackageInstalled('make')) {
+            return 'make';
+        } else if (await this.isPackageInstalled('mingw32-make')) {
+            return 'mingw32-make';
+        } else {
+            throw new Error("Cannot find make or mingw32-make command. Please install make or mingw32-make and try again.");
         }
     }
 }

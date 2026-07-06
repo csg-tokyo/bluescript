@@ -4,10 +4,8 @@ import inquirer from 'inquirer';
 import { logger } from "../../../core/logger";
 import chalk from "chalk";
 import { SetupHandler } from "./base";
-import { Esp32DarwinSetupHandler } from "./esp32-darwin";
-import { HostDarwinSetupHandler } from "./host-darwin";
-import { Esp32WindowsSetupHandler } from "./esp32-windows";
-import { HostWindowsSetupHandler } from "./host-windows";
+import { Esp32DarwinSetupHandler, Esp32WindowsSetupHandler } from "./esp32";
+import { HostDarwinSetupHandler, HostWindowsSetupHandler } from "./host";
 
 
 function getSetupHandler(board: string): SetupHandler {

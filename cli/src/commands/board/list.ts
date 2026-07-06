@@ -2,10 +2,10 @@ import { Command } from "commander";
 import chalk from 'chalk';
 import { BOARD_NAMES } from "../../config/board-utils";
 import { logger } from "../../core/logger";
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 
 
-class ListHandler extends CommandHandler {
+class ListHandler extends CommandHandlerWithUpdateCheck {
     list() {
         const supportedBoards = BOARD_NAMES;
         logger.log('Available boards:');

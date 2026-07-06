@@ -5,7 +5,6 @@ import * as fs from '../../src/core/fs';
 import { ProjectConfigHandler } from '../../src/config/project-config';
 import { PROJECT_DEFAULT_PATHS } from '../../src/config/project-config';
 import { BoardEnv, createBoardEnv } from '../../src/platforms/board-env';
-import { isPackageInstalledOnWindows } from '../../src/commands/board/setup/utils';
 import { logger } from '../../src/core/logger';
 
 const isHostPlatform = os.platform() === 'darwin' || os.platform() === 'win32';
@@ -165,12 +164,13 @@ export async function assertHostIntegrationPrerequisites(): Promise<void> {
     if (process.platform !== 'win32') {
         return;
     }
-    if (!await isPackageInstalledOnWindows('gcc')) {
+    const hostEnv = createBoardEnv('host');
+    if (!await hostEnv.isPackageInstalled('gcc')) {
         throw new Error(
             'MinGW-w64 gcc is required for host integration tests on Windows.',
         );
     }
-    if (!await isPackageInstalledOnWindows('mingw32-make')) {
+    if (!await hostEnv.isPackageInstalled('mingw32-make')) {
         throw new Error(
             'mingw32-make is required for host integration tests on Windows.',
         );

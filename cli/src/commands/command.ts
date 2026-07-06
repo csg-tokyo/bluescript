@@ -4,13 +4,14 @@ import chalk from "chalk";
 import { GLOBAL_SETTINGS } from "../config/constants";
 import * as fs from '../core/fs';
 
-export abstract class CommandHandler {
+export abstract class CommandHandler {}
+
+export abstract class CommandHandlerWithUpdateCheck extends CommandHandler {
     protected globalConfigHandler: GlobalConfigHandler;
 
-    constructor(checkUpdate = true) {
-        if (checkUpdate) {
-            this.checkUpdate();
-        }
+    constructor() {
+        super();
+        this.checkUpdate();
         this.globalConfigHandler = GlobalConfigHandler.load();
     }
 

@@ -7,7 +7,7 @@ import { CommonBoardEnv } from "../../platforms/board-env";
 
 class FullcleanHandler extends CommandHandler {
     constructor() {
-        super(false);
+        super();
     }
 
     fullclean() {

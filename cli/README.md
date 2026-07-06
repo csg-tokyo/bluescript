@@ -32,6 +32,8 @@ npm run test:all         # unit + integration
 
 **Integration test requirements:** macOS (`cc`) or Windows (MinGW-w64: `gcc`, `mingw32-make`), and the `microcontroller/` tree at the repository root. On first run, tests build `microcontroller/ports/host/build/shell` (or `shell.exe`) and `c-runtime.so` (or `c-runtime.dll`) if missing. Tests are skipped automatically on Linux and other unsupported platforms.
 
+**Supported platforms:** macOS and Windows for `host` and `esp32` board setup. Linux is not supported. On Windows, install the Visual C++ Build Environment before `npm install` (node-gyp), and MinGW-w64 for the host runtime. See [Windows prerequisites](https://csg-tokyo.github.io/bluescript/docs/tutorial/get-started/setup-environment-windows) on the website.
+
 **Integration coverage (14 tests):**
 
 - `tests/integration/project/run.host.test.ts` — `project run` on host: normal output, built-in library, functions/variables, local import, local package import, inline C, `.c` / `.h` includes, compile error

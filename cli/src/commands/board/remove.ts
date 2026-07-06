@@ -2,11 +2,11 @@ import { Command } from "commander";
 import inquirer from 'inquirer';
 import { BoardName, isValidBoard } from "../../config/board-utils";
 import { logger, runStep } from "../../core/logger";
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 import { BoardEnv, createBoardEnv } from "../../platforms/board-env";
 
 
-class RemoveHandler extends CommandHandler {
+class RemoveHandler extends CommandHandlerWithUpdateCheck {
     boardName: BoardName;
     boardEnv: BoardEnv;
 

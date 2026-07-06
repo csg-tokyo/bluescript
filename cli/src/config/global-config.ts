@@ -51,8 +51,8 @@ export class GlobalConfigHandler {
     }
 
     static load() {
-        if (!fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE)) {
-            return new GlobalConfigHandler(globalConfigSchema.parse({version: GLOBAL_SETTINGS.VM_VERSION}));
+        if (!this.isGlobalConfigFileExists()) {
+            return this.loadEmpty()
         }
         try {
             const fileContent = fs.readFile(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE);
@@ -77,6 +77,19 @@ export class GlobalConfigHandler {
             }
             throw error;
         }
+    }
+
+    static loadEmpty() {
+        return new GlobalConfigHandler(globalConfigSchema.parse({ version: GLOBAL_SETTINGS.VM_VERSION }));
+    }
+
+    static getConfigWithoutCheck() {
+        const fileContent = fs.readFile(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE);
+        return JSON.parse(fileContent) as GlobalConfig;
+    }
+
+    static isGlobalConfigFileExists() {
+        return fs.exists(GLOBAL_SETTINGS.BLUESCRIPT_CONFIG_FILE);
     }
 
     update(config: Partial<GlobalConfig>) {
@@ -127,6 +140,15 @@ export class GlobalConfigHandler {
 
     getBoardConfig<K extends keyof BoardConfig>(boardName: K): Readonly<BoardConfig[K]> | undefined {
         return this.config.boards?.[boardName];
+    }
+
+    setBoardConfig<K extends keyof BoardConfig>(boardName: K, boardConfig: BoardConfig[K]) {
+        this.update({
+            boards: {
+                ...this.config.boards,
+                [boardName]: boardConfig
+            }
+        });
     }
 
     updateBoardConfig<K extends keyof BoardConfig>(boardName: K, boardConfig: Partial<BoardConfig[K]>) {

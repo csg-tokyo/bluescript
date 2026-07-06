@@ -7,13 +7,13 @@ import { BoardName } from "../../config/board-utils";
 import { logger, runStep } from "../../core/logger";
 import { execShell } from '../../core/command-exec';
 import chalk from "chalk";
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 import { DEFAULT_DEVICE_NAME } from "../../config/project-config";
 
 
 const RUNTIME_ESP_PORT_DIR = (runtimeDir: string) => path.join(runtimeDir, 'ports/esp32');
 
-abstract class FlashRuntimeHandler extends CommandHandler {
+abstract class FlashRuntimeHandler extends CommandHandlerWithUpdateCheck {
     abstract isSetup(): boolean;
     abstract flashRuntime(port: string, deviceName?: string): Promise<void>;
 

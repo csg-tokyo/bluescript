@@ -1,6 +1,6 @@
 import { runStep, skip } from "../../../core/logger";
 import { StepSkip } from "../../../core/logger/step-runner";
-import { CommandHandler } from "../../command";
+import { CommandHandlerWithUpdateCheck } from "../../command";
 import { BoardName } from "../../../config/board-utils";
 import { CommonBoardEnv } from "../../../platforms/board-env/common-env";
 
@@ -12,7 +12,7 @@ export interface Step {
 }
 
 
-export abstract class SetupHandler extends  CommandHandler {
+export abstract class SetupHandler extends  CommandHandlerWithUpdateCheck {
     abstract boardName: BoardName;
     abstract boardEnv: CommonBoardEnv;
     protected setupSteps: Step[] = [];

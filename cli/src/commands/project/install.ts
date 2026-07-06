@@ -4,11 +4,11 @@ import { ProjectConfigHandler, PackageSource ,PROJECT_DEFAULT_PATHS } from "../.
 import { cwd, simpleExec } from "../../core/command-exec";
 import * as fs from '../../core/fs';
 import * as path from 'path';
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";
 
 
-class InstallationHandler extends CommandHandler {
+class InstallationHandler extends CommandHandlerWithUpdateCheck {
     private projectConfigHandler: ProjectConfigHandler;
     private projectRootDir: string;
     private packagesDir: string;

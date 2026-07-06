@@ -4,10 +4,10 @@ import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/projec
 import { cwd } from "../../core/command-exec";
 import * as fs from '../../core/fs';
 import * as path from 'path';
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 
 
-class UninstallHandler extends CommandHandler {
+class UninstallHandler extends CommandHandlerWithUpdateCheck {
     private projectDir: string;
     private projectConfigHandler: ProjectConfigHandler;
 

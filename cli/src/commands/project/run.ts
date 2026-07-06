@@ -8,13 +8,13 @@ import { logger, ProgramOutput, createBoxedOutput, createConsoleOutput, createWe
     runStep, LoadStepLogger } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd, ExecOptions, simpleExec } from "../../core/command-exec";
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
 import { CompileError, CompileOutput } from "@bscript/lang";
 import { WebSocketConnection } from "../../services/websocket";
 import { SerialTaskQueue } from "../../core/serial-task-queue";
 
-class RunHandler extends CommandHandler {
+class RunHandler extends CommandHandlerWithUpdateCheck {
     protected compiler: CompilerAdapter;
     protected runtime: BoardRuntime;
     protected programOutput: ProgramOutput;
