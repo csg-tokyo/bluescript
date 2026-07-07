@@ -1,23 +1,29 @@
 import { handleUpdateCommand } from '../../../src/commands/board/update';
-import { deleteGlobalEnv, DUMMY_ESP_IDF_VERSION, getGlobalConfig, getTestEspRootDir, getTestRuntimeDir, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, DUMMY_VM_VERSION, spyGlobalSettings, DUMMY_OLD_VM_VERSION, DUMMY_OLD_ESP_IDF_VERSION, isEsp32IdfToolsExportPythonCommand, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
+import {
+    deleteGlobalEnv,
+    DUMMY_ESP_IDF_VERSION,
+    getGlobalConfig,
+    getExpectedHostToolchain,
+    getTestEspRootDir,
+    getTestHostShellFile,
+    getTestRuntimeDir,
+    setupDefaultGlobalEnv,
+    setupGlobalEnvWithEsp32,
+    setupGlobalEnvWithHost,
+    DUMMY_VM_VERSION,
+    spyGlobalSettings,
+    DUMMY_OLD_VM_VERSION,
+    DUMMY_OLD_ESP_IDF_VERSION,
+    isEsp32IdfToolsExportPythonCommand,
+    mockXtensaGccFromIdfToolsExport,
+} from '../global-env-helper';
 import { mockedDownloadAndUnzip, mockedSimpleExec, mockedExecWithLog, mockedExecShell, mockProcessExit } from '../mock-helpers';
-import { HostDarwinEnv } from '../../../src/platforms/board-env/host-env';
+import { HostDarwinEnv, HostWindowsEnv } from '../../../src/platforms/board-env/host-env';
 import * as fs from '../../../src/core/fs';
-import * as path from 'path';
-import os from 'os';
+import * as os from 'os';
 
-jest.mock('os', () => ({
-    ...jest.requireActual('os'),
-    platform: jest.fn(),
-}));
-
-const mockedOs = os as jest.Mocked<typeof os>;
-const mockedBuildHostRuntime = jest.spyOn(HostDarwinEnv.prototype, 'buildHostRuntime');
-
-function getTestHostShellFile() {
-    return path.join(getTestRuntimeDir(), 'ports/host/build', 'shell');
-}
-
+const HostEnvClass = os.platform() === 'win32' ? HostWindowsEnv : HostDarwinEnv;
+const mockedBuildHostRuntime = jest.spyOn(HostEnvClass.prototype, 'buildHostRuntime');
 
 function mockUpdateShellCommands(options: { gitCloneFails?: boolean }) {
     mockedSimpleExec.mockImplementation(async (cmd, args) => {
@@ -41,7 +47,6 @@ function mockUpdateShellCommands(options: { gitCloneFails?: boolean }) {
 describe('board update command', () => {
     beforeAll(() => {
         spyGlobalSettings('update');
-        mockedOs.platform.mockReturnValue('darwin');
         mockedBuildHostRuntime.mockResolvedValue();
     });
 
@@ -170,11 +175,7 @@ describe('board update command', () => {
             expect(mockedBuildHostRuntime).toHaveBeenCalledTimes(1);
             expect(getGlobalConfig().version).toMatch(DUMMY_VM_VERSION);
             expect(getGlobalConfig().boards.host.shellFile).toBe(getTestHostShellFile());
-            expect(getGlobalConfig().boards.host.toolchain).toEqual({
-                gcc: 'cc',
-                ar: 'ar',
-                make: 'make',
-            });
+            expect(getGlobalConfig().boards.host.toolchain).toEqual(getExpectedHostToolchain());
         });
 
         it('should skip updating host if host is not setup.', async () => {

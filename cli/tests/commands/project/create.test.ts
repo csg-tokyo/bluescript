@@ -10,7 +10,7 @@ import {
 import { deleteGlobalEnv, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, spyGlobalSettings } from '../global-env-helper';
 
 describe('create project command', () => {
-    const DUMMY_CWD = path.join(__dirname, '../../../temp-files');
+    const DUMMY_CWD = path.join(__dirname, '../../../temp-files/create');
     const projectName = 'test-project';
     const projectDir = path.join(DUMMY_CWD, projectName);
     const projectBsconfig = path.join(projectDir, 'bsconfig.json');
@@ -22,10 +22,11 @@ describe('create project command', () => {
     }
 
     beforeAll(() => {
-        spyGlobalSettings('create');
+        fs.makeDir(DUMMY_CWD, true);
     });
 
     beforeEach(() => {
+        spyGlobalSettings('create');
         mockedCwd.mockReturnValue(DUMMY_CWD);
         deleteGlobalEnv();
         deleteDummyProject();
@@ -33,13 +34,8 @@ describe('create project command', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
-        // deleteGlobalEnv();
-        // deleteDummyProject();
-    });
-
-    afterAll(() => {
-        // deleteGlobalEnv();
-        // deleteDummyProject();
+        deleteGlobalEnv();
+        deleteDummyProject();
     });
 
     it('should show warning and exit if update is needed', async () => {

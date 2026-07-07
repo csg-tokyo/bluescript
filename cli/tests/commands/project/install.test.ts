@@ -13,13 +13,14 @@ import { PROJECT_DEFAULT_PATHS } from '../../../src/config/project-config';
 
 
 describe('install command', () => { 
-    const projectRoot = path.join(__dirname, '../../../temp-files/test-project');
+    const projectRoot = path.join(__dirname, '../../../temp-files/install/test-project');
 
     beforeAll(() => {
-        spyGlobalSettings('install');
-    })
+        fs.makeDir(path.dirname(projectRoot), true);
+    });
 
     beforeEach(() => {
+        spyGlobalSettings('install');
         mockedCwd.mockReturnValue(projectRoot);
     });
 

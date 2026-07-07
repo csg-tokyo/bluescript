@@ -2,7 +2,8 @@ import * as path from "path";
 import * as os from "os";
 import * as fs from '../../src/core/fs';
 import { GLOBAL_SETTINGS } from "../../src/config/constants";
-import { CommonBoardEnv, Esp32DarwinEnv, HostDarwinEnv } from "../../src/platforms/board-env";
+import { CommonBoardEnv, Esp32DarwinEnv, Esp32WindowsEnv } from "../../src/platforms/board-env";
+import { HostDarwinEnv, HostWindowsEnv } from "../../src/platforms/board-env/host-env";
 
 const TEMP_DIR = path.join(__dirname, '../../temp-files');
 const DUMMY_BLUESCRIPT_DIR = (suffix: string) => path.join(TEMP_DIR, `.bluescript-${suffix}`);
@@ -13,10 +14,24 @@ export const DUMMY_ESP_IDF_VERSION = 'v5.4';
 export const DUMMY_OLD_ESP_IDF_VERSION = 'v5.3';
 
 function commonBoardEnv() { return new CommonBoardEnv(); }
-function esp32BoardEnv() { return new Esp32DarwinEnv(); }
+
+function esp32BoardEnv() {
+    return os.platform() === 'win32' ? new Esp32WindowsEnv() : new Esp32DarwinEnv();
+}
+
+function hostBoardEnv() {
+    return os.platform() === 'win32' ? new HostWindowsEnv() : new HostDarwinEnv();
+}
 export function getTestRuntimeDir() { return commonBoardEnv().runtimeDir; }
 export function getTestEspRootDir() { return esp32BoardEnv().espRootDir; }
 export function getTestEspIdfExportFile() { return esp32BoardEnv().idfExportFile; }
+export function getTestHostShellFile() { return hostBoardEnv().shellFile; }
+
+export function getExpectedHostToolchain() {
+    return os.platform() === 'win32'
+        ? { gcc: 'gcc', ar: 'ar', make: 'mingw32-make' }
+        : { gcc: 'cc', ar: 'ar', make: 'make' };
+}
 
 export function spyGlobalSettings(globalDirSuffix: string) {
     jest.spyOn(GLOBAL_SETTINGS, 'BLUESCRIPT_DIR', 'get').mockReturnValue(DUMMY_BLUESCRIPT_DIR(globalDirSuffix));
@@ -55,15 +70,16 @@ export function setupDefaultGlobalEnv(isOldVersion = false) {
 }
 
 export function setupGlobalEnvWithHost(isOldVersion = false, buildDir?: string) {
+    const hostEnv = hostBoardEnv();
     const resolvedBuildDir = buildDir ?? path.join(getTestRuntimeDir(), 'ports/host/build');
     setupGlobalEnv({
         version: isOldVersion ? DUMMY_OLD_VM_VERSION : DUMMY_VM_VERSION,
         runtimeDir: getTestRuntimeDir(),
         boards: {
             host: {
-                rootDir: path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'host'),
-                shellFile: path.join(resolvedBuildDir, 'shell'),
-                toolchain: { gcc: 'cc', ar: 'ar', make: 'make' },
+                rootDir: hostEnv.hostRootDir,
+                shellFile: hostEnv.shellFile,
+                toolchain: getExpectedHostToolchain(),
             }
         },
     });
@@ -122,15 +138,14 @@ export function isEsp32IdfToolsExportPythonCommand(cmd: string): boolean {
 }
 
 export function mockXtensaGccFromIdfToolsExport(): string {
-    const isWin = os.platform() === 'win32';
-    const gccName = isWin ? 'xtensa-esp32-elf-gcc.exe' : 'xtensa-esp32-elf-gcc';
-    const pathSep = isWin ? ';' : ':';
+    const esp32Env = esp32BoardEnv();
+    const pathSep = esp32Env instanceof Esp32WindowsEnv ? ';' : ':';
     const gccDir = path.join(
         GLOBAL_SETTINGS.BLUESCRIPT_DIR,
         '.espressif/tools/xtensa-esp-elf/bin',
     );
     fs.makeDir(gccDir);
-    fs.writeFile(path.join(gccDir, gccName), '');
+    fs.writeFile(path.join(gccDir, esp32Env.xtensaGccFileName), '');
     return `PATH=${gccDir}${pathSep}/xtensa-esp-elf-gdb/bin`;
 }
 
