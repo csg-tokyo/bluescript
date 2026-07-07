@@ -8,6 +8,12 @@ The BlueScript CLI (`bscript`) is the primary tool for managing projects, settin
 npm install -g @bscript/cli
 ```
 
+:::info Supported platforms
+BlueScript CLI supports **macOS** and **Windows**. **Linux is not supported.**
+
+On Windows, install the Visual C++ Build Environment before `npm install -g @bscript/cli` (required by node-gyp for native dependencies such as `serialport`). See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md).
+:::
+
 ## Project Management
 
 ### `bscript project create`
@@ -150,7 +156,14 @@ bscript board setup <board-name>
 **Arguments:**
 *   `<board-name>`: The target board identifier (`esp32` or `host`).
 
-For `esp32`, this downloads ESP-IDF and related tools. For `host`, this builds the local runtime process and requires a C compiler toolchain (`cc` and `make`). See [Try Without Microcontroller](../tutorial/guides/try-without-microcontroller.md).
+**Platform requirements:**
+
+| Board | macOS | Windows |
+| :--- | :--- | :--- |
+| `host` | `cc`, `make` | MinGW-w64: `gcc`, `mingw32-make` |
+| `esp32` | Homebrew, Git, Python 3, `make` | Git, Python 3, `make` or `mingw32-make`. See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md). |
+
+For `host`, see [Try Without Microcontroller](../tutorial/guides/try-without-microcontroller.md).
 
 ---
 
@@ -170,7 +183,7 @@ bscript board flash-runtime <board-name> [options]
 
 | Option | Alias | Description |
 | :--- | :--- | :--- |
-| `--port` | `-p` | Specify the serial port connected to the device (e.g., `COM3`, `/dev/ttyUSB0`). If omitted, the CLI will list available ports for selection. |
+| `--port` | `-p` | Serial port (e.g. macOS: `/dev/tty.usbserial-xxxx`; Windows: `COM3`). If omitted, the CLI lists available ports for selection. |
 | `--device-name` | `-d` | Bluetooth device name advertised by the runtime after flashing (default: `"BLUESCRIPT"`). Must match `deviceName` in your project's `bsconfig.json` when connecting wirelessly. |
 
 **Example:**

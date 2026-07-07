@@ -2,6 +2,9 @@
 sidebar_label: Try Without Microcontroller
 ---
 
+import OsTabs from '@site/src/components/OsTabs';
+import TabItem from '@theme/TabItem';
+
 # Try Without Microcontroller
 
 BlueScript is designed primarily for microcontroller development (ESP32).
@@ -9,14 +12,35 @@ If you do not have hardware yet—or want a faster path for language and compile
 
 For the main ESP32 workflow, see [Get Started](../get-started/introduction.md).
 
-:::danger macOS Only
-The host runtime currently requires **macOS**. Windows and Linux support is under development.
+:::danger Linux not supported
+The host runtime supports **macOS** and **Windows**. **Linux is not supported** at this time.
 :::
 
 ## Prerequisites
 
+<OsTabs>
+<TabItem value="macos" label="macOS">
+
 - [Node.js](https://nodejs.org/) v20+
-- C compiler toolchain (`cc` and `make`)
+- C compiler toolchain: **Xcode Command Line Tools** (`cc` and `make`)
+- **Git** (`git`)
+
+Install Command Line Tools if needed:
+
+```bash
+xcode-select --install
+```
+
+</TabItem>
+<TabItem value="windows" label="Windows">
+
+- [Node.js](https://nodejs.org/) v20+
+- **Visual C++ Build Environment** (for `npm install -g @bscript/cli`; see [Windows prerequisites for ESP32](../get-started/setup-environment-windows.md#nodejs-and-visual-c-build-environment))
+- [MinGW-w64](https://www.mingw-w64.org/) on `PATH`: `gcc` and `mingw32-make`
+- **Git** (`git`)
+
+</TabItem>
+</OsTabs>
 
 ## Quickstart
 
@@ -27,6 +51,8 @@ If you have not installed the CLI yet:
 ```bash
 npm install -g @bscript/cli
 ```
+
+On Windows, install the [Visual C++ Build Environment](../get-started/setup-environment-windows.md#nodejs-and-visual-c-build-environment) before running this command.
 
 ### 2. Set up the host runtime
 

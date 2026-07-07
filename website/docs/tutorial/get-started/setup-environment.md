@@ -1,30 +1,71 @@
+import OsTabs from '@site/src/components/OsTabs';
+import TabItem from '@theme/TabItem';
+
 # Set up your environment
 
-:::danger macOS Only
-Currently, BlueScript strictly requires **macOS**. Windows and Linux support is under development.
+:::danger Linux not supported
+BlueScript supports **macOS** and **Windows**. **Linux is not supported** at this time.
 :::
 
 In this guide, we will install the BlueScript CLI and flash the runtime environment to your ESP32 microcontroller.
 
 ## Prerequisites
 
-Before we begin, ensure you have the following:
+### Hardware
 
-- **Hardware:**
-  - **Host PC:** A laptop running **macOS** (Windows and Linux are currently **not** supported).
-  - **Micocontroller:** An ESP32 development board (e.g., ESP32-DevKitC)
-  - **USB cable** to connect your host PC and the microcontroller 
-- **Software:**
-  - [Node.js](https://nodejs.org/) (v20 or later) installed on your host PC.
+- **Host PC:** macOS or Windows
+- **Microcontroller:** An ESP32 development board (e.g., ESP32-DevKitC)
+- **USB cable** to connect your host PC and the microcontroller
+
+### Software
+
+<OsTabs>
+<TabItem value="macos" label="macOS">
+
+- [Node.js](https://nodejs.org/) v20 or later
+- [Homebrew](https://brew.sh/)
+- **Git** (`git`)
+- **Python 3** (`python` or `python3`)
+- **make** (`make`)
+
+</TabItem>
+<TabItem value="windows" label="Windows">
+
+- [Node.js](https://nodejs.org/) v20 or later
+- **Visual C++ Build Environment** (required for `npm install -g @bscript/cli`; see [Windows prerequisites](./setup-environment-windows.md#nodejs-and-visual-c-build-environment))
+- **Git** (`git`)
+- **Python 3** (`python` or `python3`)
+- **make** or **mingw32-make**
+
+For step-by-step installation instructions, see **[Windows prerequisites](./setup-environment-windows.md)**.
+
+</TabItem>
+</OsTabs>
+
 ---
 
 ## Step 1: Install the CLI
 
-BlueScript provides a command-line interface (CLI) to manage projects and communicate with your device. Install it globally using npm:
+BlueScript provides a command-line interface (CLI) to manage projects and communicate with your device.
+
+<OsTabs>
+<TabItem value="macos" label="macOS">
 
 ```bash
 npm install -g @bscript/cli
 ```
+
+</TabItem>
+<TabItem value="windows" label="Windows">
+
+Install the [Visual C++ Build Environment](./setup-environment-windows.md#nodejs-and-visual-c-build-environment) first, then:
+
+```bash
+npm install -g @bscript/cli
+```
+
+</TabItem>
+</OsTabs>
 
 Verify the installation:
 
@@ -58,7 +99,7 @@ Connect your ESP32 to your computer via USB and flash the runtime:
 bscript board flash-runtime esp32
 ```
 
-The CLI will display a list of detected serial ports. Use the arrow keys to select the one corresponding to your ESP32 (e.g., /dev/tty.usbserial-xxxx).
+The CLI will display a list of detected serial ports. Use the arrow keys to select the one corresponding to your ESP32 (e.g., /dev/tty.usbserial-xxxx on macOS or COMX on Windows).
 
 :::info Device not found?
 If your device does not appear in the list, you may need to install USB-to-UART drivers (e.g., [CP210x](https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers) or [FTDI](https://ftdichip.com/drivers/vcp-drivers/)).
