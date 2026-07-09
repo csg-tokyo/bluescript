@@ -1,21 +1,9 @@
-import { execSync } from "child_process";
-import { Esp32ToolchainConfig } from "../../src/compiler/board-toolchain/esp32-toolchain";
-import { Package, PackageForEsp32 } from "../../src/compiler/project";
+import { Package, PackageForEsp32, PackageForHostUnix, PackageForHostWindows } from "../../src/compiler/package";
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 
 export const runtimeDir = path.resolve(__dirname, '../../../microcontroller');
 
-export function getEsp32CompilerConfig(): Esp32ToolchainConfig {
-    const gccPath = execSync('source ~/esp/esp-idf/export.sh &> /dev/null && which xtensa-esp32-elf-gcc').toString();
-    const espDir = path.join(os.homedir(), 'esp');
-    return {
-        runtimeDir: runtimeDir,
-        compilerToolchainDir: path.resolve(gccPath, '../'),
-        espDir
-    }
-}
 
 class CompilerTestEnv<P extends Package = Package> {
     readonly root: string;
@@ -110,9 +98,10 @@ export class Esp32CompilerTestEnv extends CompilerTestEnv<PackageForEsp32> {
     }
 }
 
-export class HostCompilerTestEnv extends CompilerTestEnv<Package> {
+
+export class HostUnixCompilerTestEnv extends CompilerTestEnv<PackageForHostUnix> {
     public createMainPackage(dependencies: string[] = [], srcDir: string = ".", entryFile?: string): void {
-        const pkg = new Package(
+        const pkg = new PackageForHostUnix(
             this.mainPackageName,
             {
                 rootDir: this.root,
@@ -130,7 +119,7 @@ export class HostCompilerTestEnv extends CompilerTestEnv<Package> {
     public createSubPackage(name: string, dependencies: string[] = [], srcDir: string = ".", entryFile?: string): void {
         const root = path.join(this.root, 'packages', name);
         fs.mkdirSync(root, {recursive: true});
-        const pkg = new Package(
+        const pkg = new PackageForHostUnix(
             name,
             {
                 rootDir: root,
@@ -145,8 +134,57 @@ export class HostCompilerTestEnv extends CompilerTestEnv<Package> {
         this.addPackage(pkg);
     }
 
-    public resultSharedObjectExists() {
-        const soPath = path.join(this.root, `dist/build/${this.mainPackageName}.so`);
-        return fs.existsSync(soPath);
+    public resultSharedLibraryExists() {
+        const buildDir = path.join(this.root, 'dist/build/');
+        const pattern = new RegExp(`^${this.mainPackageName}\\d+\\.so$`);
+        for (const name of fs.readdirSync(buildDir)) {
+            if(pattern.test(name) ) { return true; }
+        }
+        return false;
+    }
+}
+
+export class HostWindowsCompilerTestEnv extends CompilerTestEnv<PackageForHostWindows> {
+    public createMainPackage(dependencies: string[] = [], srcDir: string = ".", entryFile?: string): void {
+        const pkg = new PackageForHostWindows(
+            this.mainPackageName,
+            {
+                rootDir: this.root,
+                entry: entryFile ?? path.join(srcDir, 'index.bs'),
+                sourceDir: srcDir,
+                distDir: "./dist",
+                buildDir: "./dist/build",
+                packageDir: "./packages",
+            },
+            dependencies,
+        );
+        this.addPackage(pkg);
+    }
+
+    public createSubPackage(name: string, dependencies: string[] = [], srcDir: string = ".", entryFile?: string): void {
+        const root = path.join(this.root, 'packages', name);
+        fs.mkdirSync(root, {recursive: true});
+        const pkg = new PackageForHostWindows(
+            name,
+            {
+                rootDir: root,
+                entry: entryFile ?? path.join(srcDir, 'index.bs'),
+                sourceDir: srcDir,
+                distDir: "./dist",
+                buildDir: "./dist/build",
+                packageDir: "./packages",
+            },
+            dependencies,
+        )
+        this.addPackage(pkg);
+    }
+
+    public resultSharedLibraryExists() {
+        const buildDir = path.join(this.root, 'dist/build/');
+        const pattern = new RegExp(`^${this.mainPackageName}\\d+\\.dll$`);
+        for (const name of fs.readdirSync(buildDir)) {
+            if(pattern.test(name) ) { return true; }
+        }
+        return false;
     }
 }

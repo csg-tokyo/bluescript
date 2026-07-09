@@ -1,6 +1,7 @@
 import * as path from "path";
 import * as fs from "fs";
-import { PackageForEsp32, ProjectForEsp32 } from "../project";
+import { PackageForEsp32 } from "../package";
+import { Project } from "../project";
 import { BoardToolchain, MemoryImage, MemoryLayout, ShadowMemory } from "./board-toolchain";
 import { executeCommand, getErrorMessage } from "../utils";
 import { generateMakefile, esp32MakefilePreset } from "./tools/makefile";
@@ -10,11 +11,16 @@ import generateLinkerScript from "./tools/linker-script";
 
 export type Esp32ToolchainConfig = {
     runtimeDir: string,
-    compilerToolchainDir: string,
+    compilerToolchain: {
+        gcc: string,
+        ar: string,
+        ld: string,
+        make: string
+    },
     espDir: string
 }
 
-export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryImage> {
+export class Esp32Toolchain implements BoardToolchain<PackageForEsp32, MemoryImage> {
     public memory: ShadowMemory;
 
     private config: Esp32ToolchainConfig;
@@ -31,7 +37,8 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
     get runtimeElf() { return path.join(this.config.runtimeDir, 'ports/esp32/build/bluescript.elf'); }
     get cRuntimeH() { return path.join(this.config.runtimeDir, 'core/include/c-runtime.h'); }
     get builtinModulePath() { return path.join(this.config.runtimeDir, 'ports/esp32/std-module.bs'); }
-    get ld() { return path.join(this.config.compilerToolchainDir, 'xtensa-esp32-elf-ld'); } 
+    get ld() { return this.config.compilerToolchain.ld; }
+    get make() { return this.config.compilerToolchain.make; }
 
     constructor(config: Esp32ToolchainConfig, memoryLayout: MemoryLayout) {
         this.memory = new ShadowMemory(memoryLayout);
@@ -42,31 +49,31 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
         this.definedSymbols = new Map(elfReader.readAllSymbols().map(s => [s.name, s]));
     }
 
-    async compileAndLink(project: ProjectForEsp32, entryPoints: string[]): Promise<MemoryImage> {
+    async compileAndLink(project: Project<PackageForEsp32>, entryPoints: string[]): Promise<MemoryImage> {
         for (const pkg of project.usedDependencies) {
-            await this.compileC(project, pkg);
+            await this.compilePackage(pkg);
             this.compiledPackages.add(pkg.name);
         }
-        await this.compileC(project, project.mainPackage);
+        await this.compilePackage(project.mainPackage);
         const elfPath = await this.link(project, entryPoints);
         return this.extractBinary(elfPath, entryPoints);
     }
 
-    async additionalCompileAndLink(project: ProjectForEsp32, entryPoints: string[]): Promise<MemoryImage> {
+    async additionalCompileAndLink(project: Project<PackageForEsp32>, entryPoints: string[]): Promise<MemoryImage> {
         for (const pkg of project.usedDependencies) {
             if (!this.compiledPackages.has(pkg.name)) {
-                await this.compileC(project, pkg);
+                await this.compilePackage(pkg);
                 this.compiledPackages.add(pkg.name);
             }
         }
-        await this.compileC(project, project.mainPackage);
+        await this.compilePackage(project.mainPackage);
         const elfPath = await this.link(project, entryPoints);
         return this.extractBinary(elfPath, entryPoints);
     }
 
-    private async compileC(project: ProjectForEsp32, pkg: PackageForEsp32): Promise<void> {
+    private async compilePackage(pkg: PackageForEsp32): Promise<void> {
         try {
-            const archivePath = project.archiveFile(pkg);
+            const archivePath = pkg.archiveFile;
             const includeDirs = [
                 ...this.espIdfComponents.getIncludeDirs(pkg.espIdfComponents), 
                 ...this.espIdfComponents.commonIncludeDirs
@@ -77,21 +84,21 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
                 fs.rmSync(archivePath, { force: true });
             }
 
+            pkg.copyNativeFilesToDist();
             const makefile = generateMakefile(esp32MakefilePreset(
-                this.config.compilerToolchainDir, 
-                pkg, includeDirs, archivePath
-            ));
-            project.writeMakefile(pkg, makefile);
-            await executeCommand('make', [], pkg.resolvedDistDir);
+                pkg, includeDirs, this.config.compilerToolchain
+            ))
+            pkg.writeMakefile(makefile);
+            await executeCommand(this.make, [], pkg.resolvedDistDir);
         } catch (error) {
             throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
         }
     }
 
-    private async link(project: ProjectForEsp32, entryPoints: string[]): Promise<string> {
+    private async link(project: Project<PackageForEsp32>, entryPoints: string[]): Promise<string> {
         try {
             const cwd = process.cwd();
-            const elfPath = project.elfFile();
+            const elfPath = project.mainPackage.elfFile;
             
             const archives = this.getArchivesWithEspComponents(project);
             const linkerscript = generateLinkerScript(
@@ -102,7 +109,7 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
                 entryPoints.slice(0, -1), // other entry points
                 this.espIdfComponents.ldFiles
             );
-            const linkerScriptPath = project.writeLinkerScript(linkerscript);
+            const linkerScriptPath = project.mainPackage.writeLinkerScript(linkerscript);
             await executeCommand(this.ld, ['-o', elfPath, '-T', linkerScriptPath, '--gc-sections'], cwd);
 
             return elfPath;
@@ -143,9 +150,9 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
         }
     }
 
-    private getArchivesWithEspComponents(project: ProjectForEsp32): string[] {
+    private getArchivesWithEspComponents(project: Project<PackageForEsp32>): string[] {
         const espArchivesFromMain = this.espIdfComponents.getArchiveFilePaths(project.mainPackage.espIdfComponents);
-        const resultArchives = [project.archiveFile(project.mainPackage), ...espArchivesFromMain];
+        const resultArchives = [project.mainPackage.archiveFile, ...espArchivesFromMain];
         
         const visitedEspArchives = new Set(espArchivesFromMain);
         
@@ -157,7 +164,7 @@ export class Esp32Toolchain implements BoardToolchain<ProjectForEsp32, MemoryIma
         };
 
         for (const pkg of project.usedDependencies.reverse()) {
-            resultArchives.push(project.archiveFile(pkg));
+            resultArchives.push(pkg.archiveFile);
             const espArchivesFromPkg = this.espIdfComponents.getArchiveFilePaths(pkg.espIdfComponents);
             espArchivesFromPkg.forEach(ar => addEspArchive(ar));
         }

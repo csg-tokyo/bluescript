@@ -138,7 +138,7 @@ export class ProcessConnection extends Connection<String> {
     }
 
     public async disconnect(): Promise<void> {
-        if (!this.checkProcessRunning(this.shellProcess)) {
+        if (!this.shellProcess) {
             return;
         }
 
@@ -147,27 +147,44 @@ export class ProcessConnection extends Connection<String> {
         this.disconnecting = true;
 
         await new Promise<void>((resolve) => {
-            const timeout = setTimeout(() => {
-                proc.kill('SIGKILL');
-                proc.stdout.destroy();
-                proc.stderr.destroy();
-                proc.stdin.destroy();
-                resolve();
-            }, 3_000);
-            timeout.unref();
-
-            proc.once('exit', () => {
+            let settled = false;
+            let timeout: NodeJS.Timeout;
+            const cleanup = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
                 clearTimeout(timeout);
+                proc.stdout.removeAllListeners();
+                proc.stderr.removeAllListeners();
+                proc.stdin.removeAllListeners();
                 proc.stdout.destroy();
                 proc.stderr.destroy();
                 proc.stdin.destroy();
+                proc.removeAllListeners();
                 resolve();
-            });
+            };
+
+            if (proc.exitCode !== null || proc.signalCode !== null) {
+                cleanup();
+                return;
+            }
+
+            timeout = setTimeout(() => {
+                if (proc.exitCode === null && proc.signalCode === null) {
+                    proc.kill('SIGKILL');
+                }
+                cleanup();
+            }, 3_000);
+
+            proc.once('close', cleanup);
 
             proc.stdout.removeAllListeners('data');
             proc.stderr.removeAllListeners('data');
-            proc.stdin.end();
-            proc.kill();
+            if (proc.stdin.writable) {
+                proc.stdin.end();
+            }
+            proc.kill('SIGTERM');
         });
 
         this.emit('disconnected', 0);

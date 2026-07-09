@@ -7,14 +7,14 @@ import path from 'path';
 import { logger, ProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput, 
     runStep, LoadStepLogger } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
-import { cwd, exec } from "../../core/shell";
-import { CommandHandler } from "../command";
+import { cwd, ExecOptions, simpleExec } from "../../core/command-exec";
+import { CommandHandlerWithUpdateCheck } from "../command";
 import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
 import { CompileError, CompileOutput } from "@bscript/lang";
 import { WebSocketConnection } from "../../services/websocket";
 import { SerialTaskQueue } from "../../core/serial-task-queue";
 
-class RunHandler extends CommandHandler {
+class RunHandler extends CommandHandlerWithUpdateCheck {
     protected compiler: CompilerAdapter;
     protected runtime: BoardRuntime;
     protected programOutput: ProgramOutput;
@@ -128,17 +128,8 @@ class RunHandler extends CommandHandler {
 }
 
 class RunWithReplHandler extends RunHandler {
-    private rl: readline.Interface;
+    private rl?: readline.Interface;
     private readonly taskQueue = new SerialTaskQueue();
-
-    constructor(projectConfigHandler: ProjectConfigHandler) {
-        super(projectConfigHandler);
-        this.rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout,
-            prompt: chalk.blue.bold('> ')
-        });
-    }
 
     async run() {
         const interrupted = await super.run();
@@ -151,12 +142,23 @@ class RunWithReplHandler extends RunHandler {
         return false;
     }
 
+    async close() {
+        this.rl?.close();
+        await super.close();
+    }
+
     private runRepl() {
         logger.info("Start REPL. Type 'Ctrl-D' to exit.");
-        this.rl.prompt();
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+            prompt: chalk.blue.bold('> '),
+        });
+        this.rl = rl;
+        rl.prompt();
         return new Promise<void>((resolve, reject) => {
-            this.rl.on('line', (line) => {
-                this.rl.pause();
+            rl.on('line', (line) => {
+                rl.pause();
                 this.taskQueue.enqueue(async () => {
                     try {
                         const output = await this.compiler.compileFragment(line);
@@ -170,12 +172,12 @@ class RunWithReplHandler extends RunHandler {
                             return;
                         }
                     } finally {
-                        this.rl.resume();
-                        this.rl.prompt();
+                        rl.resume();
+                        rl.prompt();
                     }
                 });
             });
-            this.rl.on('close', () => {
+            rl.on('close', () => {
                 resolve();
             });
         });
@@ -237,13 +239,15 @@ class RunWithNotebookHandler extends RunHandler {
 
     }
 
-    private openBrowser(port: number|string) {
+    private async openBrowser(port: number | string) {
         const url = `http://localhost:${port}`;
-        const startCommand =
-            process.platform === 'win32' ? 'start' :
-            process.platform === 'darwin' ? 'open' : 'xdg-open';
-
-        exec(`${startCommand} ${url}`, {silent: true});
+        if (process.platform === 'win32') {
+            await simpleExec('cmd.exe', ['/c', 'start', '', url], { detached: true, stdio: 'ignore' });
+        } else if (process.platform === 'darwin') {
+            await simpleExec('open', [url], { detached: true, stdio: 'ignore' });
+        } else {
+            await simpleExec('xdg-open', [url], { detached: true, stdio: 'ignore' });
+        }
     }
 
     private startWebsocket() {

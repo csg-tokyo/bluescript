@@ -8,7 +8,7 @@ export function makeDir(path: string, recursive: boolean = true) {
 }
 
 export function removeDir(path: string) {
-    fs.rmSync(path, { recursive: true });
+    fs.rmSync(path, { recursive: true, force: true });
 }
 
 export function moveDir(from: string, to: string) {

@@ -4,10 +4,10 @@ import chalk from "chalk";
 import * as path from 'path';
 import { logger } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
-import { cwd } from "../../core/shell";
+import { cwd } from "../../core/command-exec";
 import { BOARD_NAMES, BoardName, isValidBoard } from "../../config/board-utils";
 import * as fs from '../../core/fs';
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 
 
 const ENTRY_FILE_CONTENTS = `console.log("Hello world!");\n`;
@@ -16,7 +16,7 @@ const GIT_IGNORE_CONTENTS = `\
 **/packages/
 `;
 
-class CreateHandler extends CommandHandler {
+class CreateHandler extends CommandHandlerWithUpdateCheck {
     private board: BoardName;
     private projectRoot: string;
     private projectConfigHandler: ProjectConfigHandler;

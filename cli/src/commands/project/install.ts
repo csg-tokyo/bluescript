@@ -1,14 +1,14 @@
 import { Command } from "commander";
 import { logger } from "../../core/logger";
 import { ProjectConfigHandler, PackageSource ,PROJECT_DEFAULT_PATHS } from "../../config/project-config";
-import { cwd, exec } from "../../core/shell";
+import { cwd, simpleExec } from "../../core/command-exec";
 import * as fs from '../../core/fs';
 import * as path from 'path';
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 import { GLOBAL_SETTINGS } from "../../config/constants";
 
 
-class InstallationHandler extends CommandHandler {
+class InstallationHandler extends CommandHandlerWithUpdateCheck {
     private projectConfigHandler: ProjectConfigHandler;
     private projectRootDir: string;
     private packagesDir: string;
@@ -65,10 +65,9 @@ class InstallationHandler extends CommandHandler {
     private async downloadPackage(url: string, version?: string): Promise<ProjectConfigHandler> {
         logger.log(`Downloading from ${url}...`);
         const tmpDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'tmp-package');
-        const branchCmd = version ? `--branch ${version}` : '';
-        const cmd = `git clone --depth 1 ${branchCmd} ${url} ${tmpDir}`;
+        const branchArgs = version ? ['--branch', version] : [];
         try {
-            await exec(cmd, {silent: true});
+            await simpleExec('git', ['clone', '--depth', '1', ...branchArgs, url, tmpDir]);
             const gitDir = path.join(tmpDir, '.git');
             if (fs.exists(gitDir)) {
                 fs.removeDir(gitDir);

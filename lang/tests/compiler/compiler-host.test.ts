@@ -1,39 +1,10 @@
 import * as path from "path";
 import * as fs from "fs";
-import { ProjectForHost } from "../../src/compiler/project";
-import { HostToolchain } from "../../src/compiler/board-toolchain/host-toolchain";
-import { HostCompilerTestEnv, runtimeDir } from "./test-utils";
-import { SharedObject } from "../../src/compiler/board-toolchain/board-toolchain";
-import { CompilerSession } from "../../src/compiler/compiler-session";
-import { executeCommand } from "../../src/compiler/utils";
-
-const runtimeBuildDir = path.join(runtimeDir, 'ports/host/build');
-const builtinModuleC = path.join(runtimeDir, 'ports/host/std-module.c');
-const shellC = path.join(runtimeDir, 'ports/host/shell.c');
-const executableShell = path.join(runtimeBuildDir, 'shell');
-const runtimeSo = path.join(runtimeBuildDir, 'c-runtime.so');
-const runtimeC = path.join(runtimeDir, 'core/src/c-runtime.c');
-
-const buildRuntime = async () => {
-    fs.mkdirSync(runtimeBuildDir, { recursive: true });
-    await executeCommand('cc', ["-DLINUX64", "-O2", "-shared", "-fPIC", "-o", runtimeSo, runtimeC, builtinModuleC]);
-    await executeCommand('cc', ["-DLINUX64", "-O2", "-o", executableShell, shellC, runtimeSo, "-lm", "-ldl"]);
-}
-
-const compile = async (testEnv: HostCompilerTestEnv) => {
-    const project = ProjectForHost.load(
-        testEnv.mainPackageName,
-        testEnv.getPackageReader()
-    );
-    const toolchain = new HostToolchain(runtimeDir);
-    const session = new CompilerSession<ProjectForHost, SharedObject>(toolchain);
-    await session.buildProject(project);
-    return session;
-}
+import { buildRuntime, createTestEnv, compile } from "./test-utils-host";
 
 
 describe('Test single compile: Compiler for Host', () => {
-    const testEnv = new HostCompilerTestEnv('compiler-test-host');
+    const testEnv = createTestEnv();
     
     beforeAll(async () => {
         await buildRuntime();
@@ -44,7 +15,7 @@ describe('Test single compile: Compiler for Host', () => {
     });
 
     afterAll(() => {
-        // testEnv.delete();
+        testEnv.delete();
     });
 
 
@@ -53,7 +24,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should throw error if index.bs does not exist.', async () => {
@@ -67,7 +38,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', 'print("hello world")');
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with std object.', async () => {
@@ -75,7 +46,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', 'console.log("hello world")');
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('can change source directory.', async () => {
@@ -83,7 +54,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './src/index.bs', 'print("hello world")');
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('can change entry file.', async () => {
@@ -91,7 +62,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './src/main.bs', 'print("hello world")');
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true); 
+        expect(testEnv.resultSharedLibraryExists()).toBe(true); 
     });
 
     it('should compile index.bs with a module import.', async () => {
@@ -102,7 +73,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from './module1';\nadd(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should throw error if an imported module does not exist.', async () => {
@@ -115,7 +86,8 @@ describe('Test single compile: Compiler for Host', () => {
     it('should throw error if an imported module is imported with absolute path.', async () => {
         testEnv.createMainPackage();
         testEnv.addSourceFile(testEnv.mainPackageName, './module1.bs', `export function add(a: integer, b:integer) {return a + b}`);
-        testEnv.addSourceFile(testEnv.mainPackageName, '/index.bs', `import {add} from '${testEnv.getSourceFilePath(testEnv.mainPackageName, './module1.bs')}';\nadd(1, 2);`);
+        const absPath = testEnv.getSourceFilePath(testEnv.mainPackageName, './module1.bs').replace(/\\/g, '/');
+        testEnv.addSourceFile(testEnv.mainPackageName, '/index.bs', `import {add} from '${absPath}';\nadd(1, 2);`);
 
         await expect(compile(testEnv)).rejects.toThrow(`This module system does not support importing from absolute paths.`);
     });
@@ -143,7 +115,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {addMul} from './module1';\naddMul(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with module imports from dir.', async () => {
@@ -161,7 +133,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {addMul} from './dir/module1';\naddMul(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with a package import.', async () => {
@@ -173,7 +145,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with a package import 2.', async () => {
@@ -185,7 +157,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1/module1';\nadd(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with a package import from different source directory.', async () => {
@@ -195,7 +167,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with a package import from different source directory and different entry file.', async () => {
@@ -205,7 +177,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1';\nadd(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with an unused package.', async () => {
@@ -215,7 +187,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `1 + 1;`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with a package import 2.', async () => {
@@ -227,7 +199,7 @@ describe('Test single compile: Compiler for Host', () => {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {add} from 'package1/module1';\nadd(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs with some package imports.', async () => {
@@ -248,7 +220,7 @@ mul(1, 2);`
         );
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should throw error if an imported package does not exist.', async () => {
@@ -275,7 +247,7 @@ mul(1, 2);`
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {addMul} from 'package1';\naddMul(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs which imports a package with a module import.', async () => {
@@ -291,7 +263,7 @@ mul(1, 2);`
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', `import {addMul} from 'package1';\naddMul(1, 2);`);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs which imports a package and a module.', async () => {
@@ -313,7 +285,7 @@ add(1, 2);
 // mul(1,2);
         `);
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should treat a class imported via different routes as the same class.', async () => {
@@ -340,7 +312,7 @@ getShapeArea(shape);
 `
         );
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs which includes c file.', async () => {
@@ -353,7 +325,7 @@ function foo() {
             `);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs which includes custom c file.', async () => {
@@ -367,7 +339,7 @@ function foo() {
             `);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
     it('should compile index.bs which includes custom header file.', async () => {
@@ -382,7 +354,7 @@ function foo() {
             `);
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
         expect(fs.existsSync(path.join(testEnv.root, 'dist/add.h'))).toBe(true);
     });
 
@@ -394,7 +366,7 @@ function foo() {
 }
             `);
 
-        await expect(compile(testEnv)).rejects.toThrow(`do not support implicit function declarations`);
+        await expect(compile(testEnv)).rejects.toThrow(/implicit/i);
     });
 
     it('should compile index.bs again after editing file.', async () => {
@@ -402,19 +374,19 @@ function foo() {
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 1');
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
 
         testEnv.addSourceFile(testEnv.mainPackageName, './index.bs', '1 + 3');
 
         await compile(testEnv);
-        expect(testEnv.resultSharedObjectExists()).toBe(true);
+        expect(testEnv.resultSharedLibraryExists()).toBe(true);
     });
 
 });
 
 
 describe('Test additional compile: Compiler for ESP32', () => {
-    const testEnv = new HostCompilerTestEnv('compiler-test-host');
+    const testEnv = createTestEnv();
 
     beforeEach(() => {
         testEnv.init();

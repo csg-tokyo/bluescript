@@ -23,7 +23,7 @@ jest.mock('../src/core/logger', () => {
             success: jest.fn(),
             log: jest.fn(),
             br: jest.fn(),
-            showError: jest.fn(),
+            showError: jest.fn()
         },
     }
 });
@@ -37,6 +37,6 @@ jest.mock('../src/core/fs', () => {
 })
 
 
-jest.mock('../src/core/shell');
+jest.mock('../src/core/command-exec');
 // jest.mock('../src/core/fs');
 jest.mock('inquirer');

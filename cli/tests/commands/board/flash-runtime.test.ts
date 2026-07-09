@@ -5,7 +5,7 @@ import {
     mockedInquirer,
     mockedLogger,
     mockProcessExit,
-    mockedExec,
+    mockedExecShell,
 } from '../mock-helpers';
 
 
@@ -56,7 +56,7 @@ describe('board flash-runtime command', () => {
 
         // --- Assert ---
         expect(mockedInquirer.prompt).not.toHaveBeenCalled();
-        expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('build flash -p'), {cwd: expect.stringContaining('esp32')});
+        expect(mockedExecShell).toHaveBeenCalledWith(expect.stringContaining('build flash -p'), { cwd: expect.stringContaining('esp32') });
     });
 
     it('should show an error and return if no serial ports are found', async () => {
@@ -70,7 +70,7 @@ describe('board flash-runtime command', () => {
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalled();
         expect(mockedInquirer.prompt).not.toHaveBeenCalled();
-        expect(mockedExec).not.toHaveBeenCalled();
+        expect(mockedExecShell).not.toHaveBeenCalled();
     });
 
     it('should exit with an error for an unknown board name', async () => {
@@ -105,7 +105,7 @@ describe('board flash-runtime command', () => {
             await handleFlashRuntimeCommand('esp32', {});
 
             // --- Assert ---
-            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('build flash'), {cwd: expect.stringContaining('esp32')});
+            expect(mockedExecShell).toHaveBeenCalledWith(expect.stringContaining('build flash'), { cwd: expect.stringContaining('esp32') });
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
 
@@ -119,7 +119,7 @@ describe('board flash-runtime command', () => {
             await handleFlashRuntimeCommand('esp32', { deviceName: 'my-device' });
 
             // --- Assert ---
-            expect(mockedExec).toHaveBeenCalledWith(expect.stringContaining('my-device'), {cwd: expect.stringContaining('esp32')});
+            expect(mockedExecShell).toHaveBeenCalledWith(expect.stringContaining('my-device'), { cwd: expect.stringContaining('esp32') });
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
 
@@ -133,7 +133,7 @@ describe('board flash-runtime command', () => {
             // --- Assert ---
             expect(mockedLogger.warn).toHaveBeenCalledWith(`The environment for esp32 is not set up. Run 'bscript board setup esp32' and try again.`);
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();
-            expect(mockedExec).not.toHaveBeenCalled();
+            expect(mockedExecShell).not.toHaveBeenCalled();
         });
     });
 

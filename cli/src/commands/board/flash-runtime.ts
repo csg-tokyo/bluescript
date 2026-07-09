@@ -1,18 +1,19 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
 import * as path from 'path';
+import * as os from 'os';
 import { SerialPort } from 'serialport'
 import { BoardName } from "../../config/board-utils";
 import { logger, runStep } from "../../core/logger";
-import { exec } from '../../core/shell';
+import { execShell } from '../../core/command-exec';
 import chalk from "chalk";
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
 import { DEFAULT_DEVICE_NAME } from "../../config/project-config";
 
 
 const RUNTIME_ESP_PORT_DIR = (runtimeDir: string) => path.join(runtimeDir, 'ports/esp32');
 
-abstract class FlashRuntimeHandler extends CommandHandler {
+abstract class FlashRuntimeHandler extends CommandHandlerWithUpdateCheck {
     abstract isSetup(): boolean;
     abstract flashRuntime(port: string, deviceName?: string): Promise<void>;
 
@@ -41,10 +42,18 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
 
         deviceName = deviceName ?? DEFAULT_DEVICE_NAME;
 
-        await exec(
-            `source ${boardConfig.exportFile} && idf.py -D DEVICE_NAME=${deviceName} build flash -p ${port}`,
-            { cwd: RUNTIME_ESP_PORT_DIR(runtimeDir) }
+        await this.runIdfPy(
+            boardConfig.exportFile,
+            ['-D', `DEVICE_NAME=${deviceName}`, 'build', 'flash', '-p', port],
+            RUNTIME_ESP_PORT_DIR(runtimeDir)
         )
+    }
+
+    private async runIdfPy(exportFile: string, args: string[], cwd: string) {
+        const osType = os.platform();
+        const preCommand = osType === 'win32' ? `call ${exportFile}` : `source ${exportFile}`;
+
+        await execShell(`${preCommand} && idf.py ${args.join(' ')}`, { cwd });
     }
 }
 

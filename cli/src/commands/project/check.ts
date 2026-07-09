@@ -1,11 +1,11 @@
 import { Command } from "commander";
 import { logger, runStep } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
-import { cwd } from "../../core/shell";
-import { CommandHandler } from "../command";
+import { cwd } from "../../core/command-exec";
+import { CommandHandlerWithUpdateCheck } from "../command";
 import { CompilerAdapter, getCompilerAdapter } from "../../platforms";
 
-class CheckHandler extends CommandHandler {
+class CheckHandler extends CommandHandlerWithUpdateCheck {
     private compilerAdapter: CompilerAdapter;
 
     constructor(private projectConfigHandler: ProjectConfigHandler) {

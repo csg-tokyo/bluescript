@@ -1,39 +1,13 @@
 import * as path from 'path';
-import { exec } from '../../core/shell';
-import { SharedObject } from "@bscript/lang";
+import { SharedLibrary } from "@bscript/lang";
 import { ProgramOutput } from "../../core/logger/program-output";
 import { BoardRuntime } from "./board-runtime";
 import { CompileContext } from "../compiler/compiler-adapter";
 import { HostBoardConfig } from "../../config/global-config";
-import * as fs from '../../core/fs';
 import { HostService, ProcessConnection } from '../../services/process';
 
 
-export async function buildHostRuntime(runtimeDir: string, buildDir?: string): Promise<string> {
-    const resolvedBuildDir = buildDir ?? path.join(runtimeDir, 'ports/host/build');
-    const builtinModuleC = path.join(runtimeDir, 'ports/host/std-module.c');
-    const shellC = path.join(runtimeDir, 'ports/host/shell.c');
-    const runtimeC = path.join(runtimeDir, 'core/src/c-runtime.c');
-    const commC = path.join(runtimeDir, 'ports/host/comm.c');
-    const runtimeSo = path.join(resolvedBuildDir, 'c-runtime.so');
-    const shell = path.join(resolvedBuildDir, 'shell');
-
-    fs.makeDir(resolvedBuildDir);
-
-    await exec(
-        `cc -DLINUX64 -O2 -shared -fPIC -o "${runtimeSo}" "${runtimeC}" "${builtinModuleC}" "${commC}"`,
-        { silent: true },
-    );
-    await exec(
-        `cc -DLINUX64 -O2 -o "${shell}" "${shellC}" "${runtimeSo}" -lm -ldl`,
-        { silent: true },
-    );
-
-    return resolvedBuildDir;
-}
-
-
-export class HostBoardRuntime implements BoardRuntime<SharedObject> {
+export class HostBoardRuntime implements BoardRuntime<SharedLibrary> {
     private programOutput: ProgramOutput;
     private shellProcess: ProcessConnection;
     private hostService: HostService;
@@ -71,11 +45,11 @@ export class HostBoardRuntime implements BoardRuntime<SharedObject> {
         return {};
     }
 
-    async load(output: SharedObject): Promise<number> {
-        return this.hostService.load(output.soFile);
+    async load(output: SharedLibrary): Promise<number> {
+        return this.hostService.load(output.filePath);
     }
 
-    async execute(output: SharedObject): Promise<number> {
+    async execute(output: SharedLibrary): Promise<number> {
         let exectime = 0;
         for (const entry of output.entryNames) {
             exectime += await this.hostService.execute(entry.name);
@@ -88,6 +62,6 @@ export class HostBoardRuntime implements BoardRuntime<SharedObject> {
     }
 
     private getShellPath(): string {
-        return path.join(this.boardConfig.buildDir, 'shell');
+        return path.join(this.boardConfig.shellFile);
     }
 }

@@ -7,8 +7,8 @@ import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protoc
 
 
 const MTU = 495;
-const SERVICE_UUID = '00ff';
-const CHARACTERISTIC_UUID = 'ff01';
+const SERVICE_UUID = 'b500';
+const CHARACTERISTIC_UUID = 'b501';
 
 
 export type DeviceServiceEvents = {
@@ -44,9 +44,8 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
         for (const entryPoint of bin.entryPoints) {
             builder.jump(entryPoint.isMain ? isMain : 0, entryPoint.address);
         }
-        await this.send('execute', builder.build());
         let executionTime = 0;
-        return new Promise<number>((resolve) => {
+        const p = new Promise<number>((resolve) => {
             this.on('exectime', (id, time) => {
                 executionTime += time;
                 if (id === isMain) {
@@ -55,16 +54,19 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
                 }
             });
         });
+        await this.send('execute', builder.build());
+        return p;
     }
 
     public async init(): Promise<MemoryLayout> {
         const builder = new ProtocolPacketBuilder(MTU).reset();
-        await this.send('init', builder.build());
-        return new Promise<MemoryLayout>((resolve) => {
+        const p = new Promise<MemoryLayout>((resolve) => {
             this.once('memory', (layout) => {
                 resolve(layout);
             });
         });
+        await this.send('init', builder.build());
+        return p;
     }
 
     private handleReceivedData(data: Buffer) {
@@ -168,8 +170,7 @@ export class BleConnection extends Connection<Buffer> {
         await this.waitForPoweredOn();
 
         this.foundPeriferals = [];
-        await noble.startScanningAsync([SERVICE_UUID], false);
-        const peripheral = await new Promise<Peripheral>((resolve) => {
+        const searchPeriferalPromise = new Promise<Peripheral>((resolve) => {
             this.discoverHandler = (p: Peripheral) => {
                 this.foundPeriferals.push(p);
                 if (p.advertisement.localName === this.deviceName) {
@@ -180,6 +181,8 @@ export class BleConnection extends Connection<Buffer> {
             };
             noble.on('discover', this.discoverHandler);
         });
+        await noble.startScanningAsync([SERVICE_UUID], false);
+        const peripheral = await searchPeriferalPromise;
         await noble.stopScanningAsync();
         this.peripheral = peripheral;
         this.peripheral.on('disconnect', (event) => {
@@ -193,7 +196,6 @@ export class BleConnection extends Connection<Buffer> {
             this.emit('connected');
         });
         await peripheral.connectAsync();
-
         const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(
             [SERVICE_UUID],
             [CHARACTERISTIC_UUID]
@@ -208,6 +210,7 @@ export class BleConnection extends Connection<Buffer> {
             }
         })
         await this.characteristic.subscribeAsync();
+        return;
     }
 
     private async waitForPoweredOn(): Promise<void> {

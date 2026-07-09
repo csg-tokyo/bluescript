@@ -3,7 +3,7 @@ import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/projec
 import { BoardName } from "../../config/board-utils";
 import {
     CompilerSession, MemoryImage, MemoryLayout,
-    Esp32Toolchain, Esp32ToolchainConfig, ProjectForEsp32, PackageForEsp32
+    Esp32Toolchain, Esp32ToolchainConfig, Project, PackageForEsp32
 } from "@bscript/lang";
 import { CompilerAdapter, CompileContext } from "./compiler-adapter";
 import * as path from 'path';
@@ -19,7 +19,7 @@ const DUMMY_MEMORY_LAYOUT: MemoryLayout = {
 export class Esp32CompilerAdapter implements CompilerAdapter {
     readonly boardName: BoardName = 'esp32';
     private boardConfig: Esp32BoardConfig;
-    private compiler?: CompilerSession<ProjectForEsp32, MemoryImage>;
+    private compiler?: CompilerSession<PackageForEsp32, MemoryImage>;
 
     constructor(
         private globalConfigHandler: GlobalConfigHandler,
@@ -41,7 +41,7 @@ export class Esp32CompilerAdapter implements CompilerAdapter {
         if (!memoryLayout) {
             throw new Error('Memory layout is required to build an ESP32 project.');
         }
-        const project = ProjectForEsp32.load(
+        const project = Project.load<PackageForEsp32>(
             this.projectConfigHandler.getConfig().projectName,
             createEsp32PackageReader(this.boardName, this.projectConfigHandler),
         );
@@ -65,13 +65,14 @@ export class Esp32CompilerAdapter implements CompilerAdapter {
         }
         return {
             runtimeDir,
-            compilerToolchainDir: this.boardConfig.xtensaGccDir,
+            compilerToolchain: this.boardConfig.toolchain,
             espDir: this.boardConfig.rootDir,
         };
     }
 }
 
-export function createEsp32PackageReader(
+
+function createEsp32PackageReader(
     _boardName: BoardName,
     projectConfigHandler: ProjectConfigHandler,
 ): (name: string) => PackageForEsp32 {

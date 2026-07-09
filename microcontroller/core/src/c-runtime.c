@@ -43,6 +43,16 @@
 static const void* pointer_table[PTR_TABLE_SIZE];
 static int pointer_table_num = 0;
 
+#ifdef _WIN32
+static char* stpcpy(char* dest, const char* src) {
+    while ((*dest = *src) != '\0') {
+        dest++;
+        src++;
+    }
+    return dest;
+}
+#endif
+
 static void initialize_pointer_table() {
     for (int i = 0; i < PTR_TABLE_SIZE; i++)
         pointer_table[i] = 0;

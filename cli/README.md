@@ -18,7 +18,7 @@ Build and test the CLI package:
 cd cli
 npm run build
 npm test                 # unit tests only
-npm run test:integration # host integration tests (macOS + cc)
+npm run test:integration # host integration tests (macOS or Windows)
 npm run test:all         # unit + integration
 ```
 
@@ -27,10 +27,12 @@ npm run test:all         # unit + integration
 | Script | Jest project | Location | Notes |
 | :--- | :--- | :--- | :--- |
 | `npm test` | `unit` | `tests/**/*.test.ts` (excludes `integration/`) | Mocks fs, shell, logger, devices |
-| `npm run test:integration` | `integration` | `tests/integration/**/*.test.ts` | Real host `shell` process; macOS only |
+| `npm run test:integration` | `integration` | `tests/integration/**/*.test.ts` | Real host `shell` process; macOS or Windows (MinGW-w64) |
 | `npm run test:all` | both | — | Run before merging CLI changes |
 
-**Integration test requirements:** macOS, `cc`, and the `microcontroller/` tree at the repository root. On first run, tests build `microcontroller/ports/host/build/shell` and `c-runtime.so` if missing. Tests are skipped automatically on non-macOS platforms.
+**Integration test requirements:** macOS (`cc`) or Windows (MinGW-w64: `gcc`, `mingw32-make`), and the `microcontroller/` tree at the repository root. On first run, tests build `microcontroller/ports/host/build/shell` (or `shell.exe`) and `c-runtime.so` (or `c-runtime.dll`) if missing. Tests are skipped automatically on Linux and other unsupported platforms.
+
+**Supported platforms:** macOS and Windows for `host` and `esp32` board setup. Linux is not supported. On Windows, install the Visual C++ Build Environment before `npm install` (node-gyp), and MinGW-w64 for the host runtime. See [Windows prerequisites](https://csg-tokyo.github.io/bluescript/docs/tutorial/get-started/setup-environment-windows) on the website.
 
 **Integration coverage (14 tests):**
 
@@ -61,7 +63,7 @@ bscript -v
 
 Before merging CLI changes or cutting a release:
 
-1. Run `npm run test:all` (or at least `npm test`; on macOS also `npm run test:integration`).
+1. Run `npm run test:all` (or at least `npm test`; on macOS or Windows also `npm run test:integration`).
 2. Follow the manual QA checklist: **[docs/manual-test.md](./docs/manual-test.md)**
 
 - **Daily PRs:** run automated tests plus **Quick smoke (host)** (~15 minutes).

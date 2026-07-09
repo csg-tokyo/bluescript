@@ -1,10 +1,12 @@
-import { exec, cwd } from '../../src/core/shell';
+import { simpleExec, execWithLog, execShell, cwd } from '../../src/core/command-exec';
 import inquirer from 'inquirer';
 import { logger } from '../../src/core/logger';
 import { downloadAndUnzip } from '../../src/core/fs';
 
 
-export const mockedExec = exec as jest.Mock;
+export const mockedSimpleExec = simpleExec as jest.Mock;
+export const mockedExecWithLog = execWithLog as jest.Mock;
+export const mockedExecShell = execShell as jest.Mock;
 export const mockedCwd = cwd as jest.Mock;
 export const mockedDownloadAndUnzip = downloadAndUnzip as jest.Mock;
 export const mockedInquirer = inquirer as jest.Mocked<typeof inquirer>;

@@ -1,42 +1,68 @@
-import { GlobalConfigHandler } from "../../config/global-config";
+import { GlobalConfigHandler, HostBoardConfig } from "../../config/global-config";
 import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
 import { BoardName } from "../../config/board-utils";
 import {
-    CompilerSession, SharedObject,
-    HostToolchain, ProjectForHost, Package
+    CompilerSession, SharedLibrary,
+    HostUnixToolchain, HostToolchainConfig, HostWindowsToolchain, Project, PackageForHostUnix, PackageForHostWindows
 } from "@bscript/lang";
 import { CompilerAdapter, CompileContext } from "./compiler-adapter";
 import * as path from 'path';
+import * as os from 'os';
 
+
+type HostPackageClass = typeof PackageForHostUnix | typeof PackageForHostWindows;
 
 export class HostCompilerAdapter implements CompilerAdapter {
     readonly boardName: BoardName = 'host';
-    private compiler?: CompilerSession<ProjectForHost, SharedObject>;
+    private boardConfig: HostBoardConfig;
+    private compiler?: CompilerSession<PackageForHostUnix | PackageForHostWindows, SharedLibrary>;
 
     constructor(
         private globalConfigHandler: GlobalConfigHandler,
         private projectConfigHandler: ProjectConfigHandler,
     ) {
-        if (!this.globalConfigHandler.isBoardSetup(this.boardName)) {
+        const boardConfig = this.globalConfigHandler.getBoardConfig('host');
+        if (boardConfig === undefined) {
             throw new Error(`The environment for ${this.boardName} is not set up.`);
         }
+        this.boardConfig = boardConfig;
     }
 
-    async buildForCheck(): Promise<SharedObject> {
+    async buildForCheck(): Promise<SharedLibrary> {
         return this.buildProject();
     }
 
-    async buildProject(_context?: CompileContext): Promise<SharedObject> {
-        const project = ProjectForHost.load(
-            this.projectConfigHandler.getConfig().projectName,
-            createHostPackageReader(this.boardName, this.projectConfigHandler),
-        );
-        const toolchain = new HostToolchain(this.getRuntimeDir());
-        this.compiler = new CompilerSession(toolchain);
-        return this.compiler.buildProject(project);
+    async buildProject(_context?: CompileContext): Promise<SharedLibrary> {
+        const runtimeDir = this.getRuntimeDir();
+        const compilerConfig: HostToolchainConfig = {
+            runtimeDir,
+            compilerToolchain: this.boardConfig.toolchain,
+        };
+
+        if (os.platform() === 'darwin') {
+            const project = Project.load<PackageForHostUnix>(
+                this.projectConfigHandler.getConfig().projectName,
+                createHostPackageReader(this.projectConfigHandler, PackageForHostUnix),
+            );
+            const toolchain = new HostUnixToolchain(compilerConfig);
+            this.compiler = new CompilerSession(toolchain);
+            return this.compiler.buildProject(project);
+        }
+
+        if (os.platform() === 'win32') {
+            const project = Project.load<PackageForHostWindows>(
+                this.projectConfigHandler.getConfig().projectName,
+                createHostPackageReader(this.projectConfigHandler, PackageForHostWindows),
+            );
+            const toolchain = new HostWindowsToolchain(compilerConfig);
+            this.compiler = new CompilerSession(toolchain);
+            return this.compiler.buildProject(project);
+        }
+
+        throw new Error('Unsupported OS.');
     }
 
-    async compileFragment(src: string): Promise<SharedObject> {
+    async compileFragment(src: string): Promise<SharedLibrary> {
         if (!this.compiler) {
             throw new Error("Cannot compile fragment before building the project.");
         }
@@ -53,10 +79,10 @@ export class HostCompilerAdapter implements CompilerAdapter {
     }
 }
 
-export function createHostPackageReader(
-    _boardName: BoardName,
+function createHostPackageReader<T extends HostPackageClass>(
     projectConfigHandler: ProjectConfigHandler,
-): (name: string) => Package {
+    PackageClass: T,
+): (name: string) => InstanceType<T> {
     return (name: string) => {
         const mainRoot = projectConfigHandler.root;
         const subPackageRoot = path.join(mainRoot, PROJECT_DEFAULT_PATHS.PACKAGES_DIR, name);
@@ -66,7 +92,7 @@ export function createHostPackageReader(
             const configHandler = isMain
                 ? projectConfigHandler.asBoard('host')
                 : ProjectConfigHandler.load(root).asBoard('host');
-            return new Package(
+            return new PackageClass(
                 name,
                 {
                     rootDir: root,
@@ -77,7 +103,7 @@ export function createHostPackageReader(
                     packageDir: PROJECT_DEFAULT_PATHS.PACKAGES_DIR,
                 },
                 Object.keys(configHandler.dependencies),
-            );
+            ) as InstanceType<T>;
         } catch (error) {
             throw new Error(`Failed to read ${name}.`, { cause: error });
         }

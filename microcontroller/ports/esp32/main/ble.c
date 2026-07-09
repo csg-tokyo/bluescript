@@ -28,8 +28,8 @@
 ///Declare the static function
 static void gatts_profile_shell_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 
-#define GATTS_SERVICE_UUID_SHELL   0x00FF
-#define GATTS_CHAR_UUID_SHELL      0xFF01
+#define GATTS_SERVICE_UUID_SHELL   0xB500
+#define GATTS_CHAR_UUID_SHELL      0xB501
 #define GATTS_DESCR_UUID_SHELL     0x3333
 #define GATTS_NUM_HANDLE_SHELL     4
 
@@ -59,11 +59,8 @@ static uint8_t adv_config_done = 0;
 #define scan_rsp_config_flag (1 << 1)
 
 static uint8_t adv_service_uuid128[32] = {
-    /* LSB <--------------------------------------------------------------------------------> MSB */
-    //first uuid, 16bit, [12],[13] is the value
-    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xEE, 0x00, 0x00, 0x00,
-    //second uuid, 32bit, [12], [13], [14], [15] is the value
-    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00,
+    // BlueScript shell service (0xB500). [12],[13] is the value.
+    0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0xB5, 0x00, 0x00,
 };
 
 // The length of adv data must be less than 31 bytes
@@ -79,7 +76,7 @@ static esp_ble_adv_data_t adv_data = {
     .p_manufacturer_data =  NULL, 
     .service_data_len = 0,
     .p_service_data = NULL,
-    .service_uuid_len = 32,
+    .service_uuid_len = 16,
     .p_service_uuid = adv_service_uuid128,
     .flag = (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT),
 };
@@ -95,7 +92,7 @@ static esp_ble_adv_data_t scan_rsp_data = {
     .p_manufacturer_data =  NULL,
     .service_data_len = 0,
     .p_service_data = NULL,
-    .service_uuid_len = 32,
+    .service_uuid_len = 16,
     .p_service_uuid = adv_service_uuid128,
     .flag = (ESP_BLE_ADV_FLAG_GEN_DISC | ESP_BLE_ADV_FLAG_BREDR_NOT_SPT),
 };
@@ -461,6 +458,7 @@ void bs_ble_init(void)
         ESP_LOGE(GATTS_TAG, "%s enable bluetooth failed\n", __func__);
         return;
     }
+    puts(DEVICE_NAME);
 
     ret = esp_ble_gatts_register_callback(gatts_event_handler);
     if (ret){

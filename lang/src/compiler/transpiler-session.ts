@@ -2,28 +2,29 @@ import { GlobalVariableNameTable } from "../transpiler/code-generator/variables"
 import { transpile } from "../transpiler/code-generator/code-generator";
 import * as fs from "fs";
 import * as path from "path";
-import { AbsolutePath, RelativePath, Package, Project } from "./project";
+import { Package } from "./package";
+import { Project } from "./project";
 
 
 class PathInPkg {
     public pkg: Package;
-    public relativePath: RelativePath;
-    public absolutePath: AbsolutePath;
+    public relativePath: string;
+    public absolutePath: string;
 
-    constructor(pkg: Package, relativePath: RelativePath) {
+    constructor(pkg: Package, relativePath: string) {
         this.pkg = pkg;
         this.checkRelativePath(relativePath);
         this.relativePath = relativePath;
         this.absolutePath = path.join(pkg.rootDir, this.relativePath);
     }
 
-    public resolve(targetRelativePath: RelativePath): PathInPkg {
+    public resolve(targetRelativePath: string): PathInPkg {
         const currentDir = path.dirname(this.relativePath);
         const resolvedRelativePath = path.join(currentDir, targetRelativePath);
         return new PathInPkg(this.pkg, resolvedRelativePath);
     }
 
-    private checkRelativePath(relativePath: RelativePath) {
+    private checkRelativePath(relativePath: string) {
         // check if the relative path is under the source dir
         const absolutePath = path.join(this.pkg.rootDir, relativePath);
         if (!absolutePath.startsWith(this.pkg.resolvedSourceDir)) {
@@ -49,7 +50,7 @@ export class TranspilerSession {
 
     public transpile(project: Project): string[] {
         let entryPath: PathInPkg = new PathInPkg(project.mainPackage, project.mainPackage.entry);
-        const src = project.readSourceFile(entryPath.pkg, entryPath.relativePath);
+        const src = entryPath.pkg.readSourceFile(entryPath.relativePath);
         return this.transpileHelper(project, entryPath, src);
     }
 
@@ -67,7 +68,7 @@ export class TranspilerSession {
             this.globalNames, 
             this.makeImporter(entryPath, entryPoints, project)
         );
-        project.writeCFile(entryPath.pkg, entryPath.relativePath, this.cProlog + result.code);
+        entryPath.pkg.writeCFile(entryPath.relativePath, this.cProlog + result.code);
         this.globalNames = result.names;
         entryPoints.push(result.main);
         return entryPoints;
@@ -81,7 +82,7 @@ export class TranspilerSession {
             if (mod)
                 return mod;
             else {
-                const src = project.readSourceFile(newPath.pkg, newPath.relativePath);
+                const src = newPath.pkg.readSourceFile(newPath.relativePath);
                 const result = transpile(
                     this.sessionId++, 
                     src, 
@@ -91,7 +92,7 @@ export class TranspilerSession {
                 );
                 this.modules.set(newPath.absolutePath, result.names);
                 entryPoints.push(result.main);
-                project.writeCFile(newPath.pkg, newPath.relativePath, this.cProlog + result.code);
+                newPath.pkg.writeCFile(newPath.relativePath, this.cProlog + result.code);
                 return result.names;
             }
         }

@@ -1,19 +1,28 @@
 import * as path from "path";
 import * as fs from "fs";
-import { BoardToolchain, SharedObject } from "./board-toolchain";
-import { Package, ProjectForHost } from "../project";
-import { generateMakefile, hostMakefilePreset } from "./tools/makefile";
+import { BoardToolchain, SharedLibrary } from "./board-toolchain";
+import { Project } from "../project";
+import { Package, PackageForHostUnix, PackageForHostWindows } from "../package";
+import { generateMakefile, hostUnixMakefilePrest, hostWindowsMakefilePreset } from "./tools/makefile";
 import { executeCommand, getErrorMessage } from "../utils";
 
+export type HostToolchainConfig = {
+    runtimeDir: string,
+    compilerToolchain: {
+        gcc: string,
+        ar: string,
+        make: string
+    },
+}
 
-export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObject> {
-    private runtimeDir: string;
-    private compileId: number = 0;
-    private compiledPackages = new Set<string>();
-    private generatedSoFiles: string[] = [];
+export abstract class HostToolchain<P extends Package> implements BoardToolchain<P, SharedLibrary> {
+    protected config: HostToolchainConfig;
+    protected compileId: number = 0;
+    protected compiledPackages = new Set<string>();
+    protected generatedSharedLibs: string[] = [];
 
-    constructor(runtimeDir: string) {
-        this.runtimeDir = runtimeDir;
+    constructor(config: HostToolchainConfig) {
+        this.config = config;
     }
 
     get cProlog() {
@@ -22,85 +31,151 @@ export class HostToolchain implements BoardToolchain<ProjectForHost, SharedObjec
 #include "${this.cRuntimeH}"
 `;
     }
-    get cRuntimeH() { return path.join(this.runtimeDir, 'core/include/c-runtime.h'); }
-    get builtinModulePath() { return path.join(this.runtimeDir, 'ports/host/std-module.bs'); }
-    get runtimeBuildDir() { return path.join(this.runtimeDir, 'ports/host/build'); }
-    get executableShell() { return path.join(this.runtimeBuildDir, 'shell'); }
-    get runtimeSo() { return path.join(this.runtimeBuildDir, 'c-runtime.so'); }
+    get cRuntimeH() { return path.join(this.config.runtimeDir, 'core/include/c-runtime.h'); }
+    get builtinModulePath() { return path.join(this.config.runtimeDir, 'ports/host/std-module.bs'); }
+    get runtimeBuildDir() { return path.join(this.config.runtimeDir, 'ports/host/build'); }
 
-    async compileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObject> {
+    async compileAndLink(project: Project<P>, entryPoints: string[]): Promise<SharedLibrary> {
         const archiveFiles: string[] = [];
         for (const pkg of project.usedDependencies) {
-            archiveFiles.push(await this.compilePackage(project, pkg));
+            archiveFiles.push(await this.compilePackage(pkg));
             this.compiledPackages.add(pkg.name);
         }
-        archiveFiles.push(await this.compilePackage(project, project.mainPackage));
-        const soFile = project.soFile();
-        await this.link(archiveFiles, entryPoints, soFile);
-        this.generatedSoFiles.push(soFile);
+        archiveFiles.push(await this.compilePackage(project.mainPackage));
+        const sharedLib = await this.link(project, archiveFiles, entryPoints);
+        this.generatedSharedLibs.push(sharedLib);
+        // Prevent the main package's generated C from being recompiled into the
+        // next (fragment) shared library. Otherwise each fragment statically
+        // redefines all prior globals, which breaks cross-fragment variable
+        // access on platforms without symbol interposition (e.g. Windows).
+        project.mainPackage.removeGeneratedCFiles();
         return {
-            soFile,
+            filePath: sharedLib,
             entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
         }
     }
 
-    async additionalCompileAndLink(project: ProjectForHost, entryPoints: string[]): Promise<SharedObject> {
+    async additionalCompileAndLink(project: Project<P>, entryPoints: string[]): Promise<SharedLibrary> {
         const archiveFiles: string[] = [];
         for (const pkg of project.usedDependencies) {
             if (!this.compiledPackages.has(pkg.name)) {
-                archiveFiles.push(await this.compilePackage(project, pkg));
+                archiveFiles.push(await this.compilePackage(pkg));
                 this.compiledPackages.add(pkg.name);
+                pkg.removeGeneratedCFiles();
             }
         }
-        archiveFiles.push(await this.compilePackage(project, project.mainPackage));
-        const soFile = project.soFile(this.compileId++);
-        await this.link(archiveFiles, entryPoints, soFile);
-        this.generatedSoFiles.push(soFile);
+        archiveFiles.push(await this.compilePackage(project.mainPackage));
+        const sharedLib = await this.link(project, archiveFiles, entryPoints);
+        this.generatedSharedLibs.push(sharedLib);
+        project.mainPackage.removeGeneratedCFiles();
         return {
-            soFile,
+            filePath: sharedLib,
             entryNames: entryPoints.map(name => ({isMain: name === project.mainPackage.name, name})),
         }
     }
 
-    private async compilePackage(project: ProjectForHost, pkg: Package): Promise<string> {
+    abstract compilePackage(pkg: P): Promise<string>;
+    abstract link(project: Project<P>, archiveFiles: string[], entryPoints: string[]): Promise<string>;
+}
+
+export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
+    get runtimeSo() { return path.join(this.runtimeBuildDir, 'c-runtime.so'); }
+
+    async compilePackage(pkg: PackageForHostUnix): Promise<string> {
         try {
-            const archiveFile = project.archiveFile(pkg);
+            const archiveFile = pkg.archiveFile;
 
             // Remove old archive file.
             if (fs.existsSync(archiveFile)) {
                 fs.rmSync(archiveFile, { force: true });
             }
 
-            const makefile = generateMakefile(hostMakefilePreset(pkg, archiveFile));
-            project.writeMakefile(pkg, makefile);
-            await executeCommand('make', [], pkg.resolvedDistDir);
+            pkg.copyNativeFilesToDist();
+            const makefile = generateMakefile(hostUnixMakefilePrest(pkg, this.config.compilerToolchain));
+            pkg.writeMakefile(makefile);
+            await executeCommand(this.config.compilerToolchain.make, [], pkg.resolvedDistDir);
             return archiveFile;
         } catch (error) {
             throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
         }
     }
 
-    private linkerSymbolName(sym: string): string {
-        return process.platform === 'darwin' ? `_${sym}` : sym;
-    }
-
-    private async link(archiveFiles: string[], entryPoints: string[], outputFile: string): Promise<void> {
+    async link(project: Project<PackageForHostUnix>, archiveFiles: string[], entryPoints: string[]): Promise<string> {
         try {
             const keepEntrySymbols = entryPoints.map(
-                (sym) => `-Wl,-u,${this.linkerSymbolName(sym)}`,
+                (sym) => `-Wl,-u,_${sym}`,
             );
+            const outputFile = project.mainPackage.soFile(this.compileId++);
             const args = [
                 '-shared', '-fPIC', 
                 '-o', outputFile, 
                 ...archiveFiles, 
-                ...this.generatedSoFiles, 
+                ...this.generatedSharedLibs, 
                 this.runtimeSo, 
                 '-lm', '-ldl',
                 ...keepEntrySymbols,
             ];
-            await executeCommand('cc', args);
+            await executeCommand(this.config.compilerToolchain.gcc, args);
+            return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});
+        }
+    }
+}
+
+export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
+    get runtimeDll(): string {
+        return path.join(this.runtimeBuildDir, 'c-runtime.dll');
+    }
+    
+    async compilePackage(pkg: PackageForHostWindows): Promise<string> {
+        try {
+            const archiveFile = pkg.archiveFile;
+            if (fs.existsSync(archiveFile)) {
+                fs.rmSync(archiveFile, { force: true });
+            }
+            pkg.copyNativeFilesToDist();
+            const makefile = generateMakefile(
+                hostWindowsMakefilePreset(pkg, this.config.compilerToolchain),
+            );
+            pkg.writeMakefile(makefile);
+            
+            await executeCommand(this.config.compilerToolchain.make, [], pkg.resolvedDistDir);
+            return archiveFile;
+        } catch (error) {
+            throw new Error(
+                `Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`,
+                { cause: error },
+            );
+        }
+    }
+
+    async link(
+        project: Project<PackageForHostWindows>,
+        archiveFiles: string[],
+        entryPoints: string[],
+    ): Promise<string> {
+        try {
+            const keepEntrySymbols = entryPoints.map(
+                (sym) => `-Wl,-u,${sym}`,
+            );
+            const outputFile = project.mainPackage.dllFile(this.compileId++);
+            const args = [
+                '-shared',
+                '-o', outputFile,
+                ...archiveFiles,
+                ...this.generatedSharedLibs,
+                this.runtimeDll,
+                '-lm',
+                ...keepEntrySymbols,
+                '-Wl,--export-all-symbols',
+                '-Wl,--enable-auto-import',
+                '-Wl,--enable-runtime-pseudo-reloc'
+            ];
+            await executeCommand(this.config.compilerToolchain.gcc, args);
+            return outputFile;
+        } catch (error) {
+            throw new Error(`Failed to link: ${getErrorMessage(error)}`, { cause: error });
         }
     }
 }

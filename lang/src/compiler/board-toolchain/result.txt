@@ -1,0 +1,41 @@
+C:\Users\qiand\.bluescript\temp\dist\build>objdump -x temp1.dll | findstr /i "__imp__a temp0 .refptr._a"
+[ 59](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x00000000000002b0 .rdata$.refptr._a
+[675](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000198 __imp__amsg_exit
+[718](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000002b0 .refptr._a
+
+C:\Users\qiand\.bluescript\temp\dist\build>objdump -x temp1.dll | findstr /i "_a"
+        00009198  <none>  00b6  _amsg_exit
+        [   0] +base[   1]  0000 _a
+ 10 .debug_aranges 00000050  000000033e4ec000  000000033e4ec000  00003400  2**0
+ 12 .debug_abbrev 000000ca  000000033e4ef000  000000033e4ef000  00004a00  2**0
+[  4](sec  6)(fl 0x00)(ty    0)(scl   3) (nx 0) 0x0000000000000018 __proc_attached
+[ 12](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000290 .rdata$.refptr.__xi_a
+[ 16](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000270 .rdata$.refptr.__xc_a
+[ 23](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000230 .rdata$.refptr.__mingw_app_type
+[ 59](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x00000000000002b0 .rdata$.refptr._a
+[124](sec  3)(fl 0x00)(ty    0)(scl   3) (nx 0) 0x0000000000000410 __xd_a
+[212](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 0) 0x0000000000000b50 ___w64_mingwthr_add_key_dtor
+[283](sec 13)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000000 .debug_abbrev
+[295](sec 11)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000000 .debug_aranges
+[311](sec 13)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000014 .debug_abbrev
+[313](sec 11)(fl 0x00)(ty    0)(scl   3) (nx 1) 0x0000000000000030 .debug_aranges
+[349](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 1) 0x0000000000001210 __acrt_iob_func
+[644](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000001b8 __imp_abort
+[645](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003e4 __lib64_libkernel32_a_iname
+[651](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000014 _head_lib64_libmsvcrt_def_a
+[657](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003f0 __xl_a
+[663](sec  6)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000040 _a
+[675](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000198 __imp__amsg_exit
+[690](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000230 .refptr.__mingw_app_type
+[703](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000290 .refptr.__xi_a
+[705](sec -1)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000001000 __section_alignment__
+[716](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x000000000000042c __lib64_libmsvcrt_def_a_iname
+[718](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000002b0 .refptr._a
+[721](sec  8)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000000 _head_lib64_libkernel32_a
+[741](sec -1)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000200 __file_alignment__
+[752](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003e0 __xi_a
+[756](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x00000000000003d0 __xc_a
+[760](sec  1)(fl 0x00)(ty   20)(scl   2) (nx 0) 0x00000000000013b8 _amsg_exit
+[777](sec  2)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000050 __imp___acrt_iob_func
+[788](sec  3)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000270 .refptr.__xc_a
+[801](sec  6)(fl 0x00)(ty    0)(scl   2) (nx 0) 0x0000000000000080 __mingw_app_type

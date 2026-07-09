@@ -1,73 +1,38 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
-import { BoardName } from "../../config/board-utils";
+import { BoardName, isValidBoard } from "../../config/board-utils";
 import { logger, runStep } from "../../core/logger";
-import * as fs from '../../core/fs';
-import { CommandHandler } from "../command";
+import { CommandHandlerWithUpdateCheck } from "../command";
+import { BoardEnv, createBoardEnv } from "../../platforms/board-env";
 
 
-abstract class RemoveHandler extends CommandHandler {
+class RemoveHandler extends CommandHandlerWithUpdateCheck {
+    boardName: BoardName;
+    boardEnv: BoardEnv;
+
+    constructor(boardName: BoardName) {
+        super();
+        this.boardName = boardName;
+        this.boardEnv = createBoardEnv(boardName);
+    }
+
     async remove() {
-        await runStep('Removing...', () => this.removeBoard());
+        await runStep('Removing...', async () => this.boardEnv.removeBoardRoot());
+        this.globalConfigHandler.removeBoardConfig(this.boardName);
         this.globalConfigHandler.save();
     }
-    abstract isSetup(): boolean;
-    abstract removeBoard(): Promise<void>;
-}
-
-class HostRemoveHandler extends RemoveHandler {
-    readonly boardName: BoardName = 'host';
-
-    isSetup(): boolean {
-        return this.globalConfigHandler.isBoardSetup(this.boardName);
-    }
-
-    async removeBoard() {
-        const boardConfig = this.globalConfigHandler.getBoardConfig('host');
-        if (boardConfig === undefined) {
-            throw new Error(`Cannot find config for ${this.boardName}.`);
-        }
-        if (fs.exists(boardConfig.buildDir)) {
-            fs.removeDir(boardConfig.buildDir);
-        }
-
-        this.globalConfigHandler.removeBoardConfig(this.boardName);
-    }
-}
-
-class ESP32RemoveHandler extends RemoveHandler {
-    readonly boardName: BoardName = 'esp32';
-
-    isSetup(): boolean {
-        return this.globalConfigHandler.isBoardSetup(this.boardName);
-    }
     
-    async removeBoard() {
-        const boardConfig = this.globalConfigHandler.getBoardConfig('esp32');
-        if (boardConfig === undefined) {
-            throw new Error(`Cannot find config for ${this.boardName}.`);
-        }
-        if (fs.exists(boardConfig.rootDir)) {
-            fs.removeDir(boardConfig.rootDir);
-        }
-
-        this.globalConfigHandler.removeBoardConfig(this.boardName);
+    isSetup(): boolean {
+        return this.globalConfigHandler.isBoardSetup(this.boardName);
     }
-}
-
-function getRemoveHandler(board: string) {
-    if (board === 'esp32') {
-        return new ESP32RemoveHandler();
-    }
-    if (board === 'host') {
-        return new HostRemoveHandler();
-    }
-    throw new Error(`Unsupported board name: ${board}`);
 }
 
 export async function handleRemoveCommand(board: string, options: { force?: boolean }) {
     try {
-        const removeHandler = getRemoveHandler(board);
+        if (!isValidBoard(board)) {
+            throw new Error(`Unsupported board name: ${board}`);
+        }
+        const removeHandler = new RemoveHandler(board);
 
         // Check if setup has already been completed.
         if (!removeHandler.isSetup()) {
