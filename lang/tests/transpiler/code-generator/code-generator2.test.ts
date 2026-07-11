@@ -1273,7 +1273,7 @@ print(Foo.foo(2))
   expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('2\n3\n')
 })
 
-test.only('static property', () => {
+test('static property', () => {
   let src = `
   class Foo {
     static ivalue: integer
@@ -1336,6 +1336,26 @@ test.only('static property', () => {
   expect(compileAndRun(src, destFile)).toBe([3, 'foo2', 7, -3, 'foo0foo2', 7,
         0, 'foo0', 'undefined',
         1, 'foo', 'true', 10, 'bar', 'false', 10, 13, 8, 28, 'barbaz'].join('\n') + '\n')
+})
+
+test('accessing a static property in an imported module', () => {
+  const modules = [
+    { name: 'foo', source: `
+  export class Foo {
+    static foo: integer = 3
+    static bar: string = 'foo'
+    static baz: any = true
+  }
+` }]
+
+  const src = `
+import { Foo } from 'foo'
+print(Foo.foo)
+print(Foo.bar)
+print(Foo.baz)
+`
+  const imp = new Importer(modules)
+  expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('3\nfoo\ntrue\n')
 })
 
 test('Vector class', () => {
