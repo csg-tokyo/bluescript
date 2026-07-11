@@ -7,7 +7,7 @@ import { Integer, Float, BooleanT, StringT, Void, Null, Any,
     StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype,
     ByteArrayClass, UnionType, EnumType,
     VectorClass} from '../types'
-import { InstanceType, ClassTable } from '../classes'
+import { InstanceType, ClassTable, StaticPropertyInfo } from '../classes'
 import { VariableEnv } from './variables'
 
 export const anyTypeInC = 'value_t'
@@ -519,6 +519,11 @@ export function methodBodyNameInC(className: string, index: number) {
 
 export function staticMethodBodyNameInC(className: string, methodName: string) {
   return `smth_${className}_${methodName}`
+}
+
+export function staticPropertyNameInC(propertyName: string, property: StaticPropertyInfo) {
+  const className = property.declaring.name()
+  return `sprop_${className}_${propertyName}`
 }
 
 export function externClassDef(clazz: ObjectType) {

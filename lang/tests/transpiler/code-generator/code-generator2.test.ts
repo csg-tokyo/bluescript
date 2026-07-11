@@ -1273,6 +1273,71 @@ print(Foo.foo(2))
   expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('2\n3\n')
 })
 
+test.only('static property', () => {
+  let src = `
+  class Foo {
+    static ivalue: integer
+    static svalue: string = 'foo0'
+    static avalue
+  
+    static ivalue2: integer = 3
+    static svalue2: string = 'foo2'
+    static avalue2 = 7
+  
+    constructor() {
+      Foo.ivalue = 1
+      Foo.svalue = 'foo'
+      Foo.avalue = true
+    }
+  
+    foo() {
+      Foo.ivalue = 10
+      Foo.svalue = 'bar'
+      Foo.avalue = false
+    }
+  }
+
+  print(Foo.ivalue2)
+  print(Foo.svalue2)
+  print(Foo.avalue2)
+
+  const i: integer = Foo.ivalue - Foo.ivalue2
+  print(i)
+  const s: string = Foo.svalue + Foo.svalue2
+  print(s)
+  const a: any = Foo.avalue2 + Foo.ivalue
+  print(a)
+
+  print(Foo.ivalue)
+  print(Foo.svalue)
+  print(Foo.avalue)
+  const obj = new Foo()
+  print(Foo.ivalue)
+  print(Foo.svalue)
+  print(Foo.avalue)
+  
+  obj.foo()
+  print(Foo.ivalue)
+  print(Foo.svalue)
+  print(Foo.avalue)
+
+  print(Foo.ivalue++)
+  Foo.avalue = 13
+  print(Foo.avalue++)
+  
+  Foo.ivalue -= 3
+  print(Foo.ivalue)
+  Foo.avalue *= 2
+  print(Foo.avalue)
+  Foo.svalue += 'baz'
+  print(Foo.svalue)
+  `
+
+  expect(compileAndRun(src, destFile)).toBe([3, 'foo2', 7, -3, 'foo0foo2', 7,
+        0, 'foo0', 'undefined',
+        1, 'foo', 'true', 10, 'bar', 'false', 10, 13, 8, 28, 'barbaz'].join('\n') + '\n')
+})
+
 test('Vector class', () => {
   const src = `
   function bar() {
