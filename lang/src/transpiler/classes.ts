@@ -4,15 +4,25 @@ import { FunctionType, ObjectType, StaticType, isPrimitiveType, isSubtype,
          typeToString, encodeType,
          ArrayType, StringType } from "./types"
 
+export type StaticPropertyInfo = {
+  type: StaticType
+  index: number
+  declaring: InstanceType
+  rootSetName?: string
+  rootSetIndex?: number
+}
+
 // Type for instances of a class
 export class InstanceType extends ObjectType {
   private properties: { [key: string]: [StaticType, number] } = {}
   private methods: { [key: string]: [StaticType, number, InstanceType] } = {}
   private staticMethods: { [key: string]: [FunctionType, InstanceType] } = {}
+  private staticProperties: { [key: string]: StaticPropertyInfo } = {}
   private constructorFunction: FunctionType | undefined = undefined
   private numOfProperties: number
   private numOfUnboxed: number | undefined = undefined
   private numOfMethods: number
+  private numOfStaticProperties: number = 0
   private superClass: ObjectType
   private subClasses: InstanceType[] = []
   private className: string
@@ -124,11 +134,30 @@ export class InstanceType extends ObjectType {
   addStaticMethod(name: string, type: FunctionType): string | undefined {
     if (name === 'constructor')
       return 'static constructor is not supported'
+    else if (this.staticProperties[name])
+      return `duplicate static property name: ${name}`
     else if (this.staticMethods[name])
       return `duplicate static method name: ${name}`
 
     this.staticMethods[name] = [type, this]
     return undefined
+  }
+
+  addStaticProperty(name: string, type: StaticType): string | undefined {
+    if (name === 'constructor')
+      return 'static property name cannot be constructor'
+    else if (this.staticMethods[name])
+      return `duplicate static method name: ${name}`
+    else if (this.staticProperties[name])
+      return `duplicate static property name: ${name}`
+
+    this.staticProperties[name] = { type, index: this.numOfStaticProperties++, declaring: this }
+    return undefined
+  }
+
+  forEachStaticProperty(f: (n: string, p: StaticPropertyInfo) => void) {
+    for (const name in this.staticProperties)
+      f(name, this.staticProperties[name])
   }
 
   findMethod(name: string): [StaticType, number, InstanceType] | undefined {
@@ -151,6 +180,18 @@ export class InstanceType extends ObjectType {
     const superClass = this.superClass
     if (superClass instanceof InstanceType)
       return superClass.findStaticMethod(name)
+    else
+      return undefined
+  }
+
+  findStaticProperty(name: string): StaticPropertyInfo | undefined {
+    const found = this.staticProperties[name]
+    if (found)
+      return found
+
+    const superClass = this.superClass
+    if (superClass instanceof InstanceType)
+      return superClass.findStaticProperty(name)
     else
       return undefined
   }

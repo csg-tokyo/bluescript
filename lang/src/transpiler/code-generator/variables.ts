@@ -226,6 +226,17 @@ export class GlobalVariableNameTable extends GlobalNameTable<VariableInfo> {
       throw new Error('fatal: not class table found')
   }
 
+  forEachDeclaredClass(f: (clazz: InstanceType) => void) {
+    const set = new Set<InstanceType>()
+    this.map.forEach(info => {
+      if (info instanceof GlobalVariableInfo && info.isTypeName && info.type instanceof InstanceType
+          && !set.has(info.type)) {
+        set.add(info.type)
+        f(info.type)
+      }
+    })
+  }
+
   // Array types are implicitly generated on demand when an array type is used.
   // getArrayTypes() returns all array types.
   getArrayTypes() { return this.arrayTypes }
@@ -404,6 +415,16 @@ export class GlobalEnv extends FunctionEnv {
       else if (!(info instanceof FreeGlobalVariableInfo))
         throw new Error(`bad global info: ${key}, ${info.constructor.name}`)
     })
+    if (this.table instanceof GlobalVariableNameTable)
+      this.table.forEachDeclaredClass(clazz => {
+        clazz.forEachStaticProperty((name, prop) => {
+          if (prop.declaring === clazz && !isPrimitiveType(prop.type)) {
+            prop.rootSetName = this.rootset
+            prop.rootSetIndex = num++
+          }
+        })
+      })
+
     return num
   }
 
