@@ -481,16 +481,13 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     classBlock.record('this', clazz, this.maker)
     for (const b of node.body) {
       this.result = clazz
-      this.visit(b, AST.isClassMethod(b) && b.static ? names : classBlock)
+      const isStatic = (AST.isClassMethod(b) || AST.isClassProperty(b)) && b.static
+      this.visit(b, isStatic ? names : classBlock)
     }
   }
 
   classProperty(node: AST.ClassProperty, names: NameTable<Info>): void {
-    if (!this.firstPass)
-      return
-
     const clazz = this.result as InstanceType
-    this.assert(!node.static, 'static property is not supported', node)
     this.assert(!node.abstract, 'abstract property is not supported', node)
     this.assert(!node.accessibility, 'cannot specify accessibility', node)
     let name = '??'
@@ -499,14 +496,41 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     else
       this.assert(false, 'bad property name', node.key)
 
-    this.assert(!node.value, 'initial value is not supported', node)
-    if (node.typeAnnotation)
-      this.visit(node.typeAnnotation, names)
-    else
-      this.result = Any
+    if (node.static)
+      this.classStaticProperty(node, name, clazz, names)
+    else {
+      if (!this.firstPass)
+        return
 
-    const success = clazz.addProperty(name, this.result)
-    this.assert(success, `duplicate property name: ${name}`, node)
+      this.assert(!node.value, 'initial value is not supported', node)
+      if (node.typeAnnotation)
+        this.visit(node.typeAnnotation, names)
+      else
+        this.result = Any
+
+      const success = clazz.addProperty(name, this.result)
+      this.assert(success, `duplicate property name: ${name}`, node)
+    }
+  }
+
+  private classStaticProperty(node: AST.ClassProperty, name: string, clazz: InstanceType,
+                              names: NameTable<Info>) {
+    let propType: StaticType | undefined = undefined
+    if (!this.firstPass) {
+      const prop = clazz.findStaticProperty(name)
+      if (prop !== undefined && prop.declaring === clazz)
+        propType = prop.type
+      else
+        this.assert(false, `unknown static property: ${name}`, node)
+    }
+
+    propType = this.checkVariableInitializer(node, propType, node.value, 'static property', names)
+
+    if (this.firstPass) {
+      const error = clazz.addStaticProperty(name, propType)
+      if (error !== undefined)
+        this.assert(false, error, node)
+    }
   }
 
   classMethod(node: AST.ClassMethod, names: NameTable<Info>): void {
@@ -623,46 +647,63 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const id = lvalue as AST.Identifier
     const varName = id.name
     let varType: StaticType | undefined = undefined
-    const typeAnno = id.typeAnnotation
     let alreadyDeclared = false
     if (!this.firstPass) {
       varType = names.lookupInThis(varName)?.type
-      if (varType !== undefined)         // If a variable is global, lookup(varName).type does not return undefined
-        alreadyDeclared = true           // during the 2nd pass.  Otherwise, lookup(varName).type returns undefined
-    }                                    // since a new NameTable for a block statement is created for the 2nd pass.
-                                         // So a local variable is recorded in a NameTable during every phase
-                                         // while a global variable is recorded in the first phase only.
+      /* If a variable is global, lookup(varName).type does not return undefined
+         during the 2nd pass.  Otherwise, lookup(varName).type returns undefined
+         since a new NameTable for a block statement is created for the 2nd pass.
+         So a local variable is recorded in a NameTable during every phase
+         while a global variable is recorded in the first phase only.
 
-    if (varType === undefined && typeAnno != null) {
-      this.assertSyntax(AST.isTSTypeAnnotation(typeAnno), typeAnno)
-      this.visit(typeAnno, names)
-      varType = this.result
+         When a variable is globl and it has a class type annotation,
+         varType may be Any in the 2nd phase.  For example,
+           const f: Foo = new Foo()    // varType for f is Any since Foo was unknown in the 1st phase
+           class Foo {}
+           const f2: Foo = f           // f is any-type
+      */
+      if (varType !== undefined)
+        alreadyDeclared = true
     }
 
-    if (node.init) {    // a const declaration must have an initializer.  a let declaration may not.
-      this.visit(node.init, names)
-      this.assert(this.result !== Void, 'void may not be an initial value', node.init)
-      if (varType === undefined)
-        varType = this.result
-      else if (isConsistent(this.result, varType))
-        this.addCoercion(node.init, this.result)
-      else
-        this.assert(isSubtype(this.result, varType),
-          `Type '${typeToString(this.result)}' is not assignable to type '${typeToString(varType)}'`, node)
-    }
-
-    if (varType === undefined)
-      varType = Any
-
-    if (!node.init)
-      this.assert((isPrimitiveType(varType) && !isEnum(varType)) || varType === Any || varType instanceof UnionType,
-                  'a variable must have an initial value', node)
+    varType = this.checkVariableInitializer(id, varType, node.init, 'variable', names)
 
     if (!alreadyDeclared) {
       const success = names.record(varName, varType, this.maker,
                                    _ => { _.isConst = isConst; _.isExported = this.inExport })
       this.assert(success, `Identifier '${varName}' has already been declared`, node)
     }
+  }
+
+  private checkVariableInitializer(id: AST.Identifier | AST.ClassProperty, varType: StaticType | undefined,
+                                   init: AST.Expression | null | undefined, errorMsg: string,
+                                   names: NameTable<Info>) {
+    const typeAnno = id.typeAnnotation
+    if (varType === undefined && typeAnno != null) {
+      this.assertSyntax(AST.isTSTypeAnnotation(typeAnno), typeAnno)
+      this.visit(typeAnno, names)
+      varType = this.result
+    }
+
+    if (init) {    // a const declaration must have an initializer.  a let declaration may not.
+      this.visit(init, names)
+      this.assert(this.result !== Void, 'void may not be an initial value', init)
+      if (varType === undefined)
+        varType = this.result
+      else if (isConsistent(this.result, varType))
+        this.addCoercion(init, this.result)
+      else
+        this.assert(isSubtype(this.result, varType),
+          `Type '${typeToString(this.result)}' is not assignable to type '${typeToString(varType)}'`, id)
+    }
+
+    if (varType === undefined)
+      varType = Any
+
+    if (!init)
+      this.assert((isPrimitiveType(varType) && !isEnum(varType)) || varType === Any || varType instanceof UnionType,
+                  `a ${errorMsg} must have an initial value`, id)
+    return varType
   }
 
   private isConstFunctionDeclaration(node: AST.VariableDeclaration, names: NameTable<Info>): boolean {
@@ -1443,8 +1484,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   private checkObjMemberExpr(node: AST.MemberExpression, readonly: boolean, names: NameTable<Info>) {
     if (AST.isIdentifier(node.property)) {
       const propertyName = node.property.name
-      if (this.checkEnumMemberExpr(node, readonly, node.property.name, names))
-        return true
+      const enumOrStatic = this.checkEnumOrStaticMemberExpr(node, readonly, propertyName, names)
+      if (enumOrStatic !== undefined)
+        return enumOrStatic
 
       const type = this.result
       this.addStaticType(node.object, type)
@@ -1494,7 +1536,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     return true
   }
 
-  private checkEnumMemberExpr(node: AST.MemberExpression, readonly: boolean, propertyName: string, names: NameTable<Info>): boolean {
+  private checkEnumOrStaticMemberExpr(node: AST.MemberExpression, readonly: boolean, propertyName: string, names: NameTable<Info>) {
     if (AST.isIdentifier(node.object)) {
       // the following code is equivalent to this.visit(node.object, names) unless node is an enum member.
       const typeName = node.object.name
@@ -1506,13 +1548,25 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.result = nameInfo.type
         return true
       }
+      else if (nameInfo?.isTypeName && nameInfo.type instanceof InstanceType) {
+        this.addStaticType(node.object, nameInfo.type)
+        const prop = nameInfo.type.findStaticProperty(propertyName)
+        if (prop !== undefined)
+          this.result = prop.type
+        else {
+          this.assert(this.firstPass, `unknown static property: ${propertyName}`, node.property)
+          this.result = Any
+        }
+
+        return !isPrimitiveType(this.result)     // false when a property is a primitive type's and thus unboxed.
+      }
 
       this.identifierWithInfo(node.object, nameInfo)
     }
     else
       this.visit(node.object, names)
 
-    return false
+    return undefined
   }
 
   // returns true if "node" is a method
@@ -1533,15 +1587,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           this.result = method[0]
           return true
         }
-        else if (this.firstPass) {
-          this.result = Any
-          return true
-        }
-        else {
-          this.result = Any
-          this.assert(false, `unknown static method: ${propertyName}`, node.property)
-          return true
-        }
+        else
+          return false
       }
     }
 

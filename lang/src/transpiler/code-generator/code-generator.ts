@@ -12,7 +12,7 @@ import TypeChecker, { typecheck, codeTagFunction } from '../type-checker'
 import { VariableInfo, VariableEnv, GlobalEnv, FunctionEnv, VariableNameTableMaker,
          GlobalVariableNameTable, getVariableNameTable } from './variables'
 import * as cr from './c-runtime'
-import { InstanceType } from '../classes'
+import { InstanceType, StaticPropertyInfo } from '../classes'
 import { ar } from 'zod/locales'
 
 /*
@@ -61,6 +61,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private initializerName: string           // the name of an initializer function
   private globalRootSetName: string         // the rootset name for global variables
   private externalMethods: Map<string, StaticType>
+  private externalStaticProperties = new Map<string, StaticType | number>  // primitive types or rootset index
+  private localClasses = new Set<InstanceType>  // classes declared in this source file
   private uniqueId = 0
   private uniqueIdCounter = 0
   private moduleId = ''                     // empty string or a sequnce of digits
@@ -84,6 +86,8 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   program(node: AST.Program, env: VariableEnv): void {
     const table = getVariableNameTable(node) as GlobalVariableNameTable
+    this.localClasses = new Set()
+    table.forEachDeclaredClass(clazz => this.localClasses.add(clazz))
     const env2 = new GlobalEnv(table, this.globalRootSetName)
     const size = env2.allocateRootSet()
     const oldResult = this.result
@@ -116,6 +120,17 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       }
       else if (type instanceof FunctionType)
         this.signatures += this.makeFunctionStruct(name, type, info.isConst)
+      else
+        this.signatures += `extern ${cr.typeToCType(type, name)};\n`
+    })
+
+    this.externalStaticProperties.forEach((type, name) => {
+      if (typeof type === 'number') {
+        const index = type
+        const root = externalRoots[name]
+        if (root === undefined || index > root)
+          externalRoots[name] = index
+      }
       else
         this.signatures += `extern ${cr.typeToCType(type, name)};\n`
     })
@@ -448,11 +463,14 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         }
       }
 
+      this.classObjectDeclarations += this.classStaticPropertyDeclarations(clazz)
       this.classObjectDeclarations += cr.classDeclaration(clazz, env.table.classTable()) + '\n'
 
       let defaultConstructor = true
       for (const mem of node.body.body) {
-        if (AST.isClassMethod(mem))
+        if (AST.isClassProperty(mem) && mem.static)
+          this.classStaticPropertyInitializer(mem, clazz, env)
+        else if (AST.isClassMethod(mem))
           if (mem.static)
             this.classStaticMethodBody(mem, clazz, env)
           else if (mem.kind === 'constructor') {
@@ -537,6 +555,97 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   classBody(node: AST.ClassBody, env: VariableEnv): void {}
   classProperty(node: AST.ClassProperty, env: VariableEnv): void {}
   classMethod(node: AST.ClassMethod, env: VariableEnv): void {}
+
+  private classStaticPropertyDeclarations(clazz: InstanceType) {
+    let code = ''
+    clazz.forEachStaticProperty((name, prop) => {
+      if (prop.declaring === clazz && isPrimitiveType(prop.type))
+        code += `${cr.typeToCType(prop.type, cr.staticPropertyNameInC(name, prop))};\n`
+    })
+
+    return code
+  }
+
+  private classStaticPropertyInitializer(node: AST.ClassProperty, clazz: InstanceType, env: VariableEnv) {
+    if (!AST.isIdentifier(node.key))
+      throw this.errorLog.push('internal error: static property name must be an identifier', node)
+
+    const prop = clazz.findStaticProperty(node.key.name)
+    if (prop === undefined || prop.declaring !== clazz)
+      throw this.errorLog.push(`internal error: unknown static property name: ${node.key.name}`, node)
+
+    if (node.value) {
+      this.result.nl()
+      this.writeStaticPropertyAssignment(node.key.name, prop, node.value, this.needsCoercion(node.value), env)
+      this.result.write(';')
+    }
+  }
+
+  private isStaticProperty(node: AST.MemberExpression, env: VariableEnv):
+        [property_name: string, property: StaticPropertyInfo] | undefined {
+    if (node.computed || !AST.isIdentifier(node.object) || !AST.isIdentifier(node.property))
+      return undefined
+
+    const info = env.table.lookup(node.object.name)
+    if (info?.isTypeName && info.type instanceof InstanceType) {
+      const propertyName = node.property.name
+      const prop = info.type.findStaticProperty(propertyName)
+      if (prop) {
+        this.recordExternalStaticProperty(propertyName, prop, node)
+        return [propertyName, prop]
+      }
+    }
+
+    return undefined
+  }
+
+  private recordExternalStaticProperty(propertyName: string, prop: StaticPropertyInfo, node: AST.Node) {
+    if (this.localClasses.has(prop.declaring))
+      return
+
+    if (isPrimitiveType(prop.type)) {
+      this.externalStaticProperties.set(cr.staticPropertyNameInC(propertyName, prop), prop.type)
+      return
+    }
+    else if (prop.rootSetName !== undefined && prop.rootSetIndex !== undefined) {
+      const root = this.externalStaticProperties.get(prop.rootSetName)
+      if (root === undefined || (typeof root === 'number' && prop.rootSetIndex > root)) {
+        this.externalStaticProperties.set(prop.rootSetName, prop.rootSetIndex)
+        return
+      }
+    }
+
+    throw this.errorLog.push(`internal error: static property root is not allocated: ${propertyName}`, node)
+  }
+
+  private staticPropertyInC(propertyName: string, prop: StaticPropertyInfo, node: AST.Node) {
+    if (isPrimitiveType(prop.type))
+      return cr.staticPropertyNameInC(propertyName, prop)
+    else if (prop.rootSetName !== undefined && prop.rootSetIndex !== undefined)
+      return cr.rootSetVariable(prop.rootSetIndex, prop.rootSetName)
+    else
+      throw this.errorLog.push(`internal error: static property root is not allocated: ${propertyName}`, node)
+  }
+
+  private writeStaticPropertyAssignment(propertyName: string, prop: StaticPropertyInfo, value: AST.Node,
+                                        valueType: StaticType | undefined, env: VariableEnv) {
+    const storage = this.staticPropertyInC(propertyName, prop, value)
+    if (isPrimitiveType(prop.type))
+      this.result.write(`${storage} = `)
+    else
+      this.result.write(`${cr.setGlobalVariable}(&${storage}, `)
+
+    if (valueType !== undefined) {
+      this.result.write(cr.typeConversion(valueType, prop.type, env, value))
+      this.visit(value, env)
+      this.result.write(')')
+    }
+    else
+      this.visit(value, env)
+
+    if (!isPrimitiveType(prop.type))
+      this.result.write(')')
+  }
 
   tsEnumDeclaration(node: AST.TSEnumDeclaration, env: VariableEnv): void {}
 
@@ -892,6 +1001,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const argType = this.needsCoercion(arg)
 
     if (AST.isMemberExpression(arg)) {
+      const prop = this.isStaticProperty(arg, env)
+      if (prop) {
+        const [propertyName, propInfo] = prop
+        this.updateExpr(node, argType, env, () => {
+          this.result.write(this.staticPropertyInC(propertyName, propInfo, arg))
+        })
+        return
+      }
+
       // if left is a member expression, left_type is not undefined.
       if (argType && !isPrimitiveType(argType)) {
         const op = cr.updateOperator(node.operator, node.prefix)
@@ -1063,6 +1181,13 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const rightType = this.needsCoercion(right)
 
     if (AST.isMemberExpression(left)) {
+      const prop = this.isStaticProperty(left, env)
+      if (prop) {
+        const [propertyName, propInfo] = prop
+        this.writeStaticPropertyAssignment(propertyName, propInfo, right, rightType, env)
+        return
+      }
+
       // if left is a member expression, left_type is not undefined.
       if (leftType && !isPrimitiveType(leftType)) {
         this.anyMemberAssignmentExpression(left, leftType, right, rightType, env)
@@ -1177,6 +1302,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     const rightType = this.needsCoercion(right)
 
     if (AST.isMemberExpression(left)) {
+      const prop = this.isStaticProperty(left, env)
+      if (prop) {
+        const [propertyName, propInfo] = prop
+        this.accumulateExpr(node, leftType, rightType, env, () => {
+          this.result.write(this.staticPropertyInC(propertyName, propInfo, left))
+        })
+        return
+      }
+
       // if left is a member expression, left_type is not undefined.
       if (leftType && !isPrimitiveType(leftType)) {
         this.anyMemberAccumulateExpression(left, right, rightType, op, env)
@@ -1386,8 +1520,6 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const method = info.type.findStaticMethod(node.property.name)
       if (method)
         return [method[0], method[1], node.property.name]
-      else
-        throw this.errorLog.push(`fatal: unknown static method name: ${node.property.name}`, node.property)
     }
 
     return undefined
@@ -1534,6 +1666,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   }
 
   memberExpression(node: AST.MemberExpression, env: VariableEnv): void {
+    let prop
     if (node.computed) {
       // an array access like a[b]
       const arrayType = getStaticType(node.object)
@@ -1544,6 +1677,11 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       const n = this.callExpressionArg(node.property, Integer, env)
       this.result.write('))')
       env.deallocate(n)   // n will be zero.
+    }
+    else if (prop = this.isStaticProperty(node, env)) {
+      // a static property access like A.b
+      const [propertyName, propInfo] = prop
+      this.result.write(this.staticPropertyInC(propertyName, propInfo, node))
     }
     else {
       // a member access like a.b
