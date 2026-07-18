@@ -19,8 +19,8 @@ export function exists(path: string): boolean {
     return fs.existsSync(path);
 }
 
-export function writeFile(path: string, data: string | NodeJS.ArrayBufferView) {
-    fs.writeFileSync(path, data);
+export function writeFile(path: string, data: string | NodeJS.ArrayBufferView, mode?: number) {
+    fs.writeFileSync(path, data, { encoding: 'utf-8', mode });
 }
 
 export function readFile(path: string): string {

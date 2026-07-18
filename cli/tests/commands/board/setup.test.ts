@@ -10,12 +10,12 @@ import {
     mockProcessExit,
 } from '../mock-helpers';
 import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings, getTestRuntimeDir, isEsp32IdfToolsExportPythonCommand, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
-import { HostDarwinEnv } from '../../../src/platforms/board-env/host-env';
+import { HostUnixEnv } from '../../../src/platforms/board-env/host-env';
 import * as path from 'path';
 
 
 const mockedBuildHostRuntime = jest
-    .spyOn(HostDarwinEnv.prototype, 'buildHostRuntime')
+    .spyOn(HostUnixEnv.prototype, 'buildHostRuntime')
     .mockResolvedValue();
 
 jest.mock('os', () => ({
@@ -74,7 +74,7 @@ function mockHostShellCommands(options: { ccMissing?: boolean }) {
 describe('board setup command', () => {
     beforeAll(() => {
         spyGlobalSettings('setup');
-        jest.spyOn(HostDarwinEnv.prototype, 'buildHostRuntime').mockResolvedValue();
+        jest.spyOn(HostUnixEnv.prototype, 'buildHostRuntime').mockResolvedValue();
     })
 
     afterEach(() => {

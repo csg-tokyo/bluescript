@@ -1,5 +1,6 @@
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 import { BoardToolchain, SharedLibrary } from "./board-toolchain";
 import { Project } from "../project";
 import { Package, PackageForHostUnix, PackageForHostWindows } from "../package";
@@ -102,9 +103,6 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
 
     async link(project: Project<PackageForHostUnix>, archiveFiles: string[], entryPoints: string[]): Promise<string> {
         try {
-            const keepEntrySymbols = entryPoints.map(
-                (sym) => `-Wl,-u,_${sym}`,
-            );
             const outputFile = project.mainPackage.soFile(this.compileId++);
             const args = [
                 '-shared', '-fPIC', 
@@ -113,12 +111,25 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
                 ...this.generatedSharedLibs, 
                 this.runtimeSo, 
                 '-lm', '-ldl',
-                ...keepEntrySymbols,
+                ...this.keepEntrySymbols(entryPoints),
             ];
             await executeCommand(this.config.compilerToolchain.gcc, args);
             return outputFile;
         } catch (error) {
             throw new Error(`Failed to link: ${getErrorMessage(error)}`, {cause: error});
+        }
+    }
+
+    private keepEntrySymbols(entryPoints: string[]): string[] {
+        const osType = os.platform();
+        if (osType === 'darwin') {
+            return entryPoints.map(
+                (sym) => `-Wl,-u,_${sym}`,
+            );
+        } else {
+            return entryPoints.map(
+                (sym) => `-Wl,-u,${sym}`,
+            );
         }
     }
 }

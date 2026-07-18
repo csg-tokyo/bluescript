@@ -4,8 +4,8 @@ import inquirer from 'inquirer';
 import { logger } from "../../../core/logger";
 import chalk from "chalk";
 import { SetupHandler } from "./base";
-import { Esp32DarwinSetupHandler, Esp32WindowsSetupHandler } from "./esp32";
-import { HostDarwinSetupHandler, HostWindowsSetupHandler } from "./host";
+import { Esp32DarwinSetupHandler, Esp32WindowsSetupHandler, Esp32LinuxSetupHandler } from "./esp32";
+import { HostUnixSetupHandler, HostWindowsSetupHandler } from "./host";
 
 
 function getSetupHandler(board: string): SetupHandler {
@@ -13,13 +13,15 @@ function getSetupHandler(board: string): SetupHandler {
     if (board === 'esp32') {
         if (osType === 'darwin')
             return new Esp32DarwinSetupHandler();
+        if (osType === 'linux') 
+            return new Esp32LinuxSetupHandler();
         if (osType === 'win32')
             return new Esp32WindowsSetupHandler();
         throw new Error(`Unsupported OS type: ${osType}.`);
     }
     if (board === 'host') {
-        if (osType === 'darwin')
-            return new HostDarwinSetupHandler();
+        if (osType === 'darwin' || osType === 'linux')
+            return new HostUnixSetupHandler();
         if (osType === 'win32')
             return new HostWindowsSetupHandler();
         throw new Error(`Unsupported OS type: ${osType}.`);
