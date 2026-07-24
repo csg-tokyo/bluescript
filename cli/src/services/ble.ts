@@ -217,15 +217,50 @@ export class BleConnection extends Connection<Buffer> {
         if (noble._state === 'poweredOn') {
             return;
         }
+        if (noble._state === 'unauthorized') {
+            throw this.buildUnauthorizedBluetoothError();
+        }
         return new Promise((resolve, reject) => {
-            noble.once('stateChange', (state: string) => {
+            const onStateChange = (state: string) => {
                 if (state === 'poweredOn') {
+                    noble.removeListener('stateChange', onStateChange);
                     resolve();
+                } else if (state === 'unauthorized') {
+                    noble.removeListener('stateChange', onStateChange);
+                    reject(this.buildUnauthorizedBluetoothError());
                 } else if (state !== 'unknown' && state !== 'resetting') {
+                    noble.removeListener('stateChange', onStateChange);
                     reject(new Error(`Bluetooth adapter state is ${state}`));
                 }
-            });
+            };
+            noble.on('stateChange', onStateChange);
         });
+    }
+
+    private buildUnauthorizedBluetoothError(): Error {
+        if (process.platform === 'linux') {
+            const caps = 'cap_net_raw,cap_net_admin+eip';
+            return new Error(
+                `Bluetooth adapter is unauthorized.\n\n` +
+                `On Linux, grant capabilities to the Node.js binary and retry:\n` +
+                `  sudo setcap ${caps} $(readlink -f "$(which node)")\n\n` +
+                `Or re-run: bscript board setup esp32\n` +
+                `Note: after upgrading or switching Node.js versions, you may need to run setcap again.`,
+            );
+        }
+        if (process.platform === 'darwin') {
+            return new Error(
+                `Bluetooth adapter is unauthorized.\n\n` +
+                `On macOS, allow Bluetooth access for the app that runs bscript:\n` +
+                `  System Settings → Privacy & Security → Bluetooth\n` +
+                `  → enable Terminal, iTerm2, or whichever app you use.\n\n` +
+                `Also make sure Bluetooth is turned on.`,
+            );
+        }
+        return new Error(
+            `Bluetooth adapter is unauthorized.\n\n` +
+            `Please check Bluetooth permissions and that Bluetooth is enabled, then retry.`,
+        );
     }
 
     public async disconnect(): Promise<void> {

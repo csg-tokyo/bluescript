@@ -110,7 +110,6 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
 
     constructor() {
         super();
-        // this.reExecuteAsRoot();
         this.boardEnv = new Esp32UnixEnv();
         this.distType = this.getDistribution();
     }
