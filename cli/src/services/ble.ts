@@ -7,7 +7,7 @@ import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protoc
 
 
 const MTU = 495;
-const SERVICE_UUID = ['0000b50000001000800000805f9b34fb'];
+const SERVICE_UUID: string[] = [];
 const CHARACTERISTIC_UUID = 'b501';
 
 

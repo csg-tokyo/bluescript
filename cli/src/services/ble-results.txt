@@ -1,0 +1,159 @@
+DEBUG=gap,hci bscript project run
+INFO: Connecting...  hci setting filter to: 1600000020c108000000004000000000 +0ms
+  hci set event mask - writing: 01010c08fffffbff07f8bf3d +0ms
+  hci set le event mask - writing: 010120081f00000000000000 +0ms
+  hci read local version - writing: 01011000 +0ms
+  hci write LE host supported - writing: 016d0c020100 +1ms
+  hci read LE host supported - writing: 016c0c00 +0ms
+  hci le read buffer size - writing: 01022000 +0ms
+  hci read bd addr - writing: 01091000 +0ms
+  hci onSocketData: 040e0401010c00 +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 3073 +0ms
+  hci 		status = 0 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 040e0401012000 +0ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8193 +1ms
+  hci 		status = 0 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 040e0c010110000b53220b02005322 +0ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 4097 +0ms
+  hci 		status = 0 +0ms
+  hci 		result = 0b53220b02005322 +0ms
+  hci set scan enabled - writing: 010c20020001 +0ms
+  hci set scan parameters - writing: 010b200701120012000000 +1ms
+  hci onSocketData: 040e04016d0c00 +0ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 3181 +0ms
+  hci 		status = 0 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 040e06016c0c000100 +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 3180 +0ms
+  hci 		status = 0 +0ms
+  hci 		result = 0100 +0ms
+  hci 			le = 1 +0ms
+  hci 			simul = 0 +0ms
+  hci onSocketData: 040e0701022000fb0003 +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8194 +0ms
+  hci 		status = 0 +0ms
+  hci 		result = fb0003 +0ms
+  hci le buffer size: length = 251, num = 3 +0ms
+  hci onSocketData: 040e0a010910002035c7288d8c +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 4105 +0ms
+  hci 		status = 0 +0ms
+  hci 		result = 2035c7288d8c +0ms
+  hci address = 8c:8d:28:c7:35:20 +0ms
+  hci onSocketData: 040e04010c200c +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8204 +0ms
+  hci 		status = 12 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 040e04010b200c +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8203 +0ms
+  hci 		status = 12 +0ms
+  hci 		result =  +0ms
+  hci set scan enabled - writing: 010c20020001 +1ms
+  hci set scan parameters - writing: 010b200701120012000000 +0ms
+  hci set scan enabled - writing: 010c20020101 +0ms
+  hci onSocketData: 040e04010c200c +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8204 +0ms
+  hci 		status = 12 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 040e04010b200c +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8203 +0ms
+  hci 		status = 12 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 040e04010c200c +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8204 +0ms
+  hci 		status = 12 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 01422006000000000000 +3s
+  hci 	event type = 1 +0ms
+  hci 		cmd = 8258 +0ms
+  hci 		data len = 6 +0ms
+  hci 			LE enable scan command +0ms
+  hci 			enable scanning = false +0ms
+  hci 			filter duplicates = false +0ms
+  hci onSocketData: 040e0402422000 +1ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8258 +0ms
+  hci 		status = 0 +0ms
+  hci 		result =  +0ms
+  hci set scan enabled - writing: 010c20020001 +2s
+  hci onSocketData: 040e04010c200c +2ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8204 +0ms
+  hci 		status = 12 +1ms
+  hci 		result =  +0ms
+  hci onSocketData: 01052006d5407020643a +3s
+  hci 	event type = 1 +0ms
+  hci 		cmd = 8197 +0ms
+  hci 		data len = 6 +0ms
+  hci onSocketData: 040e0401052000 +96ms
+  hci 	event type = 4 +0ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8197 +0ms
+  hci 		status = 0 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 014120080100010124001200 +0ms
+  hci 	event type = 1 +0ms
+  hci 		cmd = 8257 +0ms
+  hci 		data len = 8 +0ms
+  hci onSocketData: 040e0401412000 +1ms
+  hci 	event type = 4 +1ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8257 +0ms
+  hci 		status = 0 +0ms
+  hci 		result =  +0ms
+  hci onSocketData: 01422006010100000000 +0ms
+  hci 	event type = 1 +0ms
+  hci 		cmd = 8258 +0ms
+  hci 		data len = 6 +0ms
+  hci 			LE enable scan command +0ms
+  hci 			enable scanning = true +0ms
+  hci 			filter duplicates = true +0ms
+  hci onSocketData: 040e0402422000 +1ms
+  hci 	event type = 4 +1ms
+  hci 	sub event type = 14 +0ms
+  hci 		cmd = 8258 +0ms
+  hci 		status = 0 +0ms
+  hci 		result =  +0ms
+INFO: Connecting... Failed
+INFO: Disconnecting... OK
+ERROR: Failed to run BlueScript program.
+  BLE connection timed out while looking for device "BLUESCRIPT".
+
+Nearby devices found during scan:
+  (none)
+
+Please check the following:
+  1. Is the device powered on?
+  2. Does the device name match between flash and connect?
+     Connect is looking for: "BLUESCRIPT"
+     Flash sets the name via `bscript board flash-runtime <board> -d <name>`.
+     Connect uses `deviceName` in bsconfig.json (or `-d` for REPL).
+     If the names differ, re-flash or update the connect name to match.
+  hci set scan enabled - writing: 010c20020001 +2ms
