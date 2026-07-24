@@ -10,12 +10,6 @@ jest.mock('../src/core/logger', () => {
             }
             return result;
         }),
-        runPipeline: jest.fn(async (ctx: unknown, ...steps: { action: (ctx: unknown) => Promise<void> }[]) => {
-            for (const { action } of steps) {
-                await action(ctx);
-            }
-            return ctx;
-        }),
         logger: {
             error: jest.fn(),
             warn: jest.fn(),

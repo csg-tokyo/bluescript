@@ -1,11 +1,11 @@
 import { SetupHandler } from "./base";
-import { execShell, execWithLog, simpleExec } from '../../../core/command-exec';
+import { execShell, execWithLog } from '../../../core/command-exec';
 import { skip } from "../../../core/logger";
 import * as path from 'path';
+import * as nodeFs from 'fs';
 import * as fs from '../../../core/fs';
 import { BoardName } from "../../../config/board-utils";
 import { Esp32UnixEnv, Esp32WindowsEnv } from "../../../platforms/board-env/esp32-env";
-import { spawnSync } from "child_process";
 import { GLOBAL_SETTINGS } from "../../../config/constants";
 
 
@@ -96,6 +96,7 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
     boardEnv: Esp32UnixEnv;
     distType: 'UbuntuDebian' | 'CentOS7or8' | 'Arch';
     ruleFile: string = '/etc/udev/rules.d/bscript-serial.rules';
+    nodeBleCapabilities = 'cap_net_raw,cap_net_admin+eip';
 
     get requiredPackages() {
         if (this.distType === 'UbuntuDebian') {
@@ -135,6 +136,11 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
             actionMessage: `Writing ${this.ruleFile}...`,
             action: this.writeRuleFileStep.bind(this),
         });
+        this.setupSteps.push({
+            description: `Grant Bluetooth capabilities (${this.nodeBleCapabilities}) to the Node.js binary so BLE works without sudo.`,
+            actionMessage: "Granting Bluetooth capabilities to the Node.js binary...",
+            action: this.grantBluetoothCapabilitiesStep.bind(this),
+        });
     }
 
     async setBoardConfig() {
@@ -153,22 +159,6 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
                 python: pythonCommand
             },
         });
-    }
-
-    private reExecuteAsRoot() {
-        if (process.getuid?.() !== 0){
-            const {status} = spawnSync('sudo', [
-                'env',
-                `PATH=${process.env.PATH ?? ''}`,
-                `HOME=${process.env.HOME ?? ''}`,
-                process.execPath,
-                ...process.argv.slice(1)
-            ], {
-                stdio: 'inherit'
-            });
-
-            process.exit(status ?? 1);
-        }
     }
 
     private getDistribution() {
@@ -254,6 +244,20 @@ KERNEL=="ttyUSB[0-9]*", MODE="0666"
             throw new Error(`Failed to write ${this.ruleFile}.`, { cause: error });
         } finally {
             fs.removeFile(tmpFile);
+        }
+    }
+
+    private async grantBluetoothCapabilitiesStep() {
+        const nodeBinary = nodeFs.realpathSync(process.execPath);
+        try {
+            await execShell(`sudo ${this.nodeBleCapabilities} ${nodeBinary}`);
+        } catch (error) {
+            throw new Error(
+                `Failed to grant Bluetooth capabilities to ${nodeBinary}. ` +
+                `If you upgrade or switch Node.js versions later, re-run setup or run: ` +
+                `setcap ${this.nodeBleCapabilities} $(readlink -f "$(which node)")`,
+                { cause: error },
+            );
         }
     }
 }
