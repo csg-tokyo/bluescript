@@ -260,7 +260,7 @@ describe('board setup command', () => {
             // --- Arrange ---
             const exitSpy = mockProcessExit();
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
-            mockedOs.platform.mockReturnValue('linux');
+            mockedOs.platform.mockReturnValue('openbsd');
             setupGlobalEnvWithEsp32()
 
             // --- Act ---
@@ -268,7 +268,7 @@ describe('board setup command', () => {
 
             // --- Assert ---
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
-            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS type: linux.'));
+            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS type: openbsd.'));
             expect(process.exit).toHaveBeenCalledWith(1);
             exitSpy.mockRestore();
         });

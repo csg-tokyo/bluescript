@@ -28,9 +28,10 @@ export function getTestEspIdfExportFile() { return esp32BoardEnv().idfExportFile
 export function getTestHostShellFile() { return hostBoardEnv().shellFile; }
 
 export function getExpectedHostToolchain() {
-    return os.platform() === 'win32'
-        ? { gcc: 'gcc', ar: 'ar', make: 'mingw32-make' }
-        : { gcc: 'cc', ar: 'ar', make: 'make' };
+    const osType = os.platform();
+    if (osType === 'darwin') return { gcc: 'cc', ar: 'ar', make: 'make' };
+    if (osType === 'linux') return { gcc: 'gcc', ar: 'ar', make: 'make' };
+    else return { gcc: 'gcc', ar: 'ar', make: 'mingw32-make' };
 }
 
 export function spyGlobalSettings(globalDirSuffix: string) {

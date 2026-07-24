@@ -39,7 +39,7 @@ export class HostCompilerAdapter implements CompilerAdapter {
             compilerToolchain: this.boardConfig.toolchain,
         };
 
-        if (os.platform() === 'darwin') {
+        if (os.platform() === 'darwin' || os.platform() === 'linux') {
             const project = Project.load<PackageForHostUnix>(
                 this.projectConfigHandler.getConfig().projectName,
                 createHostPackageReader(this.projectConfigHandler, PackageForHostUnix),

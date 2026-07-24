@@ -27,6 +27,10 @@ export function readFile(path: string): string {
     return fs.readFileSync(path, 'utf-8');
 }
 
+export function removeFile(path: string) {
+    fs.rmSync(path);
+}
+
 export async function downloadAndUnzip(url: string, outDir: string) {
     const tmpZipPath = `${outDir}/tmp.zip`;
     const response = await axios.get(url, {

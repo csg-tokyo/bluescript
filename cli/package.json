@@ -34,7 +34,6 @@
     "test": "jest --selectProjects unit",
     "test:integration": "jest --selectProjects integration",
     "test:all": "jest",
-
     "prepack:backup": "shx mv README.md README.md.bak || shx echo 'No existing README to backup'",
     "prepack:copy": "shx cp ../README.md README.md",
     "prepack": "npm run prepack:backup && npm run prepack:copy",
@@ -60,6 +59,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@abandonware/bluetooth-hci-socket": "^0.5.3-12",
     "@abandonware/noble": "^1.9.2-26",
     "@bscript/lang": "2.0.2",
     "@bscript/notebook": "2.0.2",

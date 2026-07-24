@@ -5,6 +5,8 @@ import * as path from 'path';
 import * as fs from '../../../core/fs';
 import { BoardName } from "../../../config/board-utils";
 import { Esp32UnixEnv, Esp32WindowsEnv } from "../../../platforms/board-env/esp32-env";
+import { spawnSync } from "child_process";
+import { GLOBAL_SETTINGS } from "../../../config/constants";
 
 
 export class Esp32DarwinSetupHandler extends SetupHandler {
@@ -97,17 +99,17 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
 
     get requiredPackages() {
         if (this.distType === 'UbuntuDebian') {
-            return ['make', 'git', 'wget', 'flex', 'bison', 'gperf', 'python3', 'python3-pip', 'python3-venv', 'cmake', 'ninja-build', 'ccache', 'libffi-dev', 'libssl-dev', 'dfu-util', 'libusb-1.0-0'];
+            return ['make', 'git', 'wget', 'flex', 'bison', 'gperf', 'python3', 'python3-pip', 'python3-venv', 'cmake', 'ninja-build', 'ccache', 'libffi-dev', 'libssl-dev', 'dfu-util', 'libusb-1.0-0', 'libcap2-bin'];
         } else if (this.distType === 'CentOS7or8') {
-            return ['make', 'git', 'wget', 'flex', 'bison', 'gperf', 'python3', 'cmake', 'ninja-build', 'ccache', 'dfu-util', 'libusbx'];
+            return ['make', 'git', 'wget', 'flex', 'bison', 'gperf', 'python3', 'cmake', 'ninja-build', 'ccache', 'dfu-util', 'libusbx', 'libcap'];
         } else { // Arch
-            return ['gcc', 'git', 'make', 'flex', 'bison', 'gperf', 'python', 'cmake', 'ninja', 'ccache', 'dfu-util', 'libusb'];
+            return ['gcc', 'git', 'make', 'flex', 'bison', 'gperf', 'python', 'cmake', 'ninja', 'ccache', 'dfu-util', 'libusb', 'libcap'];
         }
     }
 
     constructor() {
         super();
-        this.verifyExecutedAsRoot();
+        // this.reExecuteAsRoot();
         this.boardEnv = new Esp32UnixEnv();
         this.distType = this.getDistribution();
     }
@@ -132,7 +134,7 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
             description: `Write ${this.ruleFile} to configure access permissions for the serial device.`,
             actionMessage: `Writing ${this.ruleFile}...`,
             action: this.writeRuleFileStep.bind(this),
-        })
+        });
     }
 
     async setBoardConfig() {
@@ -153,9 +155,19 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
         });
     }
 
-    private verifyExecutedAsRoot() {
-        if (process.getuid && process.getuid() !== 0) {
-            throw new Error('The setup command should be executed with "sudo".');
+    private reExecuteAsRoot() {
+        if (process.getuid?.() !== 0){
+            const {status} = spawnSync('sudo', [
+                'env',
+                `PATH=${process.env.PATH ?? ''}`,
+                `HOME=${process.env.HOME ?? ''}`,
+                process.execPath,
+                ...process.argv.slice(1)
+            ], {
+                stdio: 'inherit'
+            });
+
+            process.exit(status ?? 1);
         }
     }
 
@@ -211,11 +223,11 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
 
     private async installRequiredPackagesStep() {
         if (this.distType === 'UbuntuDebian') {
-            execShell(`apt-get install ${this.requiredPackages.join(' ')}`);
+            await execShell(`sudo apt-get install ${this.requiredPackages.join(' ')}`);
         } else if (this.distType === 'CentOS7or8') {
-            execShell(`yum -y update && sudo yum install ${this.requiredPackages.join(' ')}`);
+            await execShell(`sudo yum -y update && sudo yum install ${this.requiredPackages.join(' ')}`);
         } else { // Arch
-            execShell(`pacman -S --needed ${this.requiredPackages.join(' ')}`);
+            await execShell(`sudo pacman -S --needed ${this.requiredPackages.join(' ')}`);
         }
     }
 
@@ -232,12 +244,16 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
 KERNEL=="ttyACM[0-9]*", MODE="0666"
 KERNEL=="ttyUSB[0-9]*", MODE="0666"
 `.trim() + '\n';
+        const tmpFile = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'bscript-serial.rules');
         try {
-            fs.writeFile(this.ruleFile, rulesContent, 0o644);
-            await simpleExec('udevadm', ['control', '--reload-rules']);
-            await simpleExec('udevadm', ['trigger']);
+            fs.writeFile(tmpFile, rulesContent);
+            await execShell(`sudo install -m 644 ${tmpFile} ${this.ruleFile}`);
+            await execShell(`sudo udevadm control --reload-rules`);
+            await execShell(`sudo udevadm trigger`);
         } catch(error) {
             throw new Error(`Failed to write ${this.ruleFile}.`, { cause: error });
+        } finally {
+            fs.removeFile(tmpFile);
         }
     }
 }
