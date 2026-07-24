@@ -7,7 +7,7 @@ import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protoc
 
 
 const MTU = 495;
-const SERVICE_UUID = 'b500';
+const SERVICE_UUID = ['0000b50000001000800000805f9b34fb'];
 const CHARACTERISTIC_UUID = 'b501';
 
 
@@ -207,7 +207,7 @@ export class BleConnection extends Connection<Buffer> {
             };
             noble.on('discover', this.discoverHandler);
         });
-        await noble.startScanningAsync([SERVICE_UUID], false).catch((error: unknown) => {
+        await noble.startScanningAsync(SERVICE_UUID, false).catch((error: unknown) => {
             const message = error instanceof Error ? error.message : String(error);
             if (message.includes('unauthorized') || this.getNobleState() === 'unauthorized') {
                 throw this.buildUnauthorizedBluetoothError();
@@ -229,7 +229,7 @@ export class BleConnection extends Connection<Buffer> {
         });
         await peripheral.connectAsync();
         const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(
-            [SERVICE_UUID],
+            SERVICE_UUID,
             [CHARACTERISTIC_UUID]
         );
         if (characteristics.length === 0) {

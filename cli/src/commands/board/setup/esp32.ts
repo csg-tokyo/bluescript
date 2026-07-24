@@ -212,11 +212,11 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
 
     private async installRequiredPackagesStep() {
         if (this.distType === 'UbuntuDebian') {
-            await execShell(`sudo apt-get install ${this.requiredPackages.join(' ')}`);
+            await execShell(`sudo apt-get install -y ${this.requiredPackages.join(' ')}`);
         } else if (this.distType === 'CentOS7or8') {
-            await execShell(`sudo yum -y update && sudo yum install ${this.requiredPackages.join(' ')}`);
+            await execShell(`sudo yum -y update && sudo yum install -y ${this.requiredPackages.join(' ')}`);
         } else { // Arch
-            await execShell(`sudo pacman -S --needed ${this.requiredPackages.join(' ')}`);
+            await execShell(`sudo pacman -S --needed --noconfirm ${this.requiredPackages.join(' ')}`);
         }
     }
 

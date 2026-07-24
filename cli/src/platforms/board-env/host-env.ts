@@ -73,7 +73,7 @@ export class HostUnixEnv extends HostEnv {
         if (await this.isPackageInstalled(this.gccCommandName)) {
             return this.gccCommandName;
         } else {
-            throw new Error('Cannot find cc command. Please install cc.');
+            throw new Error(`Cannot find ${this.gccCommandName} command. Please install ${this.gccCommandName}.`);
         }
     }
 
