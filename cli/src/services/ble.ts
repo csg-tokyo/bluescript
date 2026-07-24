@@ -112,7 +112,7 @@ export class BleConnection extends Connection<Buffer> {
             const connectPromise = this.doConnect();
             const timeoutPromise = new Promise<never>((_, reject) => {
                 timeoutHandle = setTimeout(
-                    () => reject(this.buildConnectionTimeoutError()),
+                    () => reject(this.buildConnectTimeoutOrUnauthorizedError()),
                     timeoutMs
                 );
             });
@@ -125,6 +125,13 @@ export class BleConnection extends Connection<Buffer> {
                 clearTimeout(timeoutHandle);
             }
         }
+    }
+
+    private buildConnectTimeoutOrUnauthorizedError(): Error {
+        if (this.getNobleState() === 'unauthorized') {
+            return this.buildUnauthorizedBluetoothError();
+        }
+        return this.buildConnectionTimeoutError();
     }
 
     private buildConnectionTimeoutError(): Error {
@@ -181,7 +188,13 @@ export class BleConnection extends Connection<Buffer> {
             };
             noble.on('discover', this.discoverHandler);
         });
-        await noble.startScanningAsync([SERVICE_UUID], false);
+        await noble.startScanningAsync([SERVICE_UUID], false).catch((error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.includes('unauthorized') || this.getNobleState() === 'unauthorized') {
+                throw this.buildUnauthorizedBluetoothError();
+            }
+            throw error;
+        });
         const peripheral = await searchPeriferalPromise;
         await noble.stopScanningAsync();
         this.peripheral = peripheral;
@@ -213,27 +226,60 @@ export class BleConnection extends Connection<Buffer> {
         return;
     }
 
+    private getNobleState(): string {
+        // Prefer the public getter: it triggers noble's lazy binding init.
+        // Fall back to _state for environments where only that is available.
+        const state = (noble as { state?: string; _state?: string }).state
+            ?? (noble as { _state?: string })._state;
+        return state ?? 'unknown';
+    }
+
+    private isTransientNobleState(state: string): boolean {
+        return state === 'unknown' || state === 'resetting';
+    }
+
     private async waitForPoweredOn(): Promise<void> {
-        if (noble._state === 'poweredOn') {
-            return;
-        }
-        if (noble._state === 'unauthorized') {
-            throw this.buildUnauthorizedBluetoothError();
-        }
         return new Promise((resolve, reject) => {
             const onStateChange = (state: string) => {
                 if (state === 'poweredOn') {
-                    noble.removeListener('stateChange', onStateChange);
+                    cleanup();
                     resolve();
-                } else if (state === 'unauthorized') {
-                    noble.removeListener('stateChange', onStateChange);
+                    return;
+                }
+                if (state === 'unauthorized') {
+                    cleanup();
                     reject(this.buildUnauthorizedBluetoothError());
-                } else if (state !== 'unknown' && state !== 'resetting') {
-                    noble.removeListener('stateChange', onStateChange);
+                    return;
+                }
+                if (!this.isTransientNobleState(state)) {
+                    cleanup();
                     reject(new Error(`Bluetooth adapter state is ${state}`));
                 }
             };
+
+            const cleanup = () => {
+                noble.removeListener('stateChange', onStateChange);
+            };
+
+            // Register first so we do not miss an async unauthorized/poweredOn event.
             noble.on('stateChange', onStateChange);
+
+            // Accessing noble.state triggers lazy init if needed, then re-check.
+            const current = this.getNobleState();
+            if (current === 'poweredOn') {
+                cleanup();
+                resolve();
+                return;
+            }
+            if (current === 'unauthorized') {
+                cleanup();
+                reject(this.buildUnauthorizedBluetoothError());
+                return;
+            }
+            if (!this.isTransientNobleState(current)) {
+                cleanup();
+                reject(new Error(`Bluetooth adapter state is ${current}`));
+            }
         });
     }
 
