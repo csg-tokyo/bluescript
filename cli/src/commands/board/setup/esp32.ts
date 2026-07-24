@@ -2,7 +2,7 @@ import { SetupHandler } from "./base";
 import { execShell, execWithLog } from '../../../core/command-exec';
 import { skip } from "../../../core/logger";
 import * as path from 'path';
-import * as nodeFs from 'fs';
+import * as os from 'os';
 import * as fs from '../../../core/fs';
 import { BoardName } from "../../../config/board-utils";
 import { Esp32UnixEnv, Esp32WindowsEnv } from "../../../platforms/board-env/esp32-env";
@@ -96,15 +96,16 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
     boardEnv: Esp32UnixEnv;
     distType: 'UbuntuDebian' | 'CentOS7or8' | 'Arch';
     ruleFile: string = '/etc/udev/rules.d/bscript-serial.rules';
-    nodeBleCapabilities = 'cap_net_raw,cap_net_admin+eip';
+    /** D-Bus policy so node-ble can talk to BlueZ without root. */
+    nodeBleDbusConfigFile = '/etc/dbus-1/system.d/node-ble.conf';
 
     get requiredPackages() {
         if (this.distType === 'UbuntuDebian') {
-            return ['make', 'git', 'wget', 'flex', 'bison', 'gperf', 'python3', 'python3-pip', 'python3-venv', 'cmake', 'ninja-build', 'ccache', 'libffi-dev', 'libssl-dev', 'dfu-util', 'libusb-1.0-0', 'libcap2-bin'];
+            return ['make', 'git', 'wget', 'flex', 'bison', 'gperf', 'python3', 'python3-pip', 'python3-venv', 'cmake', 'ninja-build', 'ccache', 'libffi-dev', 'libssl-dev', 'dfu-util', 'libusb-1.0-0', 'bluez'];
         } else if (this.distType === 'CentOS7or8') {
-            return ['make', 'git', 'wget', 'flex', 'bison', 'gperf', 'python3', 'cmake', 'ninja-build', 'ccache', 'dfu-util', 'libusbx', 'libcap'];
+            return ['make', 'git', 'wget', 'flex', 'bison', 'gperf', 'python3', 'cmake', 'ninja-build', 'ccache', 'dfu-util', 'libusbx', 'bluez'];
         } else { // Arch
-            return ['gcc', 'git', 'make', 'flex', 'bison', 'gperf', 'python', 'cmake', 'ninja', 'ccache', 'dfu-util', 'libusb', 'libcap'];
+            return ['gcc', 'git', 'make', 'flex', 'bison', 'gperf', 'python', 'cmake', 'ninja', 'ccache', 'dfu-util', 'libusb', 'bluez'];
         }
     }
 
@@ -136,9 +137,9 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
             action: this.writeRuleFileStep.bind(this),
         });
         this.setupSteps.push({
-            description: `Grant Bluetooth capabilities (${this.nodeBleCapabilities}) to the Node.js binary so BLE works without sudo.`,
-            actionMessage: "Granting Bluetooth capabilities to the Node.js binary...",
-            action: this.grantBluetoothCapabilitiesStep.bind(this),
+            description: `Install D-Bus policy (${this.nodeBleDbusConfigFile}) so BLE works with BlueZ without root.`,
+            actionMessage: "Installing D-Bus policy for Bluetooth...",
+            action: this.installNodeBleDbusPolicyStep.bind(this),
         });
     }
 
@@ -246,17 +247,46 @@ KERNEL=="ttyUSB[0-9]*", MODE="0666"
         }
     }
 
-    private async grantBluetoothCapabilitiesStep() {
-        const nodeBinary = nodeFs.realpathSync(process.execPath);
+    private async installNodeBleDbusPolicyStep() {
+        const username = os.userInfo().username;
+        if (!username) {
+            throw new Error(
+                `Cannot determine the current username for the D-Bus policy. ` +
+                `Install ${this.nodeBleDbusConfigFile} manually.`,
+            );
+        }
+
+        const policyContent = `<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <policy user="${username}">
+    <allow own="org.bluez"/>
+    <allow send_destination="org.bluez"/>
+    <allow send_interface="org.bluez.GattCharacteristic1"/>
+    <allow send_interface="org.bluez.GattDescriptor1"/>
+    <allow send_interface="org.freedesktop.DBus.ObjectManager"/>
+    <allow send_interface="org.freedesktop.DBus.Properties"/>
+  </policy>
+</busconfig>
+`;
+        const tmpFile = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'node-ble.conf');
         try {
-            await execShell(`sudo setcap ${this.nodeBleCapabilities} ${nodeBinary}`);
+            fs.writeFile(tmpFile, policyContent);
+            await execShell(`sudo install -m 644 ${tmpFile} ${this.nodeBleDbusConfigFile}`);
+            // Best-effort: new connections pick up system.d policies after reload.
+            try {
+                await execShell('sudo systemctl reload dbus');
+            } catch {
+                // Not all distros expose dbus via systemctl; policy still applies after re-login/reboot.
+            }
         } catch (error) {
             throw new Error(
-                `Failed to grant Bluetooth capabilities to ${nodeBinary}. ` +
-                `If you upgrade or switch Node.js versions later, re-run setup or run: ` +
-                `setcap ${this.nodeBleCapabilities} $(readlink -f "$(which node)")`,
+                `Failed to install D-Bus policy at ${this.nodeBleDbusConfigFile}. ` +
+                `BLE over BlueZ (node-ble) requires this policy for user "${username}".`,
                 { cause: error },
             );
+        } finally {
+            fs.removeFile(tmpFile);
         }
     }
 }
