@@ -1,13 +1,21 @@
-import noble, { Characteristic, Peripheral } from '@abandonware/noble';
+import type { Characteristic, Peripheral } from '@abandonware/noble';
 import { Buffer } from "node:buffer";
 import { MemoryImage, MemoryLayout } from "@bscript/lang";
 import { logger } from "../core/logger";
 import { Connection, ConnectionMessage, Service } from "./common";
 import { Protocol, ProtocolPacketBuilder, ProtocolParser } from './device-protocol';
 
+type Noble = typeof import('@abandonware/noble');
+
+// Some Linux adapters reject the legacy scan commands used by noble's
+// default binding after BlueZ has configured extended scanning.
+const noble: Noble = process.platform === 'linux'
+    ? require('@abandonware/noble/with-custom-binding')({ extended: true })
+    : require('@abandonware/noble');
 
 const MTU = 495;
-const SERVICE_UUID: string[] = [];
+const SERVICE_UUID = 'b500';
+const SCAN_SERVICE_UUIDS: string[] = [];
 const CHARACTERISTIC_UUID = 'b501';
 
 
@@ -207,7 +215,7 @@ export class BleConnection extends Connection<Buffer> {
             };
             noble.on('discover', this.discoverHandler);
         });
-        await noble.startScanningAsync(SERVICE_UUID, false).catch((error: unknown) => {
+        await noble.startScanningAsync(SCAN_SERVICE_UUIDS, false).catch((error: unknown) => {
             const message = error instanceof Error ? error.message : String(error);
             if (message.includes('unauthorized') || this.getNobleState() === 'unauthorized') {
                 throw this.buildUnauthorizedBluetoothError();
@@ -229,7 +237,7 @@ export class BleConnection extends Connection<Buffer> {
         });
         await peripheral.connectAsync();
         const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(
-            SERVICE_UUID,
+            [SERVICE_UUID],
             [CHARACTERISTIC_UUID]
         );
         if (characteristics.length === 0) {
