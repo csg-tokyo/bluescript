@@ -249,7 +249,7 @@ KERNEL=="ttyUSB[0-9]*", MODE="0666"
     private async grantBluetoothCapabilitiesStep() {
         const nodeBinary = nodeFs.realpathSync(process.execPath);
         try {
-            await execShell(`sudo ${this.nodeBleCapabilities} ${nodeBinary}`);
+            await execShell(`sudo setcap ${this.nodeBleCapabilities} ${nodeBinary}`);
         } catch (error) {
             throw new Error(
                 `Failed to grant Bluetooth capabilities to ${nodeBinary}. ` +

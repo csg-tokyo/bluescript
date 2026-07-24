@@ -18,6 +18,7 @@
     "@abandonware/bluetooth-hci-socket": true,
     "@serialport/bindings-cpp@13.0.0": true,
     "core-js@3.49.0": true,
-    "core-js-pure@3.49.0": true
+    "core-js-pure@3.49.0": true,
+    "usb@2.18.0": true
   }
 }
