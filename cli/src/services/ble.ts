@@ -108,6 +108,7 @@ export class BleConnection extends Connection<Buffer> {
 
     public async connect(timeoutMs: number = 5000): Promise<void> {
         let timeoutHandle: NodeJS.Timeout | undefined = undefined;
+        let unauthorizedHandler: ((state: string) => void) | undefined = undefined;
         try {
             const connectPromise = this.doConnect();
             const timeoutPromise = new Promise<never>((_, reject) => {
@@ -116,13 +117,31 @@ export class BleConnection extends Connection<Buffer> {
                     timeoutMs
                 );
             });
-            await Promise.race([connectPromise, timeoutPromise]);
+            // Watch for `unauthorized` for the whole connection attempt. On Linux
+            // (hci-socket) the adapter often reports `poweredOn` first and only
+            // becomes `unauthorized` once scanning actually touches the HCI socket,
+            // which happens after waitForPoweredOn has already resolved.
+            const unauthorizedPromise = new Promise<never>((_, reject) => {
+                unauthorizedHandler = (state: string) => {
+                    if (state === 'unauthorized') {
+                        reject(this.buildUnauthorizedBluetoothError());
+                    }
+                };
+                noble.on('stateChange', unauthorizedHandler);
+                if (this.getNobleState() === 'unauthorized') {
+                    reject(this.buildUnauthorizedBluetoothError());
+                }
+            });
+            await Promise.race([connectPromise, timeoutPromise, unauthorizedPromise]);
         } catch (error) {
             await this.abortConnect();
             throw error;
         } finally {
             if (timeoutHandle) {
                 clearTimeout(timeoutHandle);
+            }
+            if (unauthorizedHandler) {
+                noble.removeListener('stateChange', unauthorizedHandler);
             }
         }
     }
