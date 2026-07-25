@@ -117,33 +117,27 @@ export class BleConnection extends Connection<Buffer> {
 
     public async connect(timeoutMs: number = 5000): Promise<void> {
         let timeoutHandle: NodeJS.Timeout | undefined;
+        this.status = "connecting";
         const connectPromise = this.transport.connect(this.deviceName);
+        // Mark handled up front: when the timeout wins the race below, this
+        // promise rejects later with nobody awaiting it.
+        connectPromise.catch(() => {});
         try {
-            this.status = "connecting";
             const timeoutPromise = new Promise<never>((_, reject) => {
                 timeoutHandle = setTimeout(
-                    () => reject(this.buildConnectTimeoutOrUnauthorizedError()),
+                    () => reject(this.buildConnectionTimeoutError()),
                     timeoutMs,
                 );
             });
             await Promise.race([connectPromise, timeoutPromise]);
         } catch (error) {
             await this.abortConnect();
-            // Absorb a late rejection from the losing race side (e.g. abort after timeout).
-            connectPromise.catch(() => {});
             throw error;
         } finally {
             if (timeoutHandle) {
                 clearTimeout(timeoutHandle);
             }
         }
-    }
-
-    private buildConnectTimeoutOrUnauthorizedError(): Error {
-        if (this.transport.isUnauthorized()) {
-            return this.transport.buildUnauthorizedError();
-        }
-        return this.buildConnectionTimeoutError();
     }
 
     private buildConnectionTimeoutError(): Error {
@@ -167,11 +161,10 @@ export class BleConnection extends Connection<Buffer> {
         );
     }
 
+    /** Only reached when a connection attempt failed, so the link is always down afterwards. */
     private async abortConnect(): Promise<void> {
         await this.transport.abortConnect();
-        if (this.status === "connecting") {
-            this.status = "disconnected";
-        }
+        this.status = "disconnected";
     }
 
     public async disconnect(): Promise<void> {

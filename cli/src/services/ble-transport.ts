@@ -24,10 +24,6 @@ export abstract class BleTransport extends EventEmitter<BleTransportEvents> {
     /** True when a GATT characteristic is ready for reads/writes. */
     abstract isReady(): boolean;
 
-    isUnauthorized(): boolean {
-        return false;
-    }
-
     buildUnauthorizedError(): Error {
         return new Error(
             `Bluetooth adapter is unauthorized.\n\n` +
@@ -68,7 +64,8 @@ export function bleUuidsEqual(a: string, b: string): boolean {
     return normalizeBleUuid(a) === normalizeBleUuid(b);
 }
 
-const MAC_ADDRESS_RE = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i;
+// BlueZ falls back to the address with `:` replaced by `-` when a device has no name.
+const MAC_ADDRESS_RE = /^[0-9a-f]{2}([:-][0-9a-f]{2}){5}$/i;
 
 /** True when `name` looks like a Bluetooth device address rather than a local name. */
 export function isBluetoothAddress(name: string): boolean {

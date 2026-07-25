@@ -3,13 +3,8 @@ import {
     BLE_SERVICE_UUID,
     BleTransport,
 } from "./ble-transport";
-import type { Characteristic, Peripheral } from "@abandonware/noble";
+import noble, { Characteristic, Peripheral } from "@abandonware/noble";
 
-type Noble = typeof import("@abandonware/noble");
-
-const SCAN_SERVICE_UUIDS: string[] = [];
-
-const noble: Noble = require("@abandonware/noble");
 
 /**
  * BLE transport backed by @abandonware/noble (macOS / Windows).
@@ -18,6 +13,9 @@ export class NobleBleTransport extends BleTransport {
     private characteristic: Characteristic | null = null;
     private peripheral: Peripheral | null = null;
     private discoverHandler: ((p: Peripheral) => void) | null = null;
+    private peripheralConnectHandler: ((error?: unknown) => void) | null = null;
+    private peripheralDisconnectHandler: ((reason?: unknown) => void) | null = null;
+    private characteristicDataHandler: ((data: Buffer, isNotification: boolean) => void) | null = null;
     private _scannedDeviceNames: string[] = [];
 
     get scannedDeviceNames(): readonly string[] {
@@ -25,30 +23,6 @@ export class NobleBleTransport extends BleTransport {
     }
 
     async connect(deviceName: string): Promise<void> {
-        let unauthorizedHandler: ((state: string) => void) | undefined;
-
-        const unauthorizedPromise = new Promise<never>((_, reject) => {
-            unauthorizedHandler = (state: string) => {
-                if (state === "unauthorized") {
-                    reject(this.buildUnauthorizedError());
-                }
-            };
-            noble.on("stateChange", unauthorizedHandler);
-            if (this.isUnauthorized()) {
-                reject(this.buildUnauthorizedError());
-            }
-        });
-
-        try {
-            await Promise.race([this.doConnect(deviceName), unauthorizedPromise]);
-        } finally {
-            if (unauthorizedHandler) {
-                noble.removeListener("stateChange", unauthorizedHandler);
-            }
-        }
-    }
-
-    private async doConnect(deviceName: string): Promise<void> {
         await this.waitForPoweredOn();
 
         this._scannedDeviceNames = [];
@@ -68,26 +42,34 @@ export class NobleBleTransport extends BleTransport {
             noble.on("discover", this.discoverHandler);
         });
 
-        await noble.startScanningAsync(SCAN_SERVICE_UUIDS, false).catch((error: unknown) => {
-            const message = error instanceof Error ? error.message : String(error);
-            if (message.includes("unauthorized") || this.isUnauthorized()) {
-                throw this.buildUnauthorizedError();
-            }
-            throw error;
-        });
+        await noble.startScanningAsync([BLE_SERVICE_UUID], false);
 
         const peripheral = await searchPeripheralPromise;
         await noble.stopScanningAsync();
+
+        // The same Peripheral instance may carry listeners from a previous session.
+        this.detachCharacteristicListeners();
+        this.detachPeripheralListeners();
+        this.characteristic = null;
         this.peripheral = peripheral;
 
-        this.peripheral.on("disconnect", (event) => {
-            this.peripheral = null;
+        this.peripheralDisconnectHandler = (reason?: unknown) => {
+            this.detachCharacteristicListeners();
+            this.detachPeripheralListeners();
             this.characteristic = null;
-            this.emit("disconnected", event);
-        });
-        this.peripheral.on("connect", () => {
+            this.peripheral = null;
+            this.emit("disconnected", reason);
+        };
+        this.peripheralConnectHandler = (error?: unknown) => {
+            // noble reports failures through the same `connect` event;
+            // connectAsync rejects with that error, so stay silent here.
+            if (error) {
+                return;
+            }
             this.emit("connected");
-        });
+        };
+        peripheral.on("disconnect", this.peripheralDisconnectHandler);
+        peripheral.on("connect", this.peripheralConnectHandler);
 
         await peripheral.connectAsync();
         const { characteristics } = await peripheral.discoverSomeServicesAndCharacteristicsAsync(
@@ -98,11 +80,12 @@ export class NobleBleTransport extends BleTransport {
             throw new Error("Target characteristic not found.");
         }
         this.characteristic = characteristics[0];
-        this.characteristic.on("data", (data, isNotification) => {
+        this.characteristicDataHandler = (data, isNotification) => {
             if (isNotification) {
                 this.emit("data", data);
             }
-        });
+        };
+        this.characteristic.on("data", this.characteristicDataHandler);
         await this.characteristic.subscribeAsync();
     }
 
@@ -116,16 +99,51 @@ export class NobleBleTransport extends BleTransport {
         } catch {
             // ignore if scanning is not active
         }
+
+        // Give up on an in-flight link so it cannot finish connecting after the
+        // caller already treated the attempt as failed.
+        const peripheral = this.peripheral;
+        this.detachCharacteristicListeners();
+        this.detachPeripheralListeners();
+        this.characteristic = null;
+        this.peripheral = null;
+        if (!peripheral) {
+            return;
+        }
+        try {
+            if (peripheral.state === "connecting") {
+                peripheral.cancelConnect();
+            } else if (peripheral.state === "connected") {
+                await peripheral.disconnectAsync();
+            }
+        } catch {
+            // ignore: the attempt is already being abandoned
+        }
     }
 
     async disconnect(): Promise<void> {
-        if (this.characteristic) {
-            await this.characteristic.unsubscribeAsync();
-            this.characteristic = null;
+        const characteristic = this.characteristic;
+        const peripheral = this.peripheral;
+        this.detachCharacteristicListeners();
+        this.detachPeripheralListeners();
+        this.characteristic = null;
+        this.peripheral = null;
+
+        if (characteristic) {
+            try {
+                await characteristic.unsubscribeAsync();
+            } catch {
+                // Best-effort: the link may already be gone.
+            }
         }
-        if (this.peripheral) {
-            await this.peripheral.disconnectAsync();
-            this.peripheral = null;
+        if (peripheral) {
+            try {
+                await peripheral.disconnectAsync();
+            } catch {
+                // ignore
+            }
+            // Our peripheral listener is already detached, so report it here.
+            this.emit("disconnected");
         }
     }
 
@@ -141,10 +159,6 @@ export class NobleBleTransport extends BleTransport {
         return this.peripheral?.state === "connected" && this.characteristic != null;
     }
 
-    isUnauthorized(): boolean {
-        return this.getNobleState() === "unauthorized";
-    }
-
     buildUnauthorizedError(): Error {
         if (process.platform === "darwin") {
             return new Error(
@@ -158,12 +172,22 @@ export class NobleBleTransport extends BleTransport {
         return super.buildUnauthorizedError();
     }
 
-    private getNobleState(): string {
-        // Prefer the public getter: it triggers noble's lazy binding init.
-        // Fall back to _state for environments where only that is available.
-        const state = (noble as { state?: string; _state?: string }).state
-            ?? (noble as { _state?: string })._state;
-        return state ?? "unknown";
+    private detachPeripheralListeners(): void {
+        if (this.peripheralConnectHandler) {
+            this.peripheral?.removeListener("connect", this.peripheralConnectHandler);
+            this.peripheralConnectHandler = null;
+        }
+        if (this.peripheralDisconnectHandler) {
+            this.peripheral?.removeListener("disconnect", this.peripheralDisconnectHandler);
+            this.peripheralDisconnectHandler = null;
+        }
+    }
+
+    private detachCharacteristicListeners(): void {
+        if (this.characteristicDataHandler) {
+            this.characteristic?.removeListener("data", this.characteristicDataHandler);
+            this.characteristicDataHandler = null;
+        }
     }
 
     private isTransientNobleState(state: string): boolean {
@@ -196,7 +220,7 @@ export class NobleBleTransport extends BleTransport {
             // Register first so we do not miss an async unauthorized/poweredOn event.
             noble.on("stateChange", onStateChange);
 
-            const current = this.getNobleState();
+            const current = noble._state;
             if (current === "poweredOn") {
                 cleanup();
                 resolve();
