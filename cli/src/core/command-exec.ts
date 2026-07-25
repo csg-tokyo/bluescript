@@ -1,4 +1,4 @@
-import { spawn, SpawnOptions } from "child_process";
+import { ChildProcess, spawn, SpawnOptions } from "child_process";
 import { logger } from "./logger";
 import { exists } from "./fs";
 
@@ -10,6 +10,7 @@ export type ExecOptions = {
     cwd?: string;
     detached?: boolean;
     stdio?: 'ignore' | 'pipe';
+    shell?: string;
 };
 
 type ProcessOutput = {
@@ -58,12 +59,20 @@ function runProcess(
     hooks?: ProcessStreamHooks,
     failureMode: FailureMode = 'detailed',
 ): Promise<ProcessOutput> {
-    const { cwd, detached = false, stdio = 'pipe' } = options;
+    const { cwd, detached = false, stdio = 'pipe', shell = false } = options;
     const formattedCommand = formatCommand(command, args);
 
     return new Promise((resolve, reject) => {
-        const spawnOptions: SpawnOptions = { shell: false, cwd, detached, stdio };
-        const child = spawn(command, args, spawnOptions);
+        let spawnOptions: SpawnOptions;
+        let child: ChildProcess;
+        if (shell){
+            spawnOptions = { shell, cwd, detached, stdio };
+            child = spawn(formattedCommand, spawnOptions);
+        } else {
+            spawnOptions = { shell: false, cwd, detached, stdio };
+            child = spawn(command, args, spawnOptions);
+        }
+        
         let stdout = '';
         let stderr = '';
 
@@ -134,7 +143,7 @@ export async function execShell(command: string, options?: { cwd?: string }): Pr
     if (process.platform === 'win32') {
         await execWithLog('cmd.exe', ['/c', command], { cwd: options?.cwd });
     } else {
-        await execWithLog('/bin/sh', ['-c', command], { cwd: options?.cwd });
+        await execWithLog(command, [], { cwd: options?.cwd, shell: '/bin/bash' });
     }
 }
 

@@ -98,7 +98,7 @@ export abstract class Esp32Env extends BoardEnv {
     }
 }
 
-export class Esp32DarwinEnv extends Esp32Env {
+export class Esp32UnixEnv extends Esp32Env {
     get idfInstallShFile() { return path.join(this.idfDir, 'install.sh'); }
     get idfExportFile() { return path.join(this.idfDir, 'export.sh'); }
     get xtensaGccFileName() { return XTENSA_GCC_NAME; }

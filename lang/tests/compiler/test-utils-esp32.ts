@@ -14,7 +14,7 @@ export const runtimeDir = path.resolve(__dirname, '../../../microcontroller');
 
 export function getEsp32ToolchainConfig(): Esp32ToolchainConfig {
     const osType = os.platform();
-    if (osType === 'darwin') {
+    if (osType === 'darwin' || osType === 'linux') {
         const espDir = path.join(os.homedir(), 'esp');
         const idfToolsPy = path.join(espDir, 'esp-idf', 'tools', 'idf_tools.py');
         const stdout = runIdfToolsExport(idfToolsPy);

@@ -19,6 +19,7 @@ const commC = path.join(runtimeDir, 'ports/host/comm.c');
 // Unix (darwin)
 const runtimeSo = path.join(runtimeBuildDir, 'c-runtime.so');
 const executableShell = path.join(runtimeBuildDir, 'shell');
+const gccCommand = os.platform() === 'darwin' ? 'cc' : 'gcc';
 
 // Windows
 const runtimeDll = path.join(runtimeBuildDir, 'c-runtime.dll');
@@ -26,12 +27,12 @@ const executableShellWin = path.join(runtimeBuildDir, 'shell.exe');
 
 const buildRuntimeUnix = async () => {
     fs.mkdirSync(runtimeBuildDir, { recursive: true });
-    await executeCommand('cc', [
+    await executeCommand(gccCommand, [
         '-DLINUX64', '-O2', '-shared', '-fPIC',
         '-o', runtimeSo,
         runtimeC, builtinModuleC, commC,
     ]);
-    await executeCommand('cc', [
+    await executeCommand(gccCommand, [
         '-DLINUX64', '-O2',
         '-o', executableShell,
         shellC, runtimeSo, '-lm', '-ldl',
@@ -53,9 +54,10 @@ const buildRuntimeWindows = async () => {
 };
 
 export const buildRuntime = async () => {
-    if (os.platform() === 'darwin') {
+    const osType = os.platform();
+    if (osType === 'darwin' || osType === 'linux') {
         await buildRuntimeUnix();
-    } else if (os.platform() === 'win32') {
+    } else if (osType === 'win32') {
         await buildRuntimeWindows();
     } else {
         throw new Error('Unsupported OS.');
@@ -63,9 +65,10 @@ export const buildRuntime = async () => {
 };
 
 export const createTestEnv = () => {
-    if (os.platform() === 'darwin') {
+    const osType = os.platform();
+    if (osType === 'darwin' || osType === 'linux') {
         return new HostUnixCompilerTestEnv('compiler-test-host')
-    } else if (os.platform() === 'win32') {
+    } else if (osType === 'win32') {
         return new HostWindowsCompilerTestEnv('compiler-test-host')
     } else {
         throw new Error('Unsupported OS.');
@@ -73,11 +76,12 @@ export const createTestEnv = () => {
 }
 
 export const compile = async (testEnv: HostUnixCompilerTestEnv | HostWindowsCompilerTestEnv) => {
-    if (os.platform() === 'darwin') {
+    const osType = os.platform();
+    if (osType === 'darwin' || osType === 'linux') {
         const compilerConfig: HostToolchainConfig = {
             runtimeDir,
             compilerToolchain: {
-                gcc: 'cc',
+                gcc: osType === 'darwin' ? 'cc' : 'gcc',
                 ar: 'ar',
                 make: 'make'
             }
@@ -90,7 +94,7 @@ export const compile = async (testEnv: HostUnixCompilerTestEnv | HostWindowsComp
         const session = new CompilerSession<PackageForHostUnix, SharedLibrary>(toolchain);
         await session.buildProject(project);
         return session;
-    } else if (os.platform() === 'win32') {
+    } else if (osType === 'win32') {
         const compilerConfig: HostToolchainConfig = {
             runtimeDir,
             compilerToolchain: {

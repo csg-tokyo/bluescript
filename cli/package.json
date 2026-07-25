@@ -34,7 +34,6 @@
     "test": "jest --selectProjects unit",
     "test:integration": "jest --selectProjects integration",
     "test:all": "jest",
-
     "prepack:backup": "shx mv README.md README.md.bak || shx echo 'No existing README to backup'",
     "prepack:copy": "shx cp ../README.md README.md",
     "prepack": "npm run prepack:backup && npm run prepack:copy",
@@ -68,6 +67,7 @@
     "commander": "^14.0.1",
     "extract-zip": "^2.0.1",
     "inquirer": "^12.11.0",
+    "node-ble": "^1.13.0",
     "serialport": "^13.0.0",
     "sirv": "^3.0.2",
     "zod": "^4.1.11"

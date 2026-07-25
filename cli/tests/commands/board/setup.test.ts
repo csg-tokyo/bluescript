@@ -10,12 +10,12 @@ import {
     mockProcessExit,
 } from '../mock-helpers';
 import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings, getTestRuntimeDir, isEsp32IdfToolsExportPythonCommand, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
-import { HostDarwinEnv } from '../../../src/platforms/board-env/host-env';
+import { HostUnixEnv } from '../../../src/platforms/board-env/host-env';
 import * as path from 'path';
 
 
 const mockedBuildHostRuntime = jest
-    .spyOn(HostDarwinEnv.prototype, 'buildHostRuntime')
+    .spyOn(HostUnixEnv.prototype, 'buildHostRuntime')
     .mockResolvedValue();
 
 jest.mock('os', () => ({
@@ -74,7 +74,7 @@ function mockHostShellCommands(options: { ccMissing?: boolean }) {
 describe('board setup command', () => {
     beforeAll(() => {
         spyGlobalSettings('setup');
-        jest.spyOn(HostDarwinEnv.prototype, 'buildHostRuntime').mockResolvedValue();
+        jest.spyOn(HostUnixEnv.prototype, 'buildHostRuntime').mockResolvedValue();
     })
 
     afterEach(() => {
@@ -260,7 +260,7 @@ describe('board setup command', () => {
             // --- Arrange ---
             const exitSpy = mockProcessExit();
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
-            mockedOs.platform.mockReturnValue('linux');
+            mockedOs.platform.mockReturnValue('openbsd');
             setupGlobalEnvWithEsp32()
 
             // --- Act ---
@@ -268,7 +268,7 @@ describe('board setup command', () => {
 
             // --- Assert ---
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
-            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS type: linux.'));
+            expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS type: openbsd.'));
             expect(process.exit).toHaveBeenCalledWith(1);
             exitSpy.mockRestore();
         });

@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as os from 'os';
 import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from '../../config/constants';
 import { simpleExec } from '../../core/command-exec';
@@ -33,19 +34,26 @@ export abstract class HostEnv extends BoardEnv {
     abstract getMakeCommand(): Promise<string>;
 }
 
-export class HostDarwinEnv extends HostEnv {
+export class HostUnixEnv extends HostEnv {
+    get gccCommandName() {
+        if (os.platform() === 'darwin') {
+            return 'cc';
+        } else {
+            return 'gcc';
+        }
+    }
     get runtimeSoFile() { return path.join(this.buildDir, 'c-runtime.so'); }
     get shellFile() { return path.join(this.buildDir, 'shell'); }
 
     async buildHostRuntime() {
         fs.makeDir(this.buildDir);
         try {
-            await simpleExec('cc', [
+            await simpleExec(this.gccCommandName, [
                 '-DLINUX64', '-O2', '-shared', '-fPIC',
                 '-o', this.runtimeSoFile,
                 this.runtimeCFile, this.builtinModuleCFile, this.commCFile,
             ]);
-            await simpleExec('cc', [
+            await simpleExec(this.gccCommandName, [
                 '-DLINUX64', '-O2',
                 '-o', this.shellFile,
                 this.shellCFile, this.runtimeSoFile,
@@ -62,10 +70,10 @@ export class HostDarwinEnv extends HostEnv {
     }
 
     async getGccCommand(): Promise<string> {
-        if (await this.isPackageInstalled('cc')) {
-            return 'cc';
+        if (await this.isPackageInstalled(this.gccCommandName)) {
+            return this.gccCommandName;
         } else {
-            throw new Error('Cannot find cc command. Please install cc.');
+            throw new Error(`Cannot find ${this.gccCommandName} command. Please install ${this.gccCommandName}.`);
         }
     }
 

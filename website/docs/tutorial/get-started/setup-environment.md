@@ -3,10 +3,6 @@ import TabItem from '@theme/TabItem';
 
 # Set up your environment
 
-:::danger Linux not supported
-BlueScript supports **macOS** and **Windows**. **Linux is not supported** at this time.
-:::
-
 In this guide, we will install the BlueScript CLI and flash the runtime environment to your ESP32 microcontroller.
 
 ## Prerequisites
@@ -40,6 +36,11 @@ In this guide, we will install the BlueScript CLI and flash the runtime environm
 For step-by-step installation instructions, see **[Windows prerequisites](./setup-environment-windows.md)**.
 
 </TabItem>
+<TabItem value="linux" label="Linux">
+
+- [Node.js](https://nodejs.org/) v20 or later
+
+</TabItem>
 </OsTabs>
 
 ---
@@ -59,6 +60,13 @@ npm install -g @bscript/cli
 <TabItem value="windows" label="Windows">
 
 Install the [Visual C++ Build Environment](./setup-environment-windows.md#nodejs-and-visual-c-build-environment) first, then:
+
+```bash
+npm install -g @bscript/cli
+```
+
+</TabItem>
+<TabItem value="linux" label="Linux">
 
 ```bash
 npm install -g @bscript/cli
@@ -99,7 +107,7 @@ Connect your ESP32 to your computer via USB and flash the runtime:
 bscript board flash-runtime esp32
 ```
 
-The CLI will display a list of detected serial ports. Use the arrow keys to select the one corresponding to your ESP32 (e.g., /dev/tty.usbserial-xxxx on macOS or COMX on Windows).
+The CLI will display a list of detected serial ports. Use the arrow keys to select the one corresponding to your ESP32 (e.g., /dev/tty.usbserial-xxxx on macOS, COMX on Windows or /dev/ttyUSB0 on Linux).
 
 :::info Device not found?
 If your device does not appear in the list, you may need to install USB-to-UART drivers (e.g., [CP210x](https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers) or [FTDI](https://ftdichip.com/drivers/vcp-drivers/)).

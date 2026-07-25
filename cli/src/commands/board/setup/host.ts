@@ -1,24 +1,24 @@
 import { SetupHandler } from "./base";
 import { BoardName } from "../../../config/board-utils";
-import { HostDarwinEnv, HostWindowsEnv } from "../../../platforms/board-env/host-env";
+import { HostUnixEnv, HostWindowsEnv } from "../../../platforms/board-env/host-env";
 
 
-export class HostDarwinSetupHandler extends SetupHandler {
+export class HostUnixSetupHandler extends SetupHandler {
     boardName: BoardName = 'host';
-    boardEnv: HostDarwinEnv;
+    boardEnv: HostUnixEnv;
     gccCommand?: string;
     arCommand?: string;
     makeCommand?: string;
 
     constructor() {
         super();
-        this.boardEnv = new HostDarwinEnv();
+        this.boardEnv = new HostUnixEnv();
     }
 
     loadBoardSetupSteps(): void {
         this.setupSteps.push({
-            description: "Verify that cc and make are installed.",
-            actionMessage: "Verifying that cc and make are installed...",
+            description: `Verify that ${this.boardEnv.gccCommandName} and make are installed.`,
+            actionMessage: `Verifying that ${this.boardEnv.gccCommandName} and make are installed...`,
             action: this.verifyPrerequisitsInstalledStep.bind(this),
         });
         this.setupSteps.push({

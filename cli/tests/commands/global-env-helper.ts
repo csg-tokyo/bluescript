@@ -2,8 +2,8 @@ import * as path from "path";
 import * as os from "os";
 import * as fs from '../../src/core/fs';
 import { GLOBAL_SETTINGS } from "../../src/config/constants";
-import { CommonBoardEnv, Esp32DarwinEnv, Esp32WindowsEnv } from "../../src/platforms/board-env";
-import { HostDarwinEnv, HostWindowsEnv } from "../../src/platforms/board-env/host-env";
+import { CommonBoardEnv, Esp32UnixEnv, Esp32WindowsEnv } from "../../src/platforms/board-env";
+import { HostUnixEnv, HostWindowsEnv } from "../../src/platforms/board-env/host-env";
 
 const TEMP_DIR = path.join(__dirname, '../../temp-files');
 const DUMMY_BLUESCRIPT_DIR = (suffix: string) => path.join(TEMP_DIR, `.bluescript-${suffix}`);
@@ -16,11 +16,11 @@ export const DUMMY_OLD_ESP_IDF_VERSION = 'v5.3';
 function commonBoardEnv() { return new CommonBoardEnv(); }
 
 function esp32BoardEnv() {
-    return os.platform() === 'win32' ? new Esp32WindowsEnv() : new Esp32DarwinEnv();
+    return os.platform() === 'win32' ? new Esp32WindowsEnv() : new Esp32UnixEnv();
 }
 
 function hostBoardEnv() {
-    return os.platform() === 'win32' ? new HostWindowsEnv() : new HostDarwinEnv();
+    return os.platform() === 'win32' ? new HostWindowsEnv() : new HostUnixEnv();
 }
 export function getTestRuntimeDir() { return commonBoardEnv().runtimeDir; }
 export function getTestEspRootDir() { return esp32BoardEnv().espRootDir; }
@@ -28,9 +28,10 @@ export function getTestEspIdfExportFile() { return esp32BoardEnv().idfExportFile
 export function getTestHostShellFile() { return hostBoardEnv().shellFile; }
 
 export function getExpectedHostToolchain() {
-    return os.platform() === 'win32'
-        ? { gcc: 'gcc', ar: 'ar', make: 'mingw32-make' }
-        : { gcc: 'cc', ar: 'ar', make: 'make' };
+    const osType = os.platform();
+    if (osType === 'darwin') return { gcc: 'cc', ar: 'ar', make: 'make' };
+    if (osType === 'linux') return { gcc: 'gcc', ar: 'ar', make: 'make' };
+    else return { gcc: 'gcc', ar: 'ar', make: 'mingw32-make' };
 }
 
 export function spyGlobalSettings(globalDirSuffix: string) {

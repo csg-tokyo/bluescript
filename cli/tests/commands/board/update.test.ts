@@ -18,11 +18,11 @@ import {
     mockXtensaGccFromIdfToolsExport,
 } from '../global-env-helper';
 import { mockedDownloadAndUnzip, mockedSimpleExec, mockedExecWithLog, mockedExecShell, mockProcessExit } from '../mock-helpers';
-import { HostDarwinEnv, HostWindowsEnv } from '../../../src/platforms/board-env/host-env';
+import { HostUnixEnv, HostWindowsEnv } from '../../../src/platforms/board-env/host-env';
 import * as fs from '../../../src/core/fs';
 import * as os from 'os';
 
-const HostEnvClass = os.platform() === 'win32' ? HostWindowsEnv : HostDarwinEnv;
+const HostEnvClass = os.platform() === 'win32' ? HostWindowsEnv : HostUnixEnv;
 const mockedBuildHostRuntime = jest.spyOn(HostEnvClass.prototype, 'buildHostRuntime');
 
 function mockUpdateShellCommands(options: { gitCloneFails?: boolean }) {

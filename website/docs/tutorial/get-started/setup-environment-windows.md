@@ -22,7 +22,7 @@ Install **both** before running `npm install -g @bscript/cli`.
 **Version:** v20 or later (LTS recommended).
 
 <Tabs>
-<TabItem value="nodejs-official" label="Official installer (recommended)">
+<TabItem value="nodejs-official" label="Official installer">
 
 1. Download the **LTS** installer from [nodejs.org](https://nodejs.org/).
 2. Run the installer and accept the defaults. The option to **add Node.js to PATH** is enabled by default — leave it on.
@@ -69,7 +69,7 @@ You should see version numbers (for example `v22.x.x` and `10.x.x`), not "comman
 **You do not need to add anything to PATH manually** — the installer registers the build tools with Visual Studio’s locator, which node-gyp finds automatically.
 
 <Tabs>
-<TabItem value="vc-official" label="Official installer (recommended)">
+<TabItem value="vc-official" label="Official installer">
 
 1. Download [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (free).
 2. Run the installer. On the **Workloads** tab, check **"Desktop development with C++"** (C++ によるデスクトップ開発).
@@ -92,15 +92,6 @@ Then open a **new** terminal.
 </TabItem>
 </Tabs>
 
-**Verify:** There is no single `cl` command guaranteed on PATH in a normal terminal. The practical check is to install the CLI (after Node.js and the build tools are installed):
-
-```powershell
-npm install -g @bscript/cli
-bscript --version
-```
-
-If `npm install` fails with `gyp ERR! find VS`, the C++ workload is missing or the terminal was opened before installation finished — reinstall the workload and use a **new** terminal.
-
 ---
 
 ## Git {#git}
@@ -110,7 +101,7 @@ If `npm install` fails with `gyp ERR! find VS`, the C++ workload is missing or t
 **Required for:** `bscript board setup esp32` only.
 
 <Tabs>
-<TabItem value="git-official" label="Official installer (recommended)">
+<TabItem value="git-official" label="Official installer">
 
 1. Download [Git for Windows](https://git-scm.com/download/win).
 2. Run the installer. When asked about **Adjusting your PATH environment**, choose **"Git from the command line and also from 3rd-party software"** so `git` works in PowerShell and Command Prompt.
@@ -154,7 +145,7 @@ git --version
 **Version:** 3.8 or later; 3.11+ recommended.
 
 <Tabs>
-<TabItem value="python-official" label="Official installer (recommended)">
+<TabItem value="python-official" label="Official installer">
 
 1. Download Python from [python.org/downloads/windows](https://www.python.org/downloads/windows/).
 2. Run the installer. At the bottom of the first screen, enable **"Add python.exe to PATH"** — this is important.
@@ -211,7 +202,7 @@ They serve different purposes; host development on Windows needs **both**.
 :::
 
 <Tabs>
-<TabItem value="mingw-msys2" label="MSYS2 (recommended)">
+<TabItem value="mingw-msys2" label="MSYS2">
 
 [MSYS2](https://www.msys2.org/) provides a maintained MinGW-w64 environment.
 

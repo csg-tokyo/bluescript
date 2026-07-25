@@ -12,5 +12,12 @@
   },
   "scripts": {
     "build": "tsc -b"
+  },
+  "allowScripts": {
+    "@abandonware/noble@1.9.2-26": true,
+    "@serialport/bindings-cpp@13.0.0": true,
+    "core-js@3.49.0": true,
+    "core-js-pure@3.49.0": true,
+    "usb@2.18.0": true
   }
 }

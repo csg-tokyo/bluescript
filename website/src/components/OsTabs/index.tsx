@@ -6,7 +6,7 @@ import type {Props as TabsProps} from '@theme/Tabs';
 const GROUP_ID = 'os';
 const STORAGE_KEY = `docusaurus.tab.${GROUP_ID}`;
 
-export type OsTabValue = 'macos' | 'windows';
+export type OsTabValue = 'macos' | 'windows' | 'linux';
 
 export function detectOsTabValue(): OsTabValue {
   if (typeof navigator === 'undefined') {
@@ -15,7 +15,7 @@ export function detectOsTabValue(): OsTabValue {
 
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'macos' || stored === 'windows') {
+    if (stored === 'macos' || stored === 'windows' || stored === 'linux') {
       return stored;
     }
   } catch {
@@ -28,6 +28,9 @@ export function detectOsTabValue(): OsTabValue {
   }
   if (/Mac/i.test(ua)) {
     return 'macos';
+  }
+  if (/Linux/i.test(ua)) {
+    return 'linux';
   }
 
   return 'macos';

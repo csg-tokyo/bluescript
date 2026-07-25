@@ -7,7 +7,7 @@ import { PROJECT_DEFAULT_PATHS } from '../../src/config/project-config';
 import { BoardEnv, createBoardEnv } from '../../src/platforms/board-env';
 import { logger } from '../../src/core/logger';
 
-const isHostPlatform = os.platform() === 'darwin' || os.platform() === 'win32';
+const isHostPlatform = os.platform() === 'darwin' || os.platform() === 'win32' || os.platform() === 'linux';
 export const describeHostIntegration = isHostPlatform ? describe : describe.skip;
 
 export type HostPackageSpec = {
