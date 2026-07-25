@@ -1,4 +1,4 @@
-import { BleConnection, DeviceService } from "../../services/ble";
+import { BleConnection, DeviceService } from "../../services/ble/index";
 import { MemoryImage } from "@bscript/lang";
 import { ProgramOutput } from "../../core/logger/program-output";
 import { BoardRuntime } from "./board-runtime";

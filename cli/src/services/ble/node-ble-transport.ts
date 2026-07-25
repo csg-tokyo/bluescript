@@ -5,7 +5,7 @@ import {
     BleTransport,
     bleUuidsEqual,
     isBluetoothAddress,
-} from "./ble-transport";
+} from "./transport";
 
 type Adapter = nodeBle.Adapter;
 type Device = nodeBle.Device;

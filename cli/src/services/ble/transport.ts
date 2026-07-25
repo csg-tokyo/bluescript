@@ -1,4 +1,4 @@
-import { EventEmitter, EventMap } from "./common";
+import { EventEmitter, EventMap } from "../common";
 
 export const BLE_SERVICE_UUID = "b500";
 export const BLE_CHARACTERISTIC_UUID = "b501";
@@ -36,12 +36,12 @@ export function createBleTransport(): BleTransport {
     if (process.platform === "linux") {
         // Lazy-load so macOS/Windows never pull in the BlueZ/D-Bus stack.
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { NodeBleTransport } = require("./ble-node-ble") as typeof import("./ble-node-ble");
+        const { NodeBleTransport } = require("./node-ble-transport");
         return new NodeBleTransport();
     }
     // Lazy-load so Linux never initializes noble's HCI binding.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { NobleBleTransport } = require("./ble-noble") as typeof import("./ble-noble");
+    const { NobleBleTransport } = require("./noble-transport");
     return new NobleBleTransport();
 }
 

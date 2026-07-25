@@ -2,7 +2,7 @@ import {
     BLE_CHARACTERISTIC_UUID,
     BLE_SERVICE_UUID,
     BleTransport,
-} from "./ble-transport";
+} from "./transport";
 import noble, { Characteristic, Peripheral } from "@abandonware/noble";
 
 

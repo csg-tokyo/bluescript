@@ -1,9 +1,9 @@
 import { Buffer } from "node:buffer";
 import { MemoryImage, MemoryLayout } from "@bscript/lang";
-import { logger } from "../core/logger";
-import { Connection, ConnectionMessage, Service } from "./common";
-import { Protocol, ProtocolPacketBuilder, ProtocolParser } from "./device-protocol";
-import { BleTransport, createBleTransport } from "./ble-transport";
+import { logger } from "../../core/logger";
+import { Connection, ConnectionMessage, Service } from "../common";
+import { Protocol, ProtocolPacketBuilder, ProtocolParser } from "../device-protocol";
+import { BleTransport, createBleTransport } from "./transport";
 
 const MTU = 495;
 
