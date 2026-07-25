@@ -8,9 +8,7 @@ The BlueScript CLI (`bscript`) is the primary tool for managing projects, settin
 npm install -g @bscript/cli
 ```
 
-:::info Supported platforms
-BlueScript CLI supports **macOS** and **Windows**. **Linux is not supported.**
-
+:::info Prerequisites
 On Windows, install the Visual C++ Build Environment before `npm install -g @bscript/cli` (required by node-gyp for native dependencies such as `serialport`). See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md).
 :::
 
@@ -158,10 +156,10 @@ bscript board setup <board-name>
 
 **Platform requirements:**
 
-| Board | macOS | Windows |
-| :--- | :--- | :--- |
-| `host` | `cc`, `make` | MinGW-w64: `gcc`, `mingw32-make` |
-| `esp32` | Homebrew, Git, Python 3, `make` | Git, Python 3, `make` or `mingw32-make`. See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md). |
+| Board | macOS | Windows | Linux |
+| :--- | :--- | :--- | :--- |
+| `host` | `cc`, `make` | MinGW-w64: `gcc`, `mingw32-make` | `gcc`, `make` |
+| `esp32` | Homebrew, Git, Python 3, `make` | Git, Python 3, `make` or `mingw32-make`. See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md). | None (Requirements are automatically installed by setup command.) |
 
 For `host`, see [Try Without Microcontroller](../tutorial/guides/try-without-microcontroller.md).
 
@@ -183,7 +181,7 @@ bscript board flash-runtime <board-name> [options]
 
 | Option | Alias | Description |
 | :--- | :--- | :--- |
-| `--port` | `-p` | Serial port (e.g. macOS: `/dev/tty.usbserial-xxxx`; Windows: `COM3`). If omitted, the CLI lists available ports for selection. |
+| `--port` | `-p` | Serial port (e.g. macOS: `/dev/tty.usbserial-xxxx`; Windows: `COM3`; Linux: `/dev/ttyUSB0`). If omitted, the CLI lists available ports for selection. |
 | `--device-name` | `-d` | Bluetooth device name advertised by the runtime after flashing (default: `"BLUESCRIPT"`). Must match `deviceName` in your project's `bsconfig.json` when connecting wirelessly. |
 
 **Example:**

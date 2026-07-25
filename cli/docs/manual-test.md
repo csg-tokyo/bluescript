@@ -40,10 +40,10 @@ Use a clean working directory for project commands (no existing `bsconfig.json` 
 | :--- | :--- | :--- | :--- |
 | **host** | macOS | v18+ (v20+ recommended) | `cc`, `make` |
 | **host** | Windows | v18+ (v20+ recommended) | Visual C++ Build Environment (for npm install), MinGW-w64 (`gcc`, `mingw32-make`) |
+| **host** | Linux | v18+ (v20+ recommended) | `gcc`, `make` |
 | **esp32** | macOS | v18+ (v20+ recommended) | Homebrew, Git, Python 3, ESP32 board, USB cable, Bluetooth enabled |
 | **esp32** | Windows | v18+ (v20+ recommended) | Visual C++ Build Environment (for npm install), Git, Python 3, `make` or `mingw32-make`, ESP32 board, USB cable, Bluetooth enabled |
-
-> ESP32 on Windows (setup, flash, BLE `project run`) has been manually verified. Linux is not supported by the CLI.
+| **esp32** | Linux | v18+ (v20+ recommended) | ESP32 board, USB cable, Bluetooth enabled |
 
 ### Automated integration tests (host)
 
@@ -51,8 +51,8 @@ Host integration tests live in `cli/tests/integration/`. They spawn the real hos
 
 | Requirement | Detail |
 | :--- | :--- |
-| OS | macOS or Windows (tests are skipped on Linux and other platforms) |
-| Toolchain | macOS: `cc`; Windows: MinGW-w64 (`gcc`, `mingw32-make`). Builds `microcontroller/ports/host/build/` on first run if missing. |
+| OS | macOS, Linux or Windows |
+| Toolchain | macOS: `cc`; Windows: MinGW-w64 (`gcc`, `mingw32-make`); Linux: `gcc`. Builds `microcontroller/ports/host/build/` on first run if missing. |
 | Repo layout | Run from `cli/` with the `microcontroller/` tree at the repository root |
 
 ```bash
@@ -67,7 +67,7 @@ CLI log output is suppressed during integration runs (`tests/integration-setup.t
 
 ## Quick smoke (host only, ~15 min)
 
-Run this before merging most CLI PRs. No hardware required. Run on **macOS** or **Windows** (MinGW-w64 for host). The same steps apply on both platforms.
+Run this before merging most CLI PRs. No hardware required. Run on **macOS**, **Linux**, **Windows** (MinGW-w64 for host). The same steps apply on both platforms.
 
 1. **MT-SMOKE-01** — `bscript -v` prints the expected version
 2. **MT-SMOKE-02** — `bscript board list` shows `esp32` and `host`
@@ -736,11 +736,11 @@ For failures, include the item ID (e.g. `MT-PROJ-RUN-03`) in Notes or link to an
 
 ## Coverage map: automated vs manual
 
-Jest **unit** tests in `cli/tests/` mock filesystem, network, and device I/O. **Integration** tests in `cli/tests/integration/` use real host runtime processes on macOS or Windows. Use this table to avoid re-testing automated behavior manually while ensuring gaps are covered.
+Jest **unit** tests in `cli/tests/` mock filesystem, network, and device I/O. **Integration** tests in `cli/tests/integration/` use real host runtime processes on macOS, Linux or Windows. Use this table to avoid re-testing automated behavior manually while ensuring gaps are covered.
 
-| Area | Unit tests | Integration tests (host, macOS/Windows) | Manual testing still needed |
+| Area | Unit tests | Integration tests (host, macOS/Windows/Linux) | Manual testing still needed |
 | :--- | :--- | :--- | :--- |
-| `board setup` | Handler logic, macOS/Windows paths, skip-if-done | — | Real download, ESP-IDF install, host runtime build |
+| `board setup` | Handler logic, macOS/Windows/Linux paths, skip-if-done | — | Real download, ESP-IDF install, host runtime build |
 | `board flash-runtime` | ESP32 handler, host rejection, port prompt mocked, `deviceName` passed to build | — | Actual USB flash on hardware; BLE advertised name after flash |
 | `board remove` / `fullclean` | File removal, prompts mocked | — | Confirm disk state after real removal |
 | `board update` | Update steps, rollback logic | — | End-to-end after real version bump |

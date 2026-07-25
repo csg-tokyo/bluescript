@@ -12,10 +12,6 @@ If you do not have hardware yet—or want a faster path for language and compile
 
 For the main ESP32 workflow, see [Get Started](../get-started/introduction.md).
 
-:::danger Linux not supported
-The host runtime supports **macOS** and **Windows**. **Linux is not supported** at this time.
-:::
-
 ## Prerequisites
 
 <OsTabs>
@@ -38,6 +34,19 @@ xcode-select --install
 - **Visual C++ Build Environment** (for `npm install -g @bscript/cli`; see [Windows prerequisites for ESP32](../get-started/setup-environment-windows.md#nodejs-and-visual-c-build-environment))
 - [MinGW-w64](https://www.mingw-w64.org/) on `PATH`: `gcc` and `mingw32-make`
 - **Git** (`git`)
+
+</TabItem>
+<TabItem value="linux" label="Linux">
+
+- [Node.js](https://nodejs.org/) v20+
+- **build-essential**: `gcc` and `make`
+- **Git** (`git`)
+
+Install Command Line Tools if needed:
+
+```bash
+xcode-select --install
+```
 
 </TabItem>
 </OsTabs>
