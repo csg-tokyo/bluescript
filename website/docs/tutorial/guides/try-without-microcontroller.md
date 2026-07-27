@@ -3,6 +3,7 @@ sidebar_label: Try Without Microcontroller
 ---
 
 import OsTabs from '@site/src/components/OsTabs';
+import InstallCli from '@site/src/components/InstallCli';
 import TabItem from '@theme/TabItem';
 
 # Try Without Microcontroller
@@ -57,9 +58,7 @@ xcode-select --install
 
 If you have not installed the CLI yet:
 
-```bash
-npm install -g @bscript/cli
-```
+<InstallCli />
 
 On Windows, install the [Visual C++ Build Environment](../get-started/setup-environment-windows.md#nodejs-and-visual-c-build-environment) before running this command.
 

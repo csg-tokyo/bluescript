@@ -1,6 +1,6 @@
 {
   "name": "@bscript/cli",
-  "version": "2.0.2",
+  "version": "2.1.0-alpha.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "engines": {
@@ -60,8 +60,8 @@
   },
   "dependencies": {
     "@abandonware/noble": "^1.9.2-26",
-    "@bscript/lang": "2.0.2",
-    "@bscript/notebook": "2.0.2",
+    "@bscript/lang": "2.1.0-alpha.1",
+    "@bscript/notebook": "2.1.0-alpha.1",
     "axios": "^1.12.2",
     "chalk": "^4.1.2",
     "commander": "^14.0.1",

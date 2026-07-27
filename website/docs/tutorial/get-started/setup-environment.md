@@ -1,4 +1,5 @@
 import OsTabs from '@site/src/components/OsTabs';
+import InstallCli from '@site/src/components/InstallCli';
 import TabItem from '@theme/TabItem';
 
 # Set up your environment
@@ -52,25 +53,19 @@ BlueScript provides a command-line interface (CLI) to manage projects and commun
 <OsTabs>
 <TabItem value="macos" label="macOS">
 
-```bash
-npm install -g @bscript/cli
-```
+<InstallCli />
 
 </TabItem>
 <TabItem value="windows" label="Windows">
 
 Install the [Visual C++ Build Environment](./setup-environment-windows.md#nodejs-and-visual-c-build-environment) first, then:
 
-```bash
-npm install -g @bscript/cli
-```
+<InstallCli />
 
 </TabItem>
 <TabItem value="linux" label="Linux">
 
-```bash
-npm install -g @bscript/cli
-```
+<InstallCli />
 
 </TabItem>
 </OsTabs>

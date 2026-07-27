@@ -1,12 +1,12 @@
+import InstallCli from '@site/src/components/InstallCli';
+
 # CLI
 
 The BlueScript CLI (`bscript`) is the primary tool for managing projects, setting up board environments, and running code on your devices.
 
 ## Installation
 
-```bash
-npm install -g @bscript/cli
-```
+<InstallCli />
 
 ## Project Management
 
