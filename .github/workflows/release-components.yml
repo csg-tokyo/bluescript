@@ -8,24 +8,24 @@ jobs:
   release-microcontroller:
     name: Build and Upload microcontroller
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Create ZIP of 'microcontroller' directory
-        run: zip -r release-microcontroller-${{ github.ref_name }}.zip microcontroller
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: zip -r "release-microcontroller-${TAG_NAME}.zip" microcontroller
 
       - name: Upload microcontroller ZIP to Release
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./release-microcontroller-${{ github.ref_name }}.zip
-          asset_name: release-microcontroller-${{ github.ref_name }}.zip
-          asset_content_type: application/zip
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: gh release upload "$TAG_NAME" "release-microcontroller-${TAG_NAME}.zip" --clobber
+
   release-lang-cli-notebook:
     name: Publish @bscript/lang, @bscript/cli, and @bscript/notebook
     runs-on: ubuntu-latest
@@ -48,18 +48,25 @@ jobs:
 
       - name: Determine npm dist-tag
         id: npm_tag
+        env:
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
 
-          if [ "${{ github.event.release.prerelease }}" = "true" ]; then
-            NPM_TAG=$(node -e "
-              const m = process.argv[1].match(/-([0-9A-Za-z-]+)/);
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            NPM_TAG=$(node -e '
+              const version = process.argv[1];
+              const m = version.match(/^\d+\.\d+\.\d+-([0-9A-Za-z-]+)/);
               if (!m) {
-                console.error('::error::GitHub pre-release requires a semver prerelease segment (e.g. 2.0.0-alpha.1)');
+                console.error("::error::GitHub pre-release requires a semver prerelease segment (e.g. 2.0.0-alpha.1)");
+                process.exit(1);
+              }
+              if (/^\d+$/.test(m[1])) {
+                console.error("::error::Prerelease identifier must not be numeric (" + m[1] + "); use e.g. 2.0.0-alpha.1");
                 process.exit(1);
               }
               process.stdout.write(m[1]);
-            " "$TAG_VERSION")
+            ' "$TAG_VERSION")
             echo "Pre-release: publishing to npm dist-tag '${NPM_TAG}' (version ${TAG_VERSION})"
           else
             if [[ "$TAG_VERSION" == *-* ]]; then
@@ -71,49 +78,39 @@ jobs:
           fi
 
           echo "tag=${NPM_TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG_VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Verify Version of @bscript/lang Matches Tag
+      - name: Verify Package Versions Match Tag
+        env:
+          TAG_VERSION: ${{ steps.npm_tag.outputs.version }}
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          PKG_VERSION=$(node -p "require('./lang/package.json').version")
-          
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::Version Mismatch! Tag ($TAG_VERSION) != ./lang/package.json ($PKG_VERSION)"
-            exit 1
-          fi
-          echo "Version check of @bscript/lang passed: $TAG_VERSION"
+          node -e '
+            const fs = require("fs");
+            const tagVersion = process.env.TAG_VERSION;
+            const workspaces = ["lang", "notebook", "cli"];
+            const errors = [];
 
-      - name: Verify Version of @bscript/cli Matches Tag and @bscript/cli Installs Correct @bscript/lang Version
-        run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          PKG_VERSION=$(node -p "require('./cli/package.json').version")
-          DEP_LANG_VERSION=$(node -p "require('./cli/package.json').dependencies['@bscript/lang']")
-          
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::Version Mismatch! Tag ($TAG_VERSION) != ./cli/package.json ($PKG_VERSION)"
-            exit 1
-          fi
-          if [ "$TAG_VERSION" != "$DEP_LANG_VERSION" ]; then
-            echo "::error::Version Mismatch! @bscript/lang@($DEP_LANG_VERSION) in dependencies is incorrect."
-            exit 1
-          fi
-          echo "Version check of @bscript/cli passed: $TAG_VERSION"
+            for (const workspace of workspaces) {
+              const pkg = JSON.parse(fs.readFileSync(`./${workspace}/package.json`, "utf8"));
 
-      - name: Verify Version of @bscript/notebook Matches Tag and @bscript/notebook Installs Correct @bscript/lang Version
-        run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          PKG_VERSION=$(node -p "require('./notebook/package.json').version")
-          DEP_LANG_VERSION=$(node -p "require('./notebook/package.json').dependencies['@bscript/lang']")
-          
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::Version Mismatch! Tag ($TAG_VERSION) != ./notebook/package.json ($PKG_VERSION)"
-            exit 1
-          fi
-          if [ "$TAG_VERSION" != "$DEP_LANG_VERSION" ]; then
-            echo "::error::Version Mismatch! @bscript/lang@($DEP_LANG_VERSION) in dependencies is incorrect."
-            exit 1
-          fi
-          echo "Version check of @bscript/notebook passed: $TAG_VERSION"
+              if (pkg.version !== tagVersion) {
+                errors.push(`${pkg.name}: version ${pkg.version} does not match tag ${tagVersion}`);
+              }
+
+              for (const [dep, range] of Object.entries(pkg.dependencies ?? {})) {
+                if (dep.startsWith("@bscript/") && range !== tagVersion) {
+                  errors.push(`${pkg.name}: dependency ${dep}@${range} must be pinned to ${tagVersion}`);
+                }
+              }
+            }
+
+            if (errors.length > 0) {
+              for (const error of errors) console.error(`::error::${error}`);
+              process.exit(1);
+            }
+
+            console.log(`Version check passed for ${workspaces.join(", ")}: ${tagVersion}`);
+          '
 
       - name: Install Dependencies
         run: npm ci
@@ -121,14 +118,40 @@ jobs:
       - name: Build Packages
         run: npm run build --workspaces --if-present
 
+      # Published in dependency order (lang -> notebook -> cli) so that a freshly
+      # published package can always resolve the @bscript/* versions it depends on.
       - name: Publish @bscript/lang to npm
         working-directory: ./lang
-        run: npm publish --tag ${{ steps.npm_tag.outputs.tag }} || echo 'Failed or skipped publishing @bscript/lang'
+        env:
+          NPM_TAG: ${{ steps.npm_tag.outputs.tag }}
+          TAG_VERSION: ${{ steps.npm_tag.outputs.version }}
+        run: |
+          if npm view "@bscript/lang@${TAG_VERSION}" version > /dev/null 2>&1; then
+            echo "@bscript/lang@${TAG_VERSION} is already published; skipping."
+            exit 0
+          fi
+          npm publish --tag "$NPM_TAG"
+
+      - name: Publish @bscript/notebook to npm
+        working-directory: ./notebook
+        env:
+          NPM_TAG: ${{ steps.npm_tag.outputs.tag }}
+          TAG_VERSION: ${{ steps.npm_tag.outputs.version }}
+        run: |
+          if npm view "@bscript/notebook@${TAG_VERSION}" version > /dev/null 2>&1; then
+            echo "@bscript/notebook@${TAG_VERSION} is already published; skipping."
+            exit 0
+          fi
+          npm publish --tag "$NPM_TAG"
 
       - name: Publish @bscript/cli to npm
         working-directory: ./cli
-        run: npm publish --tag ${{ steps.npm_tag.outputs.tag }} || echo 'Failed or skipped publishing @bscript/cli'
-        
-      - name: Publish @bscript/notebook to npm
-        working-directory: ./notebook
-        run: npm publish --tag ${{ steps.npm_tag.outputs.tag }} || echo 'Failed or skipped publishing @bscript/notebook'
+        env:
+          NPM_TAG: ${{ steps.npm_tag.outputs.tag }}
+          TAG_VERSION: ${{ steps.npm_tag.outputs.version }}
+        run: |
+          if npm view "@bscript/cli@${TAG_VERSION}" version > /dev/null 2>&1; then
+            echo "@bscript/cli@${TAG_VERSION} is already published; skipping."
+            exit 0
+          fi
+          npm publish --tag "$NPM_TAG"

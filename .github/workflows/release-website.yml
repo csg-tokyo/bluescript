@@ -36,14 +36,18 @@ jobs:
 
       - name: Determine Version
         id: determine_version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TAG_NAME: ${{ github.ref_name }}
+          RELEASE_IS_PRERELEASE: ${{ github.event.release.prerelease }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           # 1. Get raw version number (e.g. 2.0.5 or 2.1.0-alpha.1)
-          if [ "${{ github.event_name }}" == "release" ]; then
-            TAG_NAME=${{ github.ref_name }}
-            RAW_VERSION=${TAG_NAME#v}
-            IS_PRERELEASE="${{ github.event.release.prerelease }}"
+          if [ "$EVENT_NAME" = "release" ]; then
+            RAW_VERSION="${TAG_NAME#v}"
+            IS_PRERELEASE="$RELEASE_IS_PRERELEASE"
           else
-            RAW_VERSION="${{ inputs.version }}"
+            RAW_VERSION="$INPUT_VERSION"
             if [[ "$RAW_VERSION" == *-* ]]; then
               IS_PRERELEASE="true"
             else
@@ -53,8 +57,14 @@ jobs:
           echo "Detected raw version: $RAW_VERSION"
           echo "Pre-release: $IS_PRERELEASE"
 
-          # 2. Validate GitHub release type vs semver
-          if [ "${{ github.event_name }}" == "release" ]; then
+          # 2. Validate the version format
+          if ! [[ "$RAW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid version: ${RAW_VERSION}. Expected format like 2.0.5 or 2.1.0-alpha.1"
+            exit 1
+          fi
+
+          # 3. Validate GitHub release type vs semver
+          if [ "$EVENT_NAME" = "release" ]; then
             if [ "$IS_PRERELEASE" = "true" ] && [[ "$RAW_VERSION" != *-* ]]; then
               echo "::error::GitHub pre-release requires a semver prerelease segment (e.g. 2.1.0-alpha.1)"
               exit 1
@@ -65,25 +75,38 @@ jobs:
             fi
           fi
 
-          # 3. Convert to Docusaurus doc version
+          # 4. Convert to Docusaurus doc version
           if [ "$IS_PRERELEASE" = "true" ]; then
-            DOC_VERSION=$(node -e "
-              const m = process.argv[1].match(/^(\d+\.\d+\.\d+)-([0-9A-Za-z-]+)/);
+            DOC_VERSION=$(node -e '
+              const version = process.argv[1];
+              const m = version.match(/^(\d+\.\d+\.\d+)-([0-9A-Za-z-]+)/);
               if (!m) {
-                console.error('::error::Could not derive doc version from prerelease (${RAW_VERSION}). Expected format like 2.1.0-alpha.1');
+                console.error("::error::Could not derive doc version from prerelease (" + version + "). Expected format like 2.1.0-alpha.1");
                 process.exit(1);
               }
-              process.stdout.write(m[1] + '-' + m[2].split('.')[0] + '.x');
-            " "$RAW_VERSION")
+              process.stdout.write(m[1] + "-" + m[2] + ".x");
+            ' "$RAW_VERSION")
           else
             BASE_VER=${RAW_VERSION%.*}
             DOC_VERSION="${BASE_VER}.x"
           fi
 
+          # 5. Build the pull request texts. They contain ": ", which is not valid inside
+          # an unquoted YAML value in the create-pull-request step.
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            PR_TITLE="docs: update pre-release version ${DOC_VERSION} (${RAW_VERSION})"
+            PR_BODY="Automated docs update for pre-release ${DOC_VERSION} (tag version ${RAW_VERSION})."
+          else
+            PR_TITLE="docs: update version ${DOC_VERSION}"
+            PR_BODY="Automated docs update for version ${DOC_VERSION}."
+          fi
+
           echo "Target Docusaurus Version: $DOC_VERSION"
-          echo "doc_version=$DOC_VERSION" >> $GITHUB_OUTPUT
-          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
-          echo "raw_version=$RAW_VERSION" >> $GITHUB_OUTPUT
+          echo "doc_version=$DOC_VERSION" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "raw_version=$RAW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "pr_title=$PR_TITLE" >> "$GITHUB_OUTPUT"
+          echo "pr_body=$PR_BODY" >> "$GITHUB_OUTPUT"
 
       - name: Remove prerelease doc versions on stable release
         if: steps.determine_version.outputs.is_prerelease != 'true'
@@ -117,17 +140,33 @@ jobs:
             fi
           }
 
-          # e.g. stable 2.1.0 -> 2.1.0-alpha.x, 2.1.0-beta.x
+          # Any prerelease docs whose base version is at or below the stable release are
+          # superseded by it, e.g. stable 2.1.1 removes 2.1.0-alpha.x and 2.1.1-beta.x.
           PRERELEASE_VERSIONS=$(
             {
               if [ -f "$VERSIONS_JSON" ]; then
-                jq -r --arg raw "$RAW_VERSION" '.[] | select(startswith($raw + "-") and endswith(".x"))' "$VERSIONS_JSON"
+                jq -r '.[]' "$VERSIONS_JSON"
               fi
               shopt -s nullglob
-              for dir in versioned_docs/version-"${RAW_VERSION}"-*.x; do
+              for dir in versioned_docs/version-*; do
                 basename "$dir" | sed 's/^version-//'
               done
-            } | sort -u
+            } | sort -u | node -e '
+              const stable = process.env.RAW_VERSION.split("-")[0].split(".").map(Number);
+              const isSuperseded = (base) => {
+                for (let i = 0; i < 3; i++) {
+                  if (base[i] !== stable[i]) return base[i] < stable[i];
+                }
+                return true;
+              };
+
+              for (const line of require("fs").readFileSync(0, "utf8").split("\n")) {
+                const docVersion = line.trim();
+                const m = docVersion.match(/^(\d+)\.(\d+)\.(\d+)-[0-9A-Za-z-]+\.x$/);
+                if (!m) continue;
+                if (isSuperseded(m.slice(1, 4).map(Number))) console.log(docVersion);
+              }
+            '
           )
 
           if [ -z "$PRERELEASE_VERSIONS" ]; then
@@ -170,20 +209,40 @@ jobs:
             echo "Version $DOC_VERSION does not exist yet. Ready to create."
           fi
 
+      # The pull request has to be based on main, but the snapshot must contain the docs
+      # as they were at the released tag, not whatever landed on main afterwards.
+      - name: Check Out Docs From the Released Tag
+        if: github.event_name == 'release'
+        working-directory: ./website
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if git rev-parse --verify "refs/tags/${TAG_NAME}" > /dev/null 2>&1; then
+            git checkout "refs/tags/${TAG_NAME}" -- docs sidebars.ts
+            echo "Using docs from tag ${TAG_NAME}."
+          else
+            echo "::warning::Tag ${TAG_NAME} not found; falling back to the docs on main."
+          fi
+
       - name: Run Docusaurus Versioning
         working-directory: ./website
         env:
           DOC_VERSION: ${{ steps.determine_version.outputs.doc_version }}
         run: |
           echo "Creating version $DOC_VERSION..."
-          npm run docusaurus docs:version $DOC_VERSION
+          npm run docusaurus docs:version "$DOC_VERSION"
+
+      - name: Restore Docs From main
+        if: github.event_name == 'release'
+        working-directory: ./website
+        run: git restore --source=HEAD --staged --worktree -- docs sidebars.ts
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: ${{ steps.determine_version.outputs.is_prerelease == 'true' && format('docs: update pre-release version {0} ({1})', steps.determine_version.outputs.doc_version, steps.determine_version.outputs.raw_version) || format('docs: update version {0}', steps.determine_version.outputs.doc_version) }}
-          title: ${{ steps.determine_version.outputs.is_prerelease == 'true' && format('docs: update pre-release version {0} ({1})', steps.determine_version.outputs.doc_version, steps.determine_version.outputs.raw_version) || format('docs: update version {0}', steps.determine_version.outputs.doc_version) }}
-          body: ${{ steps.determine_version.outputs.is_prerelease == 'true' && format('Automated docs update for pre-release {0} (tag version {1}).', steps.determine_version.outputs.doc_version, steps.determine_version.outputs.raw_version) || format('Automated docs update for version {0}.', steps.determine_version.outputs.doc_version) }}
+          commit-message: ${{ steps.determine_version.outputs.pr_title }}
+          title: ${{ steps.determine_version.outputs.pr_title }}
+          body: ${{ steps.determine_version.outputs.pr_body }}
           branch: docs-version-${{ steps.determine_version.outputs.doc_version }}
           base: main
