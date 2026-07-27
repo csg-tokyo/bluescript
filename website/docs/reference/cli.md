@@ -1,15 +1,15 @@
+import InstallCli from '@site/src/components/InstallCli';
+
 # CLI
 
 The BlueScript CLI (`bscript`) is the primary tool for managing projects, setting up board environments, and running code on your devices.
 
 ## Installation
 
-```bash
-npm install -g @bscript/cli
-```
+<InstallCli />
 
 :::info Prerequisites
-On Windows, install the Visual C++ Build Environment before `npm install -g @bscript/cli` (required by node-gyp for native dependencies such as `serialport`). See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md).
+On Windows, install the Visual C++ Build Environment before installing the CLI (required by node-gyp for native dependencies such as `serialport`). See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md).
 :::
 
 ## Project Management
