@@ -184,19 +184,19 @@ print(arr.length)  // 3
 
 The second argumemnt to the constructor of `Uint8Array` cannot be omitted.
 
-### `Vector` class
+### `FixedArray` class
 
-A `Vector` object is a fixed-length array.  Its element type is `any`.
+A `FixedArray` object is a fixed-length array.  Its element type is `any`.
 
 ```tsx
-let arr = new Vector(3, undefined)  // create an array containing 3 elements.  Their initial value is undefined.
+let arr = new FixedArray(3, undefined)  // create an array containing 3 elements.  Their initial value is undefined.
 print(arr[1])      // undefined
 arr[0] = 7
 print(arr[0])      // 7
 print(arr.length)  // 3
 ```
 
-A `Vector` object is accessible by the `[]` operator as an array of type `integer[]` is.
+A `FixedArray` object is accessible by the `[]` operator as an array of type `integer[]` is.
 
 ### Properties and methods
 
@@ -222,7 +222,7 @@ The following methods are available:
 Here, `T` is an element type.
 
 However, arrays of `integer`, `float`, or `boolean` do not accept these methods.
-`Uint8Array`, or `Vector` do not accept them, either.
+`Uint8Array`, or `FixedArray` do not accept them, either.
 They are fixed-length arrays.
 
 Currently, methods such as `map`, `filter`, etc., are not supported.

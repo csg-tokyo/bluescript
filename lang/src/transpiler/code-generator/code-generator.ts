@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
 import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
-         StringT,  UnionType, VectorClass, StringType,
+         StringT,  UnionType, FixedArrayClass, StringType,
          EnumType} from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
@@ -1693,7 +1693,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           this.visit(node.object, env)
           this.result.write(`, ${cr.getArrayLengthIndex(BooleanT)})`)
         }
-        else if (propertyName === ArrayType.lengthProperty && objType.name() === VectorClass) {
+        else if (propertyName === ArrayType.lengthProperty && objType.name() === FixedArrayClass) {
           this.result.write(cr.getObjectPrimitiveProperty(Integer))
           this.visit(node.object, env)
           this.result.write(`, ${cr.getArrayLengthIndex(Any)})`)

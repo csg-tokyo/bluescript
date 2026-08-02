@@ -4,7 +4,7 @@ import * as AST from '@babel/types'
 import { ErrorLog } from './utils'
 import * as visitor from './visitor'
 
-import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType, VectorClass, StringType } from './types'
+import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType, FixedArrayClass, StringType } from './types'
 
 import {
   Integer, Float, BooleanT, StringT, Void, Null, Any,
@@ -82,7 +82,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   addBuiltinTypes(node: AST.Node, names: NameTable<Info>) {
     this.addBuiltinClass(names, node, ByteArrayClass, [Integer, Integer])
-    this.addBuiltinClass(names, node, VectorClass, [Integer, Any])
+    this.addBuiltinClass(names, node, FixedArrayClass, [Integer, Any])
   }
 
   // if constructorParams is undefined, this class may not be instantiated.
@@ -1465,7 +1465,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.addStaticType(node, Integer)
       this.result = Integer
     }
-    else if (this.result instanceof InstanceType && this.result.name() === VectorClass) {
+    else if (this.result instanceof InstanceType && this.result.name() === FixedArrayClass) {
       this.addStaticType(node, Any)
       this.result = Any
     }
@@ -1497,7 +1497,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           const unboxed = type.unboxedProperties()
           return unboxed === undefined || unboxed <= typeAndIndex[1]
         }
-        else if (propertyName === ArrayType.lengthProperty && (type.name() === ByteArrayClass || type.name() === VectorClass)) {
+        else if (propertyName === ArrayType.lengthProperty && (type.name() === ByteArrayClass || type.name() === FixedArrayClass)) {
           this.assert(readonly, 'cannot change .length', node.property)
           this.result = Integer
           return false  // an uboxed value.

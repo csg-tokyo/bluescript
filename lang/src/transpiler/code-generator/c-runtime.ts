@@ -6,7 +6,7 @@ import { Integer, Float, BooleanT, StringT, Void, Null, Any,
     ObjectType, objectType, FunctionType,
     StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype,
     ByteArrayClass, UnionType, EnumType,
-    VectorClass} from '../types'
+    FixedArrayClass} from '../types'
 import { InstanceType, ClassTable, StaticPropertyInfo } from '../classes'
 import { VariableEnv } from './variables'
 
@@ -380,7 +380,7 @@ export function makeBoxedValue(type: StaticType, value?: string) {
 export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticType | undefined, node: AST.Node) {
   if (arrayType instanceof InstanceType && arrayType.name() === ByteArrayClass)
     return '(*gc_bytearray_get('
-  else if (arrayType instanceof InstanceType && arrayType.name() === VectorClass)
+  else if (arrayType instanceof InstanceType && arrayType.name() === FixedArrayClass)
     return '(gc_vector_get('
   else if (arrayType === Any)
     return '(gc_safe_array_get('
@@ -399,7 +399,7 @@ export function arrayElementSetter(arrayType: StaticType | undefined) {
     throw new Error('unknown array type')
   else if (arrayType === Any)
     return 'gc_safe_array_set('
-  else if (arrayType instanceof InstanceType && arrayType.name() === VectorClass)
+  else if (arrayType instanceof InstanceType && arrayType.name() === FixedArrayClass)
     return 'gc_vector_set('
   else
     return `gc_array_set(`
@@ -595,7 +595,7 @@ export function makeInstance(clazz: InstanceType, func: () => string) {
   const name = clazz.name()
   if (name === ByteArrayClass)
     return 'gc_new_bytearray(false'
-  else if (name === VectorClass)
+  else if (name === FixedArrayClass)
     return 'gc_new_vector('
   else
     return `${constructorNameInC(name)}(${func()}gc_new_object(&${classObjectNameInC(name)})`

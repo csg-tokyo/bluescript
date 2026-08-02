@@ -1358,14 +1358,14 @@ print(Foo.baz)
   expect(importAndCompileAndRun(src, imp.importer(), imp.init(), imp.files(), imp.path)).toBe('3\nfoo\ntrue\n')
 })
 
-test('Vector class', () => {
+test('FixeArray class', () => {
   const src = `
   function bar() {
     const a = new Uint8Array(3, 7)
     print(a.length)
   }
   function foo() {
-    const a = new Vector(3, null)
+    const a = new FixedArray(3, null)
     print(a.length)
     a[0] = 13
     a[1] = 'foo'
@@ -1374,7 +1374,7 @@ test('Vector class', () => {
     print(b.length)
     b[1] = 73
     print(b[1])
-    print((b as Vector)[2])
+    print((b as FixedArray)[2])
     const c: any = b
     print(c[0])
   }
@@ -1681,7 +1681,7 @@ test('integer[]#push, pop, etc', () => {
   print(ary.shift())`
   expect(() => compileAndRun(src3, destFile)).toThrow(/unknown property name: shift/)
 
-  const src4 = `const ary = new Vector(3, 0)
+  const src4 = `const ary = new FixedArray(3, 0)
   print(ary.shift())`
   expect(() => compileAndRun(src4, destFile)).toThrow(/unknown property name: shift/)
 

@@ -9,7 +9,7 @@ export const Null = 'null'
 export const Any = 'any'
 
 export const ByteArrayClass = 'Uint8Array'    // Uint8Array is also used as byte[].
-export const VectorClass = 'Vector'
+export const FixedArrayClass = 'FixedArray'
 
 export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' |
   ObjectType | FunctionType | UnionType | EnumType
@@ -127,7 +127,7 @@ export class FunctionType extends CompositeType {
 }
 
 // This class represents both an array of instances and an array of primitive types.
-// It does not represent built-in array-like types such as Uint8Array and Vector.
+// It does not represent built-in array-like types such as Uint8Array and FixedArray.
 export class ArrayType extends ObjectType {
   // see builtinPropertiesAndMethods in classes.ts
   static readonly lengthProperty = 'length'
