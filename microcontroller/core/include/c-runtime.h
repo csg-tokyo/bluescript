@@ -260,12 +260,12 @@ extern int32_t CR_SECTION gc_bytearray_length(value_t obj);
 extern uint8_t* CR_SECTION gc_bytearray_get(value_t obj, int32_t index);
 extern bool CR_SECTION gc_is_boolarray(value_t v);
 
-extern value_t CR_SECTION safe_value_to_vector(bool nullable, value_t v);
-extern value_t CR_SECTION gc_new_vector(int32_t n, value_t init_value);
-extern int32_t CR_SECTION gc_vector_length(value_t obj); 
-extern value_t CR_SECTION gc_vector_get(value_t obj, int32_t index);
-extern value_t CR_SECTION gc_vector_set(value_t obj, int32_t index, value_t new_value);
-extern value_t CR_SECTION gc_make_vector(int32_t n, ...);
+extern value_t CR_SECTION safe_value_to_fixarray(bool nullable, value_t v);
+extern value_t CR_SECTION gc_new_fixarray(int32_t n, value_t init_value);
+extern int32_t CR_SECTION gc_fixarray_length(value_t obj);
+extern value_t CR_SECTION gc_fixarray_get(value_t obj, int32_t index);
+extern value_t CR_SECTION gc_fixarray_set(value_t obj, int32_t index, value_t new_value);
+extern value_t CR_SECTION gc_make_fixarray(int32_t n, ...);
 
 extern bool CR_SECTION gc_is_instance_of_array(value_t obj);
 extern value_t CR_SECTION safe_value_to_anyarray(bool nullable, value_t v);
