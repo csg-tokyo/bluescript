@@ -162,17 +162,17 @@ export class ArrayType extends ObjectType {
     return false
   }
 
-  findMethod(name: string): [StaticType, number] | undefined {
+  findMethod(name: string): [StaticType, number, this] | undefined {
     if (isPrimitiveType(this.elementType))
       return undefined  // primitive-type arrays do not have methods
     else if (name === ArrayType.pushMethod)
-      return [new FunctionType(Integer, [this.elementType]), 0]
+      return [new FunctionType(Integer, [this.elementType]), 0, this]
     else if (name === ArrayType.popMethod)
-      return [new FunctionType(new UnionType([this.elementType, Null]), []), 1]
+      return [new FunctionType(new UnionType([this.elementType, Null]), []), 1, this]
     else if (name === ArrayType.unshiftMethod)
-      return [new FunctionType(Integer, [this.elementType]), 2]
+      return [new FunctionType(Integer, [this.elementType]), 2, this]
     else if (name === ArrayType.shiftMethod)
-      return [new FunctionType(new UnionType([this.elementType, Null]), []), 3]
+      return [new FunctionType(new UnionType([this.elementType, Null]), []), 3, this]
     else
       return undefined
   }
@@ -366,6 +366,8 @@ export function isConsistent(t1: StaticType, t2: StaticType) {
     return t1 !== t2 && t2 !== Void
   else if (t2 === Any)
     return t1 !== Void
+  else if (t1 instanceof ArrayType && t2 instanceof ArrayType)
+    return isConsistent(t1.elementType, t2.elementType)
   else
     return false
 }

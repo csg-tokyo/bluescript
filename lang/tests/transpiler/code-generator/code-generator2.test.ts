@@ -2095,3 +2095,31 @@ test('wrong array construction', () => {
   `
   expect(() => { compileAndRun(src, destFile) }).toThrow(/string.*line 2.*\n.*integer.*line 3.*\n.*boolean.*line 4.*\n/)
 })
+
+test('consistency between any[] and specific arrays', () => {
+  const src = `
+  function foo() {
+    const a: any[] = [1, 2, 3]
+    const b: integer[] = a
+    print(a[0] + a[1] + a[2])
+    print(b[0] + b[1] + b[2])
+    print(b.length)
+  }
+  foo()
+  `
+
+  expect(compileAndRun(src, destFile)).toBe('6\n6\n3\n')
+})
+
+test('consistency between any[] and specific arrays and method calls', () => {
+  const src = `
+  function foo() {
+    const a: integer[] = [1, 2, 3]
+    const b: any[] = a
+    print(b.pop())
+  }
+  foo()
+  `
+
+  expect(() => compileAndRun(src, destFile)).toThrow(/runtime type error.*anyarray/)
+})

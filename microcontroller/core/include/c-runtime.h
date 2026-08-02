@@ -269,6 +269,7 @@ extern value_t CR_SECTION gc_make_vector(int32_t n, ...);
 
 extern bool CR_SECTION gc_is_instance_of_array(value_t obj);
 extern value_t CR_SECTION safe_value_to_anyarray(bool nullable, value_t v);
+extern value_t CR_SECTION safe_anyarray_to_anyarrayobj(value_t v);
 extern value_t CR_SECTION gc_new_array(const class_object* clazz, int32_t n, value_t init_value);
 extern value_t CR_SECTION gc_copy_array(const class_object* clazz, value_t array);
 extern value_t CR_SECTION gc_make_array(const class_object* clazz, int32_t n, ...);

@@ -58,9 +58,8 @@ BlueScript currently supports arrays of `integer`, `float`, `boolean`, `string`,
 array types, and `any`-type.
 Their names are `T[]`, where `T` is an element type.
 
-Array types are invariant.  For example, `integer[]` is not a subtype of `any[]` or its super type.
-But array types can be implicitly converted into `any`-type, and vice versa.
-In other words, a reference to an array of `integer`, `any`, etc. is implicitly converted into an `any`-type value.
+Array types can be implicitly converted into `any`-type, and vice versa.
+In other words, a reference to an array of `integer`, `float`, etc. is implicitly converted into an `any`-type value.
 An `any`-type value is also implicitly converted into a reference to an array
 if the `any`-type value points to an array object of that array type.
 Otherwise, a runtime error is thrown.
@@ -69,6 +68,25 @@ Otherwise, a runtime error is thrown.
 let iarr: integer[] = [1, 2, 3]
 let a: any = iarr
 let i: integer = a[0]       // a[0] is an `any`-type value although iarr[0] is an integer
+```
+
+An array type is invariant.  For example, `A[]` is not a subtype of `B[]` or its super type even when the type `A` is a subtype of `B`.
+However, an array type may be implicitly converted into `any[]`.
+
+```tsx
+let iarr: integer[] = [1, 2, 3]
+let a: any[] = iarr
+let i: integer = a[0]     // a[0] is an `any`-type value
+a[0] = 'one'              // runtime error.  The array can contain only integers.
+```
+
+Arrays can be constructed to contain values of `any`-type.
+Their types are `any[]`.
+
+```tsx
+let arr = [1, "Two", 3.0]  // arr's type is any[]
+let a = arr[0]             // a[0] is an `any`-type value
+arr[0] = "One"             // An any type of value can be stored.
 ```
 
 ### Array Literals
