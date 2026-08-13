@@ -54,12 +54,13 @@ are identified by an integer index.
 
 ### Array Objects
 
-BlueScript currently supports arrays of `integer`, `float`, `boolean`, `string`, class types, 
-array types, and `any`-type.
+BlueScript currently supports arrays of `integer`, `int32`, `float`, `boolean`, `string`, class types, 
+array types, and the `any` type.
 Their names are `T[]`, where `T` is an element type.
 
-Array types can be implicitly converted into `any`-type, and vice versa.
-In other words, a reference to an array of `integer`, `float`, etc. is implicitly converted into an `any`-type value.
+Array types can be implicitly converted into the `any` type, and vice versa.
+In other words, a reference to an array of `integer`, `float`, etc. is implicitly converted
+into an value of the `any` type (i.e. an `any`-type value).
 An `any`-type value is also implicitly converted into a reference to an array
 if the `any`-type value points to an array object of that array type.
 Otherwise, a runtime error is thrown.
@@ -70,7 +71,8 @@ let a: any = iarr
 let i: integer = a[0]       // a[0] is an `any`-type value although iarr[0] is an integer
 ```
 
-An array type is invariant.  For example, `A[]` is not a subtype of `B[]` or its super type even when the type `A` is a subtype of `B`.
+An array type is invariant.  For example, `A[]` is not a subtype of `B[]` or its super type
+even when the type `A` is a subtype of `B`.
 However, an array type may be implicitly converted into `any[]`.
 
 ```tsx
@@ -80,7 +82,7 @@ let i: integer = a[0]     // a[0] is an `any`-type value
 a[0] = 'one'              // runtime error.  The array can contain only integers.
 ```
 
-Arrays can be constructed to contain values of `any`-type.
+Arrays can be constructed to contain values of the `any` type.
 Their types are `any[]`.
 
 ```tsx
@@ -115,19 +117,21 @@ let arr = [1, 2.0, 'three']           // any[]
 
 An array object is created by `new Array<T>(size, value)`.  Here, `T` is a meta variable representing a type name.
 `size` is the number of the array elements.  `value` is the initial value for the array elements.
-`T` can be `integer`, `float`, `boolean`, `string`, an array type, a class type, or `any`-type.
+`T` can be `integer`, `int32`, `float`, `boolean`, `string`, an array type, a class type, or the `any` type.
 
 ```tsx
 let iarr = new Array<integer>(3, 0);
 ```
 
-When the element type is `integer`, `float`, `boolean`, or `any`,
+When the element type is `integer`, `int32`, `float`, `boolean`, or `any`,
 the second argument to the `Array` constructor can be omitted.
 The initial values are zero, `false`, or `undefined`.
 For example, `new Array<integer>(7)` is a valid expression, and it
 constructs an array including 7 elements.
 
-The constructor for the `Array<T>` type provides two other overloads: one accepting an array of type `T[]`, and another accepting an array of type `any[]`.  This is particularly convenient when initializing an array using a variable of type `any`."
+The constructor for the `Array<T>` type provides two other overloads: one accepting a value of an array type `T[]`,
+and another accepting a value of an array type `any[]`.  The latter is particularly convenient
+when initializing an array using a variable of the `any` type.
 
 ```tsx
 let three: any = 3

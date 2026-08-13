@@ -2,7 +2,7 @@
 
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
-import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
+import { Integer, Int32, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
          StringT,  UnionType, FixedArrayClass, StringType,
          EnumType} from '../types'
@@ -1089,7 +1089,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if ((left_type === BooleanT || right_type === BooleanT)
+    if (left_type === Int32 && right_type === Any || left_type === Any && right_type === Int32) {
+      this.result.write(`${cr.typeConversion(left_type, Int32, env, left)}`)
+      this.visit(left, env)
+      this.result.write(`) ${op} `)
+      this.result.write(`${cr.typeConversion(right_type, Int32, env, right)}`)
+      this.visit(right, env)
+      this.result.write(')')
+    }
+    else if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
         || (left_type === StringT || right_type === StringT)
         || (left_type === Any || right_type === Any)
@@ -1108,7 +1116,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private basicBinaryExpression(op: string, node: AST.BinaryExpression, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if (left_type === Any || right_type === Any || left_type === StringT || right_type === StringT) {
+    if (left_type === Int32 && right_type === Any || left_type === Any && right_type === Int32) {
+      this.result.write(`${cr.typeConversion(left_type, Int32, env, left)}`)
+      this.visit(left, env)
+      this.result.write(`) ${op} `)
+      this.result.write(`${cr.typeConversion(right_type, Int32, env, right)}`)
+      this.visit(right, env)
+      this.result.write(')')
+    }
+    else if (left_type === Any || right_type === Any || left_type === StringT || right_type === StringT) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(${cr.typeConversion(left_type, Any, env, left)}`)
       this.visit(left, env)
       this.result.write(`), ${cr.typeConversion(right_type, Any, env, right)}`)

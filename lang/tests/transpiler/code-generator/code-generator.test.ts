@@ -1115,6 +1115,111 @@ test('bad value assignment to a string array', () => {
   expect(() => { compileAndRun(src) }).toThrow(/not assignable to element type/)
 })
 
+test('int32 computing', () => {
+  const src = `
+  function foo(n: int32): int32 {
+    let i = n + 1
+    print(typeof i)
+    let j: any = 2
+    i++
+    --i
+    i += j
+    i -= j
+    let k: int32 = i * j
+    let m: int32 = j + i
+    return m
+  }
+
+  print_i32(foo(0x7fffffff - 2))
+  print_i32(foo(5))
+  `
+
+  expect(compileAndRun(src)).toBe('int32\n-2147483648\nint32\n8\n')
+})
+
+test('int32-type array is compatible with any-type array', () => {
+  const src = `
+  function sum(arr: any[]) {
+    return arr[0] + arr[1]
+  }
+
+  const ints: int32[] = new Array<int32>([1, 2, 3])
+  const values: any[] = ints
+  print(values.length)
+  print(values[0])
+  print_i32(ints[0])
+  print(sum(ints))
+  `
+
+  expect(compileAndRun(src)).toBe('3\n1\n1\n3\n')
+})
+
+test('a subclas contains int32 property', () => {
+  const src = `
+  class A {
+    a: int32
+    i: integer
+    constructor() {
+      this.a = 0
+      this.i = 1
+    }
+  }
+
+  class B extends A {
+    b: int32
+    constructor() {
+      super()
+      this.b = 2
+    }
+  }
+
+  const b = new B()
+  print_i32(b.a)
+  print_i32(b.b)
+  `
+
+  expect(compileAndRun(src)).toBe('0\n2\n')
+})
+
+test('a subclas may not contain int32 property', () => {
+  const src = `
+  class A {
+    a: integer
+    s: string
+    constructor() {
+      this.a = 3
+      this.s = 'foo'
+    }
+  }
+
+  class B extends A {
+    b: int32
+    constructor() {
+      super()
+      this.b = 2
+    }
+  }
+  `
+
+  expect(() => { compileAndRun(src) }).toThrow(/cannot contain an Int32 property/)
+})
+
+test('An int32 value is captured in a closure', () => {
+  const src = `
+  function foo() {
+    const i: int32 = 0x7fffffff
+    const f: integer = 123
+    return () => { return i + 1 }
+  }
+
+  print(typeof foo)
+  const f = foo()
+  print_i32(f())
+  `
+
+  expect(compileAndRun(src)).toBe('() => () => int32\n-2147483648\n')
+})
+
 test('any-type array', () => {
   const src = `
   function foo(n: integer): integer {
@@ -1872,10 +1977,10 @@ test('class with a bad constructor', () => {
   }
   `
 
-  expect(() => { compileAndRun(src)}).toThrow(/constructor is missing/)
+  expect(() => { compileAndRun(src)}).toThrow(/missing a constructor/)
   expect(() => { compileAndRun(src1)}).toThrow(/uninitialized property: y/)
   expect(() => { compileAndRun(src2)}).toThrow(/super\(\).*only valid inside a class constructor of a subclass.*not extending another class/)
-  expect(() => { compileAndRun(src3)}).toThrow(/constructor is missing/)
+  expect(() => { compileAndRun(src3)}).toThrow(/missing a constructor/)
   expect(compileAndRun(src4)).toBe('8\n')
   expect(compileAndRun(src5)).toBe('4\n')
   expect(() => { compileAndRun(src6)}).toThrow(/super\(\) is not called/)

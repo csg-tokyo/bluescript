@@ -1,6 +1,7 @@
 // Copyright (C) 2023- Shigeru Chiba.  All rights reserved.
 
 export const Integer = 'integer'
+export const Int32 = 'int32'
 export const Float = 'float'
 export const BooleanT = 'boolean'
 export const StringT = 'string'
@@ -11,21 +12,29 @@ export const Any = 'any'
 export const ByteArrayClass = 'Uint8Array'    // Uint8Array is also used as byte[].
 export const FixedArrayClass = 'FixedArray'
 
-export type StaticType = 'integer' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' |
+export type StaticType = 'integer' | 'int32' | 'float' | 'boolean' | 'string' | 'void' | 'null' | 'any' |
   ObjectType | FunctionType | UnionType | EnumType
 
 export function isBuiltinTypeName(name: string) {
-  return name === Integer || name === Float || name === BooleanT || name === Void || name === StringT || name === Null ||
+  return name === Integer || name === Int32 || name === Float || name === BooleanT || name === Void || name === StringT || name === Null ||
          name === Any || name === 'undefined' || name === 'Array' || name === 'object'
 }
 
 export function isPrimitiveType(type: StaticType) {
   // unless String, Null, FunctionType, Any, or object type
-  return type === Integer || type === Float || type === BooleanT || type === Void || (type instanceof EnumType)
+  return type === Integer || type === Int32 || type === Float || type === BooleanT || type === Void || (type instanceof EnumType)
+}
+
+export function isIntegerType(t: StaticType) {
+  return t === Integer || t === Int32
+}
+
+export function isIntegerLike(t: StaticType) {
+  return isIntegerType(t) || (t instanceof EnumType)
 }
 
 export function isNumeric(t: StaticType) {
-  return t === Integer || t === Float || (t instanceof EnumType)
+  return t === Integer || t === Int32 || t === Float || (t instanceof EnumType)
 }
 
 export function isEnum(t: StaticType) {
@@ -298,6 +307,7 @@ export function typeToString(type: StaticType): string {
 export function encodeType(type: StaticType): string {
   switch (type) {
   case Integer:
+  case Int32:
     return 'i'
   case Float:
     return 'f'
@@ -337,15 +347,16 @@ export function isSubtype(subtype: StaticType, type: StaticType): boolean {
     return subtype.isSubtypeOf(type)
   else if (type instanceof UnionType)
     return type.isSuperTypeOf(subtype)
-  else if (subtype === Integer && type === Float
-    || subtype === StringT && type === objectType)
-    return true
-  else if (type === BooleanT)
-    return subtype === BooleanT
+  else if (isIntegerType(subtype))
+    return isIntegerType(type) || type === Float
+  else if (subtype === StringT)
+    return type === objectType
+  else if (subtype === BooleanT)
+    return type === BooleanT
   else if (subtype instanceof CompositeType)
     return subtype.isSubtypeOf(type)
   else if (subtype instanceof EnumType)
-    return type === Integer || type === Float
+    return isIntegerType(type) || type === Float
   else
     return false
 }
@@ -363,18 +374,22 @@ export function sameType(t1: StaticType, t2: StaticType) {
 // after explicit conversion.  That conversion may throw a runtime type error.
 export function isConsistent(t1: StaticType, t2: StaticType) {
   if (t1 === Any)
-    return t1 !== t2 && t2 !== Void
+    return t2 !== Any && t2 !== Void && t2 !== Int32
   else if (t2 === Any)
-    return t1 !== Void
+    return (t1 !== Void && t1 !== Int32)
   else if (t1 instanceof ArrayType && t2 instanceof ArrayType)
-    return isConsistent(t1.elementType, t2.elementType)
+    if (isConsistent(t1.elementType, t2.elementType))
+      return true
+    else
+      return t1.elementType === Int32 && t2.elementType === Any
+        || t1.elementType === Any && t2.elementType === Int32
   else
     return false
 }
 
 export function commonSuperType(t1: StaticType, t2: StaticType): StaticType | undefined {
-  if (t1 === Float && t2 === Integer)
-    return Float
+  if ((t1 === Integer && t2 === Int32) || (t1 === Int32 && t2 === Integer))
+    return Int32
   else if (isSubtype(t1, t2))
     return t2
   else if (isSubtype(t2, t1))

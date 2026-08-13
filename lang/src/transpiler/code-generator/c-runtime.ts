@@ -2,11 +2,12 @@
 
 import * as AST from '@babel/types'
 import { ErrorLog } from '../utils'
-import { Integer, Float, BooleanT, StringT, Void, Null, Any,
+import { Integer, Int32, Float, BooleanT, StringT, Void, Null, Any,
     ObjectType, objectType, FunctionType,
-    StaticType, isPrimitiveType, typeToString, ArrayType, sameType, encodeType, isSubtype,
+    StaticType, isPrimitiveType, isIntegerLike, typeToString, ArrayType, sameType, encodeType, isSubtype,
     ByteArrayClass, UnionType, EnumType,
-    FixedArrayClass} from '../types'
+    FixedArrayClass,
+    isIntegerType} from '../types'
 import { InstanceType, ClassTable, StaticPropertyInfo } from '../classes'
 import { VariableEnv } from './variables'
 
@@ -51,6 +52,7 @@ function typeToCType2(type: StaticType): string {
   else
     switch (type) {
     case Integer:
+    case Int32:
       return 'int32_t'
     case Float:
       return 'float'
@@ -82,7 +84,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
     return '('
 
   if (sameType(from, to))
-    if (from === Integer || from instanceof EnumType)
+    if (from === Integer || from === Int32 || from instanceof EnumType)
       return '(int32_t)('
     else if (from === Float)
       return '(float)('
@@ -100,23 +102,24 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
 
   switch (to) {
     case Integer:
+    case Int32:
       if (from === Float)
         return '(int32_t)('
-      else if (from === BooleanT || from instanceof EnumType)
+      else if (isIntegerType(from) || from === BooleanT || from instanceof EnumType)
         return '('
       else if (from === Any || from instanceof UnionType)
         return 'safe_value_to_int('
       else
         break
     case Float:
-      if (from === Integer || from === BooleanT || from instanceof EnumType)
+      if (from === Integer || from === Int32 || from === BooleanT || from instanceof EnumType)
         return '(float)('
       else if (from === Any || from instanceof UnionType)
         return 'safe_value_to_float('
       else
         break
     case BooleanT:
-      if (from === Integer || from instanceof EnumType)
+      if (from === Integer || from === Int32 || from instanceof EnumType)
         return '('
       else if (from === Float)
         return '(int32_t)('
@@ -133,6 +136,8 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
       switch (from) {
         case Integer:
           return 'int_to_value('
+        case Int32:
+          throw typeConversionError(from, to, node)
         case Float:
           return 'float_to_value('
         case BooleanT:
@@ -155,7 +160,7 @@ export function typeConversion(from: StaticType | undefined, to: StaticType | un
           if (to === objectType)
             return 'safe_value_to_object(false, '
           else if (to instanceof ArrayType) {
-            if (to.elementType === Integer || to.elementType instanceof EnumType)
+            if (isIntegerLike(to.elementType))
               return 'safe_value_to_intarray(false, '
             else if (to.elementType === Float)
               return 'safe_value_to_floatarray(false, '
@@ -196,7 +201,7 @@ function typeConversionToUnion(from: StaticType, to: UnionType, env: VariableEnv
       if (objType === objectType)
         return 'safe_value_to_object(true, '
       else if (objType instanceof ArrayType) {
-        if (objType.elementType === Integer || objType.elementType instanceof EnumType)
+        if (isIntegerLike(objType.elementType))
           return 'safe_value_to_intarray(true, '
         else if (objType.elementType === Float)
           return 'safe_value_to_floatarray(true, '
@@ -281,7 +286,7 @@ export const anyAddMember = 'any_add_member'
 export function power(type: StaticType | undefined) {
   if (type === Float)
     return '(float)double_power('
-  else if (type === Integer)
+  else if (type === Integer || type === Int32)
     return '(int32_t)double_power('
   else
     throw new Error('bad operand types for **')
@@ -384,7 +389,7 @@ export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticT
     return '(gc_fixarray_get('
   else if (arrayType === Any)
     return '(gc_safe_array_get('
-  else if (t === Integer || t instanceof EnumType)
+  else if (t === Integer || t === Int32 || t instanceof EnumType)
     return '(*gc_intarray_get('
   else if (t === Float)
     return '(*gc_floatarray_get('
@@ -410,7 +415,7 @@ export const accumulateInUnknownArray = 'gc_safe_array_acc'
 // makes an array object from elements
 export function arrayFromElements(arrayType: ArrayType, env: VariableEnv) {
   const t = arrayType.elementType
-  if (t === Integer || t instanceof EnumType)
+  if (isIntegerLike(t))
     return 'gc_make_intarray('
   else if (t === Float)
     return 'gc_make_floatarray('
@@ -424,7 +429,7 @@ export function arrayFromElements(arrayType: ArrayType, env: VariableEnv) {
 
 export function arrayFromSize(arrayType: ArrayType, env: VariableEnv) {
   const t = arrayType.elementType
-  if (t === Integer || t instanceof EnumType)
+  if (isIntegerLike(t))
     return 'gc_new_intarray('
   else if (t === Float)
     return 'gc_new_floatarray('
@@ -438,7 +443,7 @@ export function arrayFromSize(arrayType: ArrayType, env: VariableEnv) {
 
 export function arrayFromArray(arrayType: ArrayType, env: VariableEnv) {
   const t = arrayType.elementType
-  if (t === Integer || t instanceof EnumType)
+  if (isIntegerLike(t))
     return 'gc_copy_intarray('
   else if (t === Float)
     return 'gc_copy_floatarray('
@@ -453,7 +458,9 @@ export function arrayFromArray(arrayType: ArrayType, env: VariableEnv) {
 export const prefixOfarrayTypeNameInC = 'array_type'
 
 export function actualElementType(t: StaticType) {
-  if (t === Integer || t instanceof EnumType)
+  if (t === Int32)
+    return Int32
+  else if (t === Integer || t instanceof EnumType)
     return Integer
   else if (t === Float)
     return Float
