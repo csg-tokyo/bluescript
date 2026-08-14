@@ -386,7 +386,7 @@ export function arrayElementGetter(t: StaticType | undefined, arrayType: StaticT
   if (arrayType instanceof InstanceType && arrayType.name() === ByteArrayClass)
     return '(*gc_bytearray_get('
   else if (arrayType instanceof InstanceType && arrayType.name() === FixedArrayClass)
-    return '(gc_fixarray_get('
+    return '(gc_fixedarray_get('
   else if (arrayType === Any)
     return '(gc_safe_array_get('
   else if (t === Integer || t === Int32 || t instanceof EnumType)
@@ -405,7 +405,7 @@ export function arrayElementSetter(arrayType: StaticType | undefined) {
   else if (arrayType === Any)
     return 'gc_safe_array_set('
   else if (arrayType instanceof InstanceType && arrayType.name() === FixedArrayClass)
-    return 'gc_fixarray_set('
+    return 'gc_fixedarray_set('
   else
     return `gc_safe_array_set(`
 }
@@ -603,7 +603,7 @@ export function makeInstance(clazz: InstanceType, func: () => string) {
   if (name === ByteArrayClass)
     return 'gc_new_bytearray(false'
   else if (name === FixedArrayClass)
-    return 'gc_new_fixarray('
+    return 'gc_new_fixedarray('
   else
     return `${constructorNameInC(name)}(${func()}gc_new_object(&${classObjectNameInC(name)})`
 }

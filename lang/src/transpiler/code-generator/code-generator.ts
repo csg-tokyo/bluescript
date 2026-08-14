@@ -228,9 +228,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       })
 
       if (frees.length > 0) {
-        // all the arguments to gc_make_fixarray must be reachable
+        // all the arguments to gc_make_fixedarray must be reachable
         // from the garbage-collection root.
-        obj = `gc_make_fixarray(${frees.length}${args})`
+        obj = `gc_make_fixedarray(${frees.length}${args})`
       }
     }
 
