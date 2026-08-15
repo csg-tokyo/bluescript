@@ -1135,6 +1135,26 @@ test('int32 computing', () => {
   `
 
   expect(compileAndRun(src)).toBe('int32\n-2147483648\nint32\n8\n')
+
+  const src2 = `
+  function foo(n: int32): int32 {
+    let i = n + 1
+    let j: int32 = 0x7fffff0f
+    let k: any = 3
+    j &= 0xff
+    if (i > n && i < 100 && n !== k) {
+      print_i32(-n)
+      print_i32(~n)
+      print_i32(n ** 2)
+      print_i32(j)
+    }
+    return n % 3 + i % k
+  }
+
+  print_i32(foo(5))
+  `
+
+  expect(compileAndRun(src2)).toBe('-5\n-6\n25\n15\n2\n')
 })
 
 test('int32-type array is compatible with any-type array', () => {
@@ -1152,6 +1172,29 @@ test('int32-type array is compatible with any-type array', () => {
   `
 
   expect(compileAndRun(src)).toBe('3\n1\n1\n3\n')
+})
+
+test('int32 properties', () => {
+  const src = `
+  class A {
+    i: int32
+    j: integer
+    a: any
+    constructor() {
+      this.i = 10
+      this.j = 3
+      this.a = 200
+    }
+  }
+
+  const a = new A()
+  a.i += 1
+  a.i += a.j
+  a.i += a.a
+  print_i32(a.i)
+  `
+
+  expect(compileAndRun(src)).toBe('214\n')
 })
 
 test('a subclas contains int32 property', () => {

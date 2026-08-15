@@ -1092,7 +1092,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
     if (left_type === Int32 && right_type === Any || left_type === Any && right_type === Int32) {
       this.result.write(`${cr.typeConversion(left_type, Int32, env, left)}`)
       this.visit(left, env)
-      this.result.write(`) ${op} `)
+      this.result.write(`) ${op2} `)
       this.result.write(`${cr.typeConversion(right_type, Int32, env, right)}`)
       this.visit(right, env)
       this.result.write(')')
