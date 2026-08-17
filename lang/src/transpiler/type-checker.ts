@@ -4,13 +4,13 @@ import * as AST from '@babel/types'
 import { ErrorLog } from './utils'
 import * as visitor from './visitor'
 
-import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType, VectorClass, StringType } from './types'
+import { ArrayType, StaticType, ByteArrayClass, isPrimitiveType, UnionType, FixedArrayClass, StringType } from './types'
 
 import {
-  Integer, Float, BooleanT, StringT, Void, Null, Any,
+  Integer, Int32, Float, BooleanT, StringT, Void, Null, Any,
   EnumType, ObjectType, FunctionType, objectType,
   typeToString, isSubtype, isConsistent, commonSuperType,
-  isNumeric,  isEnum, isBuiltinTypeName
+  isNumeric, isIntegerType, isIntegerLike, isEnum, isBuiltinTypeName
 } from './types'
 
 import { actualElementType } from './code-generator/c-runtime'
@@ -82,7 +82,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   addBuiltinTypes(node: AST.Node, names: NameTable<Info>) {
     this.addBuiltinClass(names, node, ByteArrayClass, [Integer, Integer])
-    this.addBuiltinClass(names, node, VectorClass, [Integer, Any])
+    this.addBuiltinClass(names, node, FixedArrayClass, [Integer, Any])
   }
 
   // if constructorParams is undefined, this class may not be instantiated.
@@ -460,14 +460,15 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
     this.result = clazz
     this.visit(node.body, names)
-    clazz.sortProperties()
+    if (!clazz.sortProperties())
+      clazz.forEach((name, type, __) => this.assert(type !== Int32, `this subclass ${className} cannot contain an Int32 property '${name}'`, node))
 
     if (!clazz.findConstructor()) {
       // this class has a default constructor.
-      this.assert(clazz.declaredProperties() === 0, 'a constructor is missing', node)
+      this.assert(clazz.declaredProperties() === 0, `${className} is missing a constructor`, node)
       if (superClass instanceof InstanceType) {
         const cons = superClass.findConstructor()
-        this.assert(!cons || cons.paramTypes.length === 0, 'a constructor is missing', node)
+        this.assert(!cons || cons.paramTypes.length === 0, `${className} is missing a constructor`, node)
       }
     }
 
@@ -690,8 +691,14 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.assert(this.result !== Void, 'void may not be an initial value', init)
       if (varType === undefined)
         varType = this.result
-      else if (isConsistent(this.result, varType))
+      else if (isConsistent(this.result, varType) || varType === Int32 && this.result === Any) {
+        // let a: initeger[] = [1, 'one'] is not allowed.
+        if (AST.isArrayExpression(init) && varType instanceof ArrayType && this.result instanceof ArrayType
+            && !isConsistent(this.result.elementType, varType.elementType))
+          this.assert(false, 'bad array initializer: element type is not consistent with the variable type', init)
+
         this.addCoercion(init, this.result)
+      }
       else
         this.assert(isSubtype(this.result, varType),
           `Type '${typeToString(this.result)}' is not assignable to type '${typeToString(varType)}'`, id)
@@ -876,7 +883,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     else if (op === '~') {
       // this.result must be integer or any-type.
       // It must not be an array type or a function type.
-      this.assert(this.result === Integer || this.result === Any || isEnum(this.result),
+      this.assert(isIntegerLike(this.result) || this.result === Any,
         this.invalidOperandMessage(op, this.result), node)
       this.result = Integer
     }
@@ -953,6 +960,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     }
     else if (op === '+' || op === '-' || op === '*' || op === '/' || op === '**') {
       if (op === '+' && (left_type === StringT || right_type === StringT)) {
+        this.assert(left_type !== Int32 && right_type !== Int32, this.invalidOperandsMessage(op, left_type, right_type), node)
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
         this.result = StringT
@@ -963,7 +971,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         if (left_type === Any || right_type === Any) {
             this.addCoercion(node.left, left_type)
             this.addCoercion(node.right, right_type)
-            this.result = Any
+            this.result = left_type === Int32 || right_type === Int32 ? Int32 : Any
         }
         else if (left_type === Float || right_type === Float) {
           if (op === '**')
@@ -972,28 +980,29 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           this.result = Float
         }
         else {
+          const type = (left_type === Int32 || right_type === Int32) ? Int32 : Integer
           if (op === '**')
-            this.addStaticType(node, Integer)
+            this.addStaticType(node, type)
 
-          this.result = Integer
+          this.result = type
         }
       }
     }
     else if (op === '%') {
-      this.assert((left_type === Integer || left_type === Any) && (right_type === Integer || right_type === Any),
+      this.assert((isIntegerLike(left_type) || left_type === Any) && (isIntegerLike(right_type) || right_type === Any),
                   'invalid operands to %.  They must be integer or any', node)
       if (left_type === Any || right_type === Any) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
-        this.result = Any
+        this.result = (left_type === Int32 || right_type === Int32) ? Int32 : Any
       }
       else
-        this.result = Integer
+        this.result = (left_type === Int32 || right_type === Int32) ? Int32 : Integer
     }
     else if (op === '|' || op === '^' || op === '&' || op === '<<' || op === '>>' || op === '>>>') {
-      this.assert(this.firstPass || (left_type === Integer || isEnum(left_type)) && (right_type === Integer || isEnum(right_type)),
+      this.assert(this.firstPass || isIntegerLike(left_type) && isIntegerLike(right_type),
                   this.invalidOperandsMessage(op, left_type, right_type), node)
-      this.result = Integer
+      this.result = (left_type === Int32 || right_type === Int32) ? Int32 : Integer
     }
     else { // 'in', '|>'
       this.assert(false, `not supported operator '${op}'`, node)
@@ -1047,7 +1056,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     const op = node.operator
 
     if (op === '=') {
-      if (isConsistent(right_type, left_type) || this.isConsistentOnFirstPass(right_type, left_type)) {
+      if (isConsistent(right_type, left_type) || (left_type === Int32 && right_type === Any)
+          || this.isConsistentOnFirstPass(right_type, left_type)) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
@@ -1060,27 +1070,30 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       }
     }
     else if (op === '+=' && (left_type === StringT || left_type === Any)) {
-      this.addCoercion(node.left, StringT)
+      this.assert(right_type !== Int32, 'invalid operands to +=.  The right operand cannot be Int32', node)
+      this.addCoercion(node.left, left_type)
       this.addCoercion(node.right, right_type)
     }
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
-      this.assert((isNumeric(left_type) || left_type === Any) && (isNumeric(right_type) || right_type === Any),
-        this.invalidOperandsMessage(op, left_type, right_type), node)
+      const errmsg = this.invalidOperandsMessage(op, left_type, right_type)
+      this.assert((isIntegerType(left_type) || left_type === Float || left_type === Any) && (isNumeric(right_type) || right_type === Any), errmsg, node)
+      this.assert(left_type !== Any || right_type !== Int32, errmsg, node)
       if (left_type === Any || right_type === Any) {    // "if (isConsistent(...))" is wrong
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
     }
     else if (op === '%=') {
-      this.assert((left_type === Integer || left_type === Any) && (right_type === Integer || right_type === Any),
-                  'invalid operands to %=.  They must be integer or any', node)
+      const errmsg = 'invalid operands to %='
+      this.assert((isIntegerType(left_type) || left_type === Any) && (isIntegerLike(right_type) || right_type === Any), errmsg, node)
+      this.assert(left_type !== Any || right_type !== Int32, errmsg, node)
       if (left_type === Any || right_type === Any) {
         this.addCoercion(node.left, left_type)
         this.addCoercion(node.right, right_type)
       }
     }
     else if (op === '|=' || op === '^=' || op === '&=' || op === '%=' || op === '<<=' || op === '>>=')
-      this.assert(left_type === Integer && (right_type === Integer || isEnum(right_type)),
+      this.assert(isIntegerType(left_type) && isIntegerLike(right_type),
                   this.invalidOperandsMessage(op, left_type, right_type), node)
     else  // '||=', '&&=', '>>>=', '**=', op === '??='
       this.assert(false, `not supported operator '${op}'`, node)
@@ -1132,7 +1145,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         actualType = elementType
 
     if (op === '=')
-      if (isConsistent(rightType, elementType)) {
+      if (isConsistent(rightType, elementType) || elementType === Int32 && rightType === Any) {
         this.addCoercion(node.left, actualType)
         this.addCoercion(node.right, rightType)
       }
@@ -1148,8 +1161,9 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.addCoercion(node.right, rightType)
     }
     else if (op === '+=' || op === '-=' || op === '*=' || op === '/=') {
-      this.assert((isNumeric(elementType) || elementType === Any) && (isNumeric(rightType) || rightType === Any),
-        this.invalidOperandsMessage(op, elementType, rightType), node)
+      const errmsg = this.invalidOperandsMessage(op, elementType, rightType)
+      this.assert((isIntegerType(elementType) || elementType === Float || elementType === Any) && (isNumeric(rightType) || rightType === Any), errmsg, node)
+      this.assert(elementType !== Any || rightType !== Int32, errmsg, node)
       this.addCoercion(node.left, actualType)
       this.addCoercion(node.right, rightType)
     }
@@ -1243,7 +1257,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.visit(arg, names)
     const argType = this.result
     for (const t of paramTypes)
-      if (isConsistent(argType, t) || this.isConsistentOnFirstPass(argType, t) || isSubtype(argType, t)) {
+      if (isConsistent(argType, t) || this.isConsistentOnFirstPass(argType, t) || isSubtype(argType, t)
+          || argType === Any && t === Int32) {
         this.addStaticType(arg, argType)
         return
       }
@@ -1258,7 +1273,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
     this.visit(arg, names)
     const argType = this.result
     if (isConsistent(argType, paramType) || this.isConsistentOnFirstPass(argType, paramType)
-        || isSubtype(argType, paramType) || argType instanceof ArrayType) {
+        || isSubtype(argType, paramType) || argType instanceof ArrayType
+        || argType === Any /* || argType === Any && paramType === Int32 */ ) {   // argType === Any checks whether the arugument may be an array
       this.addStaticType(arg, argType)
       return
     }
@@ -1316,7 +1332,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   }
 
   private newArrayExpression(node: AST.NewExpression, names: NameTable<Info>): void {
-    const typeParams = node.typeParameters?.params?.map(e => {
+    const typeParamNodes = node.typeParameters?.params as AST.TSType[] | undefined
+    const typeParams = typeParamNodes?.map((e: AST.TSType) => {
       this.visit(e, names)
       return this.result
     })
@@ -1334,10 +1351,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
         this.callExpressionArg(args[1], etype, names)
     }
     else if (this.assert(args.length === 1, 'wrong number of arguments', node)) {
-      // new Array<T>(p: Integer|T[]|any[])
+      // new Array<T>(p: Integer|Int32|T[]|any[])
       if (AST.isArrayExpression(args[0]))
         this.arrayExpressionWithUpperType(args[0], names, etype === Any ? undefined : etype)
-      else if (etype === Integer || etype === Float || etype === BooleanT || isEnum(etype))
+      else if (isIntegerType(etype) || etype === Float || etype === BooleanT || isEnum(etype))
         this.callExpressionOLArg(args[0], [Integer, atype, new ArrayType(Any)], names)
       else if (etype === Any)
         this.callExpressionArgOrArray(args[0], Integer, names)
@@ -1403,8 +1420,10 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
             etype = this.result
           else {
             const t = commonSuperType(etype, this.result)
-            if (t === undefined)
+            if (t === undefined) {
+              this.assert(etype !== Int32 && this.result !== Int32, 'array element types are not compatible', ele)
               etype = Any
+            }
             else
               etype = t
           }
@@ -1452,7 +1471,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
   private checkArrayAccessExpr(node: AST.MemberExpression, readonly: boolean, names: NameTable<Info>) {
     this.assert(AST.isExpression(node.property), 'a wrong index expression', node.property)
     this.visit(node.property, names)
-    this.assert(this.firstPass || this.result === Integer || this.result === Any,
+    this.assert(this.firstPass || isIntegerType(this.result) || this.result === Any,
                 'an array index must be an integer', node.property)
     this.addCoercionIfAny(node.property, this.result)
     this.visit(node.object, names)
@@ -1465,7 +1484,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.addStaticType(node, Integer)
       this.result = Integer
     }
-    else if (this.result instanceof InstanceType && this.result.name() === VectorClass) {
+    else if (this.result instanceof InstanceType && this.result.name() === FixedArrayClass) {
       this.addStaticType(node, Any)
       this.result = Any
     }
@@ -1497,7 +1516,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
           const unboxed = type.unboxedProperties()
           return unboxed === undefined || unboxed <= typeAndIndex[1]
         }
-        else if (propertyName === ArrayType.lengthProperty && (type.name() === ByteArrayClass || type.name() === VectorClass)) {
+        else if (propertyName === ArrayType.lengthProperty && (type.name() === ByteArrayClass || type.name() === FixedArrayClass)) {
           this.assert(readonly, 'cannot change .length', node.property)
           this.result = Integer
           return false  // an uboxed value.
@@ -1671,6 +1690,8 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
       this.result = Float
     else if (name === Integer)
       this.result = Integer
+    else if (name === Int32)
+      this.result = Int32
     else {
       const nameInfo = names.lookup(name)
       if (nameInfo === undefined)
@@ -1764,7 +1785,7 @@ export default class TypeChecker<Info extends NameInfo> extends visitor.NodeVisi
 
   tsTypeAliasDeclaration(node: AST.TSTypeAliasDeclaration, env: NameTable<Info>): void {
     const name = node.id.name
-    this.assert(name === 'integer' || name === 'float', 'type alias is not supported', node)
+    this.assert(name === Integer || name === Int32 || name === Float, 'type alias is not supported', node)
   }
 
   exportNamedDeclaration(node: AST.ExportNamedDeclaration, env: NameTable<Info>): void {

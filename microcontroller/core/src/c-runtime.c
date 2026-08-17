@@ -15,9 +15,9 @@
     root_set.values[0] = a;
     root_set.values[1] = b;
 
-    root_set.values[2] = obj = gc_new_vector(2);
-    gc_vector_set(obj, int_to_value(0), a);
-    gc_vector_set(obj, int_to_value(1), b);
+    root_set.values[2] = obj = gc_new_fixedarray(2);
+    gc_fixedarray_set(obj, int_to_value(0), a);
+    gc_fixedarray_set(obj, int_to_value(1), b);
 
     DELETE_ROOT_SET(root_set);
     return obj;
@@ -274,6 +274,8 @@ value_t safe_value_to_value(bool nullable, const class_object* const clazz, valu
     return v;
 }
 
+// also see safe_value_to_anyarray()
+
 #define ANY_OP_FUNC(name, op, rest) \
 value_t any_##name(value_t a, value_t b) {\
     if (is_int_value(a)) {\
@@ -518,7 +520,7 @@ void* gc_method_lookup(value_t obj, uint32_t index) {
     return get_objects_class(value_to_ptr(obj))->vtbl[index];
 }
 
-// IS_ARRAY_TYPE(t) is true when t is an array object, Uint8Array, or Vector.
+// IS_ARRAY_TYPE(t) is true when t is an array object, Uint8Array, or FixeArray.
 // t is an object accessible by the [] operator.
 #define IS_ARRAY_TYPE(clazz)    (clazz != NULL && (clazz)->array_type_name != NULL)
 
@@ -707,7 +709,7 @@ const void* gc_function_object_ptr(value_t obj, int index) {
 // returns an instance of boxed_value or boxed_raw_value, returned by gc_new_box() etc.
 value_t gc_function_captured_value(value_t obj, int index) {
     value_t vec = value_to_ptr(obj)->body[2];
-    return gc_vector_get(vec, index);
+    return gc_fixedarray_get(vec, index);
 }
 
 // boxed_value and boxed_raw_value are classes for boxing.  Their instances hold one value_t value
@@ -1337,28 +1339,28 @@ bool gc_is_boolarray(value_t v) {
 
 // A fixed-length array
 
-CLASS_OBJECT(class_Vector, 1) = {
-    .clazz = { .size = -1, .start_index = 1, .name = "Vector",
-               .superclass = &object_class.clazz, .array_type_name = "'Vector'", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
+CLASS_OBJECT(class_FixedArray, 1) = {
+    .clazz = { .size = -1, .start_index = 1, .name = "FixedArray",
+               .superclass = &object_class.clazz, .array_type_name = "'FixedArray'", .table = DEFAULT_PTABLE, .mtable = DEFAULT_MTABLE }};
 
-value_t safe_value_to_vector(bool nullable, value_t v) {
-    return safe_value_to_value(nullable, &class_Vector.clazz, v);
+value_t safe_value_to_fixedarray(bool nullable, value_t v) {
+    return safe_value_to_value(nullable, &class_FixedArray.clazz, v);
 }
 
 /*
-  A fixed-length array.  We call it a vector.
-  n: the number of vector elements.
+  A fixed-length array.  We call it a fixedarray.
+  n: the number of array elements.
      1st word is the number of elements.
      2nd, 3rd, ... words hold elements.
 */
-value_t gc_new_vector(int32_t n, value_t init_value) {
+value_t gc_new_fixedarray(int32_t n, value_t init_value) {
     ROOT_SET(rootset, 1)
     rootset.values[0] = init_value;
     if (n < 0)
         n = 0;
 
     pointer_t obj = allocate_heap(n + 1);
-    set_object_header(obj, &class_Vector.clazz);
+    set_object_header(obj, &class_FixedArray.clazz);
     obj->body[0] = n;
     for (int i = 0; i < n; i++)
         obj->body[i + 1] = init_value;
@@ -1367,28 +1369,28 @@ value_t gc_new_vector(int32_t n, value_t init_value) {
     return ptr_to_value(obj);
 }
 
-inline static value_t* fast_vector_get(value_t obj, int32_t index) {
+inline static value_t* fast_fixedarray_get(value_t obj, int32_t index) {
     pointer_t objp = value_to_ptr(obj);
     return &objp->body[index + 1];
 }
 
-inline static void fast_vector_set(value_t obj, uint32_t index, value_t new_value) {
+inline static void fast_fixedarray_set(value_t obj, uint32_t index, value_t new_value) {
     pointer_t objp = value_to_ptr(obj);
     gc_write_barrier(objp, new_value);
     objp->body[index + 1] = new_value;
 }
 
-static value_t duplicate_vector(int32_t n, int32_t offset, value_t vec) {
+static value_t duplicate_fixedarray(int32_t n, int32_t offset, value_t vec) {
     ROOT_SET(rootset, 1)
     rootset.values[0] = vec;
-    int32_t len = gc_vector_length(vec);
+    int32_t len = gc_fixedarray_length(vec);
     if (n < 0)
         n = 0;
     else if (n < len + offset)
         n = len + offset;
 
     pointer_t obj = allocate_heap(n + 1);
-    set_object_header(obj, &class_Vector.clazz);
+    set_object_header(obj, &class_FixedArray.clazz);
     obj->body[0] = n;
     for (int i = 1; i <= offset; i++)
         obj->body[i] = VALUE_UNDEF;
@@ -1403,23 +1405,23 @@ static value_t duplicate_vector(int32_t n, int32_t offset, value_t vec) {
     return ptr_to_value(obj);
 }
 
-int32_t gc_vector_length(value_t obj) {
+int32_t gc_fixedarray_length(value_t obj) {
     pointer_t objp = value_to_ptr(obj);
     return objp->body[0];
 }
 
-value_t gc_vector_get(value_t obj, int32_t idx) {
+value_t gc_fixedarray_get(value_t obj, int32_t idx) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[0];
     if (0 <= idx && idx < len)
         return objp->body[idx + 1];
     else {
-        runtime_index_error(idx, len, "Vector.get");
+        runtime_index_error(idx, len, "FixedArray.get");
         return VALUE_UNDEF;
     }
 }
 
-value_t gc_vector_set(value_t obj, int32_t index, value_t new_value) {
+value_t gc_fixedarray_set(value_t obj, int32_t index, value_t new_value) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[0];
     if (0 <= index && index < len) {
@@ -1428,21 +1430,21 @@ value_t gc_vector_set(value_t obj, int32_t index, value_t new_value) {
         return new_value;
     }
     else {
-        runtime_index_error(index, len, "Vector.set");
+        runtime_index_error(index, len, "FixedArray.set");
         return 0;
     }
 }
 
-/* The given vector elements are not stored in a root set.
+/* The given array elements are not stored in a root set.
    A caller function must guarantee that they are reachable
    from the root.
 */
-value_t gc_make_vector(int32_t n, ...) {
+value_t gc_make_fixedarray(int32_t n, ...) {
     va_list args;
-    value_t array = gc_new_vector(n, VALUE_UNDEF);
+    value_t array = gc_new_fixedarray(n, VALUE_UNDEF);
     va_start(args, n);
     for (int32_t i = 0; i < n; i++)
-        fast_vector_set(array, i, va_arg(args, value_t));
+        fast_fixedarray_set(array, i, va_arg(args, value_t));
     va_end(args);
     return array;
 }
@@ -1463,7 +1465,22 @@ static CLASS_OBJECT(anyarray_object, 4) = {
               .vtbl = { gc_array_push, gc_array_pop, gc_array_unshift, gc_array_shift } }};
 
 value_t safe_value_to_anyarray(bool nullable, value_t v) {
-    return safe_value_to_value(nullable, &anyarray_object.clazz, v);
+    if (nullable && v == VALUE_NULL)
+        return v;
+
+    if (!IS_ARRAY_TYPE(gc_get_class_of(v)))
+        runtime_type_error("safe_value_to_anyarray");
+
+    return v;
+}
+
+// Makes sure that v is an instance of anyarray_object.
+// It raises a runtime type error if not, for example, if v is an integer array.
+value_t safe_anyarray_to_anyarrayobj(value_t v) {
+    if (!gc_is_anyarray(v))
+        runtime_type_error("safe_anyarray_to_anyarrayobj");
+
+    return v;
 }
 
 static inline int32_t real_array_length(int32_t n) { return ((n + 1) & ~7) + 7; }
@@ -1477,14 +1494,14 @@ value_t gc_new_array(const class_object* clazz, int32_t n, value_t init_value) {
     pointer_t obj = gc_allocate_object(clazz == NULL ? &anyarray_object.clazz : clazz);
     rootset.values[1] = ptr_to_value(obj);
     const int32_t size = real_array_length(n);
-    value_t vec = gc_new_vector(size, init_value);
-    pointer_t vecp = value_to_ptr(vec);
+    value_t arr = gc_new_fixedarray(size, init_value);
+    pointer_t arrp = value_to_ptr(arr);
     if (init_value != VALUE_UNDEF)
         for (int i = n + 1; i <= size; i++)
-            vecp->body[i] = VALUE_UNDEF;
+            arrp->body[i] = VALUE_UNDEF;
 
-    obj->body[1] = vec;
-    // the length must be less than or equal to the length of the vector.
+    obj->body[1] = arr;
+    // the length must be less than or equal to the length of the .
     obj->body[0] = n;
     DELETE_ROOT_SET(rootset)
     return ptr_to_value(obj);
@@ -1537,7 +1554,7 @@ static value_t gc_grow_array(value_t obj, int32_t addedElements, int32_t offset)
     int32_t size = vecp->body[0];
     if (new_n > size) {
         int32_t new_size = real_array_length(new_n);
-        value_t new_vec = duplicate_vector(new_size, offset, vec);
+        value_t new_vec = duplicate_fixedarray(new_size, offset, vec);
         objp->body[1] = new_vec;
     }
     else
@@ -1568,7 +1585,7 @@ value_t gc_make_array(const class_object* clazz, int32_t n, ...) {
     va_start(args, n);
 
     for (int32_t i = 0; i < n; i++)
-        fast_vector_set(arrayp->body[1], i, va_arg(args, value_t));
+        fast_fixedarray_set(arrayp->body[1], i, va_arg(args, value_t));
 
     va_end(args);
     return array;
@@ -1583,7 +1600,7 @@ value_t* gc_array_get(value_t obj, int32_t idx) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[0];
     if (0 <= idx && idx < len)
-        return fast_vector_get(objp->body[1], idx);
+        return fast_fixedarray_get(objp->body[1], idx);
     else {
         runtime_index_error(idx, len, "Array.get");
         return 0;
@@ -1594,7 +1611,7 @@ value_t gc_array_set(value_t obj, int32_t index, value_t new_value) {
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[0];
     if (0 <= index && index < len) {
-        fast_vector_set(objp->body[1], index, new_value);
+        fast_fixedarray_set(objp->body[1], index, new_value);
         return new_value;
     } else {
         runtime_index_error(index, len, "Array.set");
@@ -1609,7 +1626,7 @@ int32_t gc_array_push(value_t obj, value_t new_value) {
     gc_grow_array(obj, 1, 0);
     pointer_t objp = value_to_ptr(obj);
     int32_t len = objp->body[0];
-    fast_vector_set(objp->body[1], len - 1, new_value);
+    fast_fixedarray_set(objp->body[1], len - 1, new_value);
     DELETE_ROOT_SET(rootset)
     return len;
 }
@@ -1620,8 +1637,8 @@ value_t gc_array_pop(value_t obj) {
     if (len == 0)
         return VALUE_UNDEF;
 
-    value_t value = gc_vector_get(objp->body[1], len - 1);
-    gc_vector_set(objp->body[1], len - 1, VALUE_UNDEF);
+    value_t value = gc_fixedarray_get(objp->body[1], len - 1);
+    gc_fixedarray_set(objp->body[1], len - 1, VALUE_UNDEF);
     objp->body[0] = len - 1;
     return value;
 }
@@ -1632,7 +1649,7 @@ int32_t gc_array_unshift(value_t obj, value_t new_value) {
     rootset.values[1] = new_value;
     gc_grow_array(obj, 1, 1);
     pointer_t objp = value_to_ptr(obj);
-    fast_vector_set(objp->body[1], 0, new_value);
+    fast_fixedarray_set(objp->body[1], 0, new_value);
     DELETE_ROOT_SET(rootset)
     return objp->body[0];
 }
@@ -1643,7 +1660,7 @@ value_t gc_array_shift(value_t obj) {
     if (len == 0)
         return VALUE_UNDEF;
 
-    value_t value = gc_vector_get(objp->body[1], 0);
+    value_t value = gc_fixedarray_get(objp->body[1], 0);
     gc_grow_array(obj, -1, -1);
     return value;
 }
@@ -1680,8 +1697,8 @@ value_t gc_safe_array_get(value_t obj, int32_t idx) {
         return int_to_value(*gc_bytearray_get(obj, idx));
     else if (clazz == &boolarray_object.clazz)
         return bool_to_value(*gc_bytearray_get(obj, idx));
-    else if (clazz == &class_Vector.clazz)
-        return gc_vector_get(obj, idx);
+    else if (clazz == &class_FixedArray.clazz)
+        return gc_fixedarray_get(obj, idx);
     else if (IS_ARRAY_TYPE(clazz))   // for arrays of value_t
         return *gc_array_get(obj, idx);
     else {
@@ -1702,8 +1719,8 @@ value_t gc_safe_array_set(value_t obj, int32_t idx, value_t new_value) {
         uint8_t v = *gc_bytearray_get(obj, idx) = safe_value_to_bool(new_value);
         return bool_to_value(v);
     }
-    else if (clazz == &class_Vector.clazz)
-        return gc_vector_set(obj, idx, new_value);
+    else if (clazz == &class_FixedArray.clazz)
+        return gc_fixedarray_set(obj, idx, new_value);
     else if (IS_ARRAY_TYPE(clazz))  // for arrays of value_t
         return gc_array_set(obj, idx, new_value);
     else {
