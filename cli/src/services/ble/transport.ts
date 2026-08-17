@@ -11,7 +11,7 @@ export type BleTransportEvents = {
 
 /**
  * Platform-specific BLE backend. {@link BleConnection} stays identical across
- * macOS/Windows (noble) and Linux (node-ble).
+ * macOS (noble), Windows (webbluetooth), and Linux (node-ble).
  */
 export abstract class BleTransport extends EventEmitter<BleTransportEvents> {
     /** Local names observed while scanning for the target device. */
@@ -39,10 +39,16 @@ export function createBleTransport(): BleTransport {
         const { NodeBleTransport } = require("./node-ble-transport");
         return new NodeBleTransport();
     }
-    // Lazy-load so Linux never initializes noble's HCI binding.
+    if (process.platform === "darwin") {
+        // Lazy-load so Linux/Windows never initialize noble's bindings.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { NobleBleTransport } = require("./noble-transport");
+        return new NobleBleTransport();
+    }
+    // Windows (and any other non-Linux/non-macOS): webbluetooth / SimpleBLE.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { NobleBleTransport } = require("./noble-transport");
-    return new NobleBleTransport();
+    const { WebBluetoothTransport } = require("./webbluetooth-transport");
+    return new WebBluetoothTransport();
 }
 
 /** Normalize short (16/32-bit) and 128-bit BLE UUIDs for comparison. */
