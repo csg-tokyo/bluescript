@@ -60,7 +60,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@abandonware/noble": "^1.9.2-26",
     "@bscript/lang": "2.1.0-alpha.1",
     "@bscript/notebook": "2.1.0-alpha.1",
     "axios": "^1.12.2",
@@ -73,5 +72,8 @@
     "sirv": "^3.0.2",
     "webbluetooth": "^3.7.0",
     "zod": "^4.1.11"
+  },
+  "optionalDependencies": {
+    "@abandonware/noble": "^1.9.2-26"
   }
 }

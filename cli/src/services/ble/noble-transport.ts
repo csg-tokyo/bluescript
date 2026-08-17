@@ -7,7 +7,7 @@ import noble, { Characteristic, Peripheral } from "@abandonware/noble";
 
 
 /**
- * BLE transport backed by @abandonware/noble (macOS / Windows).
+ * BLE transport backed by @abandonware/noble (macOS).
  */
 export class NobleBleTransport extends BleTransport {
     private characteristic: Characteristic | null = null;

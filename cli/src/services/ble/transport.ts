@@ -41,14 +41,39 @@ export function createBleTransport(): BleTransport {
     }
     if (process.platform === "darwin") {
         // Lazy-load so Linux/Windows never initialize noble's bindings.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { NobleBleTransport } = require("./noble-transport");
-        return new NobleBleTransport();
+        // noble is an optionalDependency so Windows installs can succeed without it.
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { NobleBleTransport } = require("./noble-transport");
+            return new NobleBleTransport();
+        } catch (error) {
+            throw mapOptionalNobleLoadError(error);
+        }
     }
     // Windows (and any other non-Linux/non-macOS): webbluetooth / SimpleBLE.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { WebBluetoothTransport } = require("./webbluetooth-transport");
     return new WebBluetoothTransport();
+}
+
+function mapOptionalNobleLoadError(error: unknown): Error {
+    const code = (error as NodeJS.ErrnoException | null | undefined)?.code;
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+        code === "MODULE_NOT_FOUND" ||
+        /Cannot find module ['"]@abandonware\/noble['"]/.test(message)
+    ) {
+        return new Error(
+            `Bluetooth support on macOS requires @abandonware/noble, but it is not installed.\n\n` +
+            `On macOS, reinstall the CLI (or run \`npm install\` in the repo) and ensure ` +
+            `install scripts are allowed for @abandonware/noble.`,
+            { cause: error },
+        );
+    }
+    if (error instanceof Error) {
+        return error;
+    }
+    return new Error(message);
 }
 
 /** Normalize short (16/32-bit) and 128-bit BLE UUIDs for comparison. */
