@@ -4,7 +4,7 @@ import * as os from "os";
 import { BoardToolchain, SharedLibrary } from "./board-toolchain";
 import { Project } from "../project";
 import { Package, PackageForHostUnix, PackageForHostWindows } from "../package";
-import { generateMakefile, hostUnixMakefilePrest, hostWindowsMakefilePreset } from "./tools/makefile";
+import { generateMakefile, generateCompileFlagsFile, hostUnixMakefilePrest, hostWindowsMakefilePreset } from "./tools/makefile";
 import { executeCommand, getErrorMessage } from "../utils";
 
 export type HostToolchainConfig = {
@@ -92,8 +92,10 @@ export class HostUnixToolchain extends HostToolchain<PackageForHostUnix> {
             }
 
             pkg.copyNativeFilesToDist();
-            const makefile = generateMakefile(hostUnixMakefilePrest(pkg, this.config.compilerToolchain));
-            pkg.writeMakefile(makefile);
+            const makefileConfig = hostUnixMakefilePrest(pkg, this.config.compilerToolchain);
+            pkg.writeMakefile(generateMakefile(makefileConfig));
+            pkg.writeCompileFlagsFile(generateCompileFlagsFile(makefileConfig));
+            pkg.ensureBuildDirs();
             await executeCommand(this.config.compilerToolchain.make, [], pkg.resolvedDistDir);
             return archiveFile;
         } catch (error) {
@@ -146,11 +148,11 @@ export class HostWindowsToolchain extends HostToolchain<PackageForHostWindows> {
                 fs.rmSync(archiveFile, { force: true });
             }
             pkg.copyNativeFilesToDist();
-            const makefile = generateMakefile(
-                hostWindowsMakefilePreset(pkg, this.config.compilerToolchain),
-            );
-            pkg.writeMakefile(makefile);
-            
+            const makefileConfig = hostWindowsMakefilePreset(pkg, this.config.compilerToolchain);
+            pkg.writeMakefile(generateMakefile(makefileConfig));
+            pkg.writeCompileFlagsFile(generateCompileFlagsFile(makefileConfig));
+            pkg.ensureBuildDirs();
+
             await executeCommand(this.config.compilerToolchain.make, [], pkg.resolvedDistDir);
             return archiveFile;
         } catch (error) {

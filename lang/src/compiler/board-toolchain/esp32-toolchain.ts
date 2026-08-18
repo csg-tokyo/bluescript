@@ -4,7 +4,7 @@ import { PackageForEsp32 } from "../package";
 import { Project } from "../project";
 import { BoardToolchain, MemoryImage, MemoryLayout, ShadowMemory } from "./board-toolchain";
 import { executeCommand, getErrorMessage } from "../utils";
-import { generateMakefile, esp32MakefilePreset } from "./tools/makefile";
+import { generateMakefile, generateCompileFlagsFile, esp32MakefilePreset } from "./tools/makefile";
 import { ElfReader } from "./tools/elf-reader";
 import generateLinkerScript from "./tools/linker-script";
 
@@ -85,10 +85,12 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32, MemoryIma
             }
 
             pkg.copyNativeFilesToDist();
-            const makefile = generateMakefile(esp32MakefilePreset(
+            const makefileConfig = esp32MakefilePreset(
                 pkg, includeDirs, this.config.compilerToolchain
-            ))
-            pkg.writeMakefile(makefile);
+            );
+            pkg.writeMakefile(generateMakefile(makefileConfig));
+            pkg.writeCompileFlagsFile(generateCompileFlagsFile(makefileConfig));
+            pkg.ensureBuildDirs();
             await executeCommand(this.make, [], pkg.resolvedDistDir);
         } catch (error) {
             throw new Error(`Failed to compile package ${pkg.name}: ${getErrorMessage(error)}`, {cause: error});
