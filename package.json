@@ -19,7 +19,7 @@
     "core-js@3.49.0": true,
     "core-js-pure@3.49.0": true,
     "usb@2.18.0": true,
-    "webbluetooth@3.7.0": true,
+    "webbluetooth@6.6.0": true,
     "@abandonware/noble@1.9.2-26": true
   }
 }

@@ -70,7 +70,7 @@
     "node-ble": "^1.13.0",
     "serialport": "^13.0.0",
     "sirv": "^3.0.2",
-    "webbluetooth": "^3.7.0",
+    "webbluetooth": "6.6.0",
     "zod": "^4.1.11"
   },
   "optionalDependencies": {
