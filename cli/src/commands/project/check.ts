@@ -3,7 +3,7 @@ import { logger, runStep } from "../../core/logger";
 import { ProjectConfigHandler } from "../../config/project-config";
 import { cwd } from "../../core/command-exec";
 import { CommandHandlerWithUpdateCheck } from "../command";
-import { CompilerAdapter, getCompilerAdapter } from "../../platforms";
+import { CompilerAdapter, getCompilerAdapter } from "../../platforms/compiler";
 
 class CheckHandler extends CommandHandlerWithUpdateCheck {
     private compilerAdapter: CompilerAdapter;

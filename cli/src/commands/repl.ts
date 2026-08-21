@@ -8,7 +8,8 @@ import chalk from "chalk";
 import * as fs from '../core/fs';
 import { CommandHandlerWithUpdateCheck } from "./command";
 import { GLOBAL_SETTINGS } from "../config/constants";
-import { CompileContext, createPlatformSession } from "../platforms";
+import { BoardRuntime, getBoardRuntime } from "../platforms/runtime";
+import { CompileContext, CompilerAdapter, getCompilerAdapter } from "../platforms/compiler";
 import { BoardName } from "../config/board-utils";
 import { CompileError, CompileOutput } from "@bscript/lang";
 import { SerialTaskQueue } from "../core/serial-task-queue";
@@ -30,7 +31,8 @@ class ReplHandler extends CommandHandlerWithUpdateCheck {
     }
 
     private projectConfigHandler: ProjectConfigHandler;
-    private platform: ReturnType<typeof createPlatformSession>;
+    private compiler: CompilerAdapter;
+    private runtime: BoardRuntime;
     private rl: readline.Interface;
     private compileContext?: CompileContext;
     private isFirstCompile: boolean;
@@ -38,7 +40,7 @@ class ReplHandler extends CommandHandlerWithUpdateCheck {
 
     constructor(
         private boardName: string,
-        private deviceName?: string,
+        deviceName?: string,
         private createReadline: ReplReadlineFactory = defaultReplReadlineFactory,
     ) {
         super();
@@ -46,13 +48,11 @@ class ReplHandler extends CommandHandlerWithUpdateCheck {
         const board = this.boardName as BoardName;
         this.projectConfigHandler =
             ProjectConfigHandler.createTemplate(ReplHandler.TEMP_PROJECT_NAME, board, ReplHandler.tempProjectDir);
-        this.projectConfigHandler.update({ deviceName: this.deviceName ?? DEFAULT_DEVICE_NAME });
 
-        this.platform = createPlatformSession(
-            board,
-            this.globalConfigHandler,
-            this.projectConfigHandler,
-            createConsoleOutput(),
+        this.compiler = getCompilerAdapter(board, this.globalConfigHandler, this.projectConfigHandler);
+        this.runtime = getBoardRuntime(
+            board, this.globalConfigHandler,
+            createConsoleOutput(), deviceName ?? DEFAULT_DEVICE_NAME,
             () => {
                 logger.error('Disconnected.');
                 this.deleteTempProject();
@@ -65,14 +65,14 @@ class ReplHandler extends CommandHandlerWithUpdateCheck {
     }
 
     async start() {
-        await runStep('Connecting...', () => this.platform.runtime.connect());
-        this.compileContext = await runStep('Initializing...', () => this.platform.runtime.prepare())!;
+        await runStep('Connecting...', () => this.runtime.connect());
+        this.compileContext = await runStep('Initializing...', () => this.runtime.prepare())!;
 
         this.createTempProject();
         await this.runRepl();
         this.rl.close();
 
-        await runStep('Disconnecting...', () => this.platform.runtime.disconnect());
+        await runStep('Disconnecting...', () => this.runtime.disconnect());
         this.deleteTempProject();
         process.exit(0);
     }
@@ -109,13 +109,13 @@ class ReplHandler extends CommandHandlerWithUpdateCheck {
         let output: CompileOutput;
         if (this.isFirstCompile) {
             this.writeEntryFile(line);
-            output = await this.platform.compiler.buildProject(this.compileContext);
+            output = await this.compiler.buildProject(this.compileContext);
             this.isFirstCompile = false;
         } else {
-            output = await this.platform.compiler.compileFragment(line);
+            output = await this.compiler.compileFragment(line);
         }
-        await this.platform.runtime.load(output);
-        await this.platform.runtime.execute(output);
+        await this.runtime.load(output);
+        await this.runtime.execute(output);
     }
 
     private createTempProject() {
