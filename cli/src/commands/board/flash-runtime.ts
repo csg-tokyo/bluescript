@@ -15,10 +15,12 @@ const RUNTIME_ESP_PORT_DIR = (runtimeDir: string) => path.join(runtimeDir, 'port
 
 abstract class FlashRuntimeHandler extends CommandHandlerWithUpdateCheck {
     abstract isSetup(): boolean;
+    abstract eraseFlash(port: string): Promise<void>;
     abstract flashRuntime(port: string, deviceName?: string): Promise<void>;
 
     async flash(port: string, deviceName?: string) {
-        return runStep('Flashing...', () => this.flashRuntime(port, deviceName));
+        await runStep('Erasing flash...', () => this.eraseFlash(port));
+        await runStep('Flashing BlueScript runtime...', () => this.flashRuntime(port, deviceName));
     }
 }
 
@@ -28,32 +30,40 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
     isSetup(): boolean {
         return this.globalConfigHandler.isBoardSetup(this.boardName);
     }
+
+    async eraseFlash(port: string) {
+        await this.runIdfPy(['erase-flash', '-p', port]);
+    }
     
     async flashRuntime(port: string, deviceName?: string) {
+        deviceName = deviceName ?? DEFAULT_DEVICE_NAME;
+        await this.runIdfPy(
+            ['-D', `DEVICE_NAME=${deviceName}`, 'build', 'flash', '-p', port],
+        );
+    }
+
+    private async runIdfPy(args: string[]) {
+        const osType = os.platform();
+        const exportFile = this.getExportFile();
+        const cwd = this.getEspPortDir();
+        const preCommand = osType === 'win32' ? `call ${exportFile}` : `source ${exportFile}`;
+        await execShell(`${preCommand} && idf.py ${args.join(' ')}`, { cwd });
+    }
+
+    private getEspPortDir() {
         const runtimeDir = this.globalConfigHandler.getConfig().runtimeDir;
         if (!runtimeDir) {
             throw new Error('An unexpected error occurred: cannot find runtime directory path.');
         }
+        return RUNTIME_ESP_PORT_DIR(runtimeDir);
+    }
 
+    private getExportFile() {
         const boardConfig = this.globalConfigHandler.getBoardConfig('esp32');
         if (!boardConfig) {
             throw new Error('An unexpected error occurred: cannot find board config.');
         }
-
-        deviceName = deviceName ?? DEFAULT_DEVICE_NAME;
-
-        await this.runIdfPy(
-            boardConfig.exportFile,
-            ['-D', `DEVICE_NAME=${deviceName}`, 'build', 'flash', '-p', port],
-            RUNTIME_ESP_PORT_DIR(runtimeDir)
-        )
-    }
-
-    private async runIdfPy(exportFile: string, args: string[], cwd: string) {
-        const osType = os.platform();
-        const preCommand = osType === 'win32' ? `call ${exportFile}` : `source ${exportFile}`;
-
-        await execShell(`${preCommand} && idf.py ${args.join(' ')}`, { cwd });
+        return boardConfig.exportFile;
     }
 }
 
@@ -65,6 +75,21 @@ function getFlashRuntimeHandler(board: string) {
         return new ESP32FlashRuntimeHandler();
     }
     throw new Error(`Unsupported board name: ${board}`);
+}
+
+export function formatPortChoiceLabel(port: {
+    path: string;
+    manufacturer?: string;
+    vendorId?: string;
+    productId?: string;
+}): string {
+    const manufacturer = port.manufacturer || 'N/A';
+    let label = `${port.path} — ${manufacturer}`;
+
+    if (port.vendorId && port.productId) {
+        label += ` (${port.vendorId.toLowerCase()}:${port.productId.toLowerCase()})`;
+    }
+    return label;
 }
 
 export async function handleFlashRuntimeCommand(board: string, options: { port?: string, deviceName?: string }) {
@@ -88,7 +113,7 @@ export async function handleFlashRuntimeCommand(board: string, options: { port?:
             }
 
             const portChoices = ports.map(port => ({
-                name: `${port.path} (${port.manufacturer || 'N/A'})`,
+                name: formatPortChoiceLabel(port),
                 value: port.path,
             }));
 

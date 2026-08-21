@@ -124,7 +124,7 @@ export class Esp32UnixEnv extends Esp32Env {
     get xtensaLdFileName() { return XTENSA_LD_NAME; }
 
     async runEspIdfInstallScript() {
-        await execShell(`bash ${JSON.stringify(this.idfInstallShFile)}`);
+        await execShell(`bash ${JSON.stringify(this.idfInstallShFile)} esp32`);
     }
 
     async getXtensaGccDir(pythonCommand: string) {
@@ -161,7 +161,7 @@ export class Esp32WindowsEnv extends Esp32Env {
     get xtensaLdFileName(): string { return `${XTENSA_LD_NAME}.exe`; }
 
     async runEspIdfInstallScript() {
-        await execShell(this.idfInstallBatFile);
+        await execShell(`${this.idfInstallBatFile} esp32`);
     }
 
     async getXtensaGccDir(pythonCommand: string) {

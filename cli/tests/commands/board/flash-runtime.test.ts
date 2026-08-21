@@ -1,4 +1,4 @@
-import { handleFlashRuntimeCommand } from '../../../src/commands/board/flash-runtime';
+import { formatPortChoiceLabel, handleFlashRuntimeCommand } from '../../../src/commands/board/flash-runtime';
 import { SerialPort } from 'serialport';
 import { deleteGlobalEnv, setupDefaultGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings } from '../global-env-helper';
 import {
@@ -20,6 +20,35 @@ const portList = [{
     productId: undefined, 
     vendorId: undefined
 }];
+
+describe('formatPortChoiceLabel', () => {
+    it('formats path and manufacturer when ids are missing', () => {
+        expect(formatPortChoiceLabel({ path: '/dev/ttyUSB0' })).toBe('/dev/ttyUSB0 — N/A');
+        expect(formatPortChoiceLabel({
+            path: 'COM3',
+            manufacturer: 'Espressif',
+        })).toBe('COM3 — Espressif');
+    });
+
+    it('appends vid:pid and serial number when present', () => {
+        expect(formatPortChoiceLabel({
+            path: '/dev/tty.usbserial-0001',
+            manufacturer: 'Silicon Labs',
+            vendorId: '10C4',
+            productId: 'EA60',
+            serialNumber: '0001',
+        })).toBe('/dev/tty.usbserial-0001 — Silicon Labs (10c4:ea60)  SN:0001');
+    });
+
+    it('omits serial number when absent but keeps vid:pid', () => {
+        expect(formatPortChoiceLabel({
+            path: '/dev/ttyUSB0',
+            manufacturer: undefined,
+            vendorId: '1A86',
+            productId: '7523',
+        })).toBe('/dev/ttyUSB0 — N/A (1a86:7523)');
+    });
+});
 
 describe('board flash-runtime command', () => {
     beforeAll(() => {
@@ -98,13 +127,30 @@ describe('board flash-runtime command', () => {
         it('should flash runtime to board if setup for esp32 exists', async () => {
             // --- Arrange ---
             setupGlobalEnvWithEsp32();
-            mockedSerialPort.list.mockResolvedValue(portList);
-            mockedInquirer.prompt.mockResolvedValue({port: '/tty/port1'});
+            const richPortList = [{
+                path: '/dev/tty.usbserial-0001',
+                manufacturer: 'Silicon Labs',
+                serialNumber: '0001',
+                pnpId: undefined,
+                locationId: undefined,
+                productId: 'EA60',
+                vendorId: '10C4',
+            }];
+            mockedSerialPort.list.mockResolvedValue(richPortList);
+            mockedInquirer.prompt.mockResolvedValue({port: '/dev/tty.usbserial-0001'});
 
             // --- Act ---
             await handleFlashRuntimeCommand('esp32', {});
 
             // --- Assert ---
+            expect(mockedInquirer.prompt).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    choices: [{
+                        name: '/dev/tty.usbserial-0001 — Silicon Labs (10c4:ea60)  SN:0001',
+                        value: '/dev/tty.usbserial-0001',
+                    }],
+                }),
+            ]);
             expect(mockedExecShell).toHaveBeenCalledWith(expect.stringContaining('build flash'), { cwd: expect.stringContaining('esp32') });
             expect(mockedLogger.error).not.toHaveBeenCalled();
         });
