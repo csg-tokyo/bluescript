@@ -110,7 +110,7 @@ bscript project run --with-notebook
 | Runtime location | Local process on the development machine | Runtime on the microcontroller |
 | Setup | `bscript board setup host` | `bscript board setup esp32` + `bscript board flash-runtime esp32` |
 | Connection during run | Local process | Bluetooth |
-| `deviceName` in bsconfig | Not available (field does not exist) | Available — BLE device name to connect to |
+| `-d` / `--device-name` | Not used | BLE device name to connect to (must match `flash-runtime`) |
 | Hardware libraries (GPIO, PWM, I2C) | Not available | Available via packages |
 | `flash-runtime` | Not supported | Required for first-time setup |
 
