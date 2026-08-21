@@ -27,9 +27,27 @@ export abstract class Esp32Env extends BoardEnv {
     async cloneEspIdf() {
         await execWithLog(
             'git',
-            ['clone', '--depth', '1', '-b', this.idfVersion, '--recursive', this.idfGitRepo],
+            ['clone', '--depth', '1', '-b', this.idfVersion, '--recursive', '--shallow-submodules', this.idfGitRepo],
             { cwd: this.espRootDir },
         );
+        fs.removeDir(path.join(this.idfDir, '.git'));
+    }
+
+    async detectIdfVersion(pythonCommand: string, idfPath: string): Promise<string> {
+        const script = [
+            'import sys',
+            'sys.path.insert(0, sys.argv[1] + "/tools")',
+            'import idf_tools',
+            'idf_tools.g.idf_path = sys.argv[1]',
+            'print(idf_tools.get_idf_version())',
+        ].join('; ');
+
+        try {
+            const stdout = await simpleExec(pythonCommand, ['-c', script, idfPath]);
+            return 'v' + stdout.trim();
+        } catch (error) {
+            throw new Error(`Failed to detect ESP-IDF version at ${idfPath}.`, { cause: error });
+        }
     }
 
     removeBoardRoot() {

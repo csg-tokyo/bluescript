@@ -9,38 +9,61 @@ import { Esp32UnixEnv, Esp32WindowsEnv } from "../../../platforms/board-env/esp3
 import { GLOBAL_SETTINGS } from "../../../config/constants";
 
 
-export class Esp32DarwinSetupHandler extends SetupHandler {
+export abstract class Esp32SetupHandler extends SetupHandler {
     boardName: BoardName = "esp32";
-    boardEnv: Esp32UnixEnv;
-    pythonCommand?: string;
-    makeCommand?: string;
+    abstract boardEnv: Esp32UnixEnv | Esp32WindowsEnv;
+    protected espIdfPath?: string;
+    protected pythonCommand?: string;
+    protected makeCommand?: string;
 
-    constructor() {
+    constructor(espIdfPath?: string) {
         super();
-        this.boardEnv = new Esp32UnixEnv();
+        this.espIdfPath = espIdfPath;
     }
 
-    loadBoardSetupSteps(): void {
-        this.setupSteps.push({
-            description: "Verify that git, python3, brew and make are installed.",
-            actionMessage: "Verifying that git, python3 and brew are installed...",
-            action: this.verifyPrerequisitsInstalledStep.bind(this),
-        });
-        this.setupSteps.push({
-            description: "Install required packages via brew if they are not installed (cmake, ninja, dfu-util, and ccache).",
-            actionMessage: "Installing required packages...",
-            action: this.installRequiredPackagesStep.bind(this),
-        });
-        this.setupSteps.push({
-            description: `Clone ESP-IDF ${this.boardEnv.idfVersion} from ${this.boardEnv.idfGitRepo}.`,
-            actionMessage: `Cloning ESP-IDF ${this.boardEnv.idfVersion}... It may take a while.`,
-            action: this.cloneEspIdfStep.bind(this),
-        });
+    loadEspIdfSetupSteps(): void {
+        if (this.espIdfPath) {
+            this.setupSteps.push({
+                description: `Copy ESP-IDF from ${this.espIdfPath}.`,
+                actionMessage: `Copying ESP-IDF from ${this.espIdfPath}...`,
+                action: this.copyEspIdfStep.bind(this),
+            });
+        } else {
+            this.setupSteps.push({
+                description: `Clone ESP-IDF ${this.boardEnv.idfVersion} from ${this.boardEnv.idfGitRepo}.`,
+                actionMessage: `Cloning ESP-IDF ${this.boardEnv.idfVersion}... It may take a while.`,
+                action: this.cloneEspIdfStep.bind(this),
+            });
+        }
+        
         this.setupSteps.push({
             description: "Run ESP-IDF install script.",
             actionMessage: "Running ESP-IDF install script...",
             action: this.runEspIdfInstallScriptStep.bind(this),
         });
+    }
+
+    protected async cloneEspIdfStep() {
+        await this.boardEnv.cloneEspIdf();
+    }
+
+    protected async copyEspIdfStep() {
+        if (!fs.exists(this.espIdfPath!)) {
+            throw new Error(`ESP-IDF directory not found: ${this.espIdfPath}`);
+        }
+        const version = await this.boardEnv.detectIdfVersion(this.pythonCommand!, this.espIdfPath!);
+        if (!version.startsWith(this.boardEnv.idfVersion)) {
+            const messages = [
+                `The ESP-IDF version of ${this.espIdfPath!} is not correct.`,
+                `The expected version is ${this.boardEnv.idfVersion}, but got ${version}`
+            ]
+            throw new Error(messages.join('\n'));
+        }
+        fs.copyDir(this.espIdfPath!, this.boardEnv.idfDir);
+    }
+
+    protected async runEspIdfInstallScriptStep() {
+        await this.boardEnv.runEspIdfInstallScript();
     }
 
     async setBoardConfig() {
@@ -57,6 +80,30 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
                 python: this.pythonCommand!
             },
         });
+    }
+}
+
+
+export class Esp32DarwinSetupHandler extends Esp32SetupHandler {
+    boardEnv: Esp32UnixEnv;
+
+    constructor(espIdfPath?: string) {
+        super(espIdfPath);
+        this.boardEnv = new Esp32UnixEnv();
+    }
+
+    loadBoardSetupSteps(): void {
+        this.setupSteps.push({
+            description: "Verify that git, python3, brew and make are installed.",
+            actionMessage: "Verifying that git, python3 and brew are installed...",
+            action: this.verifyPrerequisitsInstalledStep.bind(this),
+        });
+        this.setupSteps.push({
+            description: "Install required packages via brew if they are not installed (cmake, ninja, dfu-util, and ccache).",
+            actionMessage: "Installing required packages...",
+            action: this.installRequiredPackagesStep.bind(this),
+        });
+        this.loadEspIdfSetupSteps();
     }
 
     private async verifyPrerequisitsInstalledStep() {
@@ -81,18 +128,9 @@ export class Esp32DarwinSetupHandler extends SetupHandler {
         }
         await execWithLog('brew', ['install', ...packages]);
     }
-
-    private async cloneEspIdfStep() {
-        await this.boardEnv.cloneEspIdf();
-    }
-
-    private async runEspIdfInstallScriptStep() {
-        await this.boardEnv.runEspIdfInstallScript();
-    }
 }
 
-export class Esp32LinuxSetupHandler extends SetupHandler {
-    boardName: BoardName = "esp32";
+export class Esp32LinuxSetupHandler extends Esp32SetupHandler {
     boardEnv: Esp32UnixEnv;
     distType: 'UbuntuDebian' | 'CentOS7or8' | 'Arch';
     ruleFile: string = '/etc/udev/rules.d/bscript-serial.rules';
@@ -109,8 +147,8 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
         }
     }
 
-    constructor() {
-        super();
+    constructor(espIdfPath?: string) {
+        super(espIdfPath);
         this.boardEnv = new Esp32UnixEnv();
         this.distType = this.getDistribution();
     }
@@ -121,16 +159,7 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
             actionMessage: "Installing required packages...",
             action: this.installRequiredPackagesStep.bind(this),
         });
-        this.setupSteps.push({
-            description: `Clone ESP-IDF ${this.boardEnv.idfVersion} from ${this.boardEnv.idfGitRepo}.`,
-            actionMessage: `Cloning ESP-IDF ${this.boardEnv.idfVersion}... It may take a while.`,
-            action: this.cloneEspIdfStep.bind(this),
-        });
-        this.setupSteps.push({
-            description: "Run ESP-IDF install script.",
-            actionMessage: "Running ESP-IDF install script...",
-            action: this.runEspIdfInstallScriptStep.bind(this),
-        });
+        this.loadEspIdfSetupSteps();
         this.setupSteps.push({
             description: `Write ${this.ruleFile} to configure access permissions for the serial device.`,
             actionMessage: `Writing ${this.ruleFile}...`,
@@ -140,24 +169,6 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
             description: `Install D-Bus policy (${this.nodeBleDbusConfigFile}) so BLE works with BlueZ without root.`,
             actionMessage: "Installing D-Bus policy for Bluetooth...",
             action: this.installNodeBleDbusPolicyStep.bind(this),
-        });
-    }
-
-    async setBoardConfig() {
-        const makeCommand = await this.boardEnv.getMakeCommand();
-        const pythonCommand = await this.boardEnv.getPythonCommand();
-        const xtensaGccDir = await this.boardEnv.getXtensaGccDir(pythonCommand);
-        this.globalConfigHandler.updateBoardConfig(this.boardName, {
-            idfVersion: this.boardEnv.idfVersion,
-            rootDir: this.boardEnv.espRootDir,
-            exportFile: this.boardEnv.idfExportFile,
-            toolchain: {
-                gcc: path.join(xtensaGccDir, this.boardEnv.xtensaGccFileName),
-                ar: path.join(xtensaGccDir, this.boardEnv.xtensaArFileName),
-                ld: path.join(xtensaGccDir, this.boardEnv.xtensaLdFileName),
-                make: makeCommand,
-                python: pythonCommand
-            },
         });
     }
 
@@ -219,14 +230,9 @@ export class Esp32LinuxSetupHandler extends SetupHandler {
         } else { // Arch
             await execShell(`sudo pacman -S --needed --noconfirm ${this.requiredPackages.join(' ')}`);
         }
-    }
 
-    private async cloneEspIdfStep() {
-        await this.boardEnv.cloneEspIdf();
-    }
-
-    private async runEspIdfInstallScriptStep() {
-        await this.boardEnv.runEspIdfInstallScript();
+        this.pythonCommand = await this.boardEnv.getPythonCommand();
+        this.makeCommand = await this.boardEnv.getMakeCommand();
     }
 
     private async writeRuleFileStep() {
@@ -291,14 +297,11 @@ KERNEL=="ttyUSB[0-9]*", MODE="0666"
     }
 }
 
-export class Esp32WindowsSetupHandler extends SetupHandler {
-    boardName: BoardName = "esp32";
+export class Esp32WindowsSetupHandler extends Esp32SetupHandler {
     boardEnv: Esp32WindowsEnv;
-    makeCommand?: string;
-    pythonCommand?: string;
 
-    constructor() {
-        super();
+    constructor(espIdfPath?: string) {
+        super(espIdfPath);
         this.boardEnv = new Esp32WindowsEnv();
     }
 
@@ -308,32 +311,7 @@ export class Esp32WindowsSetupHandler extends SetupHandler {
             actionMessage: "Verifying that git and python3 are installed...",
             action: this.verifyPrerequisitsInstalledStep.bind(this),
         });
-        this.setupSteps.push({
-            description: `Clone ESP-IDF ${this.boardEnv.idfVersion} from ${this.boardEnv.idfGitRepo}.`,
-            actionMessage: `Cloning ESP-IDF ${this.boardEnv.idfVersion}... It may take a while.`,
-            action: this.cloneEspIdfStep.bind(this),
-        });
-        this.setupSteps.push({
-            description: "Run ESP-IDF install script.",
-            actionMessage: "Running ESP-IDF install script...",
-            action: this.runEspIdfInstallScriptStep.bind(this),
-        });
-    }
-
-    async setBoardConfig() {
-        const xtensaGccDir = await this.boardEnv.getXtensaGccDir(this.pythonCommand!);
-        this.globalConfigHandler.updateBoardConfig(this.boardName, {
-            idfVersion: this.boardEnv.idfVersion,
-            rootDir: this.boardEnv.espRootDir,
-            exportFile: this.boardEnv.idfExportFile,
-            toolchain: {
-                gcc: path.join(xtensaGccDir, this.boardEnv.xtensaGccFileName),
-                ar: path.join(xtensaGccDir, this.boardEnv.xtensaArFileName),
-                ld: path.join(xtensaGccDir, this.boardEnv.xtensaLdFileName),
-                make: this.makeCommand!,
-                python: this.pythonCommand!
-            },
-        });
+        this.loadEspIdfSetupSteps();
     }
 
     private async verifyPrerequisitsInstalledStep() {
@@ -343,13 +321,5 @@ export class Esp32WindowsSetupHandler extends SetupHandler {
         }
         this.pythonCommand = await this.boardEnv.getPythonCommand();
         this.makeCommand = await this.boardEnv.getMakeCommand();
-    }
-
-    private async cloneEspIdfStep() {
-        await this.boardEnv.cloneEspIdf();
-    }
-
-    private async runEspIdfInstallScriptStep() {
-        await this.boardEnv.runEspIdfInstallScript();
     }
 }

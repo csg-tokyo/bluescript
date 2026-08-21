@@ -15,6 +15,10 @@ export function moveDir(from: string, to: string) {
     fs.renameSync(from, to);
 }
 
+export function copyDir(from: string, to: string) {
+    fs.cpSync(from, to, {recursive: true});
+}
+
 export function exists(path: string): boolean {
     return fs.existsSync(path);
 }

@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import * as os from 'os';
+import * as path from 'path';
 import inquirer from 'inquirer';
 import { logger } from "../../../core/logger";
 import chalk from "chalk";
@@ -8,15 +9,15 @@ import { Esp32DarwinSetupHandler, Esp32WindowsSetupHandler, Esp32LinuxSetupHandl
 import { HostUnixSetupHandler, HostWindowsSetupHandler } from "./host";
 
 
-function getSetupHandler(board: string): SetupHandler {
+function getSetupHandler(board: string, espIdfPath?: string): SetupHandler {
     const osType = os.platform();
     if (board === 'esp32') {
         if (osType === 'darwin')
-            return new Esp32DarwinSetupHandler();
+            return new Esp32DarwinSetupHandler(espIdfPath);
         if (osType === 'linux') 
-            return new Esp32LinuxSetupHandler();
+            return new Esp32LinuxSetupHandler(espIdfPath);
         if (osType === 'win32')
-            return new Esp32WindowsSetupHandler();
+            return new Esp32WindowsSetupHandler(espIdfPath);
         throw new Error(`Unsupported OS type: ${osType}.`);
     }
     if (board === 'host') {
@@ -29,9 +30,10 @@ function getSetupHandler(board: string): SetupHandler {
     throw new Error(`Unsupported board name: ${board}`);
 }
 
-export async function handleSetupCommand(board: string) {
+export async function handleSetupCommand(board: string, options: {espIdf?: string}) {
     try {
-        const setupHandler = getSetupHandler(board);
+        const espIdfPath = options.espIdf ? path.resolve(options.espIdf) : undefined;
+        const setupHandler = getSetupHandler(board, espIdfPath);
 
         // Check if setup has already been completed.
         if (!setupHandler.needSetup()) {
@@ -81,6 +83,7 @@ export function registerSetupCommand(program: Command) {
         .command('setup')
         .description('set up the environment for the specified board')
         .argument('<board-name>', 'name of the board to setup (e.g., esp32)')
+        .option('--esp-idf <path>', 'path to an existing ESP-IDF directory to copy')
         .action(handleSetupCommand);
 }
 
