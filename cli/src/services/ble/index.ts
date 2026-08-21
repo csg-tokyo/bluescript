@@ -88,7 +88,6 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
 
 /**
  * Cross-platform BLE connection.
- * Uses @abandonware/noble on macOS, webbluetooth on Windows, and node-ble on Linux.
  */
 export class BleConnection extends Connection<Buffer> {
     public status: "connected" | "connecting" | "disconnected" | "disconnecting" = "disconnected";

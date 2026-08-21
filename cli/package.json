@@ -53,13 +53,13 @@
     "@types/inquirer": "^9.0.9",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.5.2",
-    "@types/web-bluetooth": "^0.0.21",
     "jest": "^29.7.0",
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@abandonware/noble": "^1.9.2-26",
     "@bscript/lang": "2.1.0-alpha.1",
     "@bscript/notebook": "2.1.0-alpha.1",
     "axios": "^1.12.2",
@@ -70,10 +70,6 @@
     "node-ble": "^1.13.0",
     "serialport": "^13.0.0",
     "sirv": "^3.0.2",
-    "webbluetooth": "6.6.0",
     "zod": "^4.1.11"
-  },
-  "optionalDependencies": {
-    "@abandonware/noble": "^1.9.2-26"
   }
 }

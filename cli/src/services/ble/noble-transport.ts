@@ -3,57 +3,16 @@ import {
     BLE_SERVICE_UUID,
     BleTransport,
 } from "./transport";
-
-// noble is an optionalDependency (see cli/package.json), so it cannot be imported
-// statically: builds on platforms that skipped its native install would fail to
-// resolve it. Only the subset of its API used below is declared here.
-type NobleDataHandler = (data: Buffer, isNotification: boolean) => void;
-
-interface NobleCharacteristic {
-    on(event: "data", listener: NobleDataHandler): void;
-    removeListener(event: "data", listener: NobleDataHandler): void;
-    subscribeAsync(): Promise<void>;
-    unsubscribeAsync(): Promise<void>;
-    writeAsync(data: Buffer, withoutResponse: boolean): Promise<void>;
-}
-
-interface NoblePeripheral {
-    readonly advertisement: { localName?: string };
-    readonly state: string;
-    on(event: "connect", listener: (error?: unknown) => void): void;
-    on(event: "disconnect", listener: (reason?: unknown) => void): void;
-    removeListener(event: "connect", listener: (error?: unknown) => void): void;
-    removeListener(event: "disconnect", listener: (reason?: unknown) => void): void;
-    connectAsync(): Promise<void>;
-    disconnectAsync(): Promise<void>;
-    cancelConnect(): void;
-    discoverSomeServicesAndCharacteristicsAsync(
-        serviceUuids: string[],
-        characteristicUuids: string[],
-    ): Promise<{ characteristics: NobleCharacteristic[] }>;
-}
-
-interface NobleModule {
-    readonly _state: string;
-    on(event: "discover", listener: (peripheral: NoblePeripheral) => void): void;
-    on(event: "stateChange", listener: (state: string) => void): void;
-    removeListener(event: "discover", listener: (peripheral: NoblePeripheral) => void): void;
-    removeListener(event: "stateChange", listener: (state: string) => void): void;
-    startScanningAsync(serviceUuids: string[], allowDuplicates: boolean): Promise<void>;
-    stopScanningAsync(): Promise<void>;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const noble = require("@abandonware/noble") as NobleModule;
+import noble, { Characteristic, Peripheral } from "@abandonware/noble";
 
 
 /**
- * BLE transport backed by @abandonware/noble (macOS).
+ * BLE transport backed by @abandonware/noble (macOS / Windows).
  */
 export class NobleBleTransport extends BleTransport {
-    private characteristic: NobleCharacteristic | null = null;
-    private peripheral: NoblePeripheral | null = null;
-    private discoverHandler: ((p: NoblePeripheral) => void) | null = null;
+    private characteristic: Characteristic | null = null;
+    private peripheral: Peripheral | null = null;
+    private discoverHandler: ((p: Peripheral) => void) | null = null;
     private peripheralConnectHandler: ((error?: unknown) => void) | null = null;
     private peripheralDisconnectHandler: ((reason?: unknown) => void) | null = null;
     private characteristicDataHandler: ((data: Buffer, isNotification: boolean) => void) | null = null;
@@ -68,8 +27,8 @@ export class NobleBleTransport extends BleTransport {
 
         this._scannedDeviceNames = [];
 
-        const searchPeripheralPromise = new Promise<NoblePeripheral>((resolve) => {
-            this.discoverHandler = (p: NoblePeripheral) => {
+        const searchPeripheralPromise = new Promise<Peripheral>((resolve) => {
+            this.discoverHandler = (p: Peripheral) => {
                 const localName = p.advertisement.localName;
                 if (localName && !this._scannedDeviceNames.includes(localName)) {
                     this._scannedDeviceNames.push(localName);

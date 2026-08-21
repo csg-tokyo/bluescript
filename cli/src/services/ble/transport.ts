@@ -11,7 +11,7 @@ export type BleTransportEvents = {
 
 /**
  * Platform-specific BLE backend. {@link BleConnection} stays identical across
- * macOS (noble), Windows (webbluetooth), and Linux (node-ble).
+ * macOS/Windows (noble) and Linux (node-ble).
  */
 export abstract class BleTransport extends EventEmitter<BleTransportEvents> {
     /** Local names observed while scanning for the target device. */
@@ -39,41 +39,10 @@ export function createBleTransport(): BleTransport {
         const { NodeBleTransport } = require("./node-ble-transport");
         return new NodeBleTransport();
     }
-    if (process.platform === "darwin") {
-        // Lazy-load so Linux/Windows never initialize noble's bindings.
-        // noble is an optionalDependency so Windows installs can succeed without it.
-        try {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const { NobleBleTransport } = require("./noble-transport");
-            return new NobleBleTransport();
-        } catch (error) {
-            throw mapOptionalNobleLoadError(error);
-        }
-    }
-    // Windows (and any other non-Linux/non-macOS): webbluetooth / SimpleBLE.
+    // Lazy-load so Linux never initializes noble's HCI binding.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { WebBluetoothTransport } = require("./webbluetooth-transport");
-    return new WebBluetoothTransport();
-}
-
-function mapOptionalNobleLoadError(error: unknown): Error {
-    const code = (error as NodeJS.ErrnoException | null | undefined)?.code;
-    const message = error instanceof Error ? error.message : String(error);
-    if (
-        code === "MODULE_NOT_FOUND" ||
-        /Cannot find module ['"]@abandonware\/noble['"]/.test(message)
-    ) {
-        return new Error(
-            `Bluetooth support on macOS requires @abandonware/noble, but it is not installed.\n\n` +
-            `On macOS, reinstall the CLI (or run \`npm install\` in the repo) and ensure ` +
-            `install scripts are allowed for @abandonware/noble.`,
-            { cause: error },
-        );
-    }
-    if (error instanceof Error) {
-        return error;
-    }
-    return new Error(message);
+    const { NobleBleTransport } = require("./noble-transport");
+    return new NobleBleTransport();
 }
 
 /** Normalize short (16/32-bit) and 128-bit BLE UUIDs for comparison. */
