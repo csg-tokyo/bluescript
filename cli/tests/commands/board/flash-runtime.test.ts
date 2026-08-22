@@ -30,17 +30,16 @@ describe('formatPortChoiceLabel', () => {
         })).toBe('COM3 — Espressif');
     });
 
-    it('appends vid:pid and serial number when present', () => {
+    it('appends vid:pid when present', () => {
         expect(formatPortChoiceLabel({
             path: '/dev/tty.usbserial-0001',
             manufacturer: 'Silicon Labs',
             vendorId: '10C4',
             productId: 'EA60',
-            serialNumber: '0001',
-        })).toBe('/dev/tty.usbserial-0001 — Silicon Labs (10c4:ea60)  SN:0001');
+        })).toBe('/dev/tty.usbserial-0001 — Silicon Labs (10c4:ea60)');
     });
 
-    it('omits serial number when absent but keeps vid:pid', () => {
+    it('omits vid:pid when absent', () => {
         expect(formatPortChoiceLabel({
             path: '/dev/ttyUSB0',
             manufacturer: undefined,
@@ -146,7 +145,7 @@ describe('board flash-runtime command', () => {
             expect(mockedInquirer.prompt).toHaveBeenCalledWith([
                 expect.objectContaining({
                     choices: [{
-                        name: '/dev/tty.usbserial-0001 — Silicon Labs (10c4:ea60)  SN:0001',
+                        name: '/dev/tty.usbserial-0001 — Silicon Labs (10c4:ea60)',
                         value: '/dev/tty.usbserial-0001',
                     }],
                 }),

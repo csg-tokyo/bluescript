@@ -155,7 +155,8 @@ export class BleConnection extends Connection<Buffer> {
             `  2. Does the device name match between flash and connect?\n` +
             `     Connect is looking for: "${this.deviceName}"\n` +
             `     Flash sets the name via \`bscript board flash-runtime <board> -d <name>\`.\n` +
-            `     Connect uses \`deviceName\` in bsconfig.json (or \`-d\` for REPL).\n` +
+            `     Connect uses \`-d\` / \`--device-name\` with \`bscript project run\` or \`bscript repl\`.\n` +
+            `     When omitted, \`bscript project run\` falls back to \`deviceName\` in bsconfig.json.\n` +
             `     If the names differ, re-flash or update the connect name to match.`,
         );
     }
