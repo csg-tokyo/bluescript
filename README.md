@@ -4,6 +4,8 @@
 While it currently supports only the ESP32 board, future updates will include support for a wider range of boards.
 You can find the official website at https://csg-tokyo.github.io/bluescript/.
 
+Standard packages are available from https://github.com/bluescript-lang/.
+
 WARNING: this project is in beta stage and is subject to changes of the code-base, including project-wide name changes and API changes.
 
 # Documentation
