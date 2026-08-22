@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { MemoryImage, MemoryLayout } from "@bscript/lang";
+import { DEFAULT_DEVICE_NAME } from "../../config/project-config";
 import { logger } from "../../core/logger";
 import { Connection, ConnectionMessage, Service } from "../common";
 import { Protocol, ProtocolPacketBuilder, ProtocolParser } from "../device-protocol";
@@ -156,8 +157,8 @@ export class BleConnection extends Connection<Buffer> {
             `     Connect is looking for: "${this.deviceName}"\n` +
             `     Flash sets the name via \`bscript board flash-runtime <board> -d <name>\`.\n` +
             `     Connect uses \`-d\` / \`--device-name\` with \`bscript project run\` or \`bscript repl\`.\n` +
-            `     When omitted, \`bscript project run\` falls back to \`deviceName\` in bsconfig.json.\n` +
-            `     If the names differ, re-flash or update the connect name to match.`,
+            `     When omitted, the default is "${DEFAULT_DEVICE_NAME}".\n` +
+            `     If the names differ, re-flash or pass \`-d\` with the matching name.`,
         );
     }
 
