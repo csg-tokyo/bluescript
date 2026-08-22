@@ -111,25 +111,25 @@ static value_t gc_new_array2(int32_t n) {
     return gc_new_array(NULL, n, VALUE_UNDEF);
 }
 
-static value_t gc_new_vector2(int32_t n) {
-    return gc_new_vector(n, VALUE_UNDEF);
+static value_t gc_new_fixedarray2(int32_t n) {
+    return gc_new_fixedarray(n, VALUE_UNDEF);
 }
 
 static value_t gc_new_array3(int32_t n) {
     ROOT_SET(root_set, 1)
-    root_set.values[0] = gc_new_vector2(n);
-    value_t obj = gc_new_vector2(1);
-    gc_vector_set(obj, 0, root_set.values[0]);
+    root_set.values[0] = gc_new_fixedarray2(n);
+    value_t obj = gc_new_fixedarray2(1);
+    gc_fixedarray_set(obj, 0, root_set.values[0]);
     DELETE_ROOT_SET(root_set)
     return obj;
 }
 
 static value_t gc_array3_get(value_t obj, int32_t index) {
-    return gc_vector_get(gc_vector_get(obj, 0), index);
+    return gc_fixedarray_get(gc_fixedarray_get(obj, 0), index);
 }
 
 static void gc_array3_set(value_t obj, int32_t index, value_t value) {
-    gc_vector_set(gc_vector_get(obj, 0), index, value);
+    gc_fixedarray_set(gc_fixedarray_get(obj, 0), index, value);
 }
 
 // Test functions
@@ -233,7 +233,7 @@ void test_String() {
     check_string_length(s1);
     check_string_length(s);
 
-    check_string_length(gc_new_vector(3, VALUE_NULL));
+    check_string_length(gc_new_fixedarray(3, VALUE_NULL));
 }
 
 static value_t gc_bytearray_set(value_t obj, value_t index, value_t new_value) {
@@ -258,8 +258,8 @@ void test_bytearray() {
     Assert_equals(gc_bytearray_length(arr2), 7);
 }
 
-static value_t gc_vector_setter(value_t obj, value_t index, value_t new_value) {
-    return gc_vector_set(obj, value_to_int(index), new_value);
+static value_t gc_fixedarray_setter(value_t obj, value_t index, value_t new_value) {
+    return gc_fixedarray_set(obj, value_to_int(index), new_value);
 }
 
 void test_copy_intarray() {
@@ -473,12 +473,12 @@ void test_copy_array() {
     Assert_equals(*gc_array_get(arr2b, 1), int_to_value(2));
     Assert_equals(*gc_array_get(arr2b, 2), int_to_value(3));
 
-    // Test 3: Copy from vector (fixed array)
-    value_t vec = gc_new_vector(3, VALUE_UNDEF);
+    // Test 3: Copy from fixedarray (fixed length array)
+    value_t vec = gc_new_fixedarray(3, VALUE_UNDEF);
     root_set.values[0] = vec;
-    gc_vector_set(vec, 0, int_to_value(5));
-    gc_vector_set(vec, 1, int_to_value(15));
-    gc_vector_set(vec, 2, int_to_value(25));
+    gc_fixedarray_set(vec, 0, int_to_value(5));
+    gc_fixedarray_set(vec, 1, int_to_value(15));
+    gc_fixedarray_set(vec, 2, int_to_value(25));
     value_t arr3 = gc_copy_array(NULL, vec);
     root_set.values[1] = arr3;
     Assert_equals(gc_array_length(arr3), 3);
@@ -570,15 +570,15 @@ void test_copy_arrays() {
     DELETE_ROOT_SET(root_set);
 }
 
-void test_vector() {
-    value_t arr = gc_new_vector2(4);
-    value_t arr2 = gc_new_vector2(4);
+void test_fixedarray() {
+    value_t arr = gc_new_fixedarray2(4);
+    value_t arr2 = gc_new_fixedarray2(4);
     for (int i = 0; i < 4; i++)
-        Assert_equals(gc_vector_setter(arr2, int_to_value(i), int_to_value(i)), int_to_value(i));
+        Assert_equals(gc_fixedarray_setter(arr2, int_to_value(i), int_to_value(i)), int_to_value(i));
     for (int i = 0; i < 4; i++)
-        gc_vector_setter(arr, i, int_to_value(i));
+        gc_fixedarray_setter(arr, i, int_to_value(i));
     for (int i = 0; i < 4; i++) {
-        value_t e = gc_vector_get(arr2, int_to_value(i));
+        value_t e = gc_fixedarray_get(arr2, int_to_value(i));
         Assert_equals(value_to_int(e), i);
     }
     Assert_equals(value_to_int(gc_array_length(arr)), 4);
@@ -606,7 +606,7 @@ void test_allocate_heap() {
     value_t index = 2;
     value_t vec_size = heap_size / 1024;
     for (int i = 0; i < 1024; i++) {
-        value_t arr = gc_new_vector2(vec_size - 2);
+        value_t arr = gc_new_fixedarray2(vec_size - 2);
         Assert_pequals(value_to_ptr(arr), &heap_memory[index]);
         index += vec_size;
     }
@@ -625,7 +625,7 @@ void test_root_set() {
     root_set.values[0] = gc_new_string("hello");
     value_t obj;
     for (int i = 0; i < 3; i++)
-        obj = gc_new_vector2(4);
+        obj = gc_new_fixedarray2(4);
 
     gc_run();
     Assert_equals(heap_memory[0], 4);
@@ -645,7 +645,7 @@ void test_root_set2() {
     root_set.values[0] = gc_new_string("hello");
     root_set.values[1] = gc_new_string("hello2");
     for (int i = 0; i < 3; i++)
-        gc_new_vector2(3);
+        gc_new_fixedarray2(3);
 
     root_set.values[0] = VALUE_NULL;
     gc_run();
@@ -660,13 +660,13 @@ void test_root_set2() {
 
 void test_nested_root_set2() {
     ROOT_SET(root_set, 3);
-    root_set.values[0] = gc_new_vector2(1);
+    root_set.values[0] = gc_new_fixedarray2(1);
     DELETE_ROOT_SET(root_set);
 }
 
 void test_nested_root_set3() {
     ROOT_SET(root_set, 3);
-    root_set.values[0] = gc_new_vector2(1);
+    root_set.values[0] = gc_new_fixedarray2(1);
     gc_run();
     DELETE_ROOT_SET(root_set);
 }
@@ -679,7 +679,7 @@ void test_nested_root_set() {
     root_set.values[0] = gc_new_string("hello");
     root_set.values[1] = gc_new_string("hello2");
     for (int i = 0; i < 3; i++)
-        gc_new_vector2(3);
+        gc_new_fixedarray2(3);
 
     test_nested_root_set2();
     root_set.values[0] = VALUE_NULL;
@@ -690,7 +690,7 @@ void test_nested_root_set() {
     Assert_equals(heap_memory[3], 2);
     Assert_equals(heap_memory[6], 32);
     Assert_equals(heap_memory[7], 22);
-    Assert_pequals(get_objects_class((pointer_t)&heap_memory[28]), &class_Vector);
+    Assert_pequals(get_objects_class((pointer_t)&heap_memory[28]), &class_FixedArray);
     Assert_equals(heap_memory[32], heap_size);
     Assert_equals(heap_memory[33], heap_size - 32);
 
@@ -776,14 +776,14 @@ void test_gc_liveness2() {
     ROOT_SET(root_set, 3);
 
     value_t obj, obj2, obj3, obj4;
-    root_set.values[0] = obj = gc_new_vector2(4);
-    obj4 = gc_new_vector2(1);
-    gc_vector_setter(obj, int_to_value(0), obj2 = gc_new_bytearray(true, 8, 0));
+    root_set.values[0] = obj = gc_new_fixedarray2(4);
+    obj4 = gc_new_fixedarray2(1);
+    gc_fixedarray_setter(obj, int_to_value(0), obj2 = gc_new_bytearray(true, 8, 0));
     gc_bytearray_set_raw_word(obj2, 0, obj4);
-    gc_new_vector2(1);
-    gc_new_vector2(1);
-    gc_vector_setter(obj, int_to_value(1), obj3 = gc_new_vector2(2));
-    gc_vector_setter(obj3, int_to_value(0), obj);
+    gc_new_fixedarray2(1);
+    gc_new_fixedarray2(1);
+    gc_fixedarray_setter(obj, int_to_value(1), obj3 = gc_new_fixedarray2(2));
+    gc_fixedarray_setter(obj3, int_to_value(0), obj);
     root_set.values[1] = gc_new_string("test");
 
     gc_run();
@@ -808,11 +808,11 @@ void test_gc_sweep() {
     root_set.values[1] = gc_new_string("test3");
     root_set.values[2] = gc_new_string("test4");
     gc_new_string("test5");
-    gc_new_vector2(2);
-    gc_new_vector2(3);
-    root_set.values[3] = obj = gc_new_vector2(4);
-    obj2 = gc_new_vector2(3);
-    gc_vector_setter(obj, 0, obj2);
+    gc_new_fixedarray2(2);
+    gc_new_fixedarray2(3);
+    root_set.values[3] = obj = gc_new_fixedarray2(4);
+    obj2 = gc_new_fixedarray2(3);
+    gc_fixedarray_setter(obj, 0, obj2);
 
     gc_run();
 
@@ -869,11 +869,11 @@ void test_gc_write_barrier() {
     root_set.values[1] = gc_new_string("test3");
     root_set.values[2] = gc_new_string("test4");
     gc_new_string("test5");
-    gc_new_vector2(2);
-    gc_new_vector2(3);
-    root_set.values[3] = obj = gc_new_vector2(4);
-    obj2 = gc_new_vector2(3);
-    gc_vector_setter(obj, 0, obj2);
+    gc_new_fixedarray2(2);
+    gc_new_fixedarray2(3);
+    root_set.values[3] = obj = gc_new_fixedarray2(4);
+    obj2 = gc_new_fixedarray2(3);
+    gc_fixedarray_setter(obj, 0, obj2);
 
     gc_run();
     Assert_true(is_live_object(obj1));

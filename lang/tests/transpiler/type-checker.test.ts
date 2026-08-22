@@ -58,6 +58,39 @@ test('bad type declaraton', () => {
   expect(() => tested.transpile(src)).toThrow(/line 1.*\n.*line 3/)
 })
 
+test('int32 type declaration', () => {
+  const src = `const i: integer = 3
+  const j: int32 = i
+  const k: integer = j
+  const a: int32[] = new Array<int32>([1, 2, 3])
+  const b: any[] = a`
+  const ast = tested.transpile(src)
+  const table = names.getNameTable(ast.program)
+  expect(table?.lookup('j')?.type).toBe(types.Int32)
+  expect(table?.lookup('k')?.type).toBe(types.Integer)
+  expect((table?.lookup('a')?.type as types.ArrayType).elementType).toBe(types.Int32)
+  expect((table?.lookup('b')?.type as types.ArrayType).elementType).toBe(types.Any)
+})
+
+test('int32 is not compatible with any', () => {
+  const src = `const a: int32 = 3
+  const b: any = a`
+  expect(() => tested.transpile(src)).toThrow(/not assignable to type 'any'/)
+
+  const src2 = `const a: any = 3
+  const b: int32 = a
+  let c: int32 = a + 1
+  c = a`
+  expect(tested.transpile(src2)).not.toBeNull()
+
+  const src3 = `const a: int32 = 3
+  const b: any = 4
+  const c = a + b`
+  const ast = tested.transpile(src3)
+  const table = names.getNameTable(ast.program)
+  expect(table?.lookup('c')?.type).toBe(types.Int32)
+})
+
 test('const declaraton', () => {
   const src = `const k = 3
   k = 1`
@@ -249,7 +282,7 @@ test('InstanceType.subclasses() and ClassTable.roots()', () => {
   const roots = table?.classTable()?.roots()
   expect(roots !== undefined && roots.length).toBe(4)
   expect(roots !== undefined && roots[0].name()).toBe('Uint8Array')
-  expect(roots !== undefined && roots[1].name()).toBe('Vector')
+  expect(roots !== undefined && roots[1].name()).toBe('FixedArray')
   expect(roots !== undefined && roots[2].name()).toBe('Foo')
   expect(roots !== undefined && roots[3].name()).toBe('Foo2')
 })

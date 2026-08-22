@@ -2,9 +2,9 @@
 
 import * as AST from '@babel/types'
 import { runBabelParser, ErrorLog, CodeWriter } from '../utils'
-import { Integer, BooleanT, Void, Any, ObjectType, FunctionType,
+import { Integer, Int32, BooleanT, Void, Any, ObjectType, FunctionType,
          StaticType, ByteArrayClass, isPrimitiveType, encodeType, sameType, typeToString, ArrayType, objectType,
-         StringT,  UnionType, VectorClass, StringType,
+         StringT,  UnionType, FixedArrayClass, StringType,
          EnumType} from '../types'
 import * as visitor from '../visitor'
 import { getCoercionFlag, getStaticType } from '../names'
@@ -228,9 +228,9 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
       })
 
       if (frees.length > 0) {
-        // all the arguments to gc_make_vector must be reachable
+        // all the arguments to gc_make_fixedarray must be reachable
         // from the garbage-collection root.
-        obj = `gc_make_vector(${frees.length}${args})`
+        obj = `gc_make_fixedarray(${frees.length}${args})`
       }
     }
 
@@ -1089,7 +1089,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if ((left_type === BooleanT || right_type === BooleanT)
+    if (left_type === Int32 && right_type === Any || left_type === Any && right_type === Int32) {
+      this.result.write(`${cr.typeConversion(left_type, Int32, env, left)}`)
+      this.visit(left, env)
+      this.result.write(`) ${op2} `)
+      this.result.write(`${cr.typeConversion(right_type, Int32, env, right)}`)
+      this.visit(right, env)
+      this.result.write(')')
+    }
+    else if ((left_type === BooleanT || right_type === BooleanT)
       // if either left or right operand is boolean, the other is boolean
         || (left_type === StringT || right_type === StringT)
         || (left_type === Any || right_type === Any)
@@ -1108,7 +1116,15 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
   private basicBinaryExpression(op: string, node: AST.BinaryExpression, left: AST.Node, right: AST.Node, env: VariableEnv): void {
     const left_type = this.needsCoercion(left)
     const right_type = this.needsCoercion(right)
-    if (left_type === Any || right_type === Any || left_type === StringT || right_type === StringT) {
+    if (left_type === Int32 && right_type === Any || left_type === Any && right_type === Int32) {
+      this.result.write(`${cr.typeConversion(left_type, Int32, env, left)}`)
+      this.visit(left, env)
+      this.result.write(`) ${op} `)
+      this.result.write(`${cr.typeConversion(right_type, Int32, env, right)}`)
+      this.visit(right, env)
+      this.result.write(')')
+    }
+    else if (left_type === Any || right_type === Any || left_type === StringT || right_type === StringT) {
       this.result.write(`${cr.arithmeticOpForAny(op)}(${cr.typeConversion(left_type, Any, env, left)}`)
       this.visit(left, env)
       this.result.write(`), ${cr.typeConversion(right_type, Any, env, right)}`)
@@ -1486,7 +1502,12 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
         }
         else {
           // a method call on a typed object
-          this.result.write(`, ${cr.methodLookup(method[0], func)}(${func}`)
+          let funcExpr = func
+          const minfo = method[0]
+          if (minfo[2] instanceof ArrayType && minfo[2].elementType === Any)
+            funcExpr = cr.isArrayObject(func)
+
+          this.result.write(`, ${cr.methodLookup(method[0], funcExpr)}(${func}`)
         }
       }
       else {
@@ -1693,7 +1714,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
           this.visit(node.object, env)
           this.result.write(`, ${cr.getArrayLengthIndex(BooleanT)})`)
         }
-        else if (propertyName === ArrayType.lengthProperty && objType.name() === VectorClass) {
+        else if (propertyName === ArrayType.lengthProperty && objType.name() === FixedArrayClass) {
           this.result.write(cr.getObjectPrimitiveProperty(Integer))
           this.visit(node.object, env)
           this.result.write(`, ${cr.getArrayLengthIndex(Any)})`)
@@ -1740,7 +1761,7 @@ export class CodeGenerator extends visitor.NodeVisitor<VariableEnv> {
 
   // This returns method_info, method_name, or undefined.
   visitIfMethodExpr(node: AST.MemberExpression, env: VariableEnv):
-        [ method: [method_type: StaticType, method_table_index: number, declaring_class?: InstanceType],
+        [ method: [method_type: StaticType, method_table_index: number, declaring_class?: InstanceType | ArrayType],
           is_call_on_super_or_not: boolean] | string | undefined {
     if (node.computed)
       return undefined

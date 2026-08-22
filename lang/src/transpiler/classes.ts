@@ -252,7 +252,7 @@ export class InstanceType extends ObjectType {
       const k = this.superClass.unboxedProperties()
       if (k === undefined || k !== size) {
         this.numOfUnboxed = k
-        return
+        return false      // cannot move properties
       }
 
       index = size
@@ -270,6 +270,8 @@ export class InstanceType extends ObjectType {
       if (!isPrimitiveType(value[0]))
         value[1] = index++
     }
+
+    return true
   }
 
   findConstructor() { return this.constructorFunction }
