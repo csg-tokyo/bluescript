@@ -81,5 +81,5 @@ Use this for quick syntax checks without a project. **GPIO and other installed l
 
 ## Good to know
 
-* **Device name:** Notebook and Project REPL connect using `deviceName` in `bsconfig.json`. Global REPL uses the `-d` flag instead. The name must match what was set during `bscript board flash-runtime`. See [bsconfig.json](../../reference/bsconfig.md#esp32-fields).
+* **Device name:** Use `-d` / `--device-name` with `bscript project run` (Notebook and Project REPL) or `bscript repl` (Global REPL). The name must match what was set during `bscript board flash-runtime`. See [`bscript project run`](../../reference/cli.md#bscript-project-run).
 * Code on the device is **lost after a reboot**—run the command again to re-upload.

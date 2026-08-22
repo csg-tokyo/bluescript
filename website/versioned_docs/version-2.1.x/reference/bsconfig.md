@@ -14,7 +14,6 @@ Every BlueScript project has a `bsconfig.json` file at the project root. The CLI
   "vmVersion": "2.0.0",
   "srcDir": "./src",
   "entryFile": "./src/index.bs",
-  "deviceName": "BLUESCRIPT",
   "dependencies": {},
   "espIdfComponents": []
 }
@@ -75,20 +74,18 @@ When `boardName` is `"esp32"`, the following additional fields are available. Th
 
 | Field | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
-| `deviceName` | No | `"BLUESCRIPT"` | Bluetooth device name the CLI looks for when connecting over BLE. Used by `bscript project run` (including `--with-repl` and `--with-notebook`). Must match the name set during `bscript board flash-runtime` (see `-d` / `--device-name` in the [CLI reference](./cli.md#bscript-board-flash-runtime)). |
 | `espIdfComponents` | No | `[]` | ESP-IDF component names to link when compiling Inline C code. |
 
 ```json
 {
   "boardName": "esp32",
-  "deviceName": "BLUESCRIPT",
   "espIdfComponents": [
     "esp_driver_gpio"
   ]
 }
 ```
 
-If you flash the runtime with a custom name (e.g. `bscript board flash-runtime esp32 -d my-device`), set `deviceName` in `bsconfig.json` to the same value. This is useful when working with multiple ESP32 boards.
+Bluetooth device names are not configured in `bsconfig.json`. Pass `-d` / `--device-name` to `bscript project run`, `bscript repl`, or `bscript board flash-runtime` instead. See the [CLI reference](./cli.md#bscript-project-run).
 
 See the [Inline C tutorial](../tutorial/guides/inline-c.md) for `espIdfComponents` usage examples.
 

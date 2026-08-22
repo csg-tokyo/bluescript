@@ -119,20 +119,21 @@ bscript project run [options]
 ```
 
 When you run this command on an **ESP32** project:
-1.  The CLI scans for a BlueScript device over Bluetooth whose name matches `deviceName` in `bsconfig.json` (default: `"BLUESCRIPT"`).
+1.  The CLI scans for a BlueScript device over Bluetooth whose name matches `-d` / `--device-name` (default: `"BLUESCRIPT"`).
 2.  The project is compiled into native code on your host machine.
 3.  The code is transferred to the connected device and executed immediately.
 
-The `deviceName` value must match the name set when you ran `bscript board flash-runtime`. See [bsconfig.json](./bsconfig.md#esp32-fields).
+The device name must match the name set when you ran `bscript board flash-runtime`.
 
 When you run this command on a **host** project, the CLI compiles the project and runs it in a local runtime process on your development machine. No Bluetooth connection is required.
 
 **Options:**
 
-| Option | Description |
-| :--- | :--- |
-| `--with-repl` | After the entry file (`entryFile` in `bsconfig.json`) finishes, start a terminal REPL on the device. Cannot be combined with `--with-notebook`. |
-| `--with-notebook` | After the entry file finishes, start the browser Notebook UI (default HTTP port `3000`). Cannot be combined with `--with-repl`. |
+| Option | Alias | Description |
+| :--- | :--- | :--- |
+| `--device-name` | `-d` | Bluetooth device name to connect to (default: `"BLUESCRIPT"`). **ESP32 only** — must match the name set during `bscript board flash-runtime`. Ignored for `host`. |
+| `--with-repl` | | After the entry file (`entryFile` in `bsconfig.json`) finishes, start a terminal REPL on the device. Cannot be combined with `--with-notebook`. |
+| `--with-notebook` | | After the entry file finishes, start the browser Notebook UI (default HTTP port `3000`). Cannot be combined with `--with-repl`. |
 
 See the [REPL & Notebook tutorial](../tutorial/guides/repl.md) for usage details.
 
@@ -182,7 +183,7 @@ bscript board flash-runtime <board-name> [options]
 | Option | Alias | Description |
 | :--- | :--- | :--- |
 | `--port` | `-p` | Serial port (e.g. macOS: `/dev/tty.usbserial-xxxx`; Windows: `COM3`; Linux: `/dev/ttyUSB0`). If omitted, the CLI lists available ports for selection. |
-| `--device-name` | `-d` | Bluetooth device name advertised by the runtime after flashing (default: `"BLUESCRIPT"`). Must match `deviceName` in your project's `bsconfig.json` when connecting wirelessly. |
+| `--device-name` | `-d` | Bluetooth device name advertised by the runtime after flashing (default: `"BLUESCRIPT"`). Use the same value with `bscript project run -d` or `bscript repl -d` when connecting wirelessly. |
 
 **Example:**
 ```bash
