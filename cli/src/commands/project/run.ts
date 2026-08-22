@@ -6,10 +6,11 @@ import sirv from 'sirv';
 import path from 'path';
 import { logger, ProgramOutput, createBoxedOutput, createConsoleOutput, createWebSocketOutput, 
     runStep, LoadStepLogger } from "../../core/logger";
-import { ProjectConfigHandler } from "../../config/project-config";
-import { cwd, ExecOptions, simpleExec } from "../../core/command-exec";
+import { DEFAULT_DEVICE_NAME, ProjectConfigHandler } from "../../config/project-config";
+import { cwd, simpleExec } from "../../core/command-exec";
 import { CommandHandlerWithUpdateCheck } from "../command";
-import { BoardRuntime, CompilerAdapter, createPlatformSession } from "../../platforms";
+import { BoardRuntime, getBoardRuntime } from "../../platforms/runtime";
+import { CompilerAdapter, getCompilerAdapter } from "../../platforms/compiler";
 import { CompileError, CompileOutput } from "@bscript/lang";
 import { WebSocketConnection } from "../../services/websocket";
 import { SerialTaskQueue } from "../../core/serial-task-queue";
@@ -22,30 +23,27 @@ class RunHandler extends CommandHandlerWithUpdateCheck {
     private globalKeypressHandler?: (str: string, key: any) => void;
     private ctrlDKeypressHandler?: (str: string, key: any) => void;
 
-    constructor(protected projectConfigHandler: ProjectConfigHandler) {
+    constructor(protected projectConfigHandler: ProjectConfigHandler, deviceName?: string) {
         super();
 
         const boardName = this.projectConfigHandler.getBoardName();
         this.programOutput = createBoxedOutput();
 
-        const platform = createPlatformSession(
-            boardName,
-            this.globalConfigHandler,
-            this.projectConfigHandler,
-            this.programOutput,
+        this.compiler = getCompilerAdapter(boardName, this.globalConfigHandler, this.projectConfigHandler);
+        this.runtime = getBoardRuntime(
+            boardName, this.globalConfigHandler,
+            this.programOutput, deviceName ?? DEFAULT_DEVICE_NAME,
             () => {
                 this.programOutput.onRunEnd?.();
                 logger.error("Disconnected.");
                 process.exit(1);
             },
         );
-        this.compiler = platform.compiler;
-        this.runtime = platform.runtime;
     }
 
     async run(): Promise<boolean> {
         await runStep('Connecting...', () => this.runtime.connect());
-        const compileContext = await runStep('Initializing', () => this.runtime.prepare());
+        const compileContext = await runStep('Initializing...', () => this.runtime.prepare());
         const compileOutput = await runStep('Compiling...', () => this.compiler.buildProject(compileContext));
         await this.loadStep(compileOutput!);
         return this.executeProgram(compileOutput!);
@@ -189,10 +187,6 @@ class RunWithNotebookHandler extends RunHandler {
     private server: http.Server | null = null;
     private readonly executeQueue = new SerialTaskQueue();
 
-    constructor(projectConfigHandler: ProjectConfigHandler) {
-        super(projectConfigHandler);
-    }
-
     async run() {
         const interrupted = await super.run();
         if (interrupted) {
@@ -295,16 +289,18 @@ class RunWithNotebookHandler extends RunHandler {
     }
 }
 
-export async function handleRunCommand(options: {withRepl: boolean, withNotebook: boolean}) {
+export async function handleRunCommand(
+    options: {withRepl: boolean, withNotebook: boolean, deviceName?: string}
+) {
     let handler: RunHandler | undefined;
     try {
         const projectConfigHandler = ProjectConfigHandler.load(cwd());
         if (options.withRepl) {
-            handler = new RunWithReplHandler(projectConfigHandler);
+            handler = new RunWithReplHandler(projectConfigHandler, options.deviceName);
         } else if (options.withNotebook) {
-            handler = new RunWithNotebookHandler(projectConfigHandler);
+            handler = new RunWithNotebookHandler(projectConfigHandler, options.deviceName);
         } else {
-            handler = new RunHandler(projectConfigHandler);
+            handler = new RunHandler(projectConfigHandler, options.deviceName);
         }
 
         await handler.run();
@@ -329,6 +325,7 @@ export function registerRunCommand(program: Command) {
     program
         .command('run')
         .description('run your project')
+        .option('-d, --device-name <device-name>', `device name to connect to, the default is '${DEFAULT_DEVICE_NAME}'`)
         .addOption(
             new Option('--with-repl', 'start REPL after main execution finished')
             .conflicts('withNotebook')

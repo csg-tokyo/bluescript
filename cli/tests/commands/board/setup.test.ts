@@ -9,9 +9,21 @@ import {
     mockedLogger,
     mockProcessExit,
 } from '../mock-helpers';
-import { deleteGlobalEnv, getGlobalConfig, setupDefaultGlobalEnv, setupEmpyGlobalEnv, setupGlobalEnvWithEsp32, setupGlobalEnvWithHost, spyGlobalSettings, getTestRuntimeDir, isEsp32IdfToolsExportPythonCommand, mockXtensaGccFromIdfToolsExport } from '../global-env-helper';
+import {
+    deleteGlobalEnv,
+    getGlobalConfig,
+    setupDefaultGlobalEnv,
+    setupEmpyGlobalEnv,
+    setupGlobalEnvWithEsp32,
+    setupGlobalEnvWithHost,
+    spyGlobalSettings,
+    getTestEspRootDir,
+    isEsp32IdfToolsExportPythonCommand,
+    mockXtensaGccFromIdfToolsExport,
+} from '../global-env-helper';
 import { HostUnixEnv } from '../../../src/platforms/board-env/host-env';
 import * as path from 'path';
+import * as fs from '../../../src/core/fs';
 
 
 const mockedBuildHostRuntime = jest
@@ -26,10 +38,28 @@ jest.mock('os', () => ({
 export const mockedOs = os as jest.Mocked<typeof os>;
 mockedOs.platform.mockReturnValue('darwin');
 
+const SOURCE_IDF_DIR = path.join(__dirname, '../../temp-files/source-esp-idf-for-setup');
+
+function createSourceEspIdfDir() {
+    if (fs.exists(SOURCE_IDF_DIR)) {
+        fs.removeDir(SOURCE_IDF_DIR);
+    }
+    fs.makeDir(SOURCE_IDF_DIR);
+    fs.writeFile(path.join(SOURCE_IDF_DIR, 'MARKER'), 'ok');
+}
+
+function removeSourceEspIdfDir() {
+    if (fs.exists(SOURCE_IDF_DIR)) {
+        fs.removeDir(SOURCE_IDF_DIR);
+    }
+}
+
 function mockEsp32ShellCommands(options: {
     whichFound?: string[];
     pythonMajor?: string;
     gitCloneFails?: boolean;
+    /** Printed by idf_tools.get_idf_version() (without leading "v"). */
+    idfVersion?: string;
 }) {
     mockedSimpleExec.mockImplementation(async (cmd, args) => {
         if (cmd === 'which') {
@@ -40,6 +70,9 @@ function mockEsp32ShellCommands(options: {
         }
         if (isEsp32IdfToolsExportPythonCommand(cmd) && args.some((arg: string) => arg.includes('export'))) {
             return mockXtensaGccFromIdfToolsExport();
+        }
+        if (isEsp32IdfToolsExportPythonCommand(cmd) && args[1]?.includes('get_idf_version')) {
+            return options.idfVersion ?? '5.4';
         }
         if (cmd === 'python' && args[1]?.includes('import sys')) {
             return options.pythonMajor ?? '3';
@@ -80,6 +113,7 @@ describe('board setup command', () => {
     afterEach(() => {
         jest.clearAllMocks();
         deleteGlobalEnv();
+        removeSourceEspIdfDir();
     });
 
     it('should show warning and exit if update is needed', async () => {
@@ -88,7 +122,7 @@ describe('board setup command', () => {
         setupDefaultGlobalEnv(true);
 
         // --- Act ---
-        await handleSetupCommand('esp32');
+        await handleSetupCommand('esp32', {});
 
         // --- Assert ---
         expect(mockedLogger.warn).toHaveBeenCalled();
@@ -103,7 +137,7 @@ describe('board setup command', () => {
         mockedInquirer.prompt.mockResolvedValue({ proceed: false });
 
         // --- Act ---
-        await handleSetupCommand('esp32');
+        await handleSetupCommand('esp32', {});
 
         // --- Assert ---
         expect(mockedLogger.warn).toHaveBeenCalledWith('Setup cancelled by user.');
@@ -118,7 +152,7 @@ describe('board setup command', () => {
         const exitSpy = mockProcessExit();
 
         // --- Act ---
-        await handleSetupCommand('unknown-board');
+        await handleSetupCommand('unknown-board', {});
         
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up unknown-board');
@@ -134,7 +168,7 @@ describe('board setup command', () => {
         mockEsp32ShellCommands({ gitCloneFails: true });
 
         // --- Act ---
-        await handleSetupCommand('esp32');
+        await handleSetupCommand('esp32', {});
 
         // --- Assert ---
         expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
@@ -153,7 +187,7 @@ describe('board setup command', () => {
             setupEmpyGlobalEnv();
 
             // --- Act ---
-            await handleSetupCommand('esp32');
+            await handleSetupCommand('esp32', {});
 
             // --- Assert ---
             // 1. Ask user for confirmation
@@ -192,7 +226,7 @@ describe('board setup command', () => {
             });
 
             // --- Act ---
-            await handleSetupCommand('esp32');
+            await handleSetupCommand('esp32', {});
 
             // --- Assert ---
             // Confirm downloads are skipped
@@ -214,7 +248,7 @@ describe('board setup command', () => {
             });
 
             // --- Act ---
-            await handleSetupCommand('esp32');
+            await handleSetupCommand('esp32', {});
 
             // --- Assert ---
             expect(mockedExecWithLog).not.toHaveBeenCalledWith('brew', ['install', 'cmake']);
@@ -231,7 +265,7 @@ describe('board setup command', () => {
             });
 
             // --- Act ---
-            await handleSetupCommand('esp32');
+            await handleSetupCommand('esp32', {});
 
             // --- Assert ---
             expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Cannot find Python3. Please install Python3 and try again.'));
@@ -245,7 +279,7 @@ describe('board setup command', () => {
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
 
             // --- Act ---
-            await handleSetupCommand('esp32');
+            await handleSetupCommand('esp32', {});
 
             // --- Assert ---
             expect(mockedLogger.warn).toHaveBeenCalledWith('The setup for esp32 has already been completed.');
@@ -264,11 +298,93 @@ describe('board setup command', () => {
             setupGlobalEnvWithEsp32()
 
             // --- Act ---
-            await handleSetupCommand('esp32');
+            await handleSetupCommand('esp32', {});
 
             // --- Assert ---
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
             expect(mockedLogger.showError).toHaveBeenCalledWith(new Error('Unsupported OS type: openbsd.'));
+            expect(process.exit).toHaveBeenCalledWith(1);
+            exitSpy.mockRestore();
+            mockedOs.platform.mockReturnValue('darwin');
+        });
+
+        it('should copy ESP-IDF from --esp-idf instead of cloning', async () => {
+            // --- Arrange ---
+            setupEmpyGlobalEnv();
+            createSourceEspIdfDir();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
+            mockEsp32ShellCommands({
+                whichFound: ['brew', 'git', 'make'],
+                idfVersion: '5.4',
+            });
+
+            // --- Act ---
+            await handleSetupCommand('esp32', { espIdf: SOURCE_IDF_DIR });
+
+            // --- Assert ---
+            expect(mockedExecWithLog).not.toHaveBeenCalledWith(
+                'git',
+                expect.arrayContaining(['clone']),
+                expect.any(Object),
+            );
+            expect(fs.exists(path.join(getTestEspRootDir(), 'esp-idf', 'MARKER'))).toBe(true);
+            expect(mockedExecShell).toHaveBeenCalledWith(expect.stringContaining('install.sh'));
+            expect(Object.keys(getGlobalConfig().boards)).toContain('esp32');
+            expect(mockedLogger.error).not.toHaveBeenCalled();
+        });
+
+        it('should exit with an error if --esp-idf path does not exist', async () => {
+            // --- Arrange ---
+            setupEmpyGlobalEnv();
+            const missingPath = path.join(__dirname, '../../temp-files/missing-esp-idf');
+            const exitSpy = mockProcessExit();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
+            mockEsp32ShellCommands({
+                whichFound: ['brew', 'git', 'make'],
+            });
+
+            // --- Act ---
+            await handleSetupCommand('esp32', { espIdf: missingPath });
+
+            // --- Assert ---
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
+            expect(mockedLogger.showError).toHaveBeenCalledWith(
+                new Error(`ESP-IDF directory not found: ${path.resolve(missingPath)}`),
+            );
+            expect(mockedExecWithLog).not.toHaveBeenCalledWith(
+                'git',
+                expect.arrayContaining(['clone']),
+                expect.any(Object),
+            );
+            expect(process.exit).toHaveBeenCalledWith(1);
+            exitSpy.mockRestore();
+        });
+
+        it('should exit with an error if --esp-idf version does not match', async () => {
+            // --- Arrange ---
+            setupEmpyGlobalEnv();
+            createSourceEspIdfDir();
+            const exitSpy = mockProcessExit();
+            mockedInquirer.prompt.mockResolvedValue({ proceed: true });
+            mockEsp32ShellCommands({
+                whichFound: ['brew', 'git', 'make'],
+                idfVersion: '5.3',
+            });
+
+            // --- Act ---
+            await handleSetupCommand('esp32', { espIdf: SOURCE_IDF_DIR });
+
+            // --- Assert ---
+            expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up esp32');
+            expect(mockedLogger.showError).toHaveBeenCalledWith(
+                new Error(
+                    [
+                        `The ESP-IDF version of ${path.resolve(SOURCE_IDF_DIR)} is not correct.`,
+                        'The expected version is v5.4, but got v5.3',
+                    ].join('\n'),
+                ),
+            );
+            expect(fs.exists(path.join(getTestEspRootDir(), 'esp-idf', 'MARKER'))).toBe(false);
             expect(process.exit).toHaveBeenCalledWith(1);
             exitSpy.mockRestore();
         });
@@ -284,7 +400,7 @@ describe('board setup command', () => {
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             mockHostShellCommands({});
 
-            await handleSetupCommand('host');
+            await handleSetupCommand('host', {});
 
             expect(mockedInquirer.prompt).toHaveBeenCalledTimes(1);
             expect(mockedDownloadAndUnzip).toHaveBeenCalledTimes(1);
@@ -301,7 +417,7 @@ describe('board setup command', () => {
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
             mockHostShellCommands({ ccMissing: true });
 
-            await handleSetupCommand('host');
+            await handleSetupCommand('host', {});
 
             expect(mockedLogger.error).toHaveBeenCalledWith('Failed to set up host');
             expect(process.exit).toHaveBeenCalledWith(1);
@@ -312,7 +428,7 @@ describe('board setup command', () => {
             setupGlobalEnvWithHost();
             mockedInquirer.prompt.mockResolvedValue({ proceed: true });
 
-            await handleSetupCommand('host');
+            await handleSetupCommand('host', {});
 
             expect(mockedLogger.warn).toHaveBeenCalledWith('The setup for host has already been completed.');
             expect(mockedInquirer.prompt).not.toHaveBeenCalled();

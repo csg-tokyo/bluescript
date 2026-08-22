@@ -6,11 +6,11 @@ import { Typography } from 'antd';
 function App() {
 
   return (
-    <Layout style={{minHeight: "100vh"}}>
+    <Layout style={{height: "100vh"}}>
       <Layout.Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 40, backgroundColor: '#434343', paddingLeft:10}} >
           <Typography.Title level={5} style={{margin:0, fontSize:16, color: '#ffffff'}}>BlueScript</Typography.Title>
       </Layout.Header>
-      <Layout.Content style={{ display: 'flex', alignItems: 'center', height: 48, background:'#ffffff'}}>
+      <Layout.Content style={{ flex: 1, minHeight: 0, height: 'calc(100vh - 40px)', overflow: 'hidden', background:'#ffffff'}}>
         <BrowserRouter>
           <Routes>
             <Route path={`/`} element={<Home />} />

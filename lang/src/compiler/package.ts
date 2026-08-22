@@ -5,6 +5,9 @@ import * as path from "path";
 type RelativePath = string;
 type AbsolutePath = string;
 
+/** Compiler response file holding the include dirs and compile flags. */
+export const COMPILE_FLAGS_FILE = 'compile-flags.rsp';
+
 
 export class Package {
     readonly name: string;
@@ -121,6 +124,25 @@ export class Package {
         const filePath = path.join(this.resolvedDistDir, 'Makefile');
         fs.writeFileSync(filePath, data);
         return filePath;
+    }
+
+    writeCompileFlagsFile(data: string) {
+        const filePath = path.join(this.resolvedDistDir, COMPILE_FLAGS_FILE);
+        fs.writeFileSync(filePath, data);
+        return filePath;
+    }
+
+    // Creates every directory the generated Makefile writes into. The Makefile
+    // itself cannot do this because its recipes run through cmd.exe on Windows,
+    // where 'mkdir -p' is not available.
+    ensureBuildDirs() {
+        const dirs = new Set<string>([this.resolvedBuildDir]);
+        for (const objectFile of this.objectFiles) {
+            dirs.add(path.dirname(objectFile));
+        }
+        for (const dir of dirs) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
     }
 
     // Removes the transpiler-generated C files (bs_*.c) from the dist dir.

@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { MemoryImage, MemoryLayout } from "@bscript/lang";
+import { DEFAULT_DEVICE_NAME } from "../../config/project-config";
 import { logger } from "../../core/logger";
 import { Connection, ConnectionMessage, Service } from "../common";
 import { Protocol, ProtocolPacketBuilder, ProtocolParser } from "../device-protocol";
@@ -88,7 +89,6 @@ export class DeviceService extends Service<DeviceServiceEvents, Buffer> {
 
 /**
  * Cross-platform BLE connection.
- * Uses @abandonware/noble on macOS/Windows and node-ble on Linux.
  */
 export class BleConnection extends Connection<Buffer> {
     public status: "connected" | "connecting" | "disconnected" | "disconnecting" = "disconnected";
@@ -156,8 +156,9 @@ export class BleConnection extends Connection<Buffer> {
             `  2. Does the device name match between flash and connect?\n` +
             `     Connect is looking for: "${this.deviceName}"\n` +
             `     Flash sets the name via \`bscript board flash-runtime <board> -d <name>\`.\n` +
-            `     Connect uses \`deviceName\` in bsconfig.json (or \`-d\` for REPL).\n` +
-            `     If the names differ, re-flash or update the connect name to match.`,
+            `     Connect uses \`-d\` / \`--device-name\` with \`bscript project run\` or \`bscript repl\`.\n` +
+            `     When omitted, the default is "${DEFAULT_DEVICE_NAME}".\n` +
+            `     If the names differ, re-flash or pass \`-d\` with the matching name.`,
         );
     }
 

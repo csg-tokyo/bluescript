@@ -85,5 +85,5 @@ bscript project run
 You should see the LED turn on and off every second!
 
 :::tip Connection failed?
-If the CLI cannot find your device, check that `deviceName` in `bsconfig.json` matches the name set when you ran `bscript board flash-runtime` (default: `"BLUESCRIPT"`). See [bsconfig.json](../../reference/bsconfig.md#esp32-fields).
+If the CLI cannot find your device, pass the same name with `-d` / `--device-name` that you used for `bscript board flash-runtime` (default: `"BLUESCRIPT"`). See [`bscript project run`](../../reference/cli.md#bscript-project-run).
 :::

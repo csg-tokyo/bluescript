@@ -9,7 +9,7 @@ export default function Home() {
         <ConfigProvider
             theme={{components: {Splitter: {splitBarDraggableSize: 0}}}}>
         <ReplProvider>
-            <Splitter>
+            <Splitter style={{ height: '100%' }}>
                 <Splitter.Panel defaultSize="65%" min="50%" max="80%">
                     <CodeArea />
                 </Splitter.Panel>
