@@ -15,10 +15,10 @@
     "build:all": "tsc -b && npm run build -w @bscript/notebook"
   },
   "allowScripts": {
-    "@serialport/bindings-cpp@13.0.0": true,
-    "core-js@3.49.0": true,
-    "core-js-pure@3.49.0": true,
-    "usb@2.18.0": true,
-    "@abandonware/noble@1.9.2-26": true
+    "@abandonware/bluetooth-hci-socket": true,
+    "@abandonware/noble": true,
+    "@serialport/bindings-cpp": true,
+    "usb": true,
+    "usocket": true
   }
 }
