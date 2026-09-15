@@ -116,6 +116,10 @@ const config: Config = {
           title: 'Community',
           items: [
             {
+              label: 'Discord',
+              href: 'https://discord.gg/6yUZYVseEj',
+            },
+            {
               label: 'X (Twitter)',
               href: 'https://x.com/BlueScriptLang',
             },

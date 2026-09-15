@@ -15,3 +15,5 @@ WARNING: this project is in beta stage and is subject to changes of the code-bas
 - Fumika Mochizuki, Tetsuro Yamazaki, Shigeru Chiba, ["Interactive Programming for Microcontrollers by Offloading Dynamic Incremental Compilation"](https://dl.acm.org/doi/10.1145/3679007.3685062), MPLR 2024, pp. 28-40, ACM, 2024.
 - Fumika Mochizuki, Tetsuro Yamazaki, Shigeru Chiba, ["BlueScript: A Disaggregated Virtual Machine for Microcontrollers"](https://programming-journal.org/2025/10/21/), The Art, Science, and Engineering of Programming, 2025, Vol. 10, Issue 3, Article 21.
 
+# Community
+Join the [Discord server](https://discord.gg/6yUZYVseEj) to ask questions, discuss development and language design, and share your ideas and projects. Everyone interested in BlueScript is welcome.
