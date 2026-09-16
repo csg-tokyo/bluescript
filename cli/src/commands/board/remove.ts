@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import inquirer from 'inquirer';
-import { BoardName, isValidBoard } from "../../config/board-utils";
-import { logger, runStep } from "../../core/logger";
+import { BoardName, isValidBoard, isEsp32FamilyBoard, ESP32_FAMILY_BOARD_NAMES } from "../../config/board-utils";
+import { logger, runStep, skip } from "../../core/logger";
 import { CommandHandlerWithUpdateCheck } from "../command";
 import { BoardEnv, createBoardEnv } from "../../platforms/board-env";
 
@@ -17,9 +17,27 @@ class RemoveHandler extends CommandHandlerWithUpdateCheck {
     }
 
     async remove() {
-        await runStep('Removing...', async () => this.boardEnv.removeBoardRoot());
+        await runStep('Removing...', async () => {
+            if (this.isBoardRootShared()) {
+                return skip(`the ESP-IDF installation is still used by ${this.otherBoardsSharingRoot().join(', ')}.`);
+            }
+            this.boardEnv.removeBoardRoot();
+        });
         this.globalConfigHandler.removeBoardConfig(this.boardName);
         this.globalConfigHandler.save();
+    }
+
+    // Boards of the ESP32 family share one ESP-IDF installation.
+    private otherBoardsSharingRoot(): BoardName[] {
+        if (!isEsp32FamilyBoard(this.boardName)) {
+            return [];
+        }
+        return ESP32_FAMILY_BOARD_NAMES.filter(
+            b => b !== this.boardName && this.globalConfigHandler.isBoardSetup(b));
+    }
+
+    private isBoardRootShared(): boolean {
+        return this.otherBoardsSharingRoot().length > 0;
     }
     
     isSetup(): boolean {
@@ -76,7 +94,7 @@ export function registerRemoveCommand(program: Command) {
     program
         .command('remove')
         .description('remove the environment for the specified board')
-        .argument('<board-name>', 'name of the board to remove (e.g., esp32)') 
+        .argument('<board-name>', 'name of the board to remove (e.g., esp32, esp32s3)') 
         .option('-f, --force', 'skip confirmation prompt')
         .action(handleRemoveCommand);
 }

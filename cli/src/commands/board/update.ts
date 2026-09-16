@@ -7,6 +7,7 @@ import * as path from 'path';
 import { CommonBoardEnv, createBoardEnv, Esp32Env } from "../../platforms/board-env";
 import { Esp32BoardConfig, GlobalConfig, GlobalConfigHandler } from "../../config/global-config";
 import chalk from "chalk";
+import { ESP32_FAMILY_BOARD_NAMES, Esp32FamilyBoardName } from "../../config/board-utils";
 
 
 class UpdateHandler extends CommandHandler {
@@ -16,6 +17,8 @@ class UpdateHandler extends CommandHandler {
     private existingEspDir: string | undefined;
     private tmpRuntimeDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'tmp-runtime');
     private tmpEspDir = path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'tmp-esp');
+    // The ESP-IDF installation is shared by the ESP32 family; refresh it at most once.
+    private espIdfRefreshed = false;
 
     constructor() {
         super();
@@ -47,7 +50,9 @@ class UpdateHandler extends CommandHandler {
     async update() {
         try {
             await this.updateRuntimeStep();
-            await this.updateEsp32Step();
+            for (const board of ESP32_FAMILY_BOARD_NAMES) {
+                await this.updateEsp32Step(board);
+            }
             await this.updateHostStep();
             this.globalConfigHandler.setVersion(GLOBAL_SETTINGS.VM_VERSION);
             this.globalConfigHandler.save();
@@ -79,14 +84,14 @@ class UpdateHandler extends CommandHandler {
         });
     }
 
-    private updateEsp32Step() {
-        return runStep('Updating the environment for esp32...', async () => {
-            if (!("esp32" in (this.oldGlobalConfig?.boards ?? {}))) {
+    private updateEsp32Step(board: Esp32FamilyBoardName) {
+        return runStep(`Updating the environment for ${board}...`, async () => {
+            if (!(board in (this.oldGlobalConfig?.boards ?? {}))) {
                 return skip('not setup');
             }
-            const esp32Config = this.oldGlobalConfig?.boards.esp32;
-            const esp32Env = createBoardEnv('esp32');
-            await this.updateEsp32(esp32Env, esp32Config);
+            const esp32Config = this.oldGlobalConfig?.boards[board];
+            const esp32Env = createBoardEnv(board);
+            await this.updateEsp32(board, esp32Env, esp32Config);
         });
     }
 
@@ -126,19 +131,22 @@ class UpdateHandler extends CommandHandler {
         });
     }
 
-    private async updateEsp32(esp32Env: Esp32Env, boardConfig?: Esp32BoardConfig) {
+    private async updateEsp32(board: Esp32FamilyBoardName, esp32Env: Esp32Env, boardConfig?: Esp32BoardConfig) {
         this.existingEspDir = esp32Env.espRootDir;
 
         if (boardConfig?.idfVersion !== esp32Env.idfVersion) {
-            fs.moveDir(esp32Env.espRootDir, this.tmpEspDir);
-            esp32Env.refreshBoardRoot();
-            await esp32Env.cloneEspIdf();
+            if (!this.espIdfRefreshed) {
+                fs.moveDir(esp32Env.espRootDir, this.tmpEspDir);
+                esp32Env.refreshBoardRoot();
+                await esp32Env.cloneEspIdf();
+                this.espIdfRefreshed = true;
+            }
             await esp32Env.runEspIdfInstallScript();
         }
         let pythonCommand = boardConfig?.toolchain.python ?? await esp32Env.getPythonCommand();
         let makeCommand = boardConfig?.toolchain.make ?? await esp32Env.getMakeCommand();
         const xtensaGccDir = await esp32Env.getXtensaGccDir(pythonCommand);
-        this.globalConfigHandler.setBoardConfig('esp32', {
+        this.globalConfigHandler.setBoardConfig(board, {
             idfVersion: esp32Env.idfVersion,
             rootDir: esp32Env.espRootDir,
             exportFile: esp32Env.idfExportFile,

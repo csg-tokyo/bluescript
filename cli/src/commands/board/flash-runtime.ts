@@ -3,7 +3,8 @@ import inquirer from 'inquirer';
 import * as path from 'path';
 import * as os from 'os';
 import { SerialPort } from 'serialport'
-import { BoardName } from "../../config/board-utils";
+import { Esp32FamilyBoardName, isEsp32FamilyBoard } from "../../config/board-utils";
+import { ESP32_TARGET_BUILD_DIRS } from "@bscript/lang";
 import { logger, runStep } from "../../core/logger";
 import { execShell } from '../../core/command-exec';
 import chalk from "chalk";
@@ -13,33 +14,67 @@ import { DEFAULT_DEVICE_NAME } from "../../config/project-config";
 
 const RUNTIME_ESP_PORT_DIR = (runtimeDir: string) => path.join(runtimeDir, 'ports/esp32');
 
-abstract class FlashRuntimeHandler extends CommandHandlerWithUpdateCheck {
+export abstract class FlashRuntimeHandler extends CommandHandlerWithUpdateCheck {
     abstract isSetup(): boolean;
     abstract eraseFlash(port: string): Promise<void>;
     abstract flashRuntime(port: string, deviceName?: string): Promise<void>;
+    // Build the runtime without flashing it. Returns the directory that holds the build artifacts.
+    abstract buildRuntime(deviceName?: string): Promise<string>;
 
     async flash(port: string, deviceName?: string) {
         await runStep('Erasing flash...', () => this.eraseFlash(port));
         await runStep('Flashing BlueScript runtime...', () => this.flashRuntime(port, deviceName));
     }
+
+    async build(deviceName?: string): Promise<string> {
+        let buildDir = '';
+        await runStep('Building BlueScript runtime...', async () => {
+            buildDir = await this.buildRuntime(deviceName);
+        });
+        return buildDir;
+    }
 }
 
-class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
-    readonly boardName: BoardName = 'esp32';
+export class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
+    readonly boardName: Esp32FamilyBoardName;
+
+    constructor(boardName: Esp32FamilyBoardName = 'esp32') {
+        super();
+        this.boardName = boardName;
+    }
+
+    private get targetArgs(): string[] {
+        if (this.boardName === 'esp32') {
+            return [];
+        }
+        return [
+            '-B', ESP32_TARGET_BUILD_DIRS[this.boardName],
+            '-D', `IDF_TARGET=${this.boardName}`,
+            '-D', `SDKCONFIG=sdkconfig.${this.boardName}`,
+        ];
+    }
 
     isSetup(): boolean {
         return this.globalConfigHandler.isBoardSetup(this.boardName);
     }
 
     async eraseFlash(port: string) {
-        await this.runIdfPy(['erase-flash', '-p', port]);
+        await this.runIdfPy([...this.targetArgs, 'erase-flash', '-p', port]);
     }
-    
+
     async flashRuntime(port: string, deviceName?: string) {
         deviceName = deviceName ?? DEFAULT_DEVICE_NAME;
         await this.runIdfPy(
-            ['-D', `DEVICE_NAME=${deviceName}`, 'build', 'flash', '-p', port],
+            [...this.targetArgs, '-D', `DEVICE_NAME=${deviceName}`, 'build', 'flash', '-p', port],
         );
+    }
+
+    async buildRuntime(deviceName?: string): Promise<string> {
+        deviceName = deviceName ?? DEFAULT_DEVICE_NAME;
+        await this.runIdfPy(
+            [...this.targetArgs, '-D', `DEVICE_NAME=${deviceName}`, 'build'],
+        );
+        return path.join(this.getEspPortDir(), ESP32_TARGET_BUILD_DIRS[this.boardName]);
     }
 
     private async runIdfPy(args: string[]) {
@@ -59,7 +94,7 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
     }
 
     private getExportFile() {
-        const boardConfig = this.globalConfigHandler.getBoardConfig('esp32');
+        const boardConfig = this.globalConfigHandler.getBoardConfig(this.boardName);
         if (!boardConfig) {
             throw new Error('An unexpected error occurred: cannot find board config.');
         }
@@ -67,12 +102,12 @@ class ESP32FlashRuntimeHandler extends FlashRuntimeHandler {
     }
 }
 
-function getFlashRuntimeHandler(board: string) {
+export function getFlashRuntimeHandler(board: string) {
     if (board === 'host') {
         throw new Error('flash-runtime is not supported for the host board');
     }
-    if (board === 'esp32') {
-        return new ESP32FlashRuntimeHandler();
+    if (isEsp32FamilyBoard(board)) {
+        return new ESP32FlashRuntimeHandler(board);
     }
     throw new Error(`Unsupported board name: ${board}`);
 }
@@ -147,7 +182,7 @@ export function registerFlashRuntimeCommand(program: Command) {
     program
         .command('flash-runtime')
         .description('flash the BlueScript runtime to the board.')
-        .argument('<board-name>', 'the name of the board to flash (e.g., esp32)') 
+        .argument('<board-name>', 'the name of the board to flash (e.g., esp32, esp32s3)')
         .option('-p, --port <port>', 'serial port to flash to')
         .option('-d, --device-name <device-name>', `device name to flash to, the default is '${DEFAULT_DEVICE_NAME}'`)
         .action(handleFlashRuntimeCommand);

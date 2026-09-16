@@ -9,8 +9,17 @@ import { ElfReader } from "./tools/elf-reader";
 import generateLinkerScript from "./tools/linker-script";
 
 
+export type Esp32Target = 'esp32' | 'esp32s3';
+
+export const ESP32_TARGET_BUILD_DIRS: Record<Esp32Target, string> = {
+    esp32: 'build',
+    esp32s3: 'build-esp32s3',
+};
+
 export type Esp32ToolchainConfig = {
     runtimeDir: string,
+    // Chip target of the runtime firmware. Defaults to 'esp32'.
+    target?: Esp32Target,
     compilerToolchain: {
         gcc: string,
         ar: string,
@@ -34,7 +43,9 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32, MemoryIma
 #include "${this.cRuntimeH}"
 `;
     }
-    get runtimeElf() { return path.join(this.config.runtimeDir, 'ports/esp32/build/bluescript.elf'); }
+    get target(): Esp32Target { return this.config.target ?? 'esp32'; }
+    get runtimeBuildDir() { return path.join(this.config.runtimeDir, 'ports/esp32', ESP32_TARGET_BUILD_DIRS[this.target]); }
+    get runtimeElf() { return path.join(this.runtimeBuildDir, 'bluescript.elf'); }
     get cRuntimeH() { return path.join(this.config.runtimeDir, 'core/include/c-runtime.h'); }
     get builtinModulePath() { return path.join(this.config.runtimeDir, 'ports/esp32/std-module.bs'); }
     get ld() { return this.config.compilerToolchain.ld; }
@@ -43,7 +54,7 @@ export class Esp32Toolchain implements BoardToolchain<PackageForEsp32, MemoryIma
     constructor(config: Esp32ToolchainConfig, memoryLayout: MemoryLayout) {
         this.memory = new ShadowMemory(memoryLayout);
         this.config = config;
-        this.espIdfComponents = new EspIdfComponents(config.runtimeDir, config.espDir);
+        this.espIdfComponents = new EspIdfComponents(this.runtimeBuildDir, config.espDir, this.target);
 
         const elfReader = new ElfReader(this.runtimeElf);
         this.definedSymbols = new Map(elfReader.readAllSymbols().map(s => [s.name, s]));
@@ -193,13 +204,13 @@ class EspIdfComponents {
             include_dirs: string[]
     }};
 
-    constructor(runtimeDir: string, espDir: string) {
-        this.sdkConfigDir = path.join(runtimeDir, 'ports/esp32/build/config');
-        const dependenciesFile = path.join(runtimeDir, 'ports/esp32/build/project_description.json');
+    constructor(runtimeBuildDir: string, espDir: string, target: Esp32Target) {
+        this.sdkConfigDir = path.join(runtimeBuildDir, 'config');
+        const dependenciesFile = path.join(runtimeBuildDir, 'project_description.json');
         this.dependenciesInfo = JSON.parse(fs.readFileSync(dependenciesFile).toString()).build_component_info;
         this.commonIncludeDirs = this.getIncludeDirs(this.commonComponents);
         this.commonArchiveFiles = this.getArchiveFilePaths(this.commonComponents);
-        this.ldFiles = this.getLdFiles(espDir);
+        this.ldFiles = this.getLdFiles(espDir, target);
     }
 
     public getIncludeDirs(rootComponentNames: string[]) {
@@ -214,18 +225,24 @@ class EspIdfComponents {
         return includeDirs;
     }
 
-    private getLdFiles(espDir: string) {
+    private getLdFiles(espDir: string, target: Esp32Target) {
         // These paths are extracted from logs of `idf.py build` command.
         // Should be improved.
+        const romLdFiles: Record<Esp32Target, string[]> = {
+            esp32: [
+                'esp32.rom.ld', 'esp32.rom.api.ld', 'esp32.rom.libgcc.ld',
+                'esp32.rom.newlib-data.ld', 'esp32.rom.syscalls.ld', 'esp32.rom.newlib-funcs.ld',
+            ],
+            esp32s3: [
+                'esp32s3.rom.ld', 'esp32s3.rom.api.ld', 'esp32s3.rom.libgcc.ld',
+                'esp32s3.rom.bt_funcs.ld', 'esp32s3.rom.wdt.ld',
+                'esp32s3.rom.version.ld', 'esp32s3.rom.newlib.ld',
+            ],
+        };
         return [
-            path.join(espDir, `esp-idf/components/esp_rom/esp32/ld/esp32.rom.ld`),
-            path.join(espDir, `esp-idf/components/esp_rom/esp32/ld/esp32.rom.api.ld`),
-            path.join(espDir, `esp-idf/components/esp_rom/esp32/ld/esp32.rom.libgcc.ld`),
-            path.join(espDir, `esp-idf/components/esp_rom/esp32/ld/esp32.rom.newlib-data.ld`),
-            path.join(espDir, `esp-idf/components/esp_rom/esp32/ld/esp32.rom.syscalls.ld`),
-            path.join(espDir, `esp-idf/components/esp_rom/esp32/ld/esp32.rom.newlib-funcs.ld`),
-            path.join(espDir, `esp-idf/components/soc/esp32/ld/esp32.peripherals.ld`),
-        ]
+            ...romLdFiles[target].map(f => path.join(espDir, `esp-idf/components/esp_rom/${target}/ld/${f}`)),
+            path.join(espDir, `esp-idf/components/soc/${target}/ld/${target}.peripherals.ld`),
+        ];
     }
 
     public getArchiveFilePaths(rootComponentNames: string[]) {

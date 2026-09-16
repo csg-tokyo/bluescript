@@ -434,7 +434,10 @@ void bs_ble_init(void)
     }
     ESP_ERROR_CHECK( ret );
 
+#if CONFIG_IDF_TARGET_ESP32
+    // Only the original ESP32 has a Classic BT controller whose memory can be released.
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
+#endif
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ret = esp_bt_controller_init(&bt_cfg);

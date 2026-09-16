@@ -33,12 +33,18 @@ const esp32ProjectSchema = baseConfigSchema.extend({
     espIdfComponents: z.array(z.string()).default([]),
 });
 
+const esp32s3ProjectSchema = baseConfigSchema.extend({
+    boardName: z.literal('esp32s3'),
+    espIdfComponents: z.array(z.string()).default([]),
+});
+
 const hostProjectSchema = baseConfigSchema.extend({
     boardName: z.literal('host'),
 });
 
 const projectConfigSchema = z.discriminatedUnion('boardName', [
     esp32ProjectSchema,
+    esp32s3ProjectSchema,
     hostProjectSchema,
 ]);
 

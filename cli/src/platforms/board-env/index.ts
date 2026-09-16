@@ -1,23 +1,24 @@
 import * as os from 'os';
 import { Esp32Env, Esp32UnixEnv, Esp32WindowsEnv } from './esp32-env';
 import { CommonBoardEnv, BoardEnv } from './common-env';
-import { BoardName } from '../../config/board-utils';
+import { BoardName, isEsp32FamilyBoard } from '../../config/board-utils';
 import { HostEnv, HostUnixEnv, HostWindowsEnv } from './host-env';
 
 
 type BoardEnvMap = {
     esp32: Esp32Env;
+    esp32s3: Esp32Env;
     host: HostEnv;
 };
 
 export function createBoardEnv<B extends BoardName>(board: B): BoardEnvMap[B];
 export function createBoardEnv(board: BoardName): BoardEnvMap[BoardName] {
     const osType = os.platform();
-    if (board === 'esp32') {
+    if (isEsp32FamilyBoard(board)) {
         if (osType === 'darwin' || osType === 'linux')
-            return new Esp32UnixEnv();
+            return new Esp32UnixEnv(board);
         if (osType === 'win32')
-            return new Esp32WindowsEnv();
+            return new Esp32WindowsEnv(board);
         throw new Error(`Unsupported OS type: ${osType}.`);
     }
     if (board === 'host') {

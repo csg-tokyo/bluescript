@@ -36,9 +36,20 @@ static esp_partition_mmap_handle_t mapped_iflash_hdlr;
 static esp_partition_mmap_handle_t mapped_dflash_hdlr;
 
 static void iram_init() {
-    uint32_t available_size = heap_caps_get_largest_free_block(MALLOC_CAP_EXEC | MALLOC_CAP_32BIT) - 4;
+    uint32_t largest_block = heap_caps_get_largest_free_block(MALLOC_CAP_EXEC | MALLOC_CAP_32BIT);
+    if (largest_block <= 4) {
+        // No executable heap is available. On chips with memory protection (e.g. ESP32-S3)
+        // this happens when CONFIG_ESP_SYSTEM_MEMPROT_FEATURE is enabled.
+        BS_LOG_ERROR("No executable memory is available for IRAM. Disable CONFIG_ESP_SYSTEM_MEMPROT_FEATURE.")
+        abort();
+    }
+    uint32_t available_size = largest_block - 4;
     iram_size = ALIGN_DOWN(MIN(DEFAULT_IRAM_SIZE, available_size), 4);
     iram_address = heap_caps_malloc(iram_size, MALLOC_CAP_EXEC | MALLOC_CAP_32BIT);
+    if (iram_address == NULL) {
+        BS_LOG_ERROR("Failed to allocate IRAM (%d bytes).", (int)iram_size)
+        abort();
+    }
     BS_LOG_INFO("IRAM Address: %p Size: %d\n", iram_address, (int)iram_size)
 }
 
@@ -46,6 +57,10 @@ static void dram_init() {
     uint32_t available_size = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) - 4;
     dram_size = MIN(DEFAULT_DRAM_SIZE, available_size);
     dram_address = heap_caps_malloc(dram_size, MALLOC_CAP_8BIT);
+    if (dram_address == NULL) {
+        BS_LOG_ERROR("Failed to allocate DRAM (%d bytes).", (int)dram_size)
+        abort();
+    }
     BS_LOG_INFO("DRAM Address: %p Size: %d\n", dram_address, (int)dram_size)
 }
 

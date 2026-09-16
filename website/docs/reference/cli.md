@@ -33,7 +33,7 @@ This command generates a new directory containing:
 
 | Option | Alias | Description |
 | :--- | :--- | :--- |
-| `--board` | `-b` | Specify the target board (`esp32` or `host`). If omitted, an interactive selection list will appear. |
+| `--board` | `-b` | Specify the target board (`esp32`, `esp32s3`, or `host`). If omitted, an interactive selection list will appear. |
 
 **Example:**
 ```bash
@@ -153,14 +153,14 @@ bscript board setup <board-name>
 ```
 
 **Arguments:**
-*   `<board-name>`: The target board identifier (`esp32` or `host`).
+*   `<board-name>`: The target board identifier (`esp32`, `esp32s3`, or `host`).
 
 **Platform requirements:**
 
 | Board | macOS | Windows | Linux |
 | :--- | :--- | :--- | :--- |
 | `host` | `cc`, `make` | MinGW-w64: `gcc`, `mingw32-make` | `gcc`, `make` |
-| `esp32` | Homebrew, Git, Python 3, `make` | Git, Python 3, `make` or `mingw32-make`. See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md). | None (Requirements are automatically installed by setup command.) |
+| `esp32`, `esp32s3` | Homebrew, Git, Python 3, `make` | Git, Python 3, `make` or `mingw32-make`. See [Windows prerequisites](../tutorial/get-started/setup-environment-windows.md). | None (Requirements are automatically installed by setup command.) |
 
 For `host`, see [Try Without Microcontroller](../tutorial/guides/try-without-microcontroller.md).
 
@@ -176,7 +176,7 @@ bscript board flash-runtime <board-name> [options]
 ```
 
 **Arguments:**
-*   `<board-name>`: The target board identifier (e.g., `esp32`).
+*   `<board-name>`: The target board identifier (`esp32` or `esp32s3`).
 
 **Options:**
 
@@ -195,9 +195,29 @@ bscript board flash-runtime esp32 -d my-device
 
 ---
 
+### `bscript board build-runtime <board-name>`
+
+Builds the BlueScript runtime for the board **without flashing it**. Useful when the board is connected to another host: copy the printed build directory there and flash it with `esptool.py --chip <board> -p <port> write_flash @flash_args`, or connect the board to this host and run `bscript board flash-runtime`.
+
+**Arguments:**
+
+*   `<board-name>`: The target board identifier (`esp32` or `esp32s3`).
+
+**Options:**
+
+| Option | Alias | Description |
+| :--- | :--- | :--- |
+| `--device-name <name>` | `-d` | BLE device name embedded in the runtime (default `BlueScript`). |
+
+**Example:**
+
+```bash
+bscript board build-runtime esp32s3 -d my-device
+```
+
 ### `bscript board list`
 
-Lists all board architectures currently supported by the installed CLI version (`esp32` and `host`).
+Lists all board architectures currently supported by the installed CLI version (`esp32`, `esp32s3`, and `host`).
 
 ```bash
 bscript board list
@@ -216,7 +236,7 @@ bscript board remove <board-name> [options]
 By default, this command asks for confirmation before deleting files.
 
 **Arguments:**
-*   `<board-name>`: The target board identifier (`esp32` or `host`).
+*   `<board-name>`: The target board identifier (`esp32`, `esp32s3`, or `host`).
 
 **Options:**
 
@@ -279,5 +299,5 @@ bscript repl -b esp32 -d my-device
 
 | Option | Alias | Description |
 | :--- | :--- | :--- |
-| `--board` | `-b` | Specify the target board (`esp32` or `host`). |
+| `--board` | `-b` | Specify the target board (`esp32`, `esp32s3`, or `host`). |
 | `--device-name` | `-d` | Bluetooth device name to connect to (default: `"BLUESCRIPT"`). **ESP32 only** — must match the name set during `bscript board flash-runtime`. Ignored for `host`. |

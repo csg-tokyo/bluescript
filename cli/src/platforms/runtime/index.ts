@@ -1,6 +1,6 @@
 import { GlobalConfigHandler } from "../../config/global-config";
 import { DEFAULT_DEVICE_NAME } from "../../config/project-config";
-import { BoardName } from "../../config/board-utils";
+import { BoardName, isEsp32FamilyBoard } from "../../config/board-utils";
 import { ProgramOutput } from "../../core/logger/program-output";
 import { BoardRuntime } from "../runtime/board-runtime";
 import { Esp32BoardRuntime } from "../runtime/esp32-board-runtime";
@@ -16,7 +16,7 @@ export function getBoardRuntime(
     deviceName?: string,
     onUnexpectedDisconnect?: () => void,
 ): BoardRuntime {
-    if (boardName === 'esp32') {
+    if (isEsp32FamilyBoard(boardName)) {
         const _deviceName = deviceName ?? DEFAULT_DEVICE_NAME;
         return new Esp32BoardRuntime(_deviceName, programOutput, onUnexpectedDisconnect);
     }

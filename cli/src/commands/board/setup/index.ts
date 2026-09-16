@@ -7,17 +7,18 @@ import chalk from "chalk";
 import { SetupHandler } from "./base";
 import { Esp32DarwinSetupHandler, Esp32WindowsSetupHandler, Esp32LinuxSetupHandler } from "./esp32";
 import { HostUnixSetupHandler, HostWindowsSetupHandler } from "./host";
+import { isEsp32FamilyBoard } from "../../../config/board-utils";
 
 
 function getSetupHandler(board: string, espIdfPath?: string): SetupHandler {
     const osType = os.platform();
-    if (board === 'esp32') {
+    if (isEsp32FamilyBoard(board)) {
         if (osType === 'darwin')
-            return new Esp32DarwinSetupHandler(espIdfPath);
+            return new Esp32DarwinSetupHandler(board, espIdfPath);
         if (osType === 'linux') 
-            return new Esp32LinuxSetupHandler(espIdfPath);
+            return new Esp32LinuxSetupHandler(board, espIdfPath);
         if (osType === 'win32')
-            return new Esp32WindowsSetupHandler(espIdfPath);
+            return new Esp32WindowsSetupHandler(board, espIdfPath);
         throw new Error(`Unsupported OS type: ${osType}.`);
     }
     if (board === 'host') {
@@ -82,7 +83,7 @@ export function registerSetupCommand(program: Command) {
     program
         .command('setup')
         .description('set up the environment for the specified board')
-        .argument('<board-name>', 'name of the board to setup (e.g., esp32)')
+        .argument('<board-name>', 'name of the board to setup (e.g., esp32, esp32s3)')
         .option('--esp-idf <path>', 'path to an existing ESP-IDF directory to copy')
         .action(handleSetupCommand);
 }

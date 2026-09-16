@@ -3,14 +3,24 @@ import * as fs from '../../core/fs';
 import { GLOBAL_SETTINGS } from "../../config/constants";
 import { simpleExec, execShell, execWithLog } from '../../core/command-exec';
 import { BoardEnv, isPackageInstalledOnUnix, isPackageInstalledOnWindows } from './common-env';
+import { Esp32FamilyBoardName } from '../../config/board-utils';
 
 const XTENSA_TOOLCHAIN_DIR = 'xtensa-esp-elf';
-const XTENSA_GCC_NAME = 'xtensa-esp32-elf-gcc';
-const XTENSA_AR_NAME = 'xtensa-esp32-elf-ar';
-const XTENSA_LD_NAME = 'xtensa-esp32-elf-ld';
 
 export abstract class Esp32Env extends BoardEnv {
+    // Chip target passed to ESP-IDF (`esp32`, `esp32s3`, ...).
+    readonly target: Esp32FamilyBoardName;
+
+    constructor(target: Esp32FamilyBoardName = 'esp32') {
+        super();
+        this.target = target;
+    }
+
+    // The ESP-IDF installation is shared by all boards of the ESP32 family.
     get espRootDir() { return path.join(GLOBAL_SETTINGS.BLUESCRIPT_DIR, 'esp'); }
+    get xtensaGccName() { return `xtensa-${this.target}-elf-gcc`; }
+    get xtensaArName() { return `xtensa-${this.target}-elf-ar`; }
+    get xtensaLdName() { return `xtensa-${this.target}-elf-ld`; }
     get idfDir() { return path.join(this.espRootDir, 'esp-idf'); }
     get idfToolsPyFile() { return path.join(this.idfDir, 'tools/idf_tools.py'); }
     get idfVersion() { return 'v5.4'; }
@@ -50,12 +60,20 @@ export abstract class Esp32Env extends BoardEnv {
         }
     }
 
+    isEspIdfInstalled() {
+        return fs.exists(this.idfToolsPyFile);
+    }
+
     removeBoardRoot() {
         fs.removeDir(this.espRootDir);
     }
 
     refreshBoardRoot() {
         this.removeBoardRoot();
+        fs.makeDir(this.espRootDir);
+    }
+
+    ensureBoardRoot() {
         fs.makeDir(this.espRootDir);
     }
 
@@ -119,12 +137,12 @@ export abstract class Esp32Env extends BoardEnv {
 export class Esp32UnixEnv extends Esp32Env {
     get idfInstallShFile() { return path.join(this.idfDir, 'install.sh'); }
     get idfExportFile() { return path.join(this.idfDir, 'export.sh'); }
-    get xtensaGccFileName() { return XTENSA_GCC_NAME; }
-    get xtensaArFileName() { return XTENSA_AR_NAME; }
-    get xtensaLdFileName() { return XTENSA_LD_NAME; }
+    get xtensaGccFileName() { return this.xtensaGccName; }
+    get xtensaArFileName() { return this.xtensaArName; }
+    get xtensaLdFileName() { return this.xtensaLdName; }
 
     async runEspIdfInstallScript() {
-        await execShell(`bash ${JSON.stringify(this.idfInstallShFile)} esp32`);
+        await execShell(`bash ${JSON.stringify(this.idfInstallShFile)} ${this.target}`);
     }
 
     async getXtensaGccDir(pythonCommand: string) {
@@ -156,12 +174,12 @@ export class Esp32WindowsEnv extends Esp32Env {
     get idfExportBatFile() { return path.join(this.idfDir, 'export.bat'); }
     get idfInstallBatFile() { return path.join(this.idfDir, 'install.bat'); }
     get idfExportFile() { return this.idfExportBatFile; }
-    get xtensaGccFileName(): string { return `${XTENSA_GCC_NAME}.exe`; }
-    get xtensaArFileName(): string { return `${XTENSA_AR_NAME}.exe`; }
-    get xtensaLdFileName(): string { return `${XTENSA_LD_NAME}.exe`; }
+    get xtensaGccFileName(): string { return `${this.xtensaGccName}.exe`; }
+    get xtensaArFileName(): string { return `${this.xtensaArName}.exe`; }
+    get xtensaLdFileName(): string { return `${this.xtensaLdName}.exe`; }
 
     async runEspIdfInstallScript() {
-        await execShell(`${this.idfInstallBatFile} esp32`);
+        await execShell(`${this.idfInstallBatFile} ${this.target}`);
     }
 
     async getXtensaGccDir(pythonCommand: string) {

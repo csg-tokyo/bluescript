@@ -4,25 +4,52 @@ import { skip } from "../../../core/logger";
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from '../../../core/fs';
-import { BoardName } from "../../../config/board-utils";
+import { BoardName, Esp32FamilyBoardName, ESP32_FAMILY_BOARD_NAMES } from "../../../config/board-utils";
 import { Esp32UnixEnv, Esp32WindowsEnv } from "../../../platforms/board-env/esp32-env";
 import { GLOBAL_SETTINGS } from "../../../config/constants";
 
 
 export abstract class Esp32SetupHandler extends SetupHandler {
-    boardName: BoardName = "esp32";
+    boardName: BoardName;
     abstract boardEnv: Esp32UnixEnv | Esp32WindowsEnv;
     protected espIdfPath?: string;
     protected pythonCommand?: string;
     protected makeCommand?: string;
 
-    constructor(espIdfPath?: string) {
+    constructor(target: Esp32FamilyBoardName, espIdfPath?: string) {
         super();
+        this.boardName = target;
         this.espIdfPath = espIdfPath;
     }
 
+    // Other boards of the ESP32 family that have already been set up.
+    // They share the ESP-IDF installation with this board.
+    protected otherEsp32FamilyBoardsSetup(): Esp32FamilyBoardName[] {
+        return ESP32_FAMILY_BOARD_NAMES.filter(
+            b => b !== this.boardName && this.globalConfigHandler.isBoardSetup(b));
+    }
+
+    protected reuseExistingEspIdf(): boolean {
+        return this.otherEsp32FamilyBoardsSetup().length > 0 && this.boardEnv.isEspIdfInstalled();
+    }
+
+    protected prepareBoardRoot() {
+        if (this.reuseExistingEspIdf()) {
+            this.boardEnv.ensureBoardRoot();
+        } else {
+            this.boardEnv.refreshBoardRoot();
+        }
+    }
+
     loadEspIdfSetupSteps(): void {
-        if (this.espIdfPath) {
+        if (this.reuseExistingEspIdf()) {
+            const others = this.otherEsp32FamilyBoardsSetup().join(', ');
+            this.setupSteps.push({
+                description: `Reuse ESP-IDF ${this.boardEnv.idfVersion} already installed for ${others}.`,
+                actionMessage: `Reusing existing ESP-IDF...`,
+                action: async () => skip('already installed.'),
+            });
+        } else if (this.espIdfPath) {
             this.setupSteps.push({
                 description: `Copy ESP-IDF from ${this.espIdfPath}.`,
                 actionMessage: `Copying ESP-IDF from ${this.espIdfPath}...`,
@@ -37,7 +64,7 @@ export abstract class Esp32SetupHandler extends SetupHandler {
         }
         
         this.setupSteps.push({
-            description: "Run ESP-IDF install script.",
+            description: `Run ESP-IDF install script for ${this.boardName}.`,
             actionMessage: "Running ESP-IDF install script...",
             action: this.runEspIdfInstallScriptStep.bind(this),
         });
@@ -87,9 +114,9 @@ export abstract class Esp32SetupHandler extends SetupHandler {
 export class Esp32DarwinSetupHandler extends Esp32SetupHandler {
     boardEnv: Esp32UnixEnv;
 
-    constructor(espIdfPath?: string) {
-        super(espIdfPath);
-        this.boardEnv = new Esp32UnixEnv();
+    constructor(target: Esp32FamilyBoardName = 'esp32', espIdfPath?: string) {
+        super(target, espIdfPath);
+        this.boardEnv = new Esp32UnixEnv(target);
     }
 
     loadBoardSetupSteps(): void {
@@ -147,9 +174,9 @@ export class Esp32LinuxSetupHandler extends Esp32SetupHandler {
         }
     }
 
-    constructor(espIdfPath?: string) {
-        super(espIdfPath);
-        this.boardEnv = new Esp32UnixEnv();
+    constructor(target: Esp32FamilyBoardName = 'esp32', espIdfPath?: string) {
+        super(target, espIdfPath);
+        this.boardEnv = new Esp32UnixEnv(target);
         this.distType = this.getDistribution();
     }
 
@@ -300,9 +327,9 @@ KERNEL=="ttyUSB[0-9]*", MODE="0666"
 export class Esp32WindowsSetupHandler extends Esp32SetupHandler {
     boardEnv: Esp32WindowsEnv;
 
-    constructor(espIdfPath?: string) {
-        super(espIdfPath);
-        this.boardEnv = new Esp32WindowsEnv();
+    constructor(target: Esp32FamilyBoardName = 'esp32', espIdfPath?: string) {
+        super(target, espIdfPath);
+        this.boardEnv = new Esp32WindowsEnv(target);
     }
 
     loadBoardSetupSteps(): void {

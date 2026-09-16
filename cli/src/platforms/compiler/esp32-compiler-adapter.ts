@@ -1,6 +1,6 @@
 import { GlobalConfigHandler, Esp32BoardConfig } from "../../config/global-config";
 import { ProjectConfigHandler, PROJECT_DEFAULT_PATHS } from "../../config/project-config";
-import { BoardName } from "../../config/board-utils";
+import { Esp32FamilyBoardName } from "../../config/board-utils";
 import {
     CompilerSession, MemoryImage, MemoryLayout,
     Esp32Toolchain, Esp32ToolchainConfig, Project, PackageForEsp32
@@ -9,23 +9,35 @@ import { CompilerAdapter, CompileContext } from "./compiler-adapter";
 import * as path from 'path';
 
 
-const DUMMY_MEMORY_LAYOUT: MemoryLayout = {
-    iram: { address: 0x40096c34, size: 1000000 },
-    dram: { address: 0x3ffd5b1c, size: 1000000 },
-    iflash: { address: 0x40150000, size: 1000000 },
-    dflash: { address: 0x3f43a000, size: 1000000 },
+// Memory layouts used only for `project check` (no device is connected).
+// The real layout is obtained from the device at runtime.
+const DUMMY_MEMORY_LAYOUTS: Record<Esp32FamilyBoardName, MemoryLayout> = {
+    esp32: {
+        iram: { address: 0x40096c34, size: 1000000 },
+        dram: { address: 0x3ffd5b1c, size: 1000000 },
+        iflash: { address: 0x40150000, size: 1000000 },
+        dflash: { address: 0x3f43a000, size: 1000000 },
+    },
+    esp32s3: {
+        iram: { address: 0x40380000, size: 1000000 },
+        dram: { address: 0x3fc90000, size: 1000000 },
+        iflash: { address: 0x42100000, size: 1000000 },
+        dflash: { address: 0x3c100000, size: 1000000 },
+    },
 };
 
 export class Esp32CompilerAdapter implements CompilerAdapter {
-    readonly boardName: BoardName = 'esp32';
+    readonly boardName: Esp32FamilyBoardName;
     private boardConfig: Esp32BoardConfig;
     private compiler?: CompilerSession<PackageForEsp32, MemoryImage>;
 
     constructor(
         private globalConfigHandler: GlobalConfigHandler,
         private projectConfigHandler: ProjectConfigHandler,
+        boardName: Esp32FamilyBoardName = 'esp32',
     ) {
-        const boardConfig = this.globalConfigHandler.getBoardConfig('esp32');
+        this.boardName = boardName;
+        const boardConfig = this.globalConfigHandler.getBoardConfig(boardName);
         if (boardConfig === undefined) {
             throw new Error(`The environment for ${this.boardName} is not set up.`);
         }
@@ -33,7 +45,7 @@ export class Esp32CompilerAdapter implements CompilerAdapter {
     }
 
     async buildForCheck(): Promise<MemoryImage> {
-        return this.buildProject({ memoryLayout: DUMMY_MEMORY_LAYOUT });
+        return this.buildProject({ memoryLayout: DUMMY_MEMORY_LAYOUTS[this.boardName] });
     }
 
     async buildProject(context?: CompileContext): Promise<MemoryImage> {
@@ -65,6 +77,7 @@ export class Esp32CompilerAdapter implements CompilerAdapter {
         }
         return {
             runtimeDir,
+            target: this.boardName,
             compilerToolchain: this.boardConfig.toolchain,
             espDir: this.boardConfig.rootDir,
         };
@@ -73,7 +86,7 @@ export class Esp32CompilerAdapter implements CompilerAdapter {
 
 
 function createEsp32PackageReader(
-    _boardName: BoardName,
+    boardName: Esp32FamilyBoardName,
     projectConfigHandler: ProjectConfigHandler,
 ): (name: string) => PackageForEsp32 {
     return (name: string) => {
@@ -83,8 +96,8 @@ function createEsp32PackageReader(
         const root = isMain ? mainRoot : subPackageRoot;
         try {
             const configHandler = isMain
-                ? projectConfigHandler.asBoard('esp32')
-                : ProjectConfigHandler.load(root).asBoard('esp32');
+                ? projectConfigHandler.asBoard(boardName)
+                : ProjectConfigHandler.load(root).asBoard(boardName);
             return new PackageForEsp32(
                 name,
                 {

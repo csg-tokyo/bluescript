@@ -36,7 +36,7 @@ export abstract class SetupHandler extends  CommandHandlerWithUpdateCheck {
 
     async setup() {
         this.boardEnv.ensureBlueScriptDir();
-        this.boardEnv.refreshBoardRoot();
+        this.prepareBoardRoot();
         for (const step of this.setupSteps) {
             await runStep(step.actionMessage, step.action);
         }
@@ -47,6 +47,11 @@ export abstract class SetupHandler extends  CommandHandlerWithUpdateCheck {
     getSetupPlan(): string[] {
         return this.setupSteps.map(step => step.description);
     };
+
+    // Prepare the directory for the board environment. By default the directory is recreated.
+    protected prepareBoardRoot() {
+        this.boardEnv.refreshBoardRoot();
+    }
 
     abstract loadBoardSetupSteps(): void;
     abstract setBoardConfig(): Promise<void>;

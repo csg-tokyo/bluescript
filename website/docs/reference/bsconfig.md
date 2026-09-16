@@ -26,7 +26,7 @@ These fields are shared across all supported boards.
 | Field | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
 | `projectName` | Yes | — | Project name. Also used as the main package name during compilation. |
-| `boardName` | Yes | — | Target board. Supported: `esp32`, `host`. |
+| `boardName` | Yes | — | Target board. Supported: `esp32`, `esp32s3`, `host`. |
 | `version` | No | `"1.0.0"` | Project version string. |
 | `vmVersion` | No | CLI version | BlueScript runtime version this project targets. |
 | `srcDir` | No | `"."` | Directory containing BlueScript (`.bs`) and C (`.c`) source files, relative to the project root. |
@@ -70,7 +70,7 @@ Use `bscript project install` to add packages instead of editing this field by h
 
 ## ESP32 fields
 
-When `boardName` is `"esp32"`, the following additional fields are available. These fields do not apply to `host` projects.
+When `boardName` is `"esp32"` or `"esp32s3"`, the following additional fields are available. These fields do not apply to `host` projects.
 
 | Field | Required | Default | Description |
 | :--- | :---: | :--- | :--- |

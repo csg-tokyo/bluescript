@@ -7,6 +7,7 @@ import packageJson from '../package.json';
 import { registerSetupCommand } from './commands/board/setup/index';
 import { registerRemoveCommand } from './commands/board/remove';
 import { registerFlashRuntimeCommand } from './commands/board/flash-runtime';
+import { registerBuildRuntimeCommand } from './commands/board/build-runtime';
 import { registerListCommand } from './commands/board/list';
 import { registerCreateProjectCommand } from './commands/project/create';
 import { registerRunCommand } from './commands/project/run';
@@ -26,6 +27,7 @@ function registerBoardCommands(program: Command) {
     registerSetupCommand(boardCommand);
     registerRemoveCommand(boardCommand);
     registerFlashRuntimeCommand(boardCommand);
+    registerBuildRuntimeCommand(boardCommand);
     registerListCommand(boardCommand);
     registerFullcleanCommand(boardCommand);
     registerUpdateCommand(boardCommand);
